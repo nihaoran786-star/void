@@ -8,6 +8,7 @@ import {
   Plus,
   Puzzle,
   Search as SearchIcon,
+  Send,
   Trash2,
   Wrench,
 } from 'lucide-react';
@@ -60,6 +61,13 @@ import {
   buildAgentToolGroups,
   setCapabilityGroupEnabled,
 } from './agentCapabilityGroups';
+import {
+  canDispatchCustomizationTarget,
+  CustomizationTaskDispatchError,
+  customizationTaskDispatchService,
+  type CustomizationTaskDispatcher,
+} from '@/app/services/CustomizationTaskDispatchService';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 
 const UNGROUPED_SKILL_GROUP = '__ungrouped__';
 const AGENT_PAGE_SIZE = 8;
@@ -221,12 +229,18 @@ function buildSkillGroups(
     });
 }
 
-const AgentsHomeView: React.FC = () => {
+interface AgentsHomeViewProps {
+  taskDispatcher: CustomizationTaskDispatcher;
+}
+
+const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
   const { t } = useTranslation('scenes/agents');
   const { t: tSkills } = useTranslation('scenes/skills');
   const notification = useNotification();
   const { workspacePath } = useCurrentWorkspace();
+  const preferredScenario = useSessionModeStore(state => state.mode);
   const [deletingAgent, setDeletingAgent] = useState(false);
+  const [dispatchingAgentKey, setDispatchingAgentKey] = useState<string | null>(null);
   const {
     searchQuery,
     agentFilterLevel,
@@ -573,6 +587,36 @@ const AgentsHomeView: React.FC = () => {
     resetEditState();
   }, [resetEditState]);
 
+  const handleDispatchSelectedAgent = useCallback(async () => {
+    const target = selectedAgent?.catalogEntry;
+    if (!selectedAgent || !target) {
+      notification.error(t('catalog.dispatch.errors.target_not_dispatchable'));
+      return;
+    }
+    setDispatchingAgentKey(selectedAgent.key);
+    try {
+      await taskDispatcher.dispatch({
+        target,
+        preferredScenario,
+      });
+      closeAgentDetails();
+    } catch (error) {
+      const code = error instanceof CustomizationTaskDispatchError
+        ? error.code
+        : 'draft_open_failed';
+      notification.error(t(`catalog.dispatch.errors.${code}`));
+    } finally {
+      setDispatchingAgentKey(null);
+    }
+  }, [
+    closeAgentDetails,
+    notification,
+    preferredScenario,
+    selectedAgent,
+    t,
+    taskDispatcher,
+  ]);
+
   useEffect(() => {
     if (!selectedAgentCapabilityTabs.some((tab) => tab.key === activeCapabilityTab)) {
       setActiveCapabilityTab(selectedAgentCapabilityTabs[0]?.key ?? 'tools');
@@ -802,6 +846,21 @@ const AgentsHomeView: React.FC = () => {
               <span>{t('agentCard.meta.subagents', { count: selectedAgentManageableSubagents.filter((subagent) => subagent.effectiveEnabled).length })}</span>
             ) : null}
           </>
+        ) : null}
+        actions={selectedAgent ? (
+          <Button
+            variant="primary"
+            size="small"
+            disabled={
+              !selectedAgent.catalogEntry
+              || !canDispatchCustomizationTarget(selectedAgent.catalogEntry)
+            }
+            isLoading={dispatchingAgentKey === selectedAgent.key}
+            onClick={() => void handleDispatchSelectedAgent()}
+          >
+            <Send size={14} />
+            {t('agentCard.actions.dispatchTask')}
+          </Button>
         ) : null}
       >
         {selectedAgent ? (
@@ -1392,10 +1451,12 @@ const AgentsHomeView: React.FC = () => {
 
 export interface AgentsSceneProps {
   capabilityService?: CustomizationRuntimeCapabilityReader;
+  taskDispatcher?: CustomizationTaskDispatcher;
 }
 
 const AgentsScene: React.FC<AgentsSceneProps> = ({
   capabilityService = customizationRuntimeCapabilityService,
+  taskDispatcher = customizationTaskDispatchService,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const runtimeCapability = capabilityService.getCapability('catalog_read');
@@ -1485,7 +1546,11 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
           {t('catalog.tabs.teams')}
         </button>
       </div>
-      {catalogView === 'agents' ? <AgentsHomeView /> : <TeamsCatalogView />}
+      {catalogView === 'agents' ? (
+        <AgentsHomeView taskDispatcher={taskDispatcher} />
+      ) : (
+        <TeamsCatalogView taskDispatcher={taskDispatcher} />
+      )}
     </div>
   );
 };

@@ -4,3 +4,4 @@
 
 export * from './AppManager';
 export { appManager } from './AppManager';
+export * from './CustomizationTaskDispatchService';

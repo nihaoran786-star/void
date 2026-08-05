@@ -111,19 +111,37 @@ const readSource = (relativePath: string): string =>
     .replace(/\r\n/g, '\n');
 
 describe('composer persona presentation contract', () => {
-  it('shows a localized agent or team name instead of an internal id', () => {
+  it('renders one capsule with localized catalog names and safe binding fallbacks', () => {
     const source = readSource('./ChatInput.tsx');
-    const capsule = source.match(
-      /\{composerActivePersonaBinding && \([\s\S]*?<\/div>\s*\)\}/,
-    )?.[0];
+    const styles = readSource('./ChatInput.scss');
+    const capsuleClass =
+      'className="void-chat-input__agent-capsule void-chat-input__persona-capsule"';
+    const capsuleStart = source.indexOf(capsuleClass);
+    const capsule = source.slice(capsuleStart, source.indexOf('</div>', capsuleStart) + 6);
 
+    expect(source.match(new RegExp(capsuleClass, 'g'))).toHaveLength(1);
     expect(source).toContain('localizeCatalogPresentation(');
     expect(source).toContain("tCommon('customization.composerPersona.selectedAgent')");
     expect(source).toContain("tCommon('customization.composerPersona.teams')");
+    expect(source).toContain('const hasActiveComposerPersona = Boolean(');
+    expect(source).toContain('const isActiveComposerTeam = Boolean(');
+    expect(source).toContain('resolveEmployeeAvatarUrl(activePersonaAvatarIdentity)');
+    expect(source).toContain('composerActiveTeam?.identity.id');
+    expect(source).toContain('composerActiveAgent?.identity.id');
+    expect(source).toContain('composerActivePersonaBinding.teamDefinitionId');
+    expect(source).toContain('composerActivePersonaBinding.personaId');
+    expect(source).toContain(
+      'const [failedPersonaAvatarSrc, setFailedPersonaAvatarSrc] = useState<string | null>(null);',
+    );
+    expect(source).toContain('setFailedPersonaAvatarSrc(null);');
     expect(capsule).toContain('{activePersonaDisplayName}');
-    expect(capsule).toContain("composerActivePersonaBinding.kind === 'team_lead'");
-    expect(capsule).toContain('<Users size={12} aria-hidden />');
+    expect(capsule).toContain('className="void-chat-input__persona-avatar"');
+    expect(capsule).toContain('onError={() => setFailedPersonaAvatarSrc(activePersonaAvatarSrc)}');
+    expect(capsule).toContain('<Users size={12} />');
+    expect(capsule).toContain('<Bot size={12} />');
     expect(capsule).not.toContain('personaId');
+    expect(capsule).not.toContain('identity.id');
+    expect(styles).toMatch(/&__persona-avatar,\n\s*&__persona-avatar-fallback \{\n\s*width: 16px;\n\s*height: 16px;\n\s*flex: 0 0 16px;/);
   });
 
   it('keeps agent and team selection mutually exclusive and preserves fixed-team actions', () => {

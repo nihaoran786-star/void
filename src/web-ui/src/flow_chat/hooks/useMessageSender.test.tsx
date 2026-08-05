@@ -9,6 +9,8 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mocks = vi.hoisted(() => ({
   createChatSession: vi.fn(),
+  deleteChatSession: vi.fn(),
+  discardLocalSession: vi.fn(),
   sendMessage: vi.fn(),
   getConfig: vi.fn(),
   resolveSessionReferences: vi.fn(),
@@ -18,6 +20,8 @@ vi.mock('../services/FlowChatManager', () => ({
   FlowChatManager: {
     getInstance: () => ({
       createChatSession: mocks.createChatSession,
+      deleteChatSession: mocks.deleteChatSession,
+      discardLocalSession: mocks.discardLocalSession,
       sendMessage: mocks.sendMessage,
     }),
   },
@@ -37,6 +41,7 @@ vi.mock('@/infrastructure/api', () => ({
 
 import {
   useMessageSender,
+  type EnsuredMessageSession,
   type MessageSendReceipt,
 } from './useMessageSender';
 
@@ -60,12 +65,15 @@ describe('useMessageSender deferred session creation', () => {
   let container: HTMLDivElement;
   let root: Root;
   let sender: {
+    ensureSession: () => Promise<EnsuredMessageSession>;
     sendMessage: (message: string) => Promise<MessageSendReceipt | undefined>;
   } | null;
 
   beforeEach(() => {
     mocks.createChatSession.mockReset().mockResolvedValue('session-created');
     mocks.sendMessage.mockReset().mockResolvedValue(undefined);
+    mocks.deleteChatSession.mockReset().mockResolvedValue(undefined);
+    mocks.discardLocalSession.mockReset();
     mocks.getConfig.mockReset().mockImplementation((key: string) => {
       if (key === 'ai.agent_models') return {};
       if (key === 'ai.models') return [];
@@ -229,6 +237,174 @@ describe('useMessageSender deferred session creation', () => {
       executionPolicy: 'agentic',
       resolvedSkillRefs: [],
     });
+  });
+
+  it('首发严格等待人格激活并使用激活结果生成快照', async () => {
+    let finishActivation: (() => void) | undefined;
+    const activation = new Promise<void>((resolve) => {
+      finishActivation = resolve;
+    });
+    const onSessionCreated = vi.fn(async (sessionId: string) => {
+      await activation;
+      return {
+        sessionId,
+        sessionKind: 'normal' as const,
+        status: 'selected' as const,
+        scenario: 'media' as const,
+        executionPolicy: 'Media',
+        activePersonaBinding: {
+          kind: 'agent' as const,
+          personaId: 'user::void::designer',
+          personaRevision: { status: 'known' as const, value: 'persona-v1' },
+        },
+      };
+    });
+
+    function Harness() {
+      const value = useMessageSender({
+        contexts: [],
+        currentAgentType: 'Media',
+        onSessionCreated,
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    let sending: Promise<MessageSendReceipt | undefined> | undefined;
+    await act(async () => {
+      sending = sender?.sendMessage('开始设计');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(mocks.createChatSession).toHaveBeenCalledOnce();
+    expect(onSessionCreated).toHaveBeenCalledWith('session-created');
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishActivation?.();
+      await sending;
+    });
+    expect(
+      mocks.sendMessage.mock.calls[0]?.[5].userMessageMetadata.personaTurnSnapshot,
+    ).toMatchObject({
+      kind: 'agent',
+      personaKey: 'user::void::designer',
+      personaRevision: 'persona-v1',
+      scenario: 'media',
+      executionPolicy: 'Media',
+    });
+  });
+
+  it('人格激活失败时保留错误且不发送首条消息', async () => {
+    mocks.createChatSession
+      .mockResolvedValueOnce('session-failed')
+      .mockResolvedValueOnce('session-retry');
+    const onSessionCreated = vi.fn()
+      .mockRejectedValueOnce(new Error('activation failed'))
+      .mockResolvedValueOnce(undefined);
+
+    function Harness() {
+      const value = useMessageSender({
+        contexts: [],
+        currentAgentType: 'agentic',
+        onSessionCreated,
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    await expect(act(async () => {
+      await sender?.sendMessage('不能发送');
+    })).rejects.toThrow('activation failed');
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+    expect(mocks.deleteChatSession).toHaveBeenCalledWith('session-failed');
+
+    await act(async () => {
+      await sender?.sendMessage('重试发送');
+    });
+    expect(mocks.createChatSession).toHaveBeenCalledTimes(2);
+    expect(onSessionCreated).toHaveBeenCalledTimes(2);
+    expect(mocks.sendMessage).toHaveBeenCalledWith(
+      '重试发送',
+      'session-retry',
+      '重试发送',
+      'agentic',
+      undefined,
+      expect.any(Object),
+    );
+  });
+
+  it('连续两份未持久化草稿会分别创建新会话', async () => {
+    mocks.createChatSession
+      .mockResolvedValueOnce('session-A')
+      .mockResolvedValueOnce('session-B');
+
+    function Harness() {
+      const value = useMessageSender({
+        contexts: [],
+        currentAgentType: 'Cowork',
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    const first = await sender?.ensureSession();
+    const second = await sender?.ensureSession();
+
+    expect(first?.sessionId).toBe('session-A');
+    expect(second?.sessionId).toBe('session-B');
+    expect(mocks.createChatSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('同一次未完成的草稿创建会共用一个进行中 Promise', async () => {
+    let finishCreation: ((sessionId: string) => void) | undefined;
+    mocks.createChatSession.mockImplementationOnce(() => new Promise<string>((resolve) => {
+      finishCreation = resolve;
+    }));
+
+    function Harness() {
+      const value = useMessageSender({
+        contexts: [],
+        currentAgentType: 'Cowork',
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    const first = sender?.ensureSession();
+    const second = sender?.ensureSession();
+    await vi.waitFor(() => {
+      expect(mocks.createChatSession).toHaveBeenCalledOnce();
+    });
+
+    finishCreation?.('session-shared');
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { sessionId: 'session-shared' },
+      { sessionId: 'session-shared' },
+    ]);
+    expect(mocks.createChatSession).toHaveBeenCalledOnce();
   });
 
   it('captures the reusable Team instance and lead identity in one immutable snapshot', async () => {

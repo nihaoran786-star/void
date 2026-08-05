@@ -223,6 +223,99 @@ describe('useComposerPersonaSelection', () => {
     });
   });
 
+  it('新会话草稿加载同一目录，选择和清除只更新草稿目标', async () => {
+    let draftTarget: typeof entry | TeamCatalogEntry | null = null;
+    const onChange = vi.fn((target: typeof draftTarget) => {
+      draftTarget = target;
+    });
+
+    function DraftHarness() {
+      const value = useComposerPersonaSelection({
+        workspacePath: 'D:/repo',
+        currentAgentType: 'agentic',
+        enabled: true,
+        deferredSelection: { target: draftTarget, onChange },
+        service,
+        teamActivationService,
+        capabilityService: supportedCapabilityService,
+        persistPersona,
+      });
+      useEffect(() => {
+        current = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<DraftHarness />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(current?.enabled).toBe(true);
+    expect(current?.agents).toContain(entry);
+
+    await act(async () => {
+      await current?.selectAgent(entry);
+    });
+    expect(onChange).toHaveBeenLastCalledWith(entry);
+    expect(persistPersona).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await current?.runTeamAction(reusableTeamEntry, {
+        launchDeepReview: vi.fn(),
+        openShortDrama: vi.fn(),
+      });
+    });
+    expect(onChange).toHaveBeenLastCalledWith(reusableTeamEntry);
+    expect(activateReusableTeam).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await current?.clearAgent();
+    });
+    expect(onChange).toHaveBeenLastCalledWith(null);
+    expect(persistPersona).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['Media', 'media'],
+    ['Cowork', 'cowork'],
+  ] as const)(
+    '无会话草稿从 %s 推导 %s 场景并保留工作区与执行策略',
+    async (currentAgentType, expectedScenario) => {
+      const listSpy = vi.spyOn(service, 'list');
+
+      function DraftHarness() {
+        const value = useComposerPersonaSelection({
+          workspacePath: 'D:\\draft-repo',
+          currentAgentType,
+          enabled: true,
+          deferredSelection: { target: null, onChange: vi.fn() },
+          service,
+          teamActivationService,
+          capabilityService: supportedCapabilityService,
+          persistPersona,
+        });
+        useEffect(() => {
+          current = value;
+        }, [value]);
+        return null;
+      }
+
+      await act(async () => {
+        root.render(<DraftHarness />);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(listSpy).toHaveBeenCalledWith({
+        scenario: expectedScenario,
+        executionPolicy: currentAgentType,
+        workspacePath: 'D:/draft-repo',
+      });
+      listSpy.mockRestore();
+    },
+  );
+
   it('只把身份、类型和已知版本完全匹配的目录项标记为当前智能体或团队', async () => {
     const renderBinding = async (
       activePersonaBinding: Session['activePersonaBinding'],

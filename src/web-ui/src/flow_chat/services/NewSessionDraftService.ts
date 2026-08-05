@@ -1,6 +1,8 @@
 import type { WorkspaceInfo } from '@/shared/types';
 import {
   type NewSessionDraftWorkspace,
+  type NewSessionDraftCustomization,
+  type NewSessionDraftPersonaTarget,
   type SessionMode,
   useSessionModeStore,
 } from '@/app/stores/sessionModeStore';
@@ -32,15 +34,23 @@ function toDraftWorkspace(
 export function beginNewSessionDraft(
   mode: SessionMode,
   suggestedWorkspace?: WorkspaceInfo | null,
+  customization?: NewSessionDraftCustomization,
 ): void {
   useSessionModeStore.getState().beginDraft(
     mode,
     toDraftWorkspace(suggestedWorkspace),
+    customization,
   );
   flowChatStore.setState(previous => ({
     ...previous,
     activeSessionId: null,
   }));
+}
+
+export function selectNewSessionDraftPersona(
+  target: NewSessionDraftPersonaTarget | null,
+): void {
+  useSessionModeStore.getState().setDraftPersonaTarget(target);
 }
 
 export function selectNewSessionDraftWorkspace(

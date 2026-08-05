@@ -8,7 +8,7 @@
  * ImageContextData[] through to the backend.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { FlowChatManager } from '../services/FlowChatManager';
 import type {
   ContextItem,
@@ -68,8 +68,10 @@ interface UseMessageSenderProps {
   currentAgentType?: string;
   /** Workspace and transport scope for a not-yet-created session. */
   newSessionConfig?: SessionConfig;
-  /** Called once after a deferred session is created successfully. */
-  onSessionCreated?: (sessionId: string) => void;
+  /** Called after a deferred session exists and before its first message is sent. */
+  onSessionCreated?: (
+    sessionId: string,
+  ) => void | PersonaTurnSnapshotDescriptor | Promise<void | PersonaTurnSnapshotDescriptor>;
   /** Authorized scope used by the session-reference Module Interface. */
   sessionReferenceScope?: Omit<SessionReferenceAccessScope, 'currentSessionId'>;
   /**
@@ -85,7 +87,14 @@ export interface MessageSendReceipt {
   submittedContextIds: readonly string[];
 }
 
+export interface EnsuredMessageSession {
+  sessionId: string;
+  personaSessionState?: PersonaTurnSnapshotDescriptor;
+}
+
 interface UseMessageSenderReturn {
+  /** Create and prepare the deferred parent session without sending a message. */
+  ensureSession: () => Promise<EnsuredMessageSession>;
   /** Send a message */
   sendMessage: (
     message: string,
@@ -111,6 +120,78 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     personaSessionState,
   } = props;
 
+  const pendingSessionRef = useRef<Promise<EnsuredMessageSession> | null>(null);
+  const preparedSessionRef = useRef<EnsuredMessageSession | null>(null);
+
+  const ensureSession = useCallback(async (): Promise<EnsuredMessageSession> => {
+    if (
+      preparedSessionRef.current
+      && preparedSessionRef.current.sessionId === currentSessionId
+    ) {
+      return preparedSessionRef.current;
+    }
+
+    if (currentSessionId) {
+      const prepared = {
+        sessionId: currentSessionId,
+      };
+      preparedSessionRef.current = prepared;
+      return prepared;
+    }
+
+    if (pendingSessionRef.current) {
+      return pendingSessionRef.current;
+    }
+
+    const creation = (async (): Promise<EnsuredMessageSession> => {
+      const { configManager } = await import('@/infrastructure/config/services/ConfigManager');
+      const [agentModels, allModels, defaultModels] = await Promise.all([
+        configManager.getConfig<Record<string, string>>('ai.agent_models') || {},
+        configManager.getConfig<AIModelConfig[]>('ai.models') || [],
+        configManager.getConfig<DefaultModelsConfig>('ai.default_models') || {},
+      ]);
+      const agentType = currentAgentType || 'agentic';
+      const modelId = normalizeModelSelection(agentModels[agentType], allModels, defaultModels);
+      const sessionId = await FlowChatManager.getInstance().createChatSession({
+        ...newSessionConfig,
+        modelName: modelId || undefined,
+      }, agentType);
+      let preparedPersona: void | PersonaTurnSnapshotDescriptor;
+      try {
+        preparedPersona = await onSessionCreated?.(sessionId);
+      } catch (activationError) {
+        const flowChatManager = FlowChatManager.getInstance();
+        try {
+          await flowChatManager.deleteChatSession(sessionId);
+        } catch (cleanupError) {
+          flowChatManager.discardLocalSession(sessionId);
+          log.warn('Failed to delete unprepared session; discarded local projection', {
+            sessionId,
+            cleanupError: cleanupError instanceof Error
+              ? cleanupError.message
+              : 'unknown',
+          });
+        }
+        throw activationError;
+      }
+      const prepared = {
+        sessionId,
+        ...(preparedPersona ? { personaSessionState: preparedPersona } : {}),
+      };
+      preparedSessionRef.current = prepared;
+      log.debug('Session created', { sessionId, modelId, agentType });
+      return prepared;
+    })();
+    pendingSessionRef.current = creation;
+    try {
+      return await creation;
+    } finally {
+      if (pendingSessionRef.current === creation) {
+        pendingSessionRef.current = null;
+      }
+    }
+  }, [currentAgentType, currentSessionId, newSessionConfig, onSessionCreated]);
+
   const sendMessage = useCallback(async (
     message: string,
     options?: {
@@ -123,8 +204,8 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     }
 
     const trimmedMessage = message.trim();
-    const personaTurnSnapshot = personaSessionState
-      ? structuredClone(createPersonaTurnSnapshot(personaSessionState))
+    const capturedPersonaSessionState = personaSessionState
+      ? structuredClone(personaSessionState)
       : undefined;
     const requestedSessionId = currentSessionId ?? null;
     const submittedContexts = contexts.map(context => ({ ...context }));
@@ -152,26 +233,20 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
 
     try {
       const flowChatManager = FlowChatManager.getInstance();
+      let effectivePersonaSessionState = capturedPersonaSessionState;
 
-      if (!sessionId) {
-        const { configManager } = await import('@/infrastructure/config/services/ConfigManager');
-        const [agentModels, allModels, defaultModels] = await Promise.all([
-          configManager.getConfig<Record<string, string>>('ai.agent_models') || {},
-          configManager.getConfig<AIModelConfig[]>('ai.models') || [],
-          configManager.getConfig<DefaultModelsConfig>('ai.default_models') || {},
-        ]);
-        const agentType = currentAgentType || 'agentic';
-        const modelId = normalizeModelSelection(agentModels[agentType], allModels, defaultModels);
-
-        sessionId = await flowChatManager.createChatSession({
-          ...newSessionConfig,
-          modelName: modelId || undefined,
-        }, agentType);
-        onSessionCreated?.(sessionId);
-        log.debug('Session created', { sessionId, modelId, agentType });
+      if (!sessionId || onSessionCreated) {
+        const prepared = await ensureSession();
+        sessionId = prepared.sessionId;
+        effectivePersonaSessionState = prepared.personaSessionState
+          ? structuredClone(prepared.personaSessionState)
+          : effectivePersonaSessionState;
       } else {
         log.debug('Reusing existing session', { sessionId });
       }
+      const personaTurnSnapshot = effectivePersonaSessionState
+        ? structuredClone(createPersonaTurnSnapshot(effectivePersonaSessionState))
+        : undefined;
 
       const imageContexts = submittedContexts.filter(ctx => ctx.type === 'image') as ImageContext[];
       const sessionReferences = submittedContexts.filter(
@@ -260,13 +335,14 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     onSuccess,
     onExitTemplateMode,
     currentAgentType,
-    newSessionConfig,
     onSessionCreated,
+    ensureSession,
     sessionReferenceScope,
     personaSessionState,
   ]);
 
   return {
+    ensureSession,
     sendMessage,
     isSending: false,
   };

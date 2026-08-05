@@ -999,6 +999,27 @@
     color: var(--color-text-primary);
   }
 
+  &__persona-avatar,
+  &__persona-avatar-fallback {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border-radius: 50%;
+  }
+
+  &__persona-avatar {
+    display: block;
+    object-fit: cover;
+  }
+
+  &__persona-avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--element-bg-medium);
+    color: var(--color-text-secondary);
+  }
+
   &__boost-submenu-trigger:focus-visible,
   &__boost-submenu-item:focus-visible,
   &__boost-submenu-manage:focus-visible,

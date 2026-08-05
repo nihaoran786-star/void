@@ -558,7 +558,22 @@ Agent and team discovery supports:
 - search by localized name, purpose, capability tag, and runtime alias;
 - detail view with responsibilities, suggested prompts, Skills, tools,
   permissions, and team structure;
-- one primary **召唤** action.
+- one primary **派发任务** action.
+
+**派发任务** always starts a new parent conversation instead of mutating the
+conversation that happened to be active before the user opened Customization.
+The dispatch Interface selects a compatible Code, Cowork, or Media scenario,
+opens an unpersisted new-session draft, and shows the selected Agent or Team as
+a removable composer capsule. The user still selects a workspace, writes the
+task, and confirms by sending. Only that first send creates the real Flow Chat
+session; it then awaits Agent persona or reusable Team-lead activation, freezes
+the resulting turn snapshot, and sends the message. Activation failure deletes
+the empty parent session, keeps the draft and input retryable, and never sends
+under a default persona. Fixed teams remain adapters: Deep Review confirms the
+review request before creating its Code parent and launches the existing review
+flow without a normal message; AI Short Drama creates a Media parent, awaits
+the existing Canvas entry, and then sends. A definition-only or otherwise
+unsupported record has a disabled action and must fail before opening a draft.
 
 Cards show localized display information:
 
@@ -1132,10 +1147,18 @@ As of this specification update:
   removes the duplicate in-page Agent/Skill/Connector navigation, and renders
   localized employee cards with deterministic reusable portrait assets,
   professional roles, concise descriptions, capability tags, keyboard
-  activation, and a detail action. This presentation consumes the existing
-  catalog projection and does not own or alter runtime identity, persona
-  composition, cache policy, permissions, Team orchestration, or session
-  lifecycle;
+  activation, and a detail action. Agent and Team details expose one primary
+  **派发任务** action. It delegates to a typed dispatch service that opens a
+  compatible new-session draft with a canonical Agent or Team target but no
+  workspace and no persisted session. The existing composer owns workspace
+  choice and first send; session creation then awaits persona/lead activation
+  before freezing turn metadata and sending. Deep Review and AI Short Drama
+  delegate to their existing Code-command and Media-Canvas entry points only
+  after user confirmation. Unsupported definition-only records fail closed
+  before the draft opens. This presentation consumes the
+  existing catalog projection and does not own or alter runtime identity,
+  persona composition, cache policy, permissions, Team orchestration, or
+  session lifecycle;
 - the Skills scene removes the duplicate in-page Customization navigation,
   large market hero, and installed-skill side rail. Installed and marketplace
   Skills share a compact toolbar, localized cards, twenty-item pagination, and

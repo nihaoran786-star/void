@@ -6,7 +6,7 @@
 import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } from 'react';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
-import { Image, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
+import { Bot, Image, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
 import { ContextDropZone } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import {
@@ -45,6 +45,7 @@ import {
   type AgentCatalogEntry,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
+import { resolveEmployeeAvatarUrl } from '@/app/scenes/agents/components/employeeAvatar';
 import { useChatInputState } from '../store/chatInputStateStore';
 import { useInputHistoryStore } from '../store/inputHistoryStore';
 import { startBtwThread } from '../services/BtwThreadService';
@@ -108,8 +109,11 @@ import { isComposerActionAllowed } from '../utils/composerSubmissionGuard';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import {
   completeNewSessionDraft,
+  selectNewSessionDraftPersona,
   selectNewSessionDraftWorkspace,
 } from '../services/NewSessionDraftService';
+import { customizationTaskDispatchService } from '@/app/services/CustomizationTaskDispatchService';
+import { DEFAULT_REVIEW_TEAM_ID } from '@/shared/services/review-team/defaults';
 import {
   clearSessionComposerDraftIfRevision,
   consumeEmptyPasteClearGuard,
@@ -371,6 +375,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const draftId = useSessionModeStore(state => state.draftId);
   const draftStatus = useSessionModeStore(state => state.draftStatus);
   const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
+  const draftExecutionPolicy = useSessionModeStore(state => state.draftExecutionPolicy);
+  const draftPersonaTarget = useSessionModeStore(state => state.draftPersonaTarget);
   const setDraftStatus = useSessionModeStore(state => state.setDraftStatus);
   const isNewSessionDraft =
     !isIndependentChildComposer
@@ -653,11 +659,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [tokenUsage, setTokenUsage] = React.useState({ current: 0, max: 128128 });
   const isAssistantWorkspace = workspace?.workspaceKind === WorkspaceKind.Assistant;
   const draftAgentType =
-    draftMode === 'cowork'
+    draftExecutionPolicy
+    || (draftMode === 'cowork'
       ? 'Cowork'
       : draftMode === 'media'
         ? 'Media'
-        : 'agentic';
+        : 'agentic');
 
   useEffect(() => {
     if (isNewSessionDraft) {
@@ -706,14 +713,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     runTeamAction: runComposerTeamAction,
   } = useComposerPersonaSelection({
     session: effectiveTargetSession,
-    workspacePath: composerWorkspacePath,
+    workspacePath: isNewSessionDraft
+      ? draftWorkspace?.rootPath
+      : composerWorkspacePath,
     currentAgentType: composerAgentType,
     enabled:
-      Boolean(effectiveTargetSessionId)
-      && !isNewSessionDraft
+      (isNewSessionDraft || Boolean(effectiveTargetSessionId))
       && !isChildComposerTarget
       && !isAcpTargetSession
-      && effectiveTargetSession?.sessionKind === 'normal',
+      && (isNewSessionDraft || effectiveTargetSession?.sessionKind === 'normal'),
+    deferredSelection: isNewSessionDraft
+      ? {
+          target: draftPersonaTarget,
+          onChange: selectNewSessionDraftPersona,
+        }
+      : undefined,
   });
   const customizationPersistencePending =
     modePersistencePending || personaPersistencePending;
@@ -728,22 +742,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     ],
   );
   const activePersonaDisplayName = useMemo(() => {
-    if (composerActivePersonaBinding?.kind === 'team_lead') {
-      if (!composerActiveTeam) {
-        return tCommon('customization.composerPersona.teams');
-      }
+    if (composerActiveTeam) {
       return localizeCatalogPresentation(
         composerActiveTeam.identity,
         key => tAgents(key),
       ).displayName;
     }
-    if (!composerActiveAgent) {
-      return tCommon('customization.composerPersona.selectedAgent');
+    if (composerActiveAgent) {
+      return localizeCatalogPresentation(
+        composerActiveAgent.identity,
+        key => tAgents(key),
+      ).displayName;
     }
-    return localizeCatalogPresentation(
-      composerActiveAgent.identity,
-      key => tAgents(key),
-    ).displayName;
+    return composerActivePersonaBinding?.kind === 'team_lead'
+      ? tCommon('customization.composerPersona.teams')
+      : tCommon('customization.composerPersona.selectedAgent');
   }, [
     composerActiveAgent,
     composerActivePersonaBinding?.kind,
@@ -751,6 +764,33 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     tAgents,
     tCommon,
   ]);
+  const hasActiveComposerPersona = Boolean(
+    composerActiveAgent || composerActiveTeam || composerActivePersonaBinding,
+  );
+  const isActiveComposerTeam = Boolean(
+    composerActiveTeam || composerActivePersonaBinding?.kind === 'team_lead',
+  );
+  const activePersonaAvatarIdentity = composerActiveTeam?.identity.id
+    ?? composerActiveAgent?.identity.id
+    ?? (composerActivePersonaBinding?.kind === 'team_lead'
+      ? composerActivePersonaBinding.teamDefinitionId
+        ?? composerActivePersonaBinding.personaId
+      : composerActivePersonaBinding?.personaId)
+    ?? null;
+  const activePersonaAvatarSrc = useMemo(
+    () => activePersonaAvatarIdentity
+      ? resolveEmployeeAvatarUrl(activePersonaAvatarIdentity)
+      : null,
+    [activePersonaAvatarIdentity],
+  );
+  const [failedPersonaAvatarSrc, setFailedPersonaAvatarSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFailedPersonaAvatarSrc(null);
+  }, [activePersonaAvatarIdentity]);
+
+  const activePersonaAvatarFailed = activePersonaAvatarSrc === null
+    || failedPersonaAvatarSrc === activePersonaAvatarSrc;
   const canSwitchModes =
     !isChildComposerTarget
     && !isAssistantWorkspace
@@ -872,12 +912,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [permissionConfigStatus, permissionModeSaving, t, toolPermissionConfig]);
 
   useEffect(() => {
-    if (!isIndependentChildComposer && currentSessionId && draftStatus !== 'idle') {
-      completeNewSessionDraft();
-    }
-  }, [currentSessionId, draftStatus, isIndependentChildComposer]);
-
-  useEffect(() => {
     if (isIndependentChildComposer) {
       return;
     }
@@ -907,17 +941,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     ],
   );
 
-  const handleDeferredSessionCreated = useCallback((sessionId: string) => {
+  const handleDeferredSessionCreated = useCallback(async (sessionId: string) => {
     deferredCreatedSessionIdRef.current = sessionId;
+    const personaSessionState = draftPersonaTarget
+      ? await customizationTaskDispatchService.activateCreatedSession({
+          target: draftPersonaTarget,
+          sessionId,
+          scenario: draftMode,
+          executionPolicy: draftAgentType,
+          workspacePath: draftWorkspace?.rootPath,
+        })
+      : undefined;
     completeNewSessionDraft();
-  }, []);
+    return personaSessionState;
+  }, [draftAgentType, draftMode, draftPersonaTarget, draftWorkspace?.rootPath]);
   
   // Reset history index when switching sessions
   useEffect(() => {
     setHistoryIndex(-1);
   }, [effectiveTargetSessionId]);
   
-  const { sendMessage } = useMessageSender({
+  const { ensureSession, sendMessage } = useMessageSender({
     currentSessionId: effectiveTargetSessionId || undefined,
     contexts,
     onSuccess: onSendMessage,
@@ -2294,7 +2338,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   ]);
 
   const submitDeepreviewFromInput = useCallback(async (messageOverride?: string) => {
-    if (!effectiveTargetSessionId || !effectiveTargetSession) {
+    let targetSessionId = effectiveTargetSessionId;
+    let targetSession = effectiveTargetSession;
+    const workspacePath = targetSession?.workspacePath || draftWorkspace?.rootPath;
+    if (!workspacePath) {
       notificationService.error(
         t('chatInput.deepreviewNoSession', { defaultValue: 'No active session for /DeepReview' })
       );
@@ -2334,21 +2381,31 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     try {
       const preview = await buildDeepReviewPreviewFromSlashCommand(
         message,
-        effectiveTargetSession.workspacePath,
+        workspacePath,
       );
       const confirmed = await confirmDeepReviewLaunch(preview, {
         sessionConcurrencyGuard: deriveDeepReviewSessionConcurrencyGuard(
           flowChatState,
-          effectiveTargetSessionId,
+          targetSessionId,
         ),
       });
       if (!confirmed) {
         return;
       }
 
-      if (effectiveTargetSessionId) {
-        addToHistory(effectiveTargetSessionId, message);
+      if (!targetSessionId || !targetSession) {
+        if (useSessionModeStore.getState().draftStatus !== 'idle') {
+          setDraftStatus('creating');
+        }
+        const ensured = await ensureSession();
+        targetSessionId = ensured.sessionId;
+        targetSession = FlowChatStore.getInstance().getState().sessions.get(targetSessionId);
+        if (!targetSession) {
+          throw new Error('Created Deep Review parent session is unavailable.');
+        }
       }
+
+      addToHistory(targetSessionId, message);
       setHistoryIndex(-1);
       setSavedDraft('');
       dispatchInput({ type: 'CLEAR_VALUE' });
@@ -2358,12 +2415,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       const { prompt, runManifest } = await buildDeepReviewLaunchFromSlashCommand(
         message,
-        effectiveTargetSession.workspacePath,
+        targetSession.workspacePath,
       );
 
       await launchDeepReviewSession({
-        parentSessionId: effectiveTargetSessionId,
-        workspacePath: effectiveTargetSession.workspacePath,
+        parentSessionId: targetSessionId,
+        workspacePath: targetSession.workspacePath,
         prompt,
         displayMessage: message,
         runManifest,
@@ -2375,8 +2432,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     } catch (error) {
       log.error('Failed to trigger /DeepReview', {
         error,
-        sessionId: effectiveTargetSessionId,
+        sessionId: targetSessionId,
       });
+      if (useSessionModeStore.getState().draftStatus !== 'idle') {
+        setDraftStatus('error');
+      }
       pendingLargePastesRef.current = originalPendingLargePastes;
       dispatchInput({ type: 'ACTIVATE' });
       dispatchInput({ type: 'SET_VALUE', payload: message });
@@ -2395,9 +2455,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     currentReviewActivity,
     effectiveTargetSession,
     effectiveTargetSessionId,
+    draftWorkspace?.rootPath,
+    ensureSession,
     flowChatState,
     inputState.value,
     isBtwSession,
+    setDraftStatus,
     setQueuedInput,
     t,
   ]);
@@ -2692,6 +2755,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
+    if (
+      isNewSessionDraft
+      && draftPersonaTarget?.kind === 'team'
+      && draftPersonaTarget.identity.id === DEFAULT_REVIEW_TEAM_ID
+    ) {
+      await submitDeepreviewFromInput(`${DEEP_REVIEW_SLASH_COMMAND} ${message}`);
+      return;
+    }
+
     if (resolveTypedMcpPromptCommand(message)) {
       await submitMcpPromptFromInput();
       return;
@@ -2878,6 +2950,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     resolveTypedMcpPromptCommand,
     draftStatus,
     draftWorkspace,
+    draftPersonaTarget,
     isCustomizationPersistencePending,
     isNewSessionDraft,
     setDraftStatus,
@@ -3868,11 +3941,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     </div>
                   )}
 
-                  {composerActivePersonaBinding && (
+                  {hasActiveComposerPersona && (
                     <div className="void-chat-input__agent-capsule void-chat-input__persona-capsule">
-                      {composerActivePersonaBinding.kind === 'team_lead' ? (
-                        <Users size={12} aria-hidden />
-                      ) : null}
+                      {activePersonaAvatarFailed ? (
+                        <span className="void-chat-input__persona-avatar-fallback" aria-hidden>
+                          {isActiveComposerTeam ? (
+                            <Users size={12} />
+                          ) : (
+                            <Bot size={12} />
+                          )}
+                        </span>
+                      ) : (
+                        <img
+                          className="void-chat-input__persona-avatar"
+                          src={activePersonaAvatarSrc}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          onError={() => setFailedPersonaAvatarSrc(activePersonaAvatarSrc)}
+                        />
+                      )}
                       <span className="void-chat-input__agent-capsule-label">
                         {activePersonaDisplayName}
                       </span>

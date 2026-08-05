@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import type { SubagentInfo } from '@/infrastructure/api/service-api/SubagentAPI';
 import type { TeamDefinitionLevel } from '@/infrastructure/config/types';
+import type { AgentCatalogEntry } from '@/shared/services/customization/types';
 
 export const CAPABILITY_CATEGORIES = ['coding', 'docs', 'analysis', 'testing', 'creative', 'ops'] as const;
 export type CapabilityCategory = (typeof CAPABILITY_CATEGORIES)[number];
@@ -17,6 +18,8 @@ export interface AgentCapability {
 }
 
 export interface AgentWithCapabilities extends SubagentInfo {
+  /** Canonical catalog projection used by task dispatch; presentation never rebuilds runtime identity. */
+  catalogEntry: AgentCatalogEntry;
   capabilities: AgentCapability[];
   /** Localized presentation only. Runtime operations continue to use id/key/name. */
   displayName: string;

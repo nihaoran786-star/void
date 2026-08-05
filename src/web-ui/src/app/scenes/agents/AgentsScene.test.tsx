@@ -107,10 +107,12 @@ vi.mock('@/app/components', () => ({
   GalleryDetailModal: ({
     children,
     title,
+    actions,
   }: {
     children: React.ReactNode;
     title?: string;
-  }) => <div><h2 data-testid="agent-detail-title">{title}</h2>{children}</div>,
+    actions?: React.ReactNode;
+  }) => <div><h2 data-testid="agent-detail-title">{title}</h2>{children}{actions}</div>,
   GalleryEmpty: () => <div />,
   GalleryGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   GalleryLayout: ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -156,7 +158,14 @@ vi.mock('@/app/hooks/useGallerySceneAutoRefresh', () => ({
 }));
 
 vi.mock('@/infrastructure/contexts/WorkspaceContext', () => ({
-  useCurrentWorkspace: () => ({ workspacePath: 'D:/workspace/project' }),
+  useCurrentWorkspace: () => ({
+    workspace: {
+      id: 'workspace-1',
+      name: 'Project',
+      rootPath: 'D:/workspace/project',
+    },
+    workspacePath: 'D:/workspace/project',
+  }),
 }));
 
 vi.mock('@/shared/notification-system', () => ({
@@ -350,6 +359,79 @@ describeWithJsdom('AgentsScene', () => {
 
     expect(container.querySelector('[data-testid="agent-detail-title"]')?.textContent)
       .toBe('Project Shared');
+  });
+
+  it('从智能体详情派发到带 Persona 的新会话', async () => {
+    const agent = {
+      key: 'user::void::designer',
+      id: 'designer',
+      name: 'Designer',
+      displayName: '视觉设计智能体',
+      description: '负责视觉设计。',
+      displayDescription: '负责视觉设计。',
+      aliases: [],
+      isReadonly: false,
+      isReview: false,
+      toolCount: 1,
+      defaultTools: [],
+      defaultEnabled: true,
+      effectiveEnabled: true,
+      subagentSource: 'user',
+      capabilities: [],
+      agentKind: 'subagent',
+      catalogEntry: {
+        kind: 'agent',
+        identity: {
+          id: 'user::void::designer',
+          revision: { status: 'known', value: 'persona-v1' },
+          displayName: '视觉设计智能体',
+          description: '负责视觉设计。',
+          aliases: [],
+        },
+        source: {
+          adapterId: 'existing-agents',
+          recordType: 'subagent',
+          recordId: 'user::void::designer',
+        },
+        origin: 'user',
+        scenarioEligibility: ['media'],
+        tags: ['agent'],
+        availability: { status: 'available' },
+        agentKind: 'subagent',
+        executionPolicyEligibility: [],
+        isReadonly: false,
+        toolCount: 1,
+        activationSupport: 'parent_persona',
+      },
+    };
+    sceneFixture.agents = [agent];
+    const taskDispatcher = { dispatch: vi.fn(async () => ({
+      scenario: 'media' as const,
+      executionPolicy: 'Media',
+      action: 'draft_opened' as const,
+    })) };
+    const { default: AgentsScene } = await import('./AgentsScene');
+
+    await act(async () => {
+      root.render(<AgentsScene taskDispatcher={taskDispatcher} />);
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="agent-card-user::void::designer"]',
+      )!.click();
+    });
+    const dispatchButton = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('agentCard.actions.dispatchTask'));
+    expect(dispatchButton).toBeTruthy();
+    await act(async () => {
+      dispatchButton!.click();
+      await Promise.resolve();
+    });
+
+    expect(taskDispatcher.dispatch).toHaveBeenCalledWith({
+      target: agent.catalogEntry,
+      preferredScenario: 'code',
+    });
   });
 
   it('移除可见页面标题并让全部智能体固定每页八张', async () => {

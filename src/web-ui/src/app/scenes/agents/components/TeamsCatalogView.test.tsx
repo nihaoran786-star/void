@@ -17,6 +17,11 @@ const notifications = vi.hoisted(() => ({
 }));
 const confirmDanger = vi.hoisted(() => vi.fn(async () => true));
 const workspaceFixture = vi.hoisted(() => ({
+  workspace: {
+    id: 'workspace-1',
+    name: 'Project',
+    rootPath: 'D:/workspace/project',
+  },
   workspacePath: 'D:/workspace/project',
   hasWorkspace: true,
   isRemoteWorkspace: false,
@@ -93,12 +98,15 @@ vi.mock('./TeamCatalogDetail', () => ({
   default: ({
     team,
     onDelete,
+    onDispatch,
   }: {
     team: TeamCatalogEntry | null;
     onDelete: (team: TeamCatalogEntry) => void;
+    onDispatch: (team: TeamCatalogEntry) => void;
   }) => team ? (
     <div data-testid="team-detail">
       <button type="button" onClick={() => onDelete(team)}>delete-team</button>
+      <button type="button" onClick={() => onDispatch(team)}>dispatch-team</button>
     </div>
   ) : null,
 }));
@@ -215,6 +223,11 @@ describeWithJsdom('TeamsCatalogView', () => {
     catalogFixture.entries = [];
     catalogFixture.reload.mockClear();
     workspaceFixture.workspacePath = 'D:/workspace/project';
+    workspaceFixture.workspace = {
+      id: 'workspace-1',
+      name: 'Project',
+      rootPath: 'D:/workspace/project',
+    };
     workspaceFixture.hasWorkspace = true;
     workspaceFixture.isRemoteWorkspace = false;
     useAgentsStore.setState({ catalogRefreshRevision: 0 });
@@ -232,6 +245,7 @@ describeWithJsdom('TeamsCatalogView', () => {
     gateway: TeamAuthoringGateway,
     packagePicker: TeamPackagePicker,
     capabilityService: CustomizationRuntimeCapabilityReader,
+    taskDispatcher?: { dispatch: ReturnType<typeof vi.fn> },
   ) {
     const { default: TeamsCatalogView } = await import('./TeamsCatalogView');
     await act(async () => {
@@ -240,6 +254,7 @@ describeWithJsdom('TeamsCatalogView', () => {
           gateway={gateway}
           packagePicker={packagePicker}
           capabilityService={capabilityService}
+          taskDispatcher={taskDispatcher}
         />,
       );
       await Promise.resolve();
@@ -303,6 +318,65 @@ describeWithJsdom('TeamsCatalogView', () => {
 
     expect(container.textContent).toContain('team-0');
     expect(container.querySelector('[aria-label="pagination.next"]')).toBeNull();
+  });
+
+  it('从团队详情派发到匹配场景的新会话', async () => {
+    const team = teamFixture('delivery-team');
+    team.availability = { status: 'available' };
+    team.activationSupport = 'parent_persona';
+    team.leadBinding = 'parent_persona';
+    catalogFixture.entries = [team];
+    const taskDispatcher = {
+      dispatch: vi.fn(async () => ({
+        scenario: 'code' as const,
+        executionPolicy: 'agentic',
+        action: 'draft_opened' as const,
+      })),
+    };
+
+    await renderView(
+      gatewayFixture(),
+      { pickPackage: vi.fn(async () => null) },
+      capabilityFixture(true),
+      taskDispatcher,
+    );
+    await clickButton('delivery-team');
+    await clickButton('dispatch-team');
+
+    expect(taskDispatcher.dispatch).toHaveBeenCalledWith({
+      target: team,
+      preferredScenario: 'code',
+    });
+  });
+
+  it('市场派发无需预先选择工作区', async () => {
+    const team = teamFixture('delivery-team');
+    team.availability = { status: 'available' };
+    team.activationSupport = 'parent_persona';
+    team.leadBinding = 'parent_persona';
+    catalogFixture.entries = [team];
+    (workspaceFixture as { workspace?: typeof workspaceFixture.workspace }).workspace = undefined;
+    const taskDispatcher = {
+      dispatch: vi.fn(async () => ({
+        scenario: 'code' as const,
+        executionPolicy: 'agentic',
+        action: 'draft_opened' as const,
+      })),
+    };
+
+    await renderView(
+      gatewayFixture(),
+      { pickPackage: vi.fn(async () => null) },
+      capabilityFixture(true),
+      taskDispatcher,
+    );
+    await clickButton('delivery-team');
+    await clickButton('dispatch-team');
+
+    expect(taskDispatcher.dispatch).toHaveBeenCalledWith({
+      target: team,
+      preferredScenario: 'code',
+    });
   });
 
   it('浏览器能力不支持时禁用创建和安装且不会打开桌面文件选择器', async () => {

@@ -27,7 +27,12 @@ const persistComposerPersona: NonNullable<
 
 export interface ComposerTeamActions {
   launchDeepReview: () => Promise<void>;
-  openShortDrama: () => void;
+  openShortDrama: () => void | Promise<void>;
+}
+
+export interface DeferredComposerPersonaSelection {
+  target: AgentCatalogEntry | TeamCatalogEntry | null;
+  onChange(target: AgentCatalogEntry | TeamCatalogEntry | null): void;
 }
 
 export interface UseComposerPersonaSelectionOptions {
@@ -35,6 +40,8 @@ export interface UseComposerPersonaSelectionOptions {
   workspacePath?: string;
   currentAgentType?: string;
   enabled: boolean;
+  /** Unpersisted selection used before a real parent session exists. */
+  deferredSelection?: DeferredComposerPersonaSelection;
   service?: ComposerPersonaService;
   teamActivationService?: ReusableTeamActivator;
   capabilityService?: CustomizationRuntimeCapabilityReader;
@@ -60,6 +67,7 @@ export function useComposerPersonaSelection({
   workspacePath,
   currentAgentType,
   enabled,
+  deferredSelection,
   service = defaultComposerPersonaService,
   teamActivationService = reusableTeamActivationService,
   capabilityService = customizationRuntimeCapabilityService,
@@ -83,7 +91,8 @@ export function useComposerPersonaSelection({
   const sessionId = session?.sessionId;
   const sessionKind = session?.sessionKind;
   const legacyAgentType = session?.mode ?? session?.config.agentType;
-  const scenario = session?.scenario ?? scenarioFromLegacyAgentType(legacyAgentType);
+  const scenario = session?.scenario
+    ?? scenarioFromLegacyAgentType(currentAgentType ?? legacyAgentType);
   const executionPolicy =
     currentAgentType?.trim()
     || session?.mode?.trim()
@@ -103,6 +112,9 @@ export function useComposerPersonaSelection({
   const activeTeamDefinitionId =
     session?.activePersonaBinding?.teamDefinitionId;
   const activeTeamInstanceId = session?.activePersonaBinding?.teamInstanceId;
+  const deferredTarget = deferredSelection?.target ?? null;
+  const changeDeferredTarget = deferredSelection?.onChange;
+  const hasDeferredSelection = Boolean(deferredSelection);
 
   const activePersonaBinding = useMemo<SessionActivePersonaBinding | null>(() => {
     if (!activePersonaKind || !activePersonaId || !activePersonaRevisionStatus) {
@@ -132,7 +144,7 @@ export function useComposerPersonaSelection({
   ]);
 
   const reload = useCallback(async () => {
-    if (!enabled || !sessionId || runtimeUnsupported) {
+    if (!enabled || (!sessionId && !hasDeferredSelection) || runtimeUnsupported) {
       setCatalog(EMPTY_CATALOG);
       setLoading(false);
       setCatalogError(undefined);
@@ -162,6 +174,7 @@ export function useComposerPersonaSelection({
     }
   }, [
     enabled,
+    hasDeferredSelection,
     executionPolicy,
     normalizedWorkspacePath,
     runtimeUnsupported,
@@ -182,9 +195,26 @@ export function useComposerPersonaSelection({
       setActionError('server_runtime_deferred');
       throw new Error('server_runtime_deferred');
     }
-    if (!enabled || !sessionId || sessionKind !== 'normal') {
+    if (!enabled || (!hasDeferredSelection && (!sessionId || sessionKind !== 'normal'))) {
       setActionError('parent_session_required');
       return;
+    }
+    if (changeDeferredTarget) {
+      setBusyId(entry.identity.id);
+      setActionError(undefined);
+      try {
+        service.createAgentBinding(entry, scenario);
+        changeDeferredTarget(entry);
+      } catch {
+        setActionError('activation_failed');
+        throw new Error('activation_failed');
+      } finally {
+        setBusyId(undefined);
+      }
+      return;
+    }
+    if (!sessionId) {
+      throw new Error('parent_session_required');
     }
     if (personaPersistencePendingRef.current) {
       setActionError('persona_persistence_pending');
@@ -211,6 +241,8 @@ export function useComposerPersonaSelection({
     }
   }, [
     enabled,
+    changeDeferredTarget,
+    hasDeferredSelection,
     executionPolicy,
     persistPersona,
     scenario,
@@ -225,9 +257,17 @@ export function useComposerPersonaSelection({
       setActionError('server_runtime_deferred');
       throw new Error('server_runtime_deferred');
     }
-    if (!enabled || !sessionId || sessionKind !== 'normal') {
+    if (!enabled || (!hasDeferredSelection && (!sessionId || sessionKind !== 'normal'))) {
       setActionError('parent_session_required');
       return;
+    }
+    if (changeDeferredTarget) {
+      setActionError(undefined);
+      changeDeferredTarget(null);
+      return;
+    }
+    if (!sessionId) {
+      throw new Error('parent_session_required');
     }
     if (personaPersistencePendingRef.current) {
       setActionError('persona_persistence_pending');
@@ -253,6 +293,8 @@ export function useComposerPersonaSelection({
     }
   }, [
     enabled,
+    changeDeferredTarget,
+    hasDeferredSelection,
     executionPolicy,
     persistPersona,
     scenario,
@@ -269,8 +311,27 @@ export function useComposerPersonaSelection({
       setActionError('server_runtime_deferred');
       throw new Error('server_runtime_deferred');
     }
-    if (!enabled || !sessionId || sessionKind !== 'normal') {
+    if (!enabled || (!hasDeferredSelection && (!sessionId || sessionKind !== 'normal'))) {
       setActionError('parent_session_required');
+      throw new Error('parent_session_required');
+    }
+    if (changeDeferredTarget) {
+      setBusyId(entry.identity.id);
+      setActionError(undefined);
+      try {
+        if (!service.isReusableTeam(entry, scenario)) {
+          service.resolveTeamAction(entry, scenario);
+        }
+        changeDeferredTarget(entry);
+      } catch {
+        setActionError('team_action_failed');
+        throw new Error('team_action_failed');
+      } finally {
+        setBusyId(undefined);
+      }
+      return;
+    }
+    if (!sessionId) {
       throw new Error('parent_session_required');
     }
     if (service.isReusableTeam(entry, scenario)) {
@@ -310,7 +371,7 @@ export function useComposerPersonaSelection({
       if (action === 'launch_deep_review') {
         await actions.launchDeepReview();
       } else {
-        actions.openShortDrama();
+        await actions.openShortDrama();
       }
     } catch {
       setActionError('team_action_failed');
@@ -320,6 +381,8 @@ export function useComposerPersonaSelection({
     }
   }, [
     enabled,
+    changeDeferredTarget,
+    hasDeferredSelection,
     executionPolicy,
     persistPersona,
     runtimeUnsupported,
@@ -331,6 +394,9 @@ export function useComposerPersonaSelection({
   ]);
 
   const activeAgent = useMemo(() => {
+    if (deferredTarget?.kind === 'agent') {
+      return deferredTarget;
+    }
     if (
       activePersonaBinding?.kind !== 'agent'
       || activePersonaBinding.personaRevision.status !== 'known'
@@ -343,9 +409,12 @@ export function useComposerPersonaSelection({
       && entry.identity.revision.status === 'known'
       && entry.identity.revision.value === activeRevision,
     );
-  }, [activePersonaBinding, catalog.agents]);
+  }, [activePersonaBinding, catalog.agents, deferredTarget]);
 
   const activeTeam = useMemo(() => {
+    if (deferredTarget?.kind === 'team') {
+      return deferredTarget;
+    }
     if (
       activePersonaBinding?.kind !== 'team_lead'
       || !activePersonaBinding.teamDefinitionId
@@ -360,7 +429,7 @@ export function useComposerPersonaSelection({
       && entry.lead.identity.revision.status === 'known'
       && entry.lead.identity.revision.value === activeRevision,
     );
-  }, [activePersonaBinding, catalog.teams]);
+  }, [activePersonaBinding, catalog.teams, deferredTarget]);
 
   const personaSessionState = useMemo<
     PersonaTurnSnapshotDescriptor | undefined
@@ -392,7 +461,7 @@ export function useComposerPersonaSelection({
   );
 
   return {
-    enabled: enabled && sessionKind === 'normal',
+    enabled: enabled && (hasDeferredSelection || sessionKind === 'normal'),
     loading,
     status: runtimeUnsupported
       ? 'unsupported' as const

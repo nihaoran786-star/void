@@ -118,6 +118,14 @@ UI / route -> Module Interface -> Adapter / service -> external system
   connector discovery plus parent-conversation persona selection.
   **Interface:** capability catalog and persona activation contracts; adapters
   alone may compose runtime prompts, resolve permissions, or activate Agents.
+  Agent and Team market details dispatch through a typed application service:
+  it opens a compatible unpersisted new-session draft with a removable target
+  capsule and leaves workspace choice and task text to the user. The first send
+  creates the parent, awaits canonical Agent or reusable Team-lead activation,
+  freezes the persona snapshot, and only then sends. Failed activation removes
+  the empty parent and leaves the draft retryable. Fixed Deep Review and AI
+  Short Drama entries continue to delegate to their existing Code and Media
+  flows after confirmation.
 - **Module:** Short Drama owns project facts and stage workflow.
   **Interface:** short-drama services, runtime bridge, workspace manifest, and
   explicit view models.

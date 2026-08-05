@@ -24,6 +24,8 @@ describe('NewSessionDraftService', () => {
       draftStatus: 'idle',
       draftWorkspace: null,
       draftId: null,
+      draftExecutionPolicy: null,
+      draftPersonaTarget: null,
     });
   });
 
@@ -65,6 +67,25 @@ describe('NewSessionDraftService', () => {
     expect(secondDraftId).not.toBe(firstDraftId);
   });
 
+  it('keeps a canonical persona target on the unpersisted draft only', () => {
+    const personaTarget = {
+      kind: 'agent',
+      identity: { id: 'user::void::writer' },
+    } as any;
+
+    beginNewSessionDraft('cowork', null, {
+      executionPolicy: 'Cowork',
+      personaTarget,
+    });
+
+    expect(useSessionModeStore.getState()).toMatchObject({
+      mode: 'cowork',
+      draftExecutionPolicy: 'Cowork',
+      draftPersonaTarget: personaTarget,
+    });
+    expect(mocks.setState).toHaveBeenCalledOnce();
+  });
+
   it('clears only the draft projection after the real session is created', () => {
     useSessionModeStore.getState().beginDraft('cowork', null);
     completeNewSessionDraft();
@@ -74,6 +95,8 @@ describe('NewSessionDraftService', () => {
       draftStatus: 'idle',
       draftId: null,
       draftWorkspace: null,
+      draftExecutionPolicy: null,
+      draftPersonaTarget: null,
     });
   });
 });

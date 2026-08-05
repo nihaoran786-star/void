@@ -21,8 +21,17 @@
       "empty": "當前沒有可用的智能體團隊。"
     },
     "actions": { "retry": "重試", "reload": "重新加載" },
+    "dispatch": {
+      "errors": {
+        "target_not_dispatchable": "這個智能體或團隊目前還不能進入會話。",
+        "draft_open_failed": "無法打開新增會話頁面，請重試。",
+        "persona_activation_failed": "會話已建立，但智能體啟用失敗，請重試。",
+        "team_activation_failed": "會話已建立，但團隊召喚失敗，請重試。"
+      }
+    },
     "detail": {
       "memberCount": "{{count}} 位成員",
+      "dispatchTask": "派發任務",
       "openReviewTeam": "打開代碼審查團隊",
       "useInMedia": "在設計創意會話中使用",
       "editDefinition": "編輯團隊",
@@ -391,7 +400,8 @@
       "expand": "展開詳情",
       "view": "查看",
       "viewNamed": "查看{{name}}",
-      "viewDetails": "查看員工詳情"
+      "viewDetails": "查看員工詳情",
+      "dispatchTask": "派發任務"
     },
     "roles": {
       "core": "核心員工",

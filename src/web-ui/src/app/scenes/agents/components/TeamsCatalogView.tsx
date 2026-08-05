@@ -35,6 +35,12 @@ import TeamCatalogCard from './TeamCatalogCard';
 import TeamCatalogDetail from './TeamCatalogDetail';
 import CatalogPagination from './CatalogPagination';
 import './TeamsCatalogView.scss';
+import {
+  CustomizationTaskDispatchError,
+  customizationTaskDispatchService,
+  type CustomizationTaskDispatcher,
+} from '@/app/services/CustomizationTaskDispatchService';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 
 const TEAM_PAGE_SIZE = 8;
 
@@ -45,10 +51,12 @@ interface TeamsCatalogViewContentProps {
   onEditTeam?: (team: TeamCatalogEntry) => void;
   onInstallTeam?: (level: TeamDefinitionLevel) => Promise<void>;
   onDeleteTeam?: (team: TeamCatalogEntry) => Promise<void>;
+  onDispatchTeam?: (team: TeamCatalogEntry) => Promise<boolean>;
   managementSupported?: boolean;
   projectScopeAvailable?: boolean;
   installing?: boolean;
   deleting?: boolean;
+  dispatchingTeamId?: string | null;
 }
 
 export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = ({
@@ -58,10 +66,12 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
   onEditTeam = () => undefined,
   onInstallTeam = async () => undefined,
   onDeleteTeam = async () => undefined,
+  onDispatchTeam = async () => false,
   managementSupported = false,
   projectScopeAvailable = false,
   installing = false,
   deleting = false,
+  dispatchingTeamId = null,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const [selectedTeam, setSelectedTeam] = useState<TeamCatalogEntry | null>(null);
@@ -202,7 +212,13 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
         onDelete={team => {
           void onDeleteTeam(team).then(() => setSelectedTeam(null));
         }}
+        onDispatch={team => {
+          void onDispatchTeam(team).then((dispatched) => {
+            if (dispatched) setSelectedTeam(null);
+          });
+        }}
         deleting={deleting}
+        dispatching={selectedTeam?.identity.id === dispatchingTeamId}
       />
     </GalleryLayout>
   );
@@ -212,17 +228,20 @@ export interface TeamsCatalogViewProps {
   gateway?: TeamAuthoringGateway;
   packagePicker?: TeamPackagePicker;
   capabilityService?: CustomizationRuntimeCapabilityReader;
+  taskDispatcher?: CustomizationTaskDispatcher;
 }
 
 const TeamsCatalogView: React.FC<TeamsCatalogViewProps> = ({
   gateway = existingTeamDefinitionAdapter,
   packagePicker = desktopTeamPackagePicker,
   capabilityService = customizationRuntimeCapabilityService,
+  taskDispatcher = customizationTaskDispatchService,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const notification = useNotification();
   const { workspacePath, hasWorkspace, isRemoteWorkspace } =
     useWorkspaceManagerSync();
+  const preferredScenario = useSessionModeStore(state => state.mode);
   const catalog = useTeamCatalog();
   const {
     openReviewTeam,
@@ -232,6 +251,7 @@ const TeamsCatalogView: React.FC<TeamsCatalogViewProps> = ({
   } = useAgentsStore();
   const [installing, setInstalling] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [dispatchingTeamId, setDispatchingTeamId] = useState<string | null>(null);
   const managementCapability = capabilityService.getCapability('team_management');
   const packageCapability = capabilityService.getCapability(
     'team_package_install',
@@ -316,6 +336,25 @@ const TeamsCatalogView: React.FC<TeamsCatalogViewProps> = ({
     }
   };
 
+  const dispatchTeam = async (team: TeamCatalogEntry) => {
+    setDispatchingTeamId(team.identity.id);
+    try {
+      await taskDispatcher.dispatch({
+        target: team,
+        preferredScenario,
+      });
+      return true;
+    } catch (error) {
+      const code = error instanceof CustomizationTaskDispatchError
+        ? error.code
+        : 'draft_open_failed';
+      notification.error(t(`catalog.dispatch.errors.${code}`));
+      return false;
+    } finally {
+      setDispatchingTeamId(null);
+    }
+  };
+
   return (
     <TeamsCatalogViewContent
       catalog={catalog}
@@ -328,10 +367,12 @@ const TeamsCatalogView: React.FC<TeamsCatalogViewProps> = ({
       }}
       onInstallTeam={installTeam}
       onDeleteTeam={deleteTeam}
+      onDispatchTeam={dispatchTeam}
       managementSupported={managementCapability.status === 'supported'}
       projectScopeAvailable={hasWorkspace && !isRemoteWorkspace}
       installing={installing}
       deleting={deleting}
+      dispatchingTeamId={dispatchingTeamId}
     />
   );
 };

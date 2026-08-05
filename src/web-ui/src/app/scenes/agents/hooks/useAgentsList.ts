@@ -8,6 +8,10 @@ import { useNotification } from '@/shared/notification-system';
 import { toolAPI } from '@/infrastructure/api/service-api/ToolAPI';
 import type { ToolInfo } from '@/shared/types/agent-api';
 import { useAgentsStore, type AgentWithCapabilities } from '../agentsStore';
+import {
+  mapModeToCatalogEntry,
+  mapSubagentToCatalogEntry,
+} from '@/shared/services/customization/adapters/ExistingAgentCatalogAdapter';
 import { enrichCapabilities } from '../utils';
 import { STATIC_HIDDEN_AGENT_IDS, isAgentInOverviewZone } from '../agentVisibility';
 import { useCurrentWorkspace } from '@/infrastructure/contexts/WorkspaceContext';
@@ -154,6 +158,7 @@ export function useAgentsList({
           key => t(key),
         );
         return enrichCapabilities({
+          catalogEntry: mapModeToCatalogEntry(mode),
           key: `mode::${mode.id}`,
           id: mode.id,
           name: mode.name,
@@ -189,6 +194,7 @@ export function useAgentsList({
         );
         return enrichCapabilities({
           ...subagent,
+          catalogEntry: mapSubagentToCatalogEntry(subagent),
           capabilities: [],
           agentKind: 'subagent',
           displayName: presentation.displayName,

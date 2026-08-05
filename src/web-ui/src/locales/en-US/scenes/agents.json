@@ -21,8 +21,17 @@
       "empty": "No agent teams are currently available."
     },
     "actions": { "retry": "Retry", "reload": "Reload" },
+    "dispatch": {
+      "errors": {
+        "target_not_dispatchable": "This Agent or Team cannot enter a session yet.",
+        "draft_open_failed": "The new-session page could not be opened. Try again.",
+        "persona_activation_failed": "The session was created, but the Agent could not be activated. Try again.",
+        "team_activation_failed": "The session was created, but the Team could not be summoned. Try again."
+      }
+    },
     "detail": {
       "memberCount": "{{count}} members",
+      "dispatchTask": "Dispatch task",
       "openReviewTeam": "Open Code Review Team",
       "useInMedia": "Use in a Media session",
       "editDefinition": "Edit team",
@@ -396,7 +405,8 @@
       "expand": "Expand details",
       "view": "View",
       "viewNamed": "View {{name}}",
-      "viewDetails": "View employee details"
+      "viewDetails": "View employee details",
+      "dispatchTask": "Dispatch task"
     },
     "roles": {
       "core": "Core employee",

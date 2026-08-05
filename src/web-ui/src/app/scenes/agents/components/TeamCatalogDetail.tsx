@@ -2,12 +2,13 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button } from '@/component-library';
 import { GalleryDetailModal } from '@/app/components';
-import { ShieldCheck } from 'lucide-react';
+import { Send, ShieldCheck } from 'lucide-react';
 import {
   localizeCatalogPresentation,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
 import AgentAvatar from './AgentAvatar';
+import { canDispatchCustomizationTarget } from '@/app/services/CustomizationTaskDispatchService';
 
 interface TeamCatalogDetailProps {
   team: TeamCatalogEntry | null;
@@ -15,7 +16,9 @@ interface TeamCatalogDetailProps {
   onOpenReviewTeam: () => void;
   onEdit: (team: TeamCatalogEntry) => void;
   onDelete: (team: TeamCatalogEntry) => void;
+  onDispatch: (team: TeamCatalogEntry) => void;
   deleting?: boolean;
+  dispatching?: boolean;
 }
 
 const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
@@ -24,7 +27,9 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
   onOpenReviewTeam,
   onEdit,
   onDelete,
+  onDispatch,
   deleting = false,
+  dispatching = false,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const isDeepReview = team?.identity.id === 'default-review-team';
@@ -59,39 +64,48 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
         </>
       ) : null}
       actions={team ? (
-        isDeepReview ? (
-          <Button variant="primary" size="small" onClick={onOpenReviewTeam}>
-            <ShieldCheck size={14} />
-            {t('catalog.detail.openReviewTeam')}
+        <>
+          <Button
+            variant="primary"
+            size="small"
+            disabled={!canDispatchCustomizationTarget(team)}
+            isLoading={dispatching}
+            onClick={() => onDispatch(team)}
+          >
+            <Send size={14} />
+            {t('catalog.detail.dispatchTask')}
           </Button>
-        ) : team.managementSupport === 'authorable' ? (
-          <>
-            <Button variant="secondary" size="small" onClick={() => onEdit(team)}>
-              {t('catalog.detail.editDefinition')}
+          {isDeepReview ? (
+            <Button variant="secondary" size="small" onClick={onOpenReviewTeam}>
+              <ShieldCheck size={14} />
+              {t('catalog.detail.openReviewTeam')}
             </Button>
+          ) : null}
+          {team.managementSupport === 'authorable' ? (
+            <>
+              <Button variant="secondary" size="small" onClick={() => onEdit(team)}>
+                {t('catalog.detail.editDefinition')}
+              </Button>
+              <Button
+                variant="secondary"
+                size="small"
+                isLoading={deleting}
+                onClick={() => onDelete(team)}
+              >
+                {t('catalog.detail.deleteDefinition')}
+              </Button>
+            </>
+          ) : team.managementSupport === 'installed_readonly' ? (
             <Button
               variant="secondary"
               size="small"
               isLoading={deleting}
               onClick={() => onDelete(team)}
             >
-              {t('catalog.detail.deleteDefinition')}
+              {t('catalog.detail.removeInstalled')}
             </Button>
-          </>
-        ) : team.managementSupport === 'installed_readonly' ? (
-          <Button
-            variant="secondary"
-            size="small"
-            isLoading={deleting}
-            onClick={() => onDelete(team)}
-          >
-            {t('catalog.detail.removeInstalled')}
-          </Button>
-        ) : (
-          <Button variant="secondary" size="small" disabled>
-            {t('catalog.detail.useInMedia')}
-          </Button>
-        )
+          ) : null}
+        </>
       ) : null}
     >
       {team ? (
