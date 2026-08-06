@@ -2300,10 +2300,10 @@
     "roles": { "lead": "主理人", "specialist": "專業成員", "quality_gate": "品質把關" },
     "lifecycle": { "provisioning": "準備中", "ready": "已就緒", "unavailable": "不可用", "archived": "已歸檔" },
     "runStatus": { "queued": "排隊中", "running": "執行中", "waiting_user": "等待你確認", "blocked": "遇到阻塞", "completed": "已完成", "failed": "失敗", "interrupted": "已中斷", "cancelled": "已取消" },
-    "memberStatus": { "idle": "閒置", "queued": "排隊中", "running": "工作中", "waiting": "等待中", "completed": "已完成", "failed": "失敗", "interrupted": "已中斷", "cancelled": "已取消", "not_started": "未開始", "unavailable": "狀態不可用" },
+    "memberStatus": { "idle": "閒置", "queued": "排隊中", "running": "工作中", "waiting": "等待中", "completed": "已完成", "failed": "失敗", "interrupted": "已中斷", "cancelled": "已取消", "not_started": "待命", "unavailable": "狀態不可用" },
     "phaseStatus": { "pending": "待開始", "ready": "可開始", "running": "進行中", "blocked": "已阻塞", "completed": "已完成", "failed": "失敗", "skipped": "已略過", "cancelled": "已取消", "not_started": "未開始", "unavailable": "狀態不可用" },
     "phaseKinds": { "serial": "依序進行", "parallel": "平行處理", "decision": "需要決策", "review": "品質審查" },
     "updatedAt": "更新於 {{value}}",
-    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。", "notStartedTitle": "尚未開始對話", "notStartedDescription": "這位成員還沒有工作記錄。團隊總管派發任務後，會在這裡顯示完整對話。" }
+    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。", "notStartedTitle": "成員正在待命", "notStartedDescription": "這位成員已屬於目前團隊。前置階段完成或左側主理人派發任務後，會在這裡顯示完整對話。" }
   }
 }

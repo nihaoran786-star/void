@@ -620,6 +620,12 @@ fn map_team_tool_command(invocation: &TeamToolInvocation) -> VoidResult<DesktopT
 
 fn mutation_summary(action: TeamAction, response: &TeamRuntimeMutationResponse) -> String {
     if response.outcome.accepted {
+        if action == TeamAction::Start {
+            let dispatched = response.outcome.operation_ids.len();
+            return format!(
+                "Team workflow accepted. {dispatched} dependency-ready specialist task(s) were dispatched now. Members whose phases still have unmet dependencies remain idle and will be dispatched only after their prerequisites complete. Do not tell the user that every member is already running."
+            );
+        }
         format!(
             "Team {} accepted (operationId: {}).",
             team_action_name(action),
@@ -1533,6 +1539,20 @@ mod tests {
             team_instance_id: "team-instance-1".to_string(),
             lead_persona_id: "lead-1".to_string(),
         }
+    }
+
+    #[test]
+    fn team_start_summary_reports_only_dependency_ready_dispatches() {
+        let response = TeamRuntimeMutationResponse {
+            outcome: TeamOrchestratorOutcome::accepted(
+                "operation-1".to_string(),
+                vec!["member-operation-1".to_string()],
+            ),
+            record: None,
+        };
+        let summary = mutation_summary(TeamAction::Start, &response);
+        assert!(summary.contains("1 dependency-ready specialist task(s)"));
+        assert!(summary.contains("Do not tell the user that every member is already running"));
     }
 
     #[test]

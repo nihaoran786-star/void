@@ -76,6 +76,14 @@ Updated: 2026-08-06
   be detached from that conversation. The Canvas remains artifact-only and
   member chat uses the canonical right Team Workspace. Existing child sessions
   and project data are preserved during this presentation cleanup.
+- Prompt-orchestrated Team execution keeps orchestration authority on the
+  parent lead: every child runtime denies both `Task` and `Team`, and every
+  durable member request is reframed as that member's concrete workflow-phase
+  assignment rather than copying a lead-style command. Reconciliation closes
+  cancelled or interrupted runs, releases the active-run lock, and
+  automatically dispatches dependency-ready successor phases. A successful
+  `Team start` reports only the specialists dispatched at that moment; it must
+  never be described as every member already running.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards

@@ -397,11 +397,14 @@ fn runtime_tool_restrictions_for_delegation_policy(
 ) -> ToolRuntimeRestrictions {
     let mut restrictions = ToolRuntimeRestrictions::default();
     if !delegation_policy.allow_subagent_spawn {
-        restrictions.denied_tool_names.insert("Task".to_string());
-        restrictions.denied_tool_messages.insert(
-            "Task".to_string(),
-            "Recursive subagent delegation is blocked. Use direct tools instead.".to_string(),
-        );
+        for tool_name in ["Task", TEAM_TOOL_NAME] {
+            restrictions.denied_tool_names.insert(tool_name.to_string());
+            restrictions.denied_tool_messages.insert(
+                tool_name.to_string(),
+                "Child agents cannot delegate or orchestrate a Team. Complete the assigned specialist task directly."
+                    .to_string(),
+            );
+        }
     }
     restrictions
 }
@@ -7905,7 +7908,7 @@ mod tests {
     }
 
     #[test]
-    fn team_follow_up_launch_policy_keeps_task_tool_denied() {
+    fn team_follow_up_launch_policy_keeps_delegation_tools_denied() {
         use std::collections::BTreeMap;
         use void_core_types::SubagentTaskLaunchSpec;
 
@@ -7925,6 +7928,7 @@ mod tests {
         assert!(!policy.allow_subagent_spawn);
         assert_eq!(policy.nesting_depth, 1);
         assert!(restrictions.denied_tool_names.contains("Task"));
+        assert!(restrictions.denied_tool_names.contains("Team"));
     }
 
     #[test]

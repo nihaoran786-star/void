@@ -2300,10 +2300,10 @@
     "roles": { "lead": "Lead", "specialist": "Specialist", "quality_gate": "Quality gate" },
     "lifecycle": { "provisioning": "Preparing", "ready": "Ready", "unavailable": "Unavailable", "archived": "Archived" },
     "runStatus": { "queued": "Queued", "running": "Running", "waiting_user": "Waiting for you", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "interrupted": "Interrupted", "cancelled": "Cancelled" },
-    "memberStatus": { "idle": "Idle", "queued": "Queued", "running": "Working", "waiting": "Waiting", "completed": "Completed", "failed": "Failed", "interrupted": "Interrupted", "cancelled": "Cancelled", "not_started": "Not started", "unavailable": "Status unavailable" },
+    "memberStatus": { "idle": "Idle", "queued": "Queued", "running": "Working", "waiting": "Waiting", "completed": "Completed", "failed": "Failed", "interrupted": "Interrupted", "cancelled": "Cancelled", "not_started": "Standing by", "unavailable": "Status unavailable" },
     "phaseStatus": { "pending": "Pending", "ready": "Ready", "running": "In progress", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "skipped": "Skipped", "cancelled": "Cancelled", "not_started": "Not started", "unavailable": "Status unavailable" },
     "phaseKinds": { "serial": "Sequential", "parallel": "Parallel", "decision": "Decision", "review": "Quality review" },
     "updatedAt": "Updated at {{value}}",
-    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history.", "notStartedTitle": "Conversation not started", "notStartedDescription": "This member has no work history yet. The full conversation will appear here after the team lead dispatches a task." }
+    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history.", "notStartedTitle": "Member standing by", "notStartedDescription": "This member already belongs to the active team. Its full conversation appears after prerequisites finish or the lead dispatches a task." }
   }
 }

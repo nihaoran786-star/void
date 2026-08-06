@@ -509,6 +509,11 @@ The Desktop/Tauri reusable-Team slice implements:
 - Team-side recovery preflight before the coordinator's generic child-recovery
   path, strict identity/hash validation, and compare-and-swap migration of only
   eligible legacy empty-policy launches to explicit `no_policy`;
+- runtime-enforced lead/member separation: child sessions cannot call `Task`
+  or `Team`, member launches receive a role- and phase-scoped execution
+  assignment, completed prerequisites automatically dispatch successor
+  phases, and cancelled or interrupted members terminalize the current run so
+  a new run can start instead of remaining falsely active;
 - Web composer activation for otherwise-compatible ordinary Teams with member
   Skill allowlists;
 - one right-side Team Workspace presentation for all durable Team members,
