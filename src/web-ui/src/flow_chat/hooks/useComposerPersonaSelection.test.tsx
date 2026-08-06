@@ -222,7 +222,7 @@ describe('useComposerPersonaSelection', () => {
     return null;
   }
 
-  it('选择和清除只提交父会话 persona 字段，不改变场景与执行策略', async () => {
+  it('已创建的默认会话也锁定主身份，不能原地添加或清除智能体', async () => {
     await act(async () => {
       root.render(<Harness target={session()} />);
       await Promise.resolve();
@@ -231,27 +231,12 @@ describe('useComposerPersonaSelection', () => {
     expect(current?.agents).toHaveLength(1);
     expect(current?.teams).toHaveLength(2);
 
+    expect(current?.personaLocked).toBe(true);
     await act(async () => {
-      await current?.selectAgent(entry);
+      await expect(current?.selectAgent(entry)).rejects.toThrow('persona_locked');
+      await expect(current?.clearAgent()).rejects.toThrow('persona_locked');
     });
-    expect(persistPersona).toHaveBeenLastCalledWith('parent', {
-      scenario: 'code',
-      executionPolicy: 'agentic',
-      activePersonaBinding: {
-        kind: 'agent',
-        personaId: 'user::void::writer',
-        personaRevision: { status: 'known', value: 'writer-v1' },
-      },
-    });
-
-    await act(async () => {
-      await current?.clearAgent();
-    });
-    expect(persistPersona).toHaveBeenLastCalledWith('parent', {
-      scenario: 'code',
-      executionPolicy: 'agentic',
-      activePersonaBinding: null,
-    });
+    expect(persistPersona).not.toHaveBeenCalled();
   });
 
   it('新会话草稿加载同一目录，选择和清除只更新草稿目标', async () => {
@@ -485,47 +470,6 @@ describe('useComposerPersonaSelection', () => {
     }
   });
 
-  it('选择或清除失败不会隐藏目录，并可在同一会话中重试', async () => {
-    await act(async () => {
-      root.render(<Harness target={session()} />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    expect(current?.status).toBe('ready');
-    expect(current?.agents).toHaveLength(1);
-
-    persistPersona.mockRejectedValueOnce(new Error('disk unavailable'));
-    await act(async () => {
-      await expect(current?.selectAgent(entry)).rejects.toThrow('activation_failed');
-    });
-    expect(current?.status).toBe('ready');
-    expect(current?.agents).toHaveLength(1);
-    expect(current?.catalogError).toBeUndefined();
-    expect(current?.actionError).toBe('activation_failed');
-
-    persistPersona.mockResolvedValueOnce(undefined);
-    await act(async () => {
-      await current?.selectAgent(entry);
-    });
-    expect(current?.status).toBe('ready');
-    expect(current?.actionError).toBeUndefined();
-
-    persistPersona.mockRejectedValueOnce(new Error('disk unavailable'));
-    await act(async () => {
-      await expect(current?.clearAgent()).rejects.toThrow('clear_failed');
-    });
-    expect(current?.status).toBe('ready');
-    expect(current?.agents).toHaveLength(1);
-    expect(current?.actionError).toBe('clear_failed');
-
-    persistPersona.mockResolvedValueOnce(undefined);
-    await act(async () => {
-      await current?.clearAgent();
-    });
-    expect(current?.status).toBe('ready');
-    expect(current?.actionError).toBeUndefined();
-  });
-
   it('流式状态和历史对象更新不会重复加载同一场景与工作区目录', async () => {
     const initial = session();
     await act(async () => {
@@ -615,7 +559,7 @@ describe('useComposerPersonaSelection', () => {
     expect(loadCatalog).toHaveBeenCalledTimes(4);
   });
 
-  it('每轮快照始终采用输入框实际 currentAgentType 并修复旧策略', async () => {
+  it('每轮快照始终采用输入框实际 currentAgentType', async () => {
     await act(async () => {
       root.render(
         <Harness
@@ -635,95 +579,19 @@ describe('useComposerPersonaSelection', () => {
       executionPolicy: 'Plan',
     });
 
-    await act(async () => {
-      await current?.selectAgent(entry);
-    });
-    expect(persistPersona).toHaveBeenLastCalledWith(
-      'parent',
-      expect.objectContaining({
-        executionPolicy: 'Plan',
-      }),
-    );
   });
 
-  it('人格持久化期间同步阻止并发切换，失败后解除门禁并可重试', async () => {
-    let rejectPersistence: ((reason?: unknown) => void) | undefined;
-    persistPersona.mockImplementationOnce(() => new Promise<void>((_, reject) => {
-      rejectPersistence = reject;
-    }));
-
+  it('已绑定的同一通用团队可原地刷新版本，不误入固定团队动作', async () => {
     await act(async () => {
-      root.render(<Harness target={session()} />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    let activation: Promise<void> | undefined;
-    act(() => {
-      activation = current?.selectAgent(entry);
-    });
-    expect(current?.isPersonaPersistencePending()).toBe(true);
-
-    await act(async () => {
-      await expect(current?.clearAgent()).rejects.toThrow(
-        'persona_persistence_pending',
-      );
-    });
-    expect(persistPersona).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      rejectPersistence?.(new Error('disk unavailable'));
-      await expect(activation).rejects.toThrow('activation_failed');
-    });
-    expect(current?.personaPersistencePending).toBe(false);
-    expect(current?.isPersonaPersistencePending()).toBe(false);
-    expect(current?.personaSessionState).toMatchObject({
-      status: 'scenario_default',
-      activePersonaBinding: null,
-    });
-
-    persistPersona.mockResolvedValueOnce(undefined);
-    await act(async () => {
-      await current?.selectAgent(entry);
-    });
-    expect(persistPersona).toHaveBeenCalledTimes(2);
-  });
-
-  it('团队动作失败保留目录并允许直接重试', async () => {
-    await act(async () => {
-      root.render(<Harness target={session()} />);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const launchDeepReview = vi.fn()
-      .mockRejectedValueOnce(new Error('launch failed'))
-      .mockResolvedValueOnce(undefined);
-    const actions = {
-      launchDeepReview,
-      openShortDrama: vi.fn(),
-    };
-
-    await act(async () => {
-      await expect(current?.runTeamAction(teamEntry, actions)).rejects.toThrow(
-        'team_action_failed',
-      );
-    });
-    expect(current?.status).toBe('ready');
-    expect(current?.agents).toHaveLength(1);
-    expect(current?.teams).toHaveLength(2);
-    expect(current?.actionError).toBe('team_action_failed');
-
-    await act(async () => {
-      await current?.runTeamAction(teamEntry, actions);
-    });
-    expect(launchDeepReview).toHaveBeenCalledTimes(2);
-    expect(current?.actionError).toBeUndefined();
-  });
-
-  it('通用团队走持久实例与父会话主理人激活，不误入固定团队动作', async () => {
-    await act(async () => {
-      root.render(<Harness target={session()} />);
+      root.render(<Harness target={session({
+        activePersonaBinding: {
+          kind: 'team_lead',
+          personaId: reusableTeamEntry.lead.identity.id,
+          personaRevision: { status: 'known', value: 'revision1:software-lead' },
+          teamDefinitionId: reusableTeamEntry.identity.id,
+          teamInstanceId: 'instance-1',
+        },
+      })} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -749,7 +617,7 @@ describe('useComposerPersonaSelection', () => {
     expect(current?.actionError).toBeUndefined();
   });
 
-  it('通用团队激活失败保留精确错误并解除并发门禁', async () => {
+  it('同一通用团队刷新失败保留精确错误并解除并发门禁', async () => {
     activateReusableTeam.mockRejectedValueOnce(
       new ReusableTeamActivationError(
         'definition_revision_mismatch',
@@ -758,7 +626,15 @@ describe('useComposerPersonaSelection', () => {
       ),
     );
     await act(async () => {
-      root.render(<Harness target={session()} />);
+      root.render(<Harness target={session({
+        activePersonaBinding: {
+          kind: 'team_lead',
+          personaId: reusableTeamEntry.lead.identity.id,
+          personaRevision: { status: 'known', value: 'revision1:software-lead' },
+          teamDefinitionId: reusableTeamEntry.identity.id,
+          teamInstanceId: 'instance-1',
+        },
+      })} />);
       await Promise.resolve();
       await Promise.resolve();
     });

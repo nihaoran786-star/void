@@ -144,7 +144,7 @@ export function useComposerPersonaSelection({
     activeTeamInstanceId,
   ]);
   const personaLocked = Boolean(
-    !hasDeferredSelection && sessionId && activePersonaBinding,
+    !hasDeferredSelection && sessionId,
   );
 
   const reload = useCallback(async () => {
