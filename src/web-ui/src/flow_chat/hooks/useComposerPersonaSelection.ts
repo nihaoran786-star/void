@@ -143,6 +143,9 @@ export function useComposerPersonaSelection({
     activeTeamDefinitionId,
     activeTeamInstanceId,
   ]);
+  const personaLocked = Boolean(
+    !hasDeferredSelection && sessionId && activePersonaBinding,
+  );
 
   const reload = useCallback(async () => {
     if (!enabled || (!sessionId && !hasDeferredSelection) || runtimeUnsupported) {
@@ -217,6 +220,10 @@ export function useComposerPersonaSelection({
     if (!sessionId) {
       throw new Error('parent_session_required');
     }
+    if (personaLocked) {
+      setActionError('persona_locked');
+      throw new Error('persona_locked');
+    }
     if (personaPersistencePendingRef.current) {
       setActionError('persona_persistence_pending');
       throw new Error('persona_persistence_pending');
@@ -251,6 +258,7 @@ export function useComposerPersonaSelection({
     sessionId,
     sessionKind,
     runtimeUnsupported,
+    personaLocked,
   ]);
 
   const clearAgent = useCallback(async () => {
@@ -269,6 +277,10 @@ export function useComposerPersonaSelection({
     }
     if (!sessionId) {
       throw new Error('parent_session_required');
+    }
+    if (personaLocked) {
+      setActionError('persona_locked');
+      throw new Error('persona_locked');
     }
     if (personaPersistencePendingRef.current) {
       setActionError('persona_persistence_pending');
@@ -302,6 +314,7 @@ export function useComposerPersonaSelection({
     sessionId,
     sessionKind,
     runtimeUnsupported,
+    personaLocked,
   ]);
 
   const runTeamAction = useCallback(async (
@@ -334,6 +347,12 @@ export function useComposerPersonaSelection({
     }
     if (!sessionId) {
       throw new Error('parent_session_required');
+    }
+    const isSameActiveTeam = activePersonaBinding?.kind === 'team_lead'
+      && activePersonaBinding.teamDefinitionId === entry.identity.id;
+    if (personaLocked && !isSameActiveTeam) {
+      setActionError('persona_locked');
+      throw new Error('persona_locked');
     }
     if (service.isReusableTeam(entry, scenario)) {
       if (personaPersistencePendingRef.current) {
@@ -392,6 +411,8 @@ export function useComposerPersonaSelection({
     sessionId,
     sessionKind,
     teamActivationService,
+    activePersonaBinding,
+    personaLocked,
   ]);
 
   useEffect(() => {
@@ -440,6 +461,7 @@ export function useComposerPersonaSelection({
     });
   }, [
     activePersonaBinding,
+    personaLocked,
     catalog.teams,
     enabled,
     loading,
@@ -535,6 +557,7 @@ export function useComposerPersonaSelection({
     activeAgent,
     activeTeam,
     activePersonaBinding,
+    personaLocked,
     busyId,
     personaPersistencePending,
     isPersonaPersistencePending,

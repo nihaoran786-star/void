@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-08-05
+Updated: 2026-08-06
 
 ## Product state
 
@@ -30,8 +30,13 @@ Updated: 2026-08-05
 - Code, Cowork, and Media are stable **scenario workspaces**, not professional
   personas. A parent conversation separately owns one **active persona**:
   its scenario default, a selected single Agent, or a selected team lead.
-  Switching persona preserves the scenario, execution policy, workspace,
-  permissions, Canvas, and top-level history. The active contract is
+  Persona selection is editable only while composing an unpersisted new-session
+  draft. The first send freezes that binding as the identity of the created
+  conversation; its capsule becomes read-only, and using another Agent or Team
+  requires a new conversation. Scenario, execution policy, workspace,
+  permissions, Canvas, and top-level history remain separate from this binding.
+  A trusted fixed Team may still upgrade its own pinned revision in place; it
+  cannot be replaced by a different persona. The active contract is
   [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
 - The Desktop/Tauri customization slice now provides one localized
   Agent/Team/Skill catalog, per-parent Agent or Team-lead selection in the
@@ -65,8 +70,12 @@ Updated: 2026-08-05
   remain the existing `ScriptAI`, `AssetAI`, `SplitAI`, `VideoAI`, and
   `EditorAI` personas. Their fixed policies, `ShortDramaProject` tools, media
   routing, project state, and dedicated Canvas remain owned by Short Drama.
-  Team-bound short-drama sessions do not run the legacy five-session bootstrap
-  or open stage-agent Canvas tabs, preventing duplicate member conversations.
+  Team-bound short-drama sessions do not run the legacy five-session bootstrap.
+  The retired stage-agent Canvas composer is never reopened. After creation the
+  AI Short Drama Team chip is a locked room-identity badge, so the Team cannot
+  be detached from that conversation. The Canvas remains artifact-only and
+  member chat uses the canonical right Team Workspace. Existing child sessions
+  and project data are preserved during this presentation cleanup.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards
@@ -135,8 +144,11 @@ UI / route -> Module Interface -> Adapter / service -> external system
   it opens a compatible unpersisted new-session draft with a removable target
   capsule and leaves workspace choice and task text to the user. The first send
   creates the parent, awaits canonical Agent or reusable Team-lead activation,
-  freezes the persona snapshot, and only then sends. Failed activation removes
-  the empty parent and leaves the draft retryable. Fixed Deep Review continues
+  freezes the persona snapshot, and only then sends. The created session shows
+  the same capsule as a non-removable identity badge; selecting a different
+  Agent or Team is rejected and requires a new-session draft. Failed activation
+  removes the empty parent and leaves the draft retryable. Fixed Deep Review
+  continues
   to delegate to its dedicated Code flow; AI Short Drama binds its trusted Team
   lead and restores the dedicated Media Canvas from the durable session facts.
 - **Module:** Short Drama owns project facts and stage workflow.

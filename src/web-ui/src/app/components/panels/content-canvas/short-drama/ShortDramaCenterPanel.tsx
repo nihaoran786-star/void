@@ -7,8 +7,6 @@ import { createLogger } from '@/shared/utils/logger';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import type { Session } from '@/flow_chat/types/flow-chat';
 import { useContextStore } from '@/shared/context-system';
-import { TAB_EVENTS } from '@/app/components/panels/content-canvas/types';
-import { useAgentCanvasStore } from '@/app/components/panels/content-canvas/stores';
 import {
   connectShortDramaRuntimeBridgeToEventBus,
   createShortDramaDefaultLibraryService,
@@ -75,7 +73,6 @@ import {
   shouldUpdateShortDramaEpisodeFromScroll,
 } from './ShortDramaEpisodeNavigationState';
 import { getNextShortDramaRovingTabIndex } from './ShortDramaKeyboardNavigation';
-import { openShortDramaRealStageAgentTab } from './ShortDramaStageAgentTabOrchestrator';
 import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootstrap';
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
@@ -83,6 +80,7 @@ import { ShortDramaTopBar } from './ShortDramaTopBar';
 import { useRecoverableWorkspaceMediaUrl } from './useRecoverableWorkspaceMediaUrl';
 import {
   isUnifiedShortDramaTeamSession,
+  resolveShortDramaMemberChatPresentation,
   shouldBootstrapLegacyShortDramaStageAgents,
 } from './ShortDramaTeamSessionPolicy';
 import { openTeamMemberByAgentId } from '@/team_workspace';
@@ -91,7 +89,6 @@ import './ShortDramaCenterPanel.scss';
 
 const log = createLogger('ShortDramaCenterPanel');
 
-const STAGES: ShortDramaStage[] = ['script', 'assets', 'storyboards', 'video', 'post'];
 const PROGRAMMATIC_EPISODE_SCROLL_SETTLE_MS = 120;
 
 interface ShortDramaCenterPanelProps {
@@ -141,7 +138,6 @@ export function ShortDramaCenterPanel({
   const scriptEditorRef = useRef<EditorInstance>(null);
   const activeEpisodeIdRef = useRef<string>();
   const pendingEpisodeScrollRef = useRef(false);
-  const openedStageAgentTabsRef = useRef(new Set<string>());
   const stageAgentBootstrapAttemptRef = useRef<string>();
   const workspaceManifestAdapter = useMemo(() => (
     workspacePath ? createShortDramaWorkspaceManifestAdapter(workspacePath) : undefined
@@ -618,15 +614,6 @@ export function ShortDramaCenterPanel({
   }, [activeArtifactFocusByStage, activeEpisodeId, flowSessionRevision, selectedStage, stageAgentBindings, stageWorkspaceProject, viewModel?.selectedEpisode?.id, workspacePath]);
   const activeStageWorkspace = stageWorkspaces.find(workspace => workspace.stage === selectedStage);
 
-  const openNativeStageAgentTab = useCallback((workspace: NonNullable<typeof activeStageWorkspace>) => {
-    const canvas = useAgentCanvasStore.getState();
-    return openShortDramaRealStageAgentTab(workspace, workspacePath, {
-      ...canvas,
-      getSplitMode: () => useAgentCanvasStore.getState().layout.splitMode,
-    }, {
-      expandRightPanel: () => window.dispatchEvent(new CustomEvent(TAB_EVENTS.EXPAND_RIGHT_PANEL)),
-    });
-  }, [workspacePath]);
   const sourceSession = useMemo(() => {
     void flowSessionRevision;
     const flowState = flowChatStore.getState();
@@ -636,7 +623,7 @@ export function ShortDramaCenterPanel({
         ? flowState.sessions.get(flowState.activeSessionId)
         : undefined;
   }, [flowSessionRevision, sourceSessionId]);
-  const usesUnifiedTeamWorkspace = isUnifiedShortDramaTeamSession(sourceSession);
+  const memberChatPresentation = resolveShortDramaMemberChatPresentation(sourceSession);
   useEffect(() => {
     if (state.status !== 'ready') {
       return;
@@ -704,50 +691,13 @@ export function ShortDramaCenterPanel({
       return;
     }
 
-    if (usesUnifiedTeamWorkspace && sourceSession) {
+    if (memberChatPresentation === 'team_workspace' && sourceSession) {
       openTeamMemberByAgentId(
         sourceSession.sessionId,
         getShortDramaNativeStageAgentName(activeStageWorkspace.stage),
       );
-      return;
     }
-
-    const result = openNativeStageAgentTab(activeStageWorkspace);
-    if (result.status === 'ready') {
-      openedStageAgentTabsRef.current.add(`${activeStageWorkspace.stage}:${result.childSessionId}`);
-    }
-  }, [activeStageWorkspace, openNativeStageAgentTab, sourceSession, usesUnifiedTeamWorkspace]);
-
-  useEffect(() => {
-    if (state.status !== 'ready') {
-      return;
-    }
-    if (usesUnifiedTeamWorkspace) {
-      return;
-    }
-
-    const readyWorkspaces = stageWorkspaces
-      .filter(workspace => workspace.specialistSessionId && workspace.parentSessionId)
-      .sort((left, right) => {
-        if (left.stage === selectedStage) return 1;
-        if (right.stage === selectedStage) return -1;
-        return STAGES.indexOf(left.stage) - STAGES.indexOf(right.stage);
-      });
-
-    readyWorkspaces.forEach(workspace => {
-      const key = `${workspace.stage}:${workspace.specialistSessionId}`;
-      if (openedStageAgentTabsRef.current.has(key)) {
-        return;
-      }
-      openedStageAgentTabsRef.current.add(key);
-      openNativeStageAgentTab(workspace);
-    });
-
-    const selectedWorkspace = readyWorkspaces.find(workspace => workspace.stage === selectedStage);
-    if (selectedWorkspace) {
-      openNativeStageAgentTab(selectedWorkspace);
-    }
-  }, [openNativeStageAgentTab, selectedStage, stageWorkspaces, state.status, usesUnifiedTeamWorkspace]);
+  }, [activeStageWorkspace, memberChatPresentation, sourceSession]);
 
   useEffect(() => {
     setScriptContent(baseScriptDocument?.content);

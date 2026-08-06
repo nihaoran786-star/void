@@ -209,6 +209,13 @@ The parent session persists `scenario`, `executionPolicy`, and
 subagents, and older stored sessions keep working. New code must not add
 another meaning to those legacy fields.
 
+`activePersonaBinding` is editable only on an unpersisted new-session draft.
+The first successful send freezes it as the created conversation's room
+identity. A created parent cannot clear or replace that binding; using another
+Agent or Team requires a new conversation. The only in-place exception is a
+trusted fixed Team upgrading its own pinned definition revision without
+changing Team identity.
+
 `StartDialogTurn` gains one structured, immutable-for-the-turn persona
 snapshot:
 
@@ -304,14 +311,20 @@ default persona | single Agent | team lead
 ```
 
 - With no explicit selection, the scenario's default persona is active.
-- Selecting a single Agent activates that Agent for subsequent top-level turns.
-- Selecting a team activates its lead persona for subsequent top-level turns.
-- The active persona remains selected until the user switches or clears it.
-- Clearing the selection restores the scenario's default persona.
+- Selecting a single Agent on a new-session draft activates that Agent for all
+  top-level turns in the created conversation.
+- Selecting a Team on a new-session draft activates its lead persona for all
+  top-level turns in the created conversation.
+- Before the first send, the draft selection may be switched or cleared and
+  clearing it restores the scenario's default persona.
+- After the first send, the active persona is the conversation's immutable room
+  identity. It cannot be switched or cleared; another persona requires another
+  parent conversation.
 
 Only the persona layer changes. Existing top-level conversation history remains
-available. The selected persona must be shown as a removable composer capsule
-and recorded on each submitted turn as structured metadata.
+available. The selected persona is a removable capsule only on the new-session
+draft and becomes a read-only identity badge after creation. It is recorded on
+each submitted turn as structured metadata.
 
 ### Skills and context
 
@@ -598,12 +611,20 @@ The shared composer exposes one entry named **选择智能体或团队**:
 查看全部
 ```
 
-After selection, the composer displays one removable localized capsule:
+After selection, the new-session composer displays one removable localized
+capsule:
 
 ```text
 [分镜设计智能体 ×]
 [代码审查团队 · 7 名成员 ×]
 ```
+
+After the first send creates the parent conversation, the same capsule becomes
+a read-only room-identity badge and no longer renders a remove action. The
+persona picker is also unavailable in that created conversation. This prevents
+one room from changing from a Team lead to the scenario default or to another
+Team while retaining incompatible history, child sessions, Canvas state, and
+prompt-cache identity.
 
 The capsule represents a structured persona binding. It must not be implemented
 as prompt text, an `@` mention, a Skill reference, a slash command, or a raw

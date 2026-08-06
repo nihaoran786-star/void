@@ -143,6 +143,11 @@ describe('composer persona presentation contract', () => {
     expect(source).toContain('composerActiveAgent?.identity.id');
     expect(source).toContain('composerActivePersonaBinding.teamDefinitionId');
     expect(source).toContain('composerActivePersonaBinding.personaId');
+    expect(source).toContain('personaLocked: composerPersonaLocked');
+    expect(source).toContain('{!composerPersonaLocked && (');
+    expect(source).toContain('composerPersonaEnabled && !composerPersonaLocked');
+    expect(capsule).toContain('data-persona-locked={composerPersonaLocked || undefined}');
+    expect(capsule).toContain("customization.composerPersona.lockedPersona");
     expect(source).toContain(
       'const [failedPersonaAvatarSrc, setFailedPersonaAvatarSrc] = useState<string | null>(null);',
     );
@@ -209,6 +214,7 @@ describe('composer persona presentation contract', () => {
       'clearFailed',
       'teamActionFailed',
       'clearPersona',
+      'lockedPersona',
     ]) {
       expect(source).toContain(`customization.composerPersona.${key}`);
     }
@@ -231,6 +237,7 @@ describe('composer persona presentation contract', () => {
         clearFailed: expect.any(String),
         teamActionFailed: expect.any(String),
         clearPersona: expect.any(String),
+        lockedPersona: expect.any(String),
       });
     }
 

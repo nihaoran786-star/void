@@ -9,7 +9,7 @@ import { EditorArea } from './editor-area';
 import { AnchorZone } from './anchor-zone';
 import { MissionControl } from './mission-control';
 import { EmptyState } from './empty-state';
-import { useCanvasStore } from './stores';
+import { useAgentCanvasStore, useCanvasStore } from './stores';
 import { useTabLifecycle, useKeyboardShortcuts, usePanelTabCoordinator } from './hooks';
 import type { AnchorPosition } from './types';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
@@ -19,6 +19,8 @@ import { notificationService } from '@/shared/notification-system/services/Notif
 import { createShortDramaWorkspaceManifestAdapter } from '@/shared/services/short-drama/ShortDramaWorkspaceManifestAdapter';
 import { isShortDramaMediaSession } from '@/shared/services/short-drama/ShortDramaWorkspaceMode';
 import { readShortDramaStageAgentBindings } from '@/shared/services/short-drama/ShortDramaStageAgentSessionBinding';
+import { isUnifiedShortDramaTeamSession } from './short-drama/ShortDramaTeamSessionPolicy';
+import { removeDuplicateTeamMemberCanvasTabs } from '@/app/presentation/TeamMemberCanvasPresentation';
 import {
   workspaceMediaLibraryService,
   type WorkspaceMediaLibraryService,
@@ -63,6 +65,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     addTab,
     findTabByMetadata,
     switchToTab,
+    updateTabContent,
     setAnchorPosition,
     setAnchorSize,
     closeMissionControl,
@@ -211,10 +214,32 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
       return;
     }
     const sourceSessionId = sourceSession.sessionId;
+    if (isUnifiedShortDramaTeamSession(sourceSession)) {
+      const canvas = useAgentCanvasStore.getState();
+      removeDuplicateTeamMemberCanvasTabs(canvas, {
+        parentSessionId: sourceSessionId,
+        workspacePath,
+        removeShortDramaWorkspaceTabs: true,
+      });
+    }
 
     const duplicateCheckKey = `short-drama:${workspacePath}`;
     const existing = findTabByMetadata({ duplicateCheckKey });
     if (existing) {
+      updateTabContent(existing.tab.id, existing.groupId, {
+        ...existing.tab.content,
+        data: {
+          ...existing.tab.content.data,
+          workspacePath,
+          sourceSessionId,
+        },
+        metadata: {
+          ...existing.tab.content.metadata,
+          duplicateCheckKey,
+          sourceSessionId,
+          contentRole: 'short-drama-center',
+        },
+      });
       switchToTab(existing.tab.id, existing.groupId);
       return;
     }
@@ -229,7 +254,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
         contentRole: 'short-drama-center',
       },
     }, 'active', 'primary');
-  }, [addTab, findTabByMetadata, switchToTab, t, workspacePath]);
+  }, [addTab, findTabByMetadata, switchToTab, t, updateTabContent, workspacePath]);
 
   useEffect(() => {
     const sessionId = activeSession?.sessionId;

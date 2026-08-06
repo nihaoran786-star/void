@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SHORT_DRAMA_TEAM_CATALOG_ID } from '@/shared/services/customization/fixedTeamIds';
 import {
   isUnifiedShortDramaTeamSession,
+  resolveShortDramaMemberChatPresentation,
   shouldBootstrapLegacyShortDramaStageAgents,
 } from './ShortDramaTeamSessionPolicy';
 
@@ -25,5 +26,23 @@ describe('ShortDramaTeamSessionPolicy', () => {
     expect(shouldBootstrapLegacyShortDramaStageAgents({
       activePersonaBinding: null,
     })).toBe(true);
+  });
+
+  it('never falls back to the old Canvas member chat after the Team is unbound', () => {
+    expect(resolveShortDramaMemberChatPresentation({
+      activePersonaBinding: null,
+    })).toBe('team_required');
+  });
+
+  it('routes a bound short-drama Team member to the canonical Team workspace', () => {
+    expect(resolveShortDramaMemberChatPresentation({
+      activePersonaBinding: {
+        kind: 'team_lead',
+        personaId: 'member-lead',
+        personaRevision: { status: 'known', value: 'revision:lead' },
+        teamDefinitionId: SHORT_DRAMA_TEAM_CATALOG_ID,
+        teamInstanceId: 'team-instance',
+      },
+    })).toBe('team_workspace');
   });
 });

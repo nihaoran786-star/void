@@ -58,9 +58,9 @@ describe('ShortDramaCenterPanel presentation lifecycle contract', () => {
       'void writeShortDramaRuntimeFocus',
       'if (!activeStageWorkspace)'
     );
-    const stageAgentTabEffects = sourceBetween(
+    const stageMemberPresentationEffect = sourceBetween(
       panelSource,
-      'const result = openNativeStageAgentTab(activeStageWorkspace)',
+      "if (memberChatPresentation === 'team_workspace' && sourceSession)",
       'setScriptContent(baseScriptDocument?.content)'
     );
 
@@ -74,8 +74,10 @@ describe('ShortDramaCenterPanel presentation lifecycle contract', () => {
     expect(mainAiEffect).toContain('syncShortDramaMainAIContextExport');
     expect(runtimeFocusEffect).not.toContain('!isActive');
     expect(runtimeFocusEffect).toContain('writeShortDramaRuntimeFocus');
-    expect(stageAgentTabEffects).not.toContain('!isActive');
-    expect(stageAgentTabEffects).toContain('openNativeStageAgentTab');
+    expect(stageMemberPresentationEffect).not.toContain('!isActive');
+    expect(stageMemberPresentationEffect).toContain('openTeamMemberByAgentId');
+    expect(panelSource).not.toContain('openNativeStageAgentTab');
+    expect(panelSource).not.toContain('openShortDramaRealStageAgentTab');
   });
 
   it('waits for persisted stage-agent bindings before bootstrapping new sessions', () => {

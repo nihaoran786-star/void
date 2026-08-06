@@ -78,6 +78,7 @@ import { useKeyboardShortcuts } from './hooks';
 import { useAgentCanvasStore } from './stores';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
+import { SHORT_DRAMA_TEAM_CATALOG_ID } from '@/shared/services/customization/fixedTeamIds';
 import type { WorkspaceMediaAvailability, WorkspaceMediaLibraryService } from '@/shared/services/workspace-media';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -446,6 +447,106 @@ describe('ContentCanvas workspace media opening', () => {
       workspacePath: 'C:/work',
       sourceSessionId: 'media-session',
     });
+  });
+
+  it('rebinds a reused short drama center tab to the current media session', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
+    });
+    flowChatStore.addExternalSession('legacy-media-session', 'Legacy Media', 'Media', 'C:/work');
+    flowChatStore.switchSession('legacy-media-session');
+    act(() => {
+      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    });
+
+    flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
+    flowChatStore.switchSession('team-media-session');
+    act(() => {
+      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    });
+
+    const shortDramaTabs = useAgentCanvasStore
+      .getState()
+      .primaryGroup
+      .tabs
+      .filter(tab => tab.content.type === 'short-drama-center');
+    expect(shortDramaTabs).toHaveLength(1);
+    expect(shortDramaTabs[0].content.data).toMatchObject({
+      workspacePath: 'C:/work',
+      sourceSessionId: 'team-media-session',
+    });
+    expect(shortDramaTabs[0].content.metadata).toMatchObject({
+      sourceSessionId: 'team-media-session',
+    });
+  });
+
+  it('removes restored stage-agent tabs when the short-drama Team opens its canonical workspace', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+    const canvas = useAgentCanvasStore.getState();
+    canvas.setSplitMode('horizontal');
+    canvas.addTab({
+      type: 'btw-session',
+      title: '剧本 AI',
+      data: {
+        childSessionId: 'legacy-script-child',
+        parentSessionId: 'legacy-media-session',
+      },
+      metadata: {
+        shortDramaStage: 'script',
+        shortDramaWorkspacePath: 'C:/work',
+      },
+    }, 'active', 'secondary');
+    canvas.addTab({
+      type: 'btw-session',
+      title: '普通 BTW',
+      data: {
+        childSessionId: 'ordinary-child',
+        parentSessionId: 'team-media-session',
+      },
+      metadata: {},
+    }, 'active', 'secondary');
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
+    });
+    flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
+    flowChatStore.setState(previous => {
+      const sessions = new Map(previous.sessions);
+      const session = sessions.get('team-media-session');
+      sessions.set('team-media-session', {
+        ...session,
+        activePersonaBinding: {
+          kind: 'team_lead',
+          personaId: 'short-drama-team-lead',
+          personaRevision: { status: 'known', value: 'revision:1' },
+          teamDefinitionId: SHORT_DRAMA_TEAM_CATALOG_ID,
+          teamInstanceId: 'team-instance',
+        },
+      });
+      return { ...previous, sessions };
+    });
+    flowChatStore.switchSession('team-media-session');
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    });
+
+    const allTabs = [
+      ...useAgentCanvasStore.getState().primaryGroup.tabs,
+      ...useAgentCanvasStore.getState().secondaryGroup.tabs,
+      ...useAgentCanvasStore.getState().tertiaryGroup.tabs,
+    ];
+    expect(allTabs.some(tab => tab.title === '剧本 AI')).toBe(false);
+    expect(allTabs.some(tab => tab.title === '普通 BTW')).toBe(true);
+    expect(allTabs.some(tab => tab.content.type === 'short-drama-center')).toBe(true);
   });
 
   it('does not open the short drama center from a non-media session', async () => {

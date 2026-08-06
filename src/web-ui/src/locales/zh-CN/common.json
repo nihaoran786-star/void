@@ -28,7 +28,8 @@
       "modeChangeFailed": "切换模式失败，已保留原来的模式",
       "clearFailed": "恢复默认智能体失败，请重试",
       "teamActionFailed": "当前会话无法打开这个团队",
-      "clearPersona": "恢复默认智能体"
+      "clearPersona": "恢复默认智能体",
+      "lockedPersona": "当前会话由此智能体或团队负责。如需更换，请新建会话。"
     }
   },
   "agents": {

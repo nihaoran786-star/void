@@ -219,8 +219,10 @@ Team entry rules:
   and concise state;
 - click opens or focuses the Team Workspace without replacing the current
   Canvas tab;
-- secondary action opens a small menu for switch, detach presentation, inspect
-  definition, or stop/cancel when the runtime explicitly permits it;
+- secondary action may open a small menu to start a new conversation with
+  another Team, hide this presentation, inspect the definition, or stop/cancel
+  when the runtime explicitly permits it; it never unbinds or replaces the
+  Team identity of the current parent conversation;
 - hiding the Canvas keeps a one-click reopen control at the scene edge;
 - presentation state is restored per parent session.
 
@@ -511,7 +513,10 @@ The Desktop/Tauri reusable-Team slice implements:
   Skill allowlists;
 - one right-side Team Workspace presentation for all durable Team members,
   fixed desktop three-column composition, Task-card routing into that workspace,
-  and automatic restoration of the short-drama Canvas from session binding.
+  and automatic restoration of the short-drama Canvas from session binding;
+- no fallback to the retired short-drama stage-agent Canvas composer. The
+  created parent keeps its locked Team identity, the artifact Canvas remains
+  available, and member chat always opens in Team Workspace.
 
 The current slice intentionally does not broaden specialist tool narrowing or
 readonly policy, replace dedicated Deep Review or Short Drama business tools,

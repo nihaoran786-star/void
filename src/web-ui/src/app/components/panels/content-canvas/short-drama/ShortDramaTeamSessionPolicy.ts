@@ -14,3 +14,16 @@ export function shouldBootstrapLegacyShortDramaStageAgents(
 ): boolean {
   return !isUnifiedShortDramaTeamSession(session);
 }
+
+export type ShortDramaMemberChatPresentation =
+  | 'team_workspace'
+  | 'team_required';
+
+/** The retired Canvas member composer is never a valid presentation target. */
+export function resolveShortDramaMemberChatPresentation(
+  session?: Pick<Session, 'activePersonaBinding'>,
+): ShortDramaMemberChatPresentation {
+  return isUnifiedShortDramaTeamSession(session)
+    ? 'team_workspace'
+    : 'team_required';
+}

@@ -19,7 +19,11 @@ import SessionCapabilityRail from './SessionCapabilityRail';
 import { SessionCapabilityRailOutletProvider } from '@/app/presentation/sessionCapabilityRailOutlet';
 import { isTauriRuntime } from '@/infrastructure/runtime';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
-import { useCanvasStore } from '@/app/components/panels/content-canvas/stores';
+import {
+  useAgentCanvasStore,
+  useCanvasStore,
+} from '@/app/components/panels/content-canvas/stores';
+import { removeDuplicateTeamMemberCanvasTabs } from '@/app/presentation/TeamMemberCanvasPresentation';
 import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSessionCapabilities';
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
 import {
@@ -349,6 +353,23 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const teamCanvasCapability = resolveTeamCanvasCapability(
     activeTeamWorkspace.snapshot?.activeTeam?.teamDefinitionId,
   );
+  useEffect(() => {
+    const activeTeam = activeTeamWorkspace.snapshot?.activeTeam;
+    if (!activeTeamWorkspace.sessionId || !activeTeam) return;
+    removeDuplicateTeamMemberCanvasTabs(useAgentCanvasStore.getState(), {
+      parentSessionId: activeTeamWorkspace.sessionId,
+      workspacePath,
+      memberChildSessionIds: activeTeam.members.flatMap(member => (
+        member.childSessionId ? [member.childSessionId] : []
+      )),
+      removeShortDramaWorkspaceTabs: teamCanvasCapability === 'short-drama',
+    });
+  }, [
+    activeTeamWorkspace.sessionId,
+    activeTeamWorkspace.snapshot,
+    teamCanvasCapability,
+    workspacePath,
+  ]);
   useEffect(() => {
     if (!activeTeamWorkspace.teamBindingKey || !teamCanvasCapability) return;
     if (state.layout.rightPanelCollapsed) toggleRightPanel();

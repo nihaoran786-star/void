@@ -718,6 +718,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     personaPersistencePending,
     isPersonaPersistencePending,
     personaSessionState,
+    personaLocked: composerPersonaLocked,
     selectAgent: selectComposerAgent,
     clearAgent: clearComposerAgent,
     runTeamAction: runComposerTeamAction,
@@ -3979,7 +3980,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   )}
 
                   {hasActiveComposerPersona && (
-                    <div className="void-chat-input__agent-capsule void-chat-input__persona-capsule">
+                    <div
+                      className="void-chat-input__agent-capsule void-chat-input__persona-capsule"
+                      data-persona-locked={composerPersonaLocked || undefined}
+                      title={composerPersonaLocked
+                        ? tCommon('customization.composerPersona.lockedPersona')
+                        : undefined}
+                    >
                       {activePersonaAvatarFailed ? (
                         <span className="void-chat-input__persona-avatar-fallback" aria-hidden>
                           {isActiveComposerTeam ? (
@@ -4001,18 +4008,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       <span className="void-chat-input__agent-capsule-label">
                         {activePersonaDisplayName}
                       </span>
-                      <button
-                        type="button"
-                        className="void-chat-input__agent-capsule-close"
-                        aria-label={tCommon('customization.composerPersona.clearPersona')}
-                        disabled={customizationInteractionPending}
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleClearComposerAgent();
-                        }}
-                      >
-                        <X size={12} strokeWidth={2.5} />
-                      </button>
+                      {!composerPersonaLocked && (
+                        <button
+                          type="button"
+                          className="void-chat-input__agent-capsule-close"
+                          aria-label={tCommon('customization.composerPersona.clearPersona')}
+                          disabled={customizationInteractionPending}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleClearComposerAgent();
+                          }}
+                        >
+                          <X size={12} strokeWidth={2.5} />
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -4074,7 +4083,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       )}
 
                       <div className="void-chat-input__boost-section">
-                        {composerPersonaEnabled ? (
+                        {composerPersonaEnabled && !composerPersonaLocked ? (
                           <ComposerPersonaPicker
                             agents={composerPersonaAgents}
                             teams={composerPersonaTeams}

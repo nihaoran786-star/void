@@ -307,6 +307,39 @@ describe('useComposerPersonaSelection', () => {
     expect(persistPersona).not.toHaveBeenCalled();
   });
 
+  it('已创建会话的人格绑定不可清除或更换，使用其他团队必须新建会话', async () => {
+    const lockedSession = session({
+      activePersonaBinding: {
+        kind: 'team_lead',
+        personaId: reusableTeamEntry.lead.identity.id,
+        personaRevision: {
+          status: 'known',
+          value: 'revision1:software-lead',
+        },
+        teamDefinitionId: reusableTeamEntry.identity.id,
+        teamInstanceId: 'instance-1',
+      },
+    });
+
+    await act(async () => {
+      root.render(<Harness target={lockedSession} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(current?.personaLocked).toBe(true);
+    await act(async () => {
+      await expect(current?.clearAgent()).rejects.toThrow('persona_locked');
+      await expect(current?.selectAgent(entry)).rejects.toThrow('persona_locked');
+      await expect(current?.runTeamAction(teamEntry, {
+        launchDeepReview: vi.fn(),
+        openShortDrama: vi.fn(),
+      })).rejects.toThrow('persona_locked');
+    });
+    expect(persistPersona).not.toHaveBeenCalled();
+    expect(activateReusableTeam).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['Media', 'media'],
     ['Cowork', 'cowork'],
