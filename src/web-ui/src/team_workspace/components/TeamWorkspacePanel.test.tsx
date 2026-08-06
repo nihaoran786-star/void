@@ -294,6 +294,66 @@ describe('TeamWorkspacePanel', () => {
     expect(container.querySelector('[data-testid="member-conversation"]')).toBeNull();
   });
 
+  it('同一成员快照刷新不替换会话 DOM，切换成员时正确更新子会话', async () => {
+    const firstState = readyState();
+    await act(async () => {
+      root.render(
+        <TeamWorkspacePanel
+          state={firstState}
+          selectedMemberId="developer"
+          workspacePath="D:/repo"
+        />,
+      );
+      await Promise.resolve();
+    });
+    const originalConversation = container.querySelector<HTMLElement>(
+      '[data-testid="member-conversation"]',
+    );
+    expect(originalConversation?.dataset.childSessionId).toBe('child-1');
+
+    await act(async () => {
+      root.render(
+        <TeamWorkspacePanel
+          state={readyState()}
+          selectedMemberId="developer"
+          workspacePath="D:/repo"
+        />,
+      );
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="member-conversation"]'))
+      .toBe(originalConversation);
+
+    const nextTeam = activeTeam();
+    const reviewer = {
+      ...nextTeam.definition.members[1]!,
+      memberId: 'reviewer',
+      displayName: '测试工程师',
+      professionalRole: '质量保障',
+    };
+    nextTeam.definition.members.push(reviewer);
+    nextTeam.members.push({
+      definition: reviewer,
+      state: { source: 'definition', status: 'not_started' },
+      childSessionId: 'child-2',
+    });
+    await act(async () => {
+      root.render(
+        <TeamWorkspacePanel
+          state={readyState(nextTeam)}
+          selectedMemberId="reviewer"
+          workspacePath="D:/repo"
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector<HTMLElement>(
+      '[data-testid="member-conversation"]',
+    )?.dataset.childSessionId).toBe('child-2');
+    expect(container.textContent).toContain('测试工程师');
+  });
+
   it('从成员会话返回后恢复到原成员按钮焦点', async () => {
     await render(readyState());
     const developerButton = container.querySelector<HTMLButtonElement>('button[aria-label="查看开发工程师的会话"]')!;

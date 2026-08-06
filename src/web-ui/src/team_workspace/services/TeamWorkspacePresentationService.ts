@@ -36,6 +36,16 @@ const membersFromSnapshot = (
   agentId: member.definition.agentId,
 })) ?? [];
 
+const membersAreEqual = (
+  left: readonly TeamMemberPresentationIndex[],
+  right: readonly TeamMemberPresentationIndex[],
+): boolean => left.length === right.length && left.every((member, index) => {
+  const candidate = right[index];
+  return member.memberId === candidate?.memberId
+    && member.childSessionId === candidate.childSessionId
+    && member.agentId === candidate.agentId;
+});
+
 export const useTeamWorkspacePresentationStore =
   create<TeamWorkspacePresentationState>((set) => ({
     sessions: {},
@@ -43,12 +53,14 @@ export const useTeamWorkspacePresentationStore =
       const current = state.sessions[sessionId];
       if (current?.bindingKey === bindingKey) {
         if (!snapshot) return state;
+        const members = membersFromSnapshot(snapshot);
+        if (membersAreEqual(current.members, members)) return state;
         return {
           sessions: {
             ...state.sessions,
             [sessionId]: {
               ...current,
-              members: membersFromSnapshot(snapshot),
+              members,
             },
           },
         };
@@ -68,12 +80,14 @@ export const useTeamWorkspacePresentationStore =
     registerSnapshot: snapshot => set(state => {
       const current = state.sessions[snapshot.parentSessionId];
       if (!current) return state;
+      const members = membersFromSnapshot(snapshot);
+      if (membersAreEqual(current.members, members)) return state;
       return {
         sessions: {
           ...state.sessions,
           [snapshot.parentSessionId]: {
             ...current,
-            members: membersFromSnapshot(snapshot),
+            members,
           },
         },
       };
@@ -81,20 +95,24 @@ export const useTeamWorkspacePresentationStore =
     open: (sessionId, memberId) => set(state => {
       const current = state.sessions[sessionId];
       if (!current) return state;
+      const selectedMemberId = memberId ?? current.selectedMemberId;
+      if (current.isOpen && current.selectedMemberId === selectedMemberId) {
+        return state;
+      }
       return {
         sessions: {
           ...state.sessions,
           [sessionId]: {
             ...current,
             isOpen: true,
-            selectedMemberId: memberId ?? current.selectedMemberId,
+            selectedMemberId,
           },
         },
       };
     }),
     close: sessionId => set(state => {
       const current = state.sessions[sessionId];
-      if (!current) return state;
+      if (!current || !current.isOpen) return state;
       return {
         sessions: {
           ...state.sessions,
@@ -105,6 +123,7 @@ export const useTeamWorkspacePresentationStore =
     selectMember: (sessionId, memberId) => set(state => {
       const current = state.sessions[sessionId];
       if (!current) return state;
+      if (current.isOpen && current.selectedMemberId === memberId) return state;
       return {
         sessions: {
           ...state.sessions,

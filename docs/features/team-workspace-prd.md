@@ -7,7 +7,7 @@ built-in definition over the shared Team runtime while retaining its dedicated
 project tools and Canvas. Deep Review remains adapter-owned, and specialist
 tool/readonly expansion remains staged.
 
-Updated: 2026-08-05
+Updated: 2026-08-06
 
 ## Product decision
 
@@ -26,6 +26,17 @@ uses existing child sessions and subagent runtime contracts; the Team Workspace
 adds a reusable definition, typed projection, and presentation container around
 those contracts.
 
+Professional identity, current assignment, and execution authority are three
+separate layers. A member Agent's own persona/role instructions define what kind
+of specialist it is. A Team launch adds only the current member, workflow phase,
+acceptance rule, Team objective, and lead handoff target as a concise positive
+assignment. It must not repeatedly inject natural-language warnings as a
+substitute for authorization. Whether the child may invoke `Task`, `Team`, or
+another privileged tool is enforced by typed runtime restrictions and the
+effective scenario/workspace/user permission intersection. Ordinary Team
+members fail closed for both `Task` and `Team`; any future nested delegation
+requires an explicit policy and runtime contract rather than prompt wording.
+
 When a user selects a team in a compatible scenario, the team lead becomes the
 parent conversation's active persona. The scenario workspace, execution policy,
 permissions, Canvas, workspace context, and top-level history remain stable.
@@ -42,6 +53,14 @@ main conversation | working canvas | team workspace
 Canvas shows artifacts and tools. Team Workspace shows participants, progress,
 handoffs, and member conversations. Users must be able to inspect both at the
 same time.
+
+The right workspace uses stale-while-revalidate presentation semantics. A new
+Team binding may show an initial loading state, but background polling,
+parent-turn lifecycle changes, and manual refresh retain the last usable
+snapshot until a materially different projection is ready. Equivalent
+snapshots must not be republished. Composer typing and lead streaming are not
+Team Workspace identity changes and must not remount, blank, or flash the
+selected member conversation.
 
 ## Why this is a separate product concept
 
@@ -510,8 +529,8 @@ The Desktop/Tauri reusable-Team slice implements:
   path, strict identity/hash validation, and compare-and-swap migration of only
   eligible legacy empty-policy launches to explicit `no_policy`;
 - runtime-enforced lead/member separation: child sessions cannot call `Task`
-  or `Team`, member launches receive a role- and phase-scoped execution
-  assignment, completed prerequisites automatically dispatch successor
+  or `Team`, member launches receive a concise positive role- and phase-scoped
+  execution assignment, completed prerequisites automatically dispatch successor
   phases, and cancelled or interrupted members terminalize the current run so
   a new run can start instead of remaining falsely active;
 - Web composer activation for otherwise-compatible ordinary Teams with member
@@ -519,6 +538,10 @@ The Desktop/Tauri reusable-Team slice implements:
 - one right-side Team Workspace presentation for all durable Team members,
   fixed desktop three-column composition, Task-card routing into that workspace,
   and automatic restoration of the short-drama Canvas from session binding;
+- stable Team Workspace background refresh: only a new binding uses the initial
+  loading presentation, equivalent snapshots preserve their references and do
+  not republish member indexes, and parent-turn refresh keeps the selected
+  member conversation mounted;
 - no fallback to the retired short-drama stage-agent Canvas composer. The
   created parent keeps its locked Team identity, the artifact Canvas remains
   available, and member chat always opens in Team Workspace.

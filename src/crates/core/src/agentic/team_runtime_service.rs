@@ -594,11 +594,15 @@ impl TeamRuntimeService {
                     false,
                 )
             })?;
+        let delivery_requirement = if phase.expected_outputs.is_empty() {
+            phase.completion_rule.clone()
+        } else {
+            phase.expected_outputs.join("、")
+        };
         request.objective = Some(format!(
-            "<team_member_assignment>\n你是团队中的专业执行成员，不是团队主理人。不得启动、召唤、编排或再次委派任何团队成员，也不得调用 Team 或 Task。请直接完成你负责的专业阶段，并把实际产物交回左侧主理人。\n成员：{}（{}）\n阶段：{}\n阶段交付要求：{}\n团队总体目标：{}\n</team_member_assignment>",
-            definition_member.display_name,
-            definition_member.professional_role,
+            "<team_member_assignment>\n当前阶段：{}\n交付要求：{}\n完成标准：{}\n团队目标：{}\n</team_member_assignment>",
             phase.display_name,
+            delivery_requirement,
             phase.completion_rule,
             run.objective
         ));
@@ -2895,6 +2899,7 @@ impl TeamOrchestrator for TeamRuntimeService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agentic::fixed_team_definitions::ai_short_drama_team_definition;
     use crate::agentic::team_definitions::{
         TeamCollaborationPolicy, TeamDefinition, TeamDefinitionLevel, TeamDefinitionOrigin,
         TeamMemberDefinition, TeamMemberRole, TeamPermissionPolicy, TeamScenario,
@@ -3012,6 +3017,32 @@ mod tests {
             });
         record.revision = team_definition_revision(&record.definition);
         record
+    }
+
+    fn parallel_definition_record() -> TeamDefinitionRecord {
+        let mut record = definition_record();
+        let parallel_worker = id("member", 'c');
+        record
+            .definition
+            .members
+            .push(member(parallel_worker.clone(), TeamMemberRole::Specialist));
+        record.definition.workflows[0].phases[0]
+            .assigned_member_ids
+            .push(parallel_worker);
+        record.revision = team_definition_revision(&record.definition);
+        record
+    }
+
+    fn short_drama_definition_record() -> TeamDefinitionRecord {
+        let definition = ai_short_drama_team_definition();
+        let revision = team_definition_revision(&definition);
+        TeamDefinitionRecord {
+            definition,
+            revision,
+            level: TeamDefinitionLevel::User,
+            path: "builtin://teams/ai-short-drama".into(),
+            is_authorable: false,
+        }
     }
 
     struct TestDefinitions(TeamDefinitionRecord);
@@ -3516,6 +3547,120 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn parallel_phase_dispatches_every_assigned_specialist() {
+        let definition = parallel_definition_record();
+        let (service, store, adapter, definition, identity) = harness_with_definition(definition);
+        attach_ready(&service, &definition, &identity).await;
+
+        let started = service.start(start_command(&definition, &identity)).await;
+        assert!(started.accepted, "{started:?}");
+
+        let requests = adapter.member_requests.lock().unwrap();
+        assert_eq!(requests.len(), 2);
+        assert!(requests
+            .iter()
+            .all(|request| request.phase_id == requests[0].phase_id));
+        assert!(requests
+            .iter()
+            .all(
+                |request| request.objective.as_deref().is_some_and(|objective| {
+                    objective.contains("当前阶段：Root")
+                        && objective.contains("交付要求：Done")
+                        && objective.contains("团队目标：complete the root phase")
+                })
+            ));
+        drop(requests);
+
+        let record = store.record.lock().unwrap();
+        let snapshot = &record.as_ref().unwrap().snapshot;
+        assert_eq!(snapshot.member_runs.len(), 2);
+        assert_eq!(snapshot.phase_runs.len(), 1);
+        assert_eq!(snapshot.team_runs[0].status, TeamRunStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn short_drama_full_production_advances_script_through_editor() {
+        let definition = short_drama_definition_record();
+        let (service, _store, adapter, definition, identity) = harness_with_definition(definition);
+        let attached = service
+            .attach(AttachCommand {
+                identity: TeamCommandIdentity {
+                    operation_id: "attach-short-drama".into(),
+                    ..identity.clone()
+                },
+                workspace: workspace(),
+                team_definition_id: definition.definition.team_definition_id.clone(),
+                team_definition_revision: definition.revision.clone(),
+                scenario: TeamScenario::Media,
+                execution_profile: TeamExecutionProfile::PromptOrchestrated,
+                creation_source: TeamInstanceCreationSource::UserAttachment,
+            })
+            .await;
+        assert!(attached.accepted, "{attached:?}");
+        let workflow = definition
+            .definition
+            .workflows
+            .iter()
+            .find(|workflow| workflow.display_name == "短剧完整制作")
+            .expect("fixed short-drama production workflow");
+        let started = service
+            .start(StartCommand {
+                identity: TeamCommandIdentity {
+                    operation_id: "start-short-drama".into(),
+                    ..identity.clone()
+                },
+                team_run_id: "short-drama-run".into(),
+                workflow_id: workflow.workflow_id.clone(),
+                objective: "完成一部可交付的短剧".into(),
+                parent_dialog_turn_id: "short-drama-turn".into(),
+                parent_tool_call_id: "short-drama-tool".into(),
+            })
+            .await;
+        assert!(started.accepted, "{started:?}");
+
+        let expected_agents = ["ScriptAI", "AssetAI", "SplitAI", "VideoAI", "EditorAI"];
+        let expected_phases = ["剧本创作", "资产设计", "分镜设计", "镜头生成", "成片交付"];
+        let expected_deliverables = ["正式剧本", "视觉资产", "分镜表", "视频镜头", "短剧成片"];
+        for (index, ((agent_id, phase_name), deliverable)) in expected_agents
+            .iter()
+            .zip(expected_phases.iter())
+            .zip(expected_deliverables.iter())
+            .enumerate()
+        {
+            let requests = adapter.member_requests.lock().unwrap();
+            assert_eq!(requests.len(), index + 1);
+            let request = &requests[index];
+            assert_eq!(request.agent_id.as_deref(), Some(*agent_id));
+            assert!(request
+                .objective
+                .as_deref()
+                .is_some_and(|objective| objective.contains(&format!("当前阶段：{phase_name}"))));
+            assert!(request
+                .objective
+                .as_deref()
+                .is_some_and(|objective| objective.contains(&format!("交付要求：{deliverable}"))));
+            drop(requests);
+
+            *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Completed;
+            let projection = service
+                .reconcile_and_list_records(&identity.parent_session_id)
+                .await
+                .expect("short-drama phase reconciliation should succeed");
+            let snapshot = &projection.records[0].snapshot;
+            if index + 1 == expected_agents.len() {
+                assert_eq!(snapshot.team_runs[0].status, TeamRunStatus::Completed);
+                assert_eq!(snapshot.instance.active_run_id, None);
+            } else {
+                assert_eq!(snapshot.team_runs[0].status, TeamRunStatus::Running);
+                assert_eq!(
+                    snapshot.instance.active_run_id.as_deref(),
+                    Some("short-drama-run")
+                );
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn cancelled_member_closes_the_active_run_and_allows_a_new_start() {
         let (service, store, adapter, definition, identity) = harness();
         attach_ready(&service, &definition, &identity).await;
@@ -3557,6 +3702,37 @@ mod tests {
             snapshot.instance.active_run_id.as_deref(),
             Some("team-run-after-cancel")
         );
+    }
+
+    #[tokio::test]
+    async fn interrupted_member_closes_the_active_run_and_allows_a_new_start() {
+        let (service, _store, adapter, definition, identity) = harness();
+        attach_ready(&service, &definition, &identity).await;
+        assert!(
+            service
+                .start(start_command(&definition, &identity))
+                .await
+                .accepted
+        );
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Interrupted;
+
+        let projection = service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("interrupted member should reconcile to a terminal Team run");
+        assert_eq!(
+            projection.records[0].snapshot.team_runs[0].status,
+            TeamRunStatus::Interrupted
+        );
+        assert_eq!(projection.records[0].snapshot.instance.active_run_id, None);
+
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Running;
+        let mut retry = start_command(&definition, &identity);
+        retry.identity.operation_id = "start-after-interrupt".into();
+        retry.team_run_id = "team-run-after-interrupt".into();
+        retry.parent_dialog_turn_id = "parent-turn-after-interrupt".into();
+        retry.parent_tool_call_id = "parent-tool-after-interrupt".into();
+        assert!(service.start(retry).await.accepted);
     }
 
     #[tokio::test]
@@ -3806,10 +3982,12 @@ mod tests {
         let requests = adapter.member_requests.lock().unwrap();
         assert_eq!(requests.len(), 1);
         let assignment = requests[0].objective.as_deref().unwrap();
-        assert!(assignment.contains("不是团队主理人"));
-        assert!(assignment.contains("不得调用 Team 或 Task"));
-        assert!(assignment.contains("阶段：Root"));
-        assert!(assignment.contains("团队总体目标：complete the root phase"));
+        assert!(!assignment.contains("不是团队主理人"));
+        assert!(!assignment.contains("不得调用 Team 或 Task"));
+        assert!(!assignment.contains("成员："));
+        assert!(assignment.contains("当前阶段：Root"));
+        assert!(assignment.contains("交付要求：Done"));
+        assert!(assignment.contains("团队目标：complete the root phase"));
         assert_eq!(
             requests[0].parent_dialog_turn_id.as_deref(),
             Some("parent-turn")
@@ -4285,8 +4463,11 @@ mod tests {
         assert_eq!(message_requests.len(), 1);
         assert_eq!(message_requests[0].team_run_id.as_deref(), Some("team-run"));
         let message_objective = message_requests[0].objective.as_deref().unwrap();
-        assert!(message_objective.contains("不是团队主理人"));
-        assert!(message_objective.contains("团队总体目标：complete the root phase"));
+        assert!(!message_objective.contains("不是团队主理人"));
+        assert!(!message_objective.contains("不得调用 Team 或 Task"));
+        assert!(message_objective.contains("当前阶段：Root"));
+        assert!(message_objective.contains("交付要求：Done"));
+        assert!(message_objective.contains("团队目标：complete the root phase"));
         assert_eq!(
             message_requests[0].parent_dialog_turn_id.as_deref(),
             Some("parent-turn")

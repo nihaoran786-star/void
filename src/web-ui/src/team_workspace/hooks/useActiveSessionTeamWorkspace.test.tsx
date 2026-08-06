@@ -58,6 +58,14 @@ function emptySnapshot(parentSessionId: string): TeamWorkspaceSnapshot {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 function setStore(session: Session | null) {
   flowChatStore.setState((): FlowChatState => ({
     sessions: session ? new Map([[session.sessionId, session]]) : new Map(),
@@ -193,6 +201,44 @@ describe('useActiveSessionTeamWorkspace', () => {
       await Promise.resolve();
     });
     expect(reader.read).toHaveBeenCalledTimes(2);
+  });
+
+  it('主会话发送和流式状态刷新时不把已有团队投影切回 loading', async () => {
+    const refresh = deferred<TeamWorkspaceSnapshot>();
+    reader = {
+      read: vi.fn()
+        .mockResolvedValueOnce(emptySnapshot('session-1'))
+        .mockReturnValueOnce(refresh.promise),
+    };
+    const turn = {
+      id: 'turn-1',
+      userMessage: { content: '启动团队' },
+      modelRounds: [],
+      status: 'processing' as const,
+      startTime: 1,
+    };
+
+    await act(async () => {
+      setStore(createSession({ dialogTurns: [] }));
+      root.render(<Probe />);
+      await Promise.resolve();
+    });
+    expect(current?.status).toBe('ready');
+    const existingSnapshot = current?.snapshot;
+
+    await act(async () => {
+      setStore(createSession({ dialogTurns: [turn] }));
+      await Promise.resolve();
+    });
+
+    expect(reader.read).toHaveBeenCalledTimes(2);
+    expect(current?.status).toBe('ready');
+    expect(current?.snapshot).toBe(existingSnapshot);
+
+    await act(async () => {
+      refresh.resolve(emptySnapshot('session-1'));
+      await refresh.promise;
+    });
   });
 
   it('同一会话切换团队时按新的 definition 和 instance 重新读取', async () => {

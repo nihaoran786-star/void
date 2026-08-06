@@ -7017,7 +7017,7 @@ mod tests {
         SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskStatus,
         TeamMemberSkillPolicySnapshot,
     };
-    use void_runtime_ports::{AgentSubmissionRequest, AgentSubmissionSource};
+    use void_runtime_ports::{AgentSubmissionRequest, AgentSubmissionSource, DelegationPolicy};
 
     struct TestTeamLeadPersonaResolver;
 
@@ -7929,6 +7929,17 @@ mod tests {
         assert_eq!(policy.nesting_depth, 1);
         assert!(restrictions.denied_tool_names.contains("Task"));
         assert!(restrictions.denied_tool_names.contains("Team"));
+    }
+
+    #[test]
+    fn top_level_lead_policy_keeps_team_orchestration_available() {
+        let policy = DelegationPolicy::top_level();
+        let restrictions = runtime_tool_restrictions_for_delegation_policy(policy);
+
+        assert!(policy.allow_subagent_spawn);
+        assert_eq!(policy.nesting_depth, 0);
+        assert!(!restrictions.denied_tool_names.contains("Task"));
+        assert!(!restrictions.denied_tool_names.contains("Team"));
     }
 
     #[test]

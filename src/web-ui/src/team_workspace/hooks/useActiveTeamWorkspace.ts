@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { teamWorkspaceProjectionService } from '../services/TeamWorkspaceProjectionService';
 import type {
   ActiveTeamWorkspaceState,
   TeamWorkspaceIssue,
   TeamWorkspaceProjectionReader,
+  TeamWorkspaceSnapshot,
 } from '../types';
 
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
@@ -25,7 +26,9 @@ export interface UseActiveTeamWorkspaceInput {
   refreshOnFocus?: boolean;
 }
 
-type InternalState = Omit<ActiveTeamWorkspaceState, 'reload'>;
+type InternalState = Omit<ActiveTeamWorkspaceState, 'reload'> & {
+  requestKey: string | null;
+};
 
 function unsupportedIssue(): TeamWorkspaceIssue {
   return {
@@ -34,6 +37,15 @@ function unsupportedIssue(): TeamWorkspaceIssue {
     message: 'Team Workspace is unsupported by the current host.',
     retryable: false,
   };
+}
+
+function snapshotsAreEqual(
+  left: TeamWorkspaceSnapshot | undefined,
+  right: TeamWorkspaceSnapshot,
+): boolean {
+  if (left === right) return true;
+  if (!left) return false;
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export function useActiveTeamWorkspace({
@@ -48,14 +60,23 @@ export function useActiveTeamWorkspace({
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
   refreshOnFocus = false,
 }: UseActiveTeamWorkspaceInput): ActiveTeamWorkspaceState {
+  const activeRequestKey = enabled && sessionId && supported
+    ? JSON.stringify([
+        sessionId,
+        workspacePath ?? '',
+        teamDefinitionId ?? '',
+        teamInstanceId ?? '',
+      ])
+    : null;
   const [reloadToken, setReloadToken] = useState(0);
   const requestSequence = useRef(0);
+  const settledRequestKey = useRef<string | null>(null);
   const [state, setState] = useState<InternalState>(() => (
     !enabled || !sessionId
-      ? { status: 'disabled' }
+      ? { requestKey: null, status: 'disabled' }
       : !supported
-        ? { status: 'unsupported', error: unsupportedIssue() }
-        : { status: 'loading' }
+        ? { requestKey: null, status: 'unsupported', error: unsupportedIssue() }
+        : { requestKey: activeRequestKey, status: 'loading' }
   ));
 
   const reload = useCallback(() => {
@@ -75,14 +96,20 @@ export function useActiveTeamWorkspace({
     };
 
     if (!enabled || !sessionId) {
-      setState({ status: 'disabled' });
+      settledRequestKey.current = null;
+      setState({ requestKey: null, status: 'disabled' });
       return () => {
         cancelled = true;
         clearPoll();
       };
     }
     if (!supported) {
-      setState({ status: 'unsupported', error: unsupportedIssue() });
+      settledRequestKey.current = null;
+      setState({
+        requestKey: null,
+        status: 'unsupported',
+        error: unsupportedIssue(),
+      });
       return () => {
         cancelled = true;
         clearPoll();
@@ -90,7 +117,14 @@ export function useActiveTeamWorkspace({
     }
 
     const parentSessionId = sessionId;
-    setState({ status: 'loading' });
+    const requestKey = activeRequestKey!;
+    setState(current => (
+      current.requestKey === requestKey
+      && settledRequestKey.current === requestKey
+      && current.snapshot
+        ? current
+        : { requestKey, status: 'loading' }
+    ));
     async function load(initial: boolean) {
       if (!isCurrent() || inFlight) return;
       inFlight = true;
@@ -102,10 +136,40 @@ export function useActiveTeamWorkspace({
           teamInstanceId,
         });
         if (!isCurrent()) return;
-        setState({
-          status: snapshot.status,
-          snapshot,
-          error: snapshot.status === 'error' ? snapshot.issues[0] : undefined,
+        settledRequestKey.current = requestKey;
+        setState(current => {
+          const error = snapshot.status === 'error'
+            ? snapshot.issues[0]
+            : undefined;
+          const canReuseCurrent = current.requestKey === requestKey;
+          if (
+            canReuseCurrent
+            && snapshot.status === 'error'
+            && current.snapshot?.activeTeam
+          ) {
+            const errorUnchanged = current.error === error
+              || JSON.stringify(current.error) === JSON.stringify(error);
+            return errorUnchanged ? current : { ...current, error };
+          }
+          const snapshotUnchanged = canReuseCurrent
+            && snapshotsAreEqual(current.snapshot, snapshot);
+          const errorUnchanged = current.error === error
+            || JSON.stringify(current.error) === JSON.stringify(error);
+          if (
+            snapshotUnchanged
+            && current.status === snapshot.status
+            && errorUnchanged
+          ) {
+            return current;
+          }
+          return {
+            requestKey,
+            status: snapshot.status,
+            snapshot: snapshotUnchanged
+              ? current.snapshot
+              : snapshot,
+            error,
+          };
         });
         if (snapshot.shouldPoll) schedulePoll();
         else clearPoll();
@@ -117,7 +181,10 @@ export function useActiveTeamWorkspace({
           message: error instanceof Error ? error.message : String(error),
           retryable: true,
         };
-        setState({ status: 'error', error: issue });
+        settledRequestKey.current = requestKey;
+        setState(current => current.requestKey === requestKey && current.snapshot
+          ? { ...current, error: issue }
+          : { requestKey, status: 'error', error: issue });
         clearPoll();
       } finally {
         inFlight = false;
@@ -146,6 +213,7 @@ export function useActiveTeamWorkspace({
       if (refreshOnFocus) window.removeEventListener('focus', onFocus);
     };
   }, [
+    activeRequestKey,
     enabled,
     pollIntervalMs,
     reader,
@@ -159,5 +227,19 @@ export function useActiveTeamWorkspace({
     workspacePath,
   ]);
 
-  return { ...state, reload };
+  const visibleState = useMemo<Omit<ActiveTeamWorkspaceState, 'reload'>>(() => {
+    if (!enabled || !sessionId) return { status: 'disabled' };
+    if (!supported) return { status: 'unsupported', error: unsupportedIssue() };
+    if (state.requestKey !== activeRequestKey) return { status: 'loading' };
+    return {
+      status: state.status,
+      snapshot: state.snapshot,
+      error: state.error,
+    };
+  }, [activeRequestKey, enabled, sessionId, state, supported]);
+
+  return useMemo(
+    () => ({ ...visibleState, reload }),
+    [reload, visibleState],
+  );
 }

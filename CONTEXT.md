@@ -78,12 +78,21 @@ Updated: 2026-08-06
   and project data are preserved during this presentation cleanup.
 - Prompt-orchestrated Team execution keeps orchestration authority on the
   parent lead: every child runtime denies both `Task` and `Team`, and every
-  durable member request is reframed as that member's concrete workflow-phase
-  assignment rather than copying a lead-style command. Reconciliation closes
+  durable member request carries a concise positive workflow-phase assignment
+  rather than copying a lead-style command or repeating natural-language
+  authority warnings. The member Agent's own persona defines its professional
+  identity; the phase assignment defines the current deliverable; typed runtime
+  restrictions, not prompt obedience, enforce the no-delegation boundary.
+  Reconciliation closes
   cancelled or interrupted runs, releases the active-run lock, and
   automatically dispatches dependency-ready successor phases. A successful
   `Team start` reports only the specialists dispatched at that moment; it must
   never be described as every member already running.
+- Team Workspace refresh is presentation-stable. Only the first read for a new
+  binding may replace the panel with a loading state. Polling, parent-turn
+  updates, and equivalent snapshots keep the last usable projection mounted;
+  semantically unchanged snapshots are no-ops, and typing or streaming in the
+  left lead conversation must not remount or flash the selected member panel.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards

@@ -259,4 +259,287 @@ describe('useActiveTeamWorkspace', () => {
     });
     expect(reader.read).toHaveBeenCalledTimes(2);
   });
+
+  it('同一团队后台刷新时保留已有工作区且不卸载成员会话', async () => {
+    const initialSnapshot = snapshot('session-1', { hasTeam: true });
+    const refresh = deferred<TeamWorkspaceSnapshot>();
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn()
+        .mockResolvedValueOnce(initialSnapshot)
+        .mockReturnValueOnce(refresh.promise),
+    };
+    let mounts = 0;
+    let unmounts = 0;
+
+    function ExistingMemberConversation() {
+      React.useEffect(() => {
+        mounts += 1;
+        return () => {
+          unmounts += 1;
+        };
+      }, []);
+      return <span data-testid="member-conversation">existing member conversation</span>;
+    }
+
+    function WorkspaceProbe({ refreshKey }: { refreshKey: string }) {
+      current = useActiveTeamWorkspace({
+        sessionId: 'session-1',
+        teamDefinitionId: 'team-1',
+        teamInstanceId: 'instance-session-1',
+        refreshKey,
+        reader,
+      });
+      return current.status === 'loading'
+        ? <span data-testid="loading">loading</span>
+        : <ExistingMemberConversation />;
+    }
+
+    await act(async () => {
+      root.render(<WorkspaceProbe refreshKey="turn-1:processing" />);
+      await Promise.resolve();
+    });
+    expect(mounts).toBe(1);
+    expect(unmounts).toBe(0);
+
+    await act(async () => {
+      root.render(<WorkspaceProbe refreshKey="turn-1:completed" />);
+      await Promise.resolve();
+    });
+
+    expect(reader.read).toHaveBeenCalledTimes(2);
+    expect(current?.status).toBe('ready');
+    expect(container.querySelector('[data-testid="loading"]')).toBeNull();
+    expect(container.querySelector('[data-testid="member-conversation"]')).not.toBeNull();
+    expect(mounts).toBe(1);
+    expect(unmounts).toBe(0);
+
+    await act(async () => {
+      refresh.resolve(snapshot('session-1', { hasTeam: true }));
+      await refresh.promise;
+    });
+  });
+
+  it('后台刷新返回语义相同快照时保留原快照引用', async () => {
+    const initialSnapshot = snapshot('session-1', { hasTeam: true });
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn()
+        .mockResolvedValueOnce(initialSnapshot)
+        .mockResolvedValueOnce(structuredClone(initialSnapshot)),
+    };
+
+    await act(async () => {
+      root.render(
+        <Probe sessionId="session-1" refreshKey="turn-1" reader={reader} />,
+      );
+      await Promise.resolve();
+    });
+    expect(current?.snapshot).toBe(initialSnapshot);
+
+    await act(async () => {
+      root.render(
+        <Probe sessionId="session-1" refreshKey="turn-2" reader={reader} />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(reader.read).toHaveBeenCalledTimes(2);
+    expect(current?.snapshot).toBe(initialSnapshot);
+  });
+
+  it('父界面无关重渲染时保留 hook 对外状态引用', async () => {
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn().mockResolvedValue(snapshot('session-1', { hasTeam: true })),
+    };
+
+    function ParentRerenderProbe({ label }: { label: string }) {
+      current = useActiveTeamWorkspace({ sessionId: 'session-1', reader });
+      return <output>{label}</output>;
+    }
+
+    await act(async () => {
+      root.render(<ParentRerenderProbe label="before" />);
+      await Promise.resolve();
+    });
+    const existingState = current;
+
+    await act(async () => {
+      root.render(<ParentRerenderProbe label="after" />);
+      await Promise.resolve();
+    });
+
+    expect(reader.read).toHaveBeenCalledTimes(1);
+    expect(current).toBe(existingState);
+  });
+
+  it('后台刷新返回暂时错误快照时保留已有团队和成员会话', async () => {
+    const initialSnapshot = snapshot('session-1', { hasTeam: true });
+    const issue = {
+      code: 'runtime_read_failed' as const,
+      source: 'projection' as const,
+      message: 'temporary failure',
+      retryable: true,
+    };
+    const failedRefresh: TeamWorkspaceSnapshot = {
+      status: 'error',
+      parentSessionId: 'session-1',
+      teams: [],
+      activeTeam: null,
+      issues: [issue],
+      shouldPoll: false,
+    };
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn()
+        .mockResolvedValueOnce(initialSnapshot)
+        .mockResolvedValueOnce(failedRefresh),
+    };
+
+    await act(async () => {
+      root.render(
+        <Probe sessionId="session-1" refreshKey="turn-1" reader={reader} />,
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {
+      root.render(
+        <Probe sessionId="session-1" refreshKey="turn-2" reader={reader} />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(current?.status).toBe('ready');
+    expect(current?.snapshot).toBe(initialSnapshot);
+    expect(current?.error).toEqual(issue);
+  });
+
+  it('后台轮询期间不改变可见状态，同值结果不重复发布', async () => {
+    const initialSnapshot = snapshot('session-1', {
+      hasTeam: true,
+      shouldPoll: true,
+    });
+    const poll = deferred<TeamWorkspaceSnapshot>();
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn()
+        .mockResolvedValueOnce(initialSnapshot)
+        .mockReturnValueOnce(poll.promise),
+    };
+
+    await act(async () => {
+      root.render(<Probe sessionId="session-1" reader={reader} />);
+      await Promise.resolve();
+    });
+    const visibleState = current;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    expect(reader.read).toHaveBeenCalledTimes(2);
+    expect(current).toBe(visibleState);
+
+    await act(async () => {
+      poll.resolve(structuredClone(initialSnapshot));
+      await poll.promise;
+    });
+    expect(current).toBe(visibleState);
+  });
+
+  it('跨会话切换的首个 render 同步隔离旧快照', async () => {
+    const nextRequest = deferred<TeamWorkspaceSnapshot>();
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn(({ parentSessionId }) => parentSessionId === 'session-old'
+        ? Promise.resolve(snapshot('session-old', { hasTeam: true }))
+        : nextRequest.promise),
+    };
+    const renders: Array<{
+      requestedSessionId: string;
+      status: ActiveTeamWorkspaceState['status'];
+      snapshotSessionId?: string;
+    }> = [];
+
+    function IdentityProbe({ sessionId }: { sessionId: string }) {
+      const state = useActiveTeamWorkspace({ sessionId, reader });
+      renders.push({
+        requestedSessionId: sessionId,
+        status: state.status,
+        snapshotSessionId: state.snapshot?.parentSessionId,
+      });
+      return <output data-status={state.status} />;
+    }
+
+    await act(async () => {
+      root.render(<IdentityProbe sessionId="session-old" />);
+      await Promise.resolve();
+    });
+    renders.length = 0;
+    await act(async () => {
+      root.render(<IdentityProbe sessionId="session-new" />);
+      await Promise.resolve();
+    });
+
+    expect(renders[0]).toEqual({
+      requestedSessionId: 'session-new',
+      status: 'loading',
+      snapshotSessionId: undefined,
+    });
+  });
+
+  it('同会话切换团队绑定的首个 render 不组合新绑定与旧成员', async () => {
+    const nextRequest = deferred<TeamWorkspaceSnapshot>();
+    const reader: TeamWorkspaceProjectionReader = {
+      read: vi.fn(({ teamDefinitionId }) => teamDefinitionId === 'team-old'
+        ? Promise.resolve(snapshot('session-1', { hasTeam: true }))
+        : nextRequest.promise),
+    };
+    const renders: Array<{
+      requestedTeamId: string;
+      status: ActiveTeamWorkspaceState['status'];
+      snapshotTeamId?: string;
+    }> = [];
+
+    function BindingProbe({
+      teamDefinitionId,
+      teamInstanceId,
+    }: {
+      teamDefinitionId: string;
+      teamInstanceId: string;
+    }) {
+      const state = useActiveTeamWorkspace({
+        sessionId: 'session-1',
+        teamDefinitionId,
+        teamInstanceId,
+        reader,
+      });
+      renders.push({
+        requestedTeamId: teamDefinitionId,
+        status: state.status,
+        snapshotTeamId: state.snapshot?.activeTeam?.teamDefinitionId,
+      });
+      return <output data-status={state.status} />;
+    }
+
+    await act(async () => {
+      root.render(
+        <BindingProbe
+          teamDefinitionId="team-old"
+          teamInstanceId="instance-old"
+        />,
+      );
+      await Promise.resolve();
+    });
+    renders.length = 0;
+    await act(async () => {
+      root.render(
+        <BindingProbe
+          teamDefinitionId="team-new"
+          teamInstanceId="instance-new"
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(renders[0]).toEqual({
+      requestedTeamId: 'team-new',
+      status: 'loading',
+      snapshotTeamId: undefined,
+    });
+  });
 });

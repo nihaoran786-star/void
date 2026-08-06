@@ -141,9 +141,26 @@ vi.mock('@/team_workspace', async () => {
       teamDefinitionId === 'custom-00000000000000000000000000000001'
         ? 'short-drama'
         : null,
-    TeamWorkspacePanel: ({ onClose }: { onClose?: () => void }) => (
-      <div data-testid="mock-team-workspace">
+    TeamWorkspacePanel: ({
+      onClose,
+      selectedMemberId,
+      onSelectedMemberChange,
+    }: {
+      onClose?: () => void;
+      selectedMemberId?: string | null;
+      onSelectedMemberChange?: (memberId: string | null) => void;
+    }) => (
+      <div
+        data-testid="mock-team-workspace"
+        data-selected-member-id={selectedMemberId ?? ''}
+      >
         <button type="button" onClick={onClose}>close</button>
+        <button
+          type="button"
+          onClick={() => onSelectedMemberChange?.('member-1')}
+        >
+          select member
+        </button>
       </div>
     ),
   };
@@ -419,6 +436,45 @@ describe('SessionScene universal canvas toggle control', () => {
     });
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
       .not.toBeNull();
+  });
+
+  it('关闭重开保留已选成员，同会话切换团队时才重置成员路由', async () => {
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+    await act(async () => {
+      container.querySelectorAll<HTMLButtonElement>(
+        '[data-testid="mock-team-workspace"] button',
+      )[1]?.click();
+    });
+    expect(container.querySelector('[data-testid="mock-team-workspace"]')
+      ?.getAttribute('data-selected-member-id')).toBe('member-1');
+
+    await act(async () => {
+      container.querySelectorAll<HTMLButtonElement>(
+        '[data-testid="mock-team-workspace"] button',
+      )[0]?.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="session-team-workspace-toggle"]',
+      )?.click();
+    });
+    expect(container.querySelector('[data-testid="mock-team-workspace"]')
+      ?.getAttribute('data-selected-member-id')).toBe('member-1');
+
+    mocks.teamWorkspace.teamBindingKey = 'team-2:revision-1:instance-2';
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+    expect(container.querySelector('[data-testid="mock-team-workspace"]')
+      ?.getAttribute('data-selected-member-id')).toBe('');
   });
 
   it('restores the short-drama canvas automatically from the durable Team binding', async () => {
