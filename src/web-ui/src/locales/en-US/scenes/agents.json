@@ -587,6 +587,26 @@
         "materialStep3": "3. Never claim that an unperformed tool, file, or external operation was completed.",
         "materialHeading": "Imported material:"
       }
+    },
+    "debug": {
+      "title": "Testing Ground",
+      "empty": "Fill in the name and prompt, then chat with your draft here.",
+      "creating": "Starting a test session for the draft…",
+      "stale": "Draft updated — the test was reset. The next message will use the new draft.",
+      "error": "Could not start the test session: {{message}}",
+      "retry": "Retry",
+      "tab": {
+        "name": "Name",
+        "prompt": "Prompt",
+        "tools": "Tools"
+      },
+      "status": {
+        "idle": "Idle",
+        "creating": "Starting",
+        "ready": "Ready",
+        "stale": "Updated",
+        "error": "Error"
+      }
     }
   },
   "reviewTeams": {

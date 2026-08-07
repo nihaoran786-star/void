@@ -587,6 +587,26 @@
         "materialStep3": "3. 不得声称已执行未实际执行的工具、文件或外部操作。",
         "materialHeading": "导入资料："
       }
+    },
+    "debug": {
+      "title": "试炼场",
+      "empty": "完成名称和提示词后，这里就可以和草稿对话测试了",
+      "creating": "正在为草稿启动试炼会话…",
+      "stale": "草稿已更新，测试已重置，发送下一条消息将使用新草稿",
+      "error": "无法启动试炼会话：{{message}}",
+      "retry": "重试",
+      "tab": {
+        "name": "名称",
+        "prompt": "提示词",
+        "tools": "工具"
+      },
+      "status": {
+        "idle": "空闲",
+        "creating": "启动中",
+        "ready": "就绪",
+        "stale": "已更新",
+        "error": "失败"
+      }
     }
   },
   "reviewTeams": {

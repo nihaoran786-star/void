@@ -582,6 +582,26 @@
         "materialStep3": "3. 不得聲稱已執行未實際執行的工具、檔案或外部操作。",
         "materialHeading": "匯入資料："
       }
+    },
+    "debug": {
+      "title": "試煉場",
+      "empty": "完成名稱和提示詞後，這裡就可以和草稿對話測試了",
+      "creating": "正在為草稿啟動試煉會話…",
+      "stale": "草稿已更新，測試已重置，發送下一則訊息將使用新草稿",
+      "error": "無法啟動試煉會話：{{message}}",
+      "retry": "重試",
+      "tab": {
+        "name": "名稱",
+        "prompt": "提示詞",
+        "tools": "工具"
+      },
+      "status": {
+        "idle": "空閒",
+        "creating": "啟動中",
+        "ready": "就緒",
+        "stale": "已更新",
+        "error": "失敗"
+      }
     }
   },
   "teamsZone": {
