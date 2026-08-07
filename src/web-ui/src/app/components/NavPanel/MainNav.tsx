@@ -40,6 +40,7 @@ import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
 import { useSessionModeStore } from '../../stores/sessionModeStore';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
+import { shortcutManager } from '@/infrastructure/services/ShortcutManager';
 import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
 import {
   readWorkspacePresentation,
@@ -55,6 +56,7 @@ import './NavPanel.scss';
 const NavSearchDialog = React.lazy(() => import('./NavSearchDialog'));
 
 const NAV_TOGGLE_SEARCH_DEF = ALL_SHORTCUTS.find((d) => d.id === 'nav.toggleSearch')!;
+const NAV_NEW_SESSION_DEF = ALL_SHORTCUTS.find((d) => d.id === 'chat.newSession');
 
 const log = createLogger('MainNav');
 
@@ -543,6 +545,14 @@ const MainNav: React.FC<MainNavProps> = ({
   const skillsTooltip = t('nav.tooltips.skills');
   const connectorsTooltip = t('nav.tooltips.connectors');
   const extensionsLabel = t('nav.sections.extensions');
+  const searchShortcutHint = useMemo(() => shortcutManager.formatShortcut(
+    shortcutManager.getEffectiveConfig(NAV_TOGGLE_SEARCH_DEF.id, NAV_TOGGLE_SEARCH_DEF.config),
+  ), []);
+  const createShortcutHint = useMemo(() => (NAV_NEW_SESSION_DEF
+    ? shortcutManager.formatShortcut(
+      shortcutManager.getEffectiveConfig(NAV_NEW_SESSION_DEF.id, NAV_NEW_SESSION_DEF.config),
+    )
+    : undefined), []);
   const searchTrigger = (
     <Tooltip content={t('nav.search.triggerTooltip')} placement="right" followCursor>
       <button
@@ -553,12 +563,13 @@ const MainNav: React.FC<MainNavProps> = ({
       >
         <span className="void-nav-panel__search-trigger__icon" aria-hidden="true">
           <span className="void-nav-panel__search-trigger__icon-inner">
-            <Search size={13} />
+            <Search size={12} />
           </span>
         </span>
         <span className="void-nav-panel__search-trigger__label">
           {t('nav.search.triggerPlaceholder')}
         </span>
+        <kbd className="void-nav-panel__search-trigger__kbd">{searchShortcutHint}</kbd>
       </button>
     </Tooltip>
   );
@@ -600,6 +611,7 @@ const MainNav: React.FC<MainNavProps> = ({
           onSelectMode={setSessionMode}
           onCreate={handleCreateTask}
           searchTrigger={workspacePresentation === 'minimal' ? searchTrigger : undefined}
+          createShortcutHint={createShortcutHint}
         />
 
         <Tooltip content={assistantTooltip} placement="right" followCursor>

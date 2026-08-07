@@ -253,9 +253,16 @@ describe('NavPanel layout styles', () => {
     expect(minimalCreateBlock).toContain('overflow: visible;');
     expect(minimalFooterBlock).toContain('display: contents;');
     expect(stylesheet).toContain(
-      '&__session-create-action {\n      grid-row: 2;\n      grid-template-columns: 18px minmax(0, 1fr);\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 40px;',
+      '&__session-create-action {\n      grid-row: 2;\n      grid-template-columns: 18px minmax(0, 1fr) auto;\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 40px;',
     );
     expect(stylesheet).toContain('background: var(--color-accent-500);');
+    expect(stylesheet).toContain('&__session-create-action-kbd {');
+    expect(stylesheet).toContain('&__search-trigger__kbd {');
+    expect(stylesheet).toContain('&__top-action-btn.is-active::before {');
+    expect(stylesheet).toContain('&__top-action-sublist {');
+    expect(source).toContain('createShortcutHint={createShortcutHint}');
+    expect(source).toContain('className="void-nav-panel__search-trigger__kbd"');
+    expect(launcherSource).toContain('void-nav-panel__session-create-action-kbd');
     expect(stylesheet).not.toContain('&__session-mode-switch');
     expect(stylesheet).not.toContain('&__session-mode-indicator');
     expect(stylesheet).not.toContain('&__session-mode-option');
@@ -304,8 +311,8 @@ describe('NavPanel layout styles', () => {
     expect(topActionsBlock).toContain(
       'padding: 8px var(--workspace-space-2) 10px;',
     );
-    expect(topActionButtonBlock).toContain('height: 28px;');
-    expect(topActionButtonBlock).toContain('min-height: 28px;');
+    expect(topActionButtonBlock).toContain('height: 30px;');
+    expect(topActionButtonBlock).toContain('min-height: 30px;');
     expect(inlineItemBlock).toContain('background: transparent;');
     expect(stylesheet).toContain(
       '.void-nav-panel__inline-item-icon:not(.is-running) {\n    color: var(--workspace-text-muted);\n    opacity: 0.32;',
