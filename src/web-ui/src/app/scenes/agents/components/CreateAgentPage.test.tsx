@@ -1,6 +1,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { computeAgentDraftFingerprint } from '@/shared/services/customization/AgentDebugDraft';
 import { useAgentsStore } from '../agentsStore';
 
 const subagentApi = vi.hoisted(() => ({
@@ -19,11 +20,75 @@ const capabilityFixture = vi.hoisted(() => ({
   supported: true,
 }));
 
+const debugRuntime = vi.hoisted(() => {
+  const createDebugSession = vi.fn(async () => ({
+    sessionId: 'debug-session-1',
+    subagentId: 'custom-debug-1',
+    subagentKey: 'user::void::custom-debug-1',
+    draftFingerprint: 'fp-1',
+    workspacePath: 'D:/workspace/project',
+  }));
+  const disposeDebugSession = vi.fn(async () => {});
+  const sendMessage = vi.fn(async () => {});
+  return {
+    createAgentDebugRuntime: vi.fn(() => ({
+      createDebugSession,
+      disposeDebugSession,
+      prepareForSend: vi.fn(),
+      sendMessage,
+      sweepOrphanedDebugSubagents: vi.fn(),
+    })),
+    defaultAgentDebugRuntimeDeps: vi.fn(() => ({})),
+    createDebugSession,
+    disposeDebugSession,
+  };
+});
+
+const flowChatStoreMock = vi.hoisted(() => {
+  const sessions = new Map<string, Record<string, unknown>>();
+  return {
+    flowChatStore: {
+      subscribe: () => () => undefined,
+      getState: () => ({ sessions }),
+    },
+    sessions,
+  };
+});
+
+const debugPanelProps = vi.hoisted(() => ({
+  props: null as {
+    session: unknown;
+    status: string;
+    draftFingerprint: string;
+    justReplaced: boolean;
+    error: string | null | undefined;
+    onRetry: (() => void) | undefined;
+  } | null,
+}));
+
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
   useTranslation: () => ({
     t: (key: string) => key,
   }),
+}));
+
+vi.mock('@/shared/services/customization/AgentDebugRuntimeService', () => debugRuntime);
+
+vi.mock('@/flow_chat/store/FlowChatStore', () => flowChatStoreMock);
+
+vi.mock('./AgentDebugChatPanel', () => ({
+  AgentDebugChatPanel: (props: {
+    session?: unknown;
+    status?: string;
+    draftFingerprint?: string;
+    justReplaced?: boolean;
+    error?: string | null;
+    onRetry?: () => void;
+  }) => {
+    debugPanelProps.props = props;
+    return <div data-testid="agent-debug-chat-panel" />;
+  },
 }));
 
 vi.mock('@/component-library', () => ({
@@ -153,6 +218,17 @@ describeWithJsdom('CreateAgentPage', () => {
     useAgentsStore.getState().openCreateAgent();
     capabilityFixture.supported = true;
     vi.clearAllMocks();
+    debugPanelProps.props = null;
+    flowChatStoreMock.sessions.clear();
+    debugRuntime.createDebugSession.mockImplementation(async (draft: { prompt?: string }) => ({
+      sessionId: 'debug-session-1',
+      subagentId: 'custom-debug-1',
+      subagentKey: 'user::void::custom-debug-1',
+      draftFingerprint: computeAgentDraftFingerprint(
+        draft as { displayName: string; description: string; prompt: string; tools: string[]; readonly: boolean; review: boolean },
+      ),
+      workspacePath: 'D:/workspace/project',
+    }));
   });
 
   afterEach(() => {
@@ -304,5 +380,53 @@ describeWithJsdom('CreateAgentPage', () => {
     expect(subagentApi.getSubagentDetail).not.toHaveBeenCalled();
     expect(subagentApi.createSubagent).not.toHaveBeenCalled();
     expect(subagentApi.updateSubagent).not.toHaveBeenCalled();
+  });
+
+  it('yields a ready debug panel once the draft is valid', async () => {
+    flowChatStoreMock.sessions.set('debug-session-1', {
+      sessionId: 'debug-session-1',
+      title: 'Debug',
+    } as unknown as Record<string, unknown>);
+    await renderPage();
+    await clickButton('agent-route-manual');
+
+    await act(async () => {
+      setInputValue(container.querySelector('#agent-display-name')!, '前端开发专家');
+      setInputValue(container.querySelector('#agent-description')!, '负责前端交付');
+      setInputValue(container.querySelector('#agent-prompt')!, '你负责实现和验证前端功能。');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(debugRuntime.createDebugSession).toHaveBeenCalledTimes(1);
+    expect(debugPanelProps.props?.status).toBe('ready');
+    expect(debugPanelProps.props?.session).toEqual(
+      expect.objectContaining({ sessionId: 'debug-session-1' }),
+    );
+    expect(container.querySelector('[data-testid="agent-debug-chat-column"]')).toBeTruthy();
+  });
+
+  it('disposes the debug session when navigating back', async () => {
+    await renderPage();
+    await clickButton('agent-route-manual');
+
+    await act(async () => {
+      setInputValue(container.querySelector('#agent-display-name')!, '前端开发专家');
+      setInputValue(container.querySelector('#agent-description')!, '负责前端交付');
+      setInputValue(container.querySelector('#agent-prompt')!, '你负责实现和验证前端功能。');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(debugRuntime.createDebugSession).toHaveBeenCalledTimes(1);
+
+    await clickButton('agentsOverview.form.cancel');
+    expect(useAgentsStore.getState().page).toBe('home');
+
+    act(() => root.unmount());
+
+    expect(debugRuntime.disposeDebugSession).toHaveBeenCalledTimes(1);
+    expect(debugRuntime.disposeDebugSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'debug-session-1' }),
+    );
   });
 });
