@@ -556,11 +556,9 @@ const MainNav: React.FC<MainNavProps> = ({
             <Search size={13} />
           </span>
         </span>
-        {workspacePresentation === 'classic' ? (
-          <span className="void-nav-panel__search-trigger__label">
-            {t('nav.search.triggerPlaceholder')}
-          </span>
-        ) : null}
+        <span className="void-nav-panel__search-trigger__label">
+          {t('nav.search.triggerPlaceholder')}
+        </span>
       </button>
     </Tooltip>
   );

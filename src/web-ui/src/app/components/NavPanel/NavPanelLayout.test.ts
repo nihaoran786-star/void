@@ -244,10 +244,8 @@ describe('NavPanel layout styles', () => {
 
     expect(footerBlock).toContain('display: contents;');
     expect(minimalCreateBlock).toContain('display: grid;');
-    expect(minimalCreateBlock).toContain(
-      'grid-template-columns: minmax(0, 1fr) 28px;',
-    );
-    expect(minimalCreateBlock).toContain('gap: 4px 2px;');
+    expect(minimalCreateBlock).toContain('grid-template-columns: minmax(0, 1fr);');
+    expect(minimalCreateBlock).toContain('gap: 6px 0;');
     expect(minimalCreateBlock).not.toContain('height: 28px;');
     expect(minimalCreateBlock).toContain('border: 0;');
     expect(minimalCreateBlock).toContain('border-radius: 0;');
@@ -255,8 +253,9 @@ describe('NavPanel layout styles', () => {
     expect(minimalCreateBlock).toContain('overflow: visible;');
     expect(minimalFooterBlock).toContain('display: contents;');
     expect(stylesheet).toContain(
-      '&__session-create-action {\n      grid-template-columns: 18px minmax(0, 1fr);\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 36px;',
+      '&__session-create-action {\n      grid-row: 2;\n      grid-template-columns: 18px minmax(0, 1fr);\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 40px;',
     );
+    expect(stylesheet).toContain('background: var(--color-accent-500);');
     expect(stylesheet).not.toContain('&__session-mode-switch');
     expect(stylesheet).not.toContain('&__session-mode-indicator');
     expect(stylesheet).not.toContain('&__session-mode-option');
@@ -265,17 +264,19 @@ describe('NavPanel layout styles', () => {
     expect(stylesheet).not.toContain(
       '.void-ui--minimal .void-nav-panel__session-mode-menu',
     );
-    expect(searchSlotBlock).toContain('width: 28px;');
-    expect(searchSlotBlock).toContain('min-width: 28px;');
-    expect(searchSlotBlock).toContain('height: 28px;');
+    expect(searchSlotBlock).toContain('grid-row: 1;');
+    expect(searchSlotBlock).toContain('width: 100%;');
+    expect(searchSlotBlock).toContain('height: 26px;');
     expect(searchSlotBlock).toContain('border-left: 0;');
-    expect(searchTriggerBlock).toContain('width: var(--workspace-icon-target);');
-    expect(searchTriggerBlock).toContain('height: var(--workspace-icon-target);');
-    expect(searchTriggerBlock).toContain('justify-content: center;');
-    expect(searchTriggerBlock).toContain('padding: 0;');
+    expect(searchSlotBlock).toContain(
+      'border-bottom: 1px solid var(--workspace-border-subtle);',
+    );
+    expect(searchTriggerBlock).toContain('width: 100%;');
+    expect(searchTriggerBlock).toContain('height: 26px;');
+    expect(searchTriggerBlock).toContain('justify-content: flex-start;');
     expect(searchTriggerBlock).toContain('cursor: pointer;');
-    expect(stylesheet).not.toContain('&__search-trigger__label');
-    expect(source).toContain(
+    expect(stylesheet).toContain('&__search-trigger__label {');
+    expect(source).not.toContain(
       "workspacePresentation === 'classic' ? (\n          <span className=\"void-nav-panel__search-trigger__label\">",
     );
     expect(source.match(/className="void-nav-panel__search-trigger__label"/g))
