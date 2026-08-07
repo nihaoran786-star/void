@@ -5,6 +5,7 @@ export * from './CapabilityCatalogService';
 export * from './ActivePersonaSessionService';
 export * from './ComposerPersonaService';
 export * from './AgentAuthoringService';
+export * from './AgentDebugDraft';
 export * from './SkillAuthoringService';
 export * from './SkillAuthoringGateway';
 export * from './TeamAuthoringService';
