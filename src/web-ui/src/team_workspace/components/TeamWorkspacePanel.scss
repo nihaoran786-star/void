@@ -41,13 +41,13 @@
   &__map-wires line.is-hot { stroke: var(--color-accent-500); stroke-dasharray: 5 7; }
 
   /* ── 主理人中军(仅展示,不可点击) ── */
-  &__map-lead { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 6px; width: 96px; margin: -27px 0 0 -48px; }
+  &__map-lead { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 6px; width: 96px; margin: -27px 0 0 -48px; transform-origin: 50% 27px; }
   &__map-lead-orb { display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; border: 1px solid var(--status-warning-border); border-radius: 50%; background: var(--status-warning-bg); color: var(--status-warning-text); }
   &__map-lead-orb svg { width: 22px; }
   &__map-lead-name { max-width: 96px; overflow: hidden; color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 
   /* ── 成员星子:头像放大、职责弱化、状态点 ── */
-  &__map-member { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 5px; width: 92px; margin: -22px 0 0 -46px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+  &__map-member { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 5px; width: 92px; margin: -22px 0 0 -46px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; transform-origin: 50% 22px; }
   &__map-member-orb { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--border-medium); border-radius: 50%; background: var(--workspace-surface-panel); color: var(--color-text-primary); font-size: var(--flowchat-font-size-base); font-weight: 650; }
   &__map-member:hover &__map-member-orb { border-color: var(--color-text-muted); }
   &__map-member[data-tone='info'] &__map-member-orb { border-color: var(--color-accent-500); box-shadow: 0 0 0 3px var(--color-accent-200); }

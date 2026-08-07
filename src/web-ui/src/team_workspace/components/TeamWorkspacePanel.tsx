@@ -113,10 +113,9 @@ function Header({ team, onClose }: { team: TeamWorkspaceTeamProjection; onClose?
   );
 }
 
-const MAP_RX = 200;
-const MAP_RY = 155;
 const MAP_MIN_ZOOM = 0.6;
 const MAP_MAX_ZOOM = 1.8;
+const MAP_ORBIT_SQUASH = 0.78;
 
 interface MapCamera {
   x: number;
@@ -124,11 +123,20 @@ interface MapCamera {
   k: number;
 }
 
+// Nodes render at a constant screen size (semantic zoom): the orbit grows with
+// headcount so adjacent nodes keep clearance even when the camera zooms out.
+function memberOrbitRadius(count: number) {
+  if (count <= 4) return 150;
+  if (count <= 6) return 180;
+  return 205;
+}
+
 function memberPosition(index: number, count: number) {
+  const radius = memberOrbitRadius(count);
   const angle = ((-90 + (360 / count) * index) * Math.PI) / 180;
   return {
-    x: Math.round(Math.cos(angle) * MAP_RX),
-    y: Math.round(Math.sin(angle) * MAP_RY),
+    x: Math.round(Math.cos(angle) * radius),
+    y: Math.round(Math.sin(angle) * radius * MAP_ORBIT_SQUASH),
   };
 }
 
@@ -201,18 +209,19 @@ function TeamMapView({
     if (!viewport || !viewport.clientWidth || !viewport.clientHeight) {
       return { x: 0, y: 12, k: 1 };
     }
+    const radius = memberOrbitRadius(members.length);
     const k = Math.min(
       1,
       Math.max(
         MAP_MIN_ZOOM,
         Math.min(
-          (viewport.clientWidth - 56) / (2 * (MAP_RX + 64)),
-          (viewport.clientHeight - 132) / (2 * (MAP_RY + 72)),
+          (viewport.clientWidth - 48) / (2 * (radius + 60)),
+          (viewport.clientHeight - 140) / (2 * (radius * MAP_ORBIT_SQUASH + 66)),
         ),
       ),
     );
     return { x: 0, y: 12, k };
-  }, []);
+  }, [members.length]);
 
   const resetCamera = useCallback(() => {
     setCamera(fitCamera());
@@ -284,7 +293,7 @@ function TeamMapView({
       <div className="team-workspace-panel__map-grid" style={{ transform }} aria-hidden="true" />
       <section
         className="team-workspace-panel__map-world"
-        style={{ transform }}
+        style={{ transform, '--map-camera-zoom': camera.k } as React.CSSProperties}
         aria-labelledby="team-workspace-members"
       >
         <strong id="team-workspace-members" className="sr-only">{t('teamWorkspace.members.title')}</strong>
@@ -304,7 +313,10 @@ function TeamMapView({
             );
           })}
         </svg>
-        <div className="team-workspace-panel__map-lead">
+        <div
+          className="team-workspace-panel__map-lead"
+          style={{ transform: 'scale(calc(1 / var(--map-camera-zoom, 1)))' }}
+        >
           <span className="team-workspace-panel__map-lead-orb" aria-hidden="true"><Crown /></span>
           <span className="team-workspace-panel__map-lead-name">{t('teamWorkspace.roles.lead')}</span>
         </div>
@@ -320,7 +332,9 @@ function TeamMapView({
               type="button"
               className="team-workspace-panel__map-member"
               data-tone={tone}
-              style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+              style={{
+                transform: `translate(${position.x}px, ${position.y}px) scale(calc(1 / var(--map-camera-zoom, 1)))`,
+              }}
               onClick={() => openMember(member)}
               aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
             >
