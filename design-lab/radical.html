@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Void · 激进版 设计语言对比 Demo</title>
+<style>
+  :root {
+    --color-bg-scene: #16161a;
+    --color-bg-secondary: #18181a;
+    --color-text-primary: #e8e8e8;
+    --color-text-secondary: #e5e5e5;
+    --color-text-muted: #a0a0a0;
+    --workspace-text-muted: #a7a7a7;
+    --element-bg-subtle: rgba(255,255,255,.05);
+    --element-bg-soft: rgba(255,255,255,.07);
+    --element-bg-base: rgba(255,255,255,.095);
+    --element-bg-medium: rgba(255,255,255,.125);
+    --border-subtle: rgba(255,255,255,.10);
+    --border-base: rgba(255,255,255,.14);
+    --border-medium: rgba(255,255,255,.20);
+    --accent-400: rgba(96,165,250,.4);
+    --accent-500: #60a5fa;
+    --accent-600: #3b82f6;
+    --status-success: #6eb88c;
+    --status-warning: #c9944d;
+    --status-error: #c77070;
+    --status-info: #7096c4;
+    --radius-sm: 6px; --radius-base: 8px; --radius-xl: 16px;
+    --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-base: 14px; --fs-xl: 16px;
+    --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: #0e0e10; }
+  body { font-family: var(--font-sans); color: var(--color-text-primary); padding: 40px 24px 120px; }
+  svg { stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  .lab-head { max-width: 1240px; margin: 0 auto 36px; }
+  .lab-head h1 { font-size: 20px; font-weight: 650; }
+  .lab-head p { margin-top: 8px; color: var(--color-text-muted); font-size: var(--fs-sm); line-height: 1.6; max-width: 760px; }
+  .lab-toc { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+  .lab-toc a { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--border-base); border-radius: 999px; color: var(--color-text-secondary); font-size: var(--fs-sm); text-decoration: none; }
+  .lab-toc a:hover { border-color: var(--border-medium); color: var(--color-text-primary); }
+  .lab-toc a b { color: var(--accent-500); font-weight: 600; }
+
+  .scheme { max-width: 1240px; margin: 0 auto 80px; }
+  .scheme-meta { margin-bottom: 16px; }
+  .scheme-meta h2 { font-size: var(--fs-xl); font-weight: 650; display: flex; align-items: baseline; gap: 12px; }
+  .scheme-meta h2 span { color: var(--accent-500); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .12em; }
+  .scheme-meta ul { margin-top: 8px; padding-left: 18px; color: var(--color-text-muted); font-size: var(--fs-xs); line-height: 1.7; }
+
+  .stage { display: flex; height: 640px; border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; background: var(--color-bg-scene); }
+  .stage__canvas { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; color: var(--color-text-muted); font-size: var(--fs-xs); letter-spacing: .08em; background: repeating-linear-gradient(45deg, transparent 0 14px, rgba(255,255,255,.015) 14px 15px); }
+  .nav { background: var(--color-bg-secondary); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; }
+  .team { width: 360px; flex: 0 0 360px; background: var(--color-bg-secondary); border-left: 1px solid var(--border-subtle); display: flex; flex-direction: column; min-height: 0; }
+
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .dot--run { color: var(--status-info); } .dot--ok { color: var(--status-success); }
+  .dot--wait { color: var(--status-warning); } .dot--idle { color: var(--workspace-text-muted); opacity: .55; }
+
+  .t-status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); color: var(--status-info); }
+  .t-status i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .x-close { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); color: var(--color-text-muted); }
+  .x-close:hover { background: var(--element-bg-soft); color: var(--color-text-primary); }
+  .x-close svg { width: 15px; height: 15px; stroke-width: 1.5; }
+
+  .segbar { display: flex; align-items: center; gap: 8px; }
+  .segbar__segs { display: flex; gap: 3px; flex: 1; }
+  .segbar__segs i { flex: 1; height: 4px; border-radius: 3px; background: var(--element-bg-base); }
+  .segbar__segs i.done { background: var(--accent-500); }
+  .segbar__segs i.now { background: var(--accent-400); box-shadow: 0 0 0 1px var(--accent-400); }
+  .segbar__label { font-size: var(--fs-2xs); color: var(--workspace-text-muted); white-space: nowrap; }
+  .segbar__label b { color: var(--color-text-secondary); font-weight: 600; }
+
+  /* ════════════════ 方案 A · 指挥塔 ════════════════ */
+  .sA .nav { width: 248px; flex: 0 0 248px; padding: 10px 10px 12px; gap: 10px; }
+  .sA .cmdbar { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--border-base); border-radius: var(--radius-base); background: var(--element-bg-subtle); color: var(--workspace-text-muted); font-size: var(--fs-sm); }
+  .sA .cmdbar:hover { border-color: var(--border-medium); color: var(--color-text-secondary); }
+  .sA .cmdbar svg { width: 13px; height: 13px; stroke-width: 1.5; }
+  .sA .cmdbar kbd { margin-left: auto; padding: 1px 5px; border: 1px solid var(--border-subtle); border-radius: 4px; font: inherit; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+  .sA .launch { border: 1px solid var(--border-base); border-radius: 10px; background: var(--element-bg-soft); overflow: hidden; }
+  .sA .launch__go { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; text-align: left; }
+  .sA .launch__go:hover { background: var(--element-bg-base); }
+  .sA .launch__plus { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; background: var(--accent-400); color: var(--color-text-primary); }
+  .sA .launch__plus svg { width: 14px; height: 14px; stroke-width: 1.75; }
+  .sA .launch__go strong { display: block; font-size: var(--fs-sm); font-weight: 650; }
+  .sA .launch__go small { display: block; margin-top: 1px; color: var(--workspace-text-muted); font-size: var(--fs-2xs); }
+  .sA .launch__modes { display: flex; gap: 4px; padding: 0 8px 8px; }
+  .sA .launch__modes button { flex: 1; height: 24px; border-radius: var(--radius-sm); font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+  .sA .launch__modes button:hover { background: var(--element-bg-base); color: var(--color-text-secondary); }
+  .sA .launch__modes button.on { background: var(--accent-400); color: var(--color-text-primary); font-weight: 600; }
+  .sA .entries { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+  .sA .entry { position: relative; display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: var(--radius-sm); color: var(--color-text-secondary); font-size: var(--fs-sm); text-align: left; }
+  .sA .entry:hover { background: var(--element-bg-subtle); color: var(--color-text-primary); }
+  .sA .entry.on { color: var(--color-text-primary); }
+  .sA .entry.on::before { content: ''; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--accent-500); }
+  .sA .entry.on .slot { color: var(--accent-500); }
+  .sA .slot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; }
+  .sA .slot svg { width: 15px; height: 15px; stroke-width: 1.5; }
+  .sA .entry .cnt { margin-left: auto; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+  .sA .sublist { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 2px 19px; padding-left: 10px; border-left: 1px solid var(--border-subtle); }
+  .sA .sublist .entry.on::before { left: -11px; }
+
+  .sA .t-head { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--border-subtle); }
+  .sA .t-head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 650; }
+  .sA .t-obj { padding: 8px 14px 0; color: var(--workspace-text-muted); font-size: var(--fs-2xs); line-height: 1.5; }
+  .sA .t-obj b { color: var(--color-text-secondary); font-weight: 600; }
+  .sA .pyramid { position: relative; flex: 1; min-height: 0; margin: 6px 8px 0; }
+  .sA .pyramid svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; stroke: var(--border-base); stroke-width: 1; }
+  .sA .node { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 5px; transform: translate(-50%, 0); width: 76px; }
+  .sA .node__c { position: relative; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--element-bg-soft); color: var(--color-text-primary); font-weight: 650; }
+  .sA .node--lead .node__c { width: 56px; height: 56px; font-size: var(--fs-xl); background: rgba(201,148,77,.14); color: var(--status-warning); }
+  .sA .node:not(.sA .node--lead) .node__c, .sA .node--m .node__c { width: 46px; height: 46px; font-size: var(--fs-base); }
+  .sA .node__c .dot { position: absolute; right: 0; bottom: 2px; width: 9px; height: 9px; border: 2px solid var(--color-bg-secondary); }
+  .sA .node__name { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-2xs); color: var(--color-text-secondary); }
+  .sA .node__role { max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--workspace-text-muted); opacity: .75; margin-top: -3px; }
+  .sA .node:hover .node__c { background: var(--element-bg-base); }
+  .sA .node.on .node__c { box-shadow: 0 0 0 2px var(--accent-500); }
+  .sA .node.on .node__name { color: var(--color-text-primary); font-weight: 600; }
+  .sA .t-foot { padding: 10px 14px 14px; border-top: 1px solid var(--border-subtle); }
+  .sA .t-foot .cap { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+
+  /* ════════════════ 方案 B · 图标轨道 + 聚光灯 ════════════════ */
+  .sB .nav { width: 60px; flex: 0 0 60px; padding: 10px 0; align-items: center; gap: 6px; }
+  .sB .rail-btn { position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; color: var(--color-text-secondary); }
+  .sB .rail-btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
+  .sB .rail-btn:hover { background: var(--element-bg-soft); color: var(--color-text-primary); }
+  .sB .rail-btn.on { color: var(--accent-500); }
+  .sB .rail-btn.on::before { content: ''; position: absolute; left: -11px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--accent-500); }
+  .sB .rail-btn--plus { width: 40px; height: 40px; border: 1.5px solid var(--accent-500); border-radius: 50%; color: var(--accent-500); margin-bottom: 4px; }
+  .sB .rail-btn--plus:hover { background: var(--accent-400); color: var(--color-text-primary); }
+  .sB .rail-btn--plus svg { width: 17px; height: 17px; stroke-width: 1.75; }
+  .sB .rail-sep { width: 20px; height: 1px; background: var(--border-subtle); margin: 4px 0; }
+  .sB .rail-badge { position: absolute; top: 4px; right: 4px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--status-info); color: var(--color-bg-secondary); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .sB .rail-spacer { flex: 1; }
+
+  .sB .t-head { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px; }
+  .sB .t-head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 650; }
+  .sB .t-strip { display: flex; gap: 6px; padding: 12px 12px 10px; overflow-x: auto; border-bottom: 1px solid var(--border-subtle); }
+  .sB .chip { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 52px; padding: 6px 0 4px; border-radius: var(--radius-base); }
+  .sB .chip:hover { background: var(--element-bg-subtle); }
+  .sB .chip__c { position: relative; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--element-bg-soft); color: var(--color-text-primary); font-size: var(--fs-sm); font-weight: 650; }
+  .sB .chip__c .dot { position: absolute; right: -1px; bottom: 0; width: 9px; height: 9px; border: 2px solid var(--color-bg-secondary); }
+  .sB .chip__n { max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: var(--workspace-text-muted); }
+  .sB .chip.on { background: var(--element-bg-subtle); }
+  .sB .chip.on .chip__c { box-shadow: 0 0 0 2px var(--accent-500); }
+  .sB .chip.on .chip__n { color: var(--color-text-primary); font-weight: 600; }
+  .sB .hero { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; }
+  .sB .hero__c { position: relative; display: flex; align-items: center; justify-content: center; width: 88px; height: 88px; border-radius: 50%; background: var(--element-bg-soft); font-size: 30px; font-weight: 650; color: var(--color-text-primary); box-shadow: 0 0 0 1px var(--border-base), 0 0 0 5px var(--element-bg-subtle); }
+  .sB .hero__c .dot { position: absolute; right: 2px; bottom: 6px; width: 14px; height: 14px; border: 3px solid var(--color-bg-secondary); }
+  .sB .hero__name { font-size: 18px; font-weight: 650; }
+  .sB .hero__role { color: var(--workspace-text-muted); font-size: var(--fs-xs); }
+  .sB .hero__duty { max-width: 240px; color: var(--color-text-secondary); font-size: var(--fs-sm); line-height: 1.6; }
+  .sB .hero__tags { display: flex; gap: 6px; margin-top: 2px; }
+  .sB .hero__tags span { padding: 3px 9px; border: 1px solid var(--border-subtle); border-radius: 999px; color: var(--workspace-text-muted); font-size: var(--fs-2xs); }
+  .sB .hero__open { margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: var(--radius-base); background: var(--element-bg-base); color: var(--color-text-primary); font-size: var(--fs-sm); }
+  .sB .hero__open:hover { background: var(--element-bg-medium); }
+  .sB .hero__open svg { width: 14px; height: 14px; stroke-width: 1.5; }
+  .sB .t-foot { padding: 12px 14px 14px; border-top: 1px solid var(--border-subtle); }
+  .sB .t-foot .cap { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+
+  /* ════════════════ 方案 C · 磁贴网格 + 蜂巢矩阵 ════════════════ */
+  .sC .nav { width: 248px; flex: 0 0 248px; padding: 10px; gap: 10px; }
+  .sC .bigtask { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 12px; border-radius: 10px; background: var(--accent-400); color: var(--color-text-primary); text-align: left; }
+  .sC .bigtask:hover { background: var(--accent-500); color: #0f1520; }
+  .sC .bigtask svg { width: 16px; height: 16px; stroke-width: 1.75; }
+  .sC .bigtask strong { font-size: var(--fs-sm); font-weight: 650; }
+  .sC .bigtask .arr { margin-left: auto; }
+  .sC .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .sC .tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 10px; color: var(--color-text-secondary); text-align: left; }
+  .sC .tile:hover { border-color: var(--border-medium); background: var(--element-bg-subtle); color: var(--color-text-primary); }
+  .sC .tile.on { border-color: var(--accent-400); background: var(--element-bg-subtle); color: var(--color-text-primary); }
+  .sC .tile.on::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent-500); }
+  .sC .tile.on .slot { color: var(--accent-500); }
+  .sC .tile .slot svg { width: 16px; height: 16px; stroke-width: 1.5; }
+  .sC .tile span { font-size: var(--fs-xs); }
+  .sC .tile .cnt { position: absolute; top: 8px; right: 10px; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+  .sC .subtiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .sC .subtile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px; border-radius: var(--radius-base); color: var(--workspace-text-muted); font-size: var(--fs-2xs); }
+  .sC .subtile:hover { background: var(--element-bg-subtle); color: var(--color-text-secondary); }
+  .sC .subtile.on { color: var(--color-text-primary); background: var(--element-bg-subtle); }
+  .sC .subtile.on::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; background: var(--accent-500); }
+  .sC .subtile.on .slot { color: var(--accent-500); }
+  .sC .subtile .slot svg { width: 15px; height: 15px; stroke-width: 1.5; }
+  .sC .nav-spacer { flex: 1; }
+  .sC .searchdock { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-top: 1px solid var(--border-subtle); margin: 0 -10px -10px; padding-top: 0; color: var(--workspace-text-muted); font-size: var(--fs-xs); }
+  .sC .searchdock:hover { color: var(--color-text-secondary); background: var(--element-bg-subtle); }
+  .sC .searchdock svg { width: 13px; height: 13px; stroke-width: 1.5; }
+  .sC .searchdock kbd { margin-left: auto; padding: 1px 5px; border: 1px solid var(--border-subtle); border-radius: 4px; font: inherit; font-size: var(--fs-2xs); }
+
+  .sC .t-banner { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); background: var(--element-bg-subtle); }
+  .sC .t-banner__txt { flex: 1; min-width: 0; }
+  .sC .t-banner__txt strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 650; }
+  .sC .t-banner__txt small { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--workspace-text-muted); font-size: var(--fs-2xs); }
+  .sC .hive { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; padding: 12px; }
+  .sC .cell { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 12px; text-align: left; }
+  .sC .cell:hover { border-color: var(--border-medium); background: var(--element-bg-subtle); }
+  .sC .cell.on { border-color: var(--accent-500); background: var(--element-bg-subtle); box-shadow: inset 0 0 0 1px var(--accent-500); }
+  .sC .cell__top { display: flex; align-items: center; gap: 8px; }
+  .sC .cell__c { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; background: var(--element-bg-soft); color: var(--color-text-primary); font-size: var(--fs-sm); font-weight: 650; }
+  .sC .cell.on .cell__c { background: var(--accent-400); }
+  .sC .cell__st { margin-left: auto; }
+  .sC .cell__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); font-weight: 600; }
+  .sC .cell__role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+  .sC .cell--lead { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+  .sC .cell--lead .cell__c { width: 42px; height: 42px; border-radius: 50%; background: rgba(201,148,77,.14); color: var(--status-warning); }
+  .sC .cell--lead .cell__txt { flex: 1; min-width: 0; }
+  .sC .t-foot { padding: 12px 14px 14px; border-top: 1px solid var(--border-subtle); }
+  .sC .t-foot .cap { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: var(--fs-2xs); color: var(--workspace-text-muted); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    button, .sA .cmdbar { transition: background-color .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lab-head">
+  <h1>Void 顶栏 × 团队工作区 — 激进版三套方向</h1>
+  <p>功能契约不变（新建任务三模式 / 搜索 / 助理 / 自动化 / 定制折叠；团队成员打开对话 / 状态 / 阶段 / 关闭），其余全部重排。所有颜色仍只用现有 Token。可点击成员、导航项与模式丸查看状态。</p>
+  <div class="lab-toc">
+    <a href="#sA"><b>A</b> 指挥塔 · 金字塔画布</a>
+    <a href="#sB"><b>B</b> 图标轨道 · 聚光灯成员</a>
+    <a href="#sC"><b>C</b> 磁贴网格 · 蜂巢矩阵</a>
+  </div>
+</div>
+
+<!-- ════════════════ 方案 A ════════════════ -->
+<section class="scheme sA" id="sA">
+  <div class="scheme-meta">
+    <h2>指挥塔 Command Deck <span>方案 A · 金字塔画布</span></h2>
+    <ul>
+      <li>导航：搜索升级为顶部命令条（⌘K 全宽胶囊）；「新建任务」是一张启动卡——主按钮 + 内嵌 代码/协同/媒体 模式丸，一眼看懂点下去会得到什么。</li>
+      <li>入口降为纯文字行，活动态 = 面板外缘 2px accent 竖条 + 图标上色；自动化可带运行计数。</li>
+      <li>团队页 = 组织结构画布：负责人在塔尖，成员按层级铺开，连线表达汇报关系；节点大小即权威，选中 = accent 环。</li>
+      <li>阶段收进底部一条分段进度；目标描述压成一行小字。成员是唯一主角。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <nav class="nav">
+      <button class="cmdbar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>搜索或跳转…</span><kbd>⌘K</kbd></button>
+      <div class="launch">
+        <button class="launch__go">
+          <span class="launch__plus"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span><strong>新建任务</strong><small>选择模式即刻开始</small></span>
+        </button>
+        <div class="launch__modes" data-modes>
+          <button class="on">代码</button><button>协同</button><button>媒体</button>
+        </div>
+      </div>
+      <div class="entries">
+        <button class="entry"><span class="slot"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></span><span>助理</span></button>
+        <button class="entry on"><span class="slot"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M12 14v4M10 16h4"/></svg></span><span>自动化</span><span class="cnt">3 运行</span></button>
+        <button class="entry" data-expand><span class="slot"><svg viewBox="0 0 24 24"><path d="M10 3H5a2 2 0 0 0-2 2v5h7V3zM14 3h5a2 2 0 0 1 2 2v5h-7V3zM10 14H3v5a2 2 0 0 0 2 2h5v-7zM14 14h7v5a2 2 0 0 1-2 2h-5v-7z"/></svg></span><span>定制</span></button>
+        <div class="sublist" data-sub>
+          <button class="entry on"><span class="slot"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7"/></svg></span><span>智能体</span></button>
+          <button class="entry"><span class="slot"><svg viewBox="0 0 24 24"><path d="M14 7h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2z"/></svg></span><span>技能</span></button>
+          <button class="entry"><span class="slot"><svg viewBox="0 0 24 24"><path d="M4 17c4-1 5-8 8-8s4 7 8 6"/><circle cx="4" cy="17" r="2"/><circle cx="20" cy="15" r="2"/></svg></span><span>连接器</span></button>
+        </div>
+      </div>
+    </nav>
+    <div class="stage__canvas">画布区</div>
+    <aside class="team">
+      <div class="t-head">
+        <strong>电商大促作战室</strong>
+        <span class="t-status"><i></i>运行中</span>
+        <button class="x-close" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <p class="t-obj">目标 · <b>大促落地页全链路交付</b> — 首页改版、投放素材与复盘看板</p>
+      <div class="pyramid" data-pyramid>
+        <svg class="wires" viewBox="0 0 344 380" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M172 66 L96 150 M172 66 L248 150" />
+          <path d="M96 196 L52 280 M96 196 L172 280 M248 196 L172 280 M248 196 L292 280" />
+        </svg>
+      </div>
+      <div class="t-foot">
+        <div class="cap"><span>阶段进度</span><span>2 / 4</span></div>
+        <div class="segbar">
+          <div class="segbar__segs"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+          <span class="segbar__label"><b>素材生产</b></span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════════════ 方案 B ════════════════ -->
+<section class="scheme sB" id="sB">
+  <div class="scheme-meta">
+    <h2>图标轨道 + 聚光灯成员 <span>方案 B · Spotlight</span></h2>
+    <ul>
+      <li>导航收成 60px 纯图标轨道：顶部一枚 accent 描边大圆钮「+」即新建任务，其下放大镜即搜索，再往下是入口图标；活动态 = 轨道外缘 2px 竖条 + 图标上色。文字全靠 tooltip，宽度让给会话列表。</li>
+      <li>团队页是"聚光灯"：顶部一条成员头像带，下方整块区域属于当前选中成员——88px 头像、名字、职责、分工说明、状态标签、「打开对话」主按钮。</li>
+      <li>一次只看一个人，点击头像带切换聚光灯；阶段仍是底部一行分段条。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <nav class="nav">
+      <button class="rail-btn rail-btn--plus" title="新建任务"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="rail-btn" title="搜索"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <span class="rail-sep"></span>
+      <button class="rail-btn" title="助理"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></button>
+      <button class="rail-btn on" title="自动化"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M12 14v4M10 16h4"/></svg><span class="rail-badge">3</span></button>
+      <button class="rail-btn" data-expand title="定制"><svg viewBox="0 0 24 24"><path d="M10 3H5a2 2 0 0 0-2 2v5h7V3zM14 3h5a2 2 0 0 1 2 2v5h-7V3zM10 14H3v5a2 2 0 0 0 2 2h5v-7zM14 14h7v5a2 2 0 0 1-2 2h-5v-7z"/></svg></button>
+      <span data-sub style="display:contents;">
+        <button class="rail-btn on" title="智能体" style="width:30px;height:30px;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7"/></svg></button>
+        <button class="rail-btn" title="技能" style="width:30px;height:30px;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M14 7h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2z"/></svg></button>
+        <button class="rail-btn" title="连接器" style="width:30px;height:30px;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M4 17c4-1 5-8 8-8s4 7 8 6"/><circle cx="4" cy="17" r="2"/><circle cx="20" cy="15" r="2"/></svg></button>
+      </span>
+      <span class="rail-spacer"></span>
+    </nav>
+    <div class="stage__canvas">画布区</div>
+    <aside class="team">
+      <div class="t-head">
+        <strong>电商大促作战室</strong>
+        <span class="t-status"><i></i>运行中</span>
+        <button class="x-close" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="t-strip" data-strip></div>
+      <div class="hero" data-hero></div>
+      <div class="t-foot">
+        <div class="cap"><span>阶段进度</span><span>2 / 4</span></div>
+        <div class="segbar">
+          <div class="segbar__segs"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+          <span class="segbar__label"><b>素材生产</b></span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════════════ 方案 C ════════════════ -->
+<section class="scheme sC" id="sC">
+  <div class="scheme-meta">
+    <h2>磁贴网格 + 蜂巢矩阵 <span>方案 C · Hive</span></h2>
+    <ul>
+      <li>导航：「新建任务」是顶部唯一一块 accent 填充主按钮（全宽 44px，右箭头暗示去向）；入口变 2×2 磁贴，「定制」展开为 3 枚迷你磁贴；选中态 = accent 描边 + 底部 2px 刻度线。</li>
+      <li>搜索沉到导航底部 Dock，不占首屏注意力。</li>
+      <li>团队页 = 蜂巢矩阵：负责人独占通栏大卡，其余成员两列卡片平权排列；卡片选中 = accent 双描边 + 头像染色。</li>
+      <li>header 与目标合并成一条 banner；阶段进度固定在底部。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <nav class="nav">
+      <button class="bigtask"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><strong>新建任务</strong><svg class="arr" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+      <div class="tiles">
+        <button class="tile"><span class="slot"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></span><span>助理</span></button>
+        <button class="tile on"><span class="slot"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M12 14v4M10 16h4"/></svg></span><span>自动化</span><span class="cnt">3</span></button>
+        <button class="tile" data-expand><span class="slot"><svg viewBox="0 0 24 24"><path d="M10 3H5a2 2 0 0 0-2 2v5h7V3zM14 3h5a2 2 0 0 1 2 2v5h-7V3zM10 14H3v5a2 2 0 0 0 2 2h5v-7zM14 14h7v5a2 2 0 0 1-2 2h-5v-7z"/></svg></span><span>定制</span></button>
+        <button class="tile"><span class="slot"><svg viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M6.3 6.3l2 2m7.4 7.4 2 2m0-11.4-2 2m-7.4 7.4-2 2"/><circle cx="12" cy="12" r="2.5"/></svg></span><span>设置</span></button>
+      </div>
+      <div class="subtiles" data-sub>
+        <button class="subtile on"><span class="slot"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7"/></svg></span><span>智能体</span></button>
+        <button class="subtile"><span class="slot"><svg viewBox="0 0 24 24"><path d="M14 7h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4v4a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-4H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2z"/></svg></span><span>技能</span></button>
+        <button class="subtile"><span class="slot"><svg viewBox="0 0 24 24"><path d="M4 17c4-1 5-8 8-8s4 7 8 6"/><circle cx="4" cy="17" r="2"/><circle cx="20" cy="15" r="2"/></svg></span><span>连接器</span></button>
+      </div>
+      <span class="nav-spacer"></span>
+      <button class="searchdock"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>搜索</span><kbd>⌘K</kbd></button>
+    </nav>
+    <div class="stage__canvas">画布区</div>
+    <aside class="team">
+      <div class="t-banner">
+        <span class="t-status"><i></i></span>
+        <div class="t-banner__txt">
+          <strong>电商大促作战室</strong>
+          <small>大促落地页全链路交付 · 素材生产阶段</small>
+        </div>
+        <button class="x-close" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="hive" data-hive></div>
+      <div class="t-foot">
+        <div class="cap"><span>阶段进度</span><span>2 / 4</span></div>
+        <div class="segbar">
+          <div class="segbar__segs"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+          <span class="segbar__label"><b>素材生产</b></span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<script>
+  const MEMBERS = [
+    { name: '林晓峰', role: 'lead', roleLabel: '负责人', duty: '统筹排期、资源协调与最终拍板，对交付质量负责。', st: 'run' },
+    { name: '苏婉清扬', role: 'member', roleLabel: '前端工程师', duty: '首页改版与动效实现', st: 'run' },
+    { name: '陈默', role: 'member', roleLabel: '视觉设计师', duty: '投放素材与 KV 主视觉', st: 'ok' },
+    { name: '欧阳娜丽莎', role: 'member', roleLabel: '数据分析师', duty: '复盘看板与口径对齐', st: 'wait' },
+    { name: '赵一鸣', role: 'quality', roleLabel: '质量门禁', duty: '验收清单与回归检查', st: 'idle' },
+    { name: '何雨桐', role: 'member', roleLabel: '文案策划', duty: '落地页文案与 FAQ', st: 'ok' },
+  ];
+  const DOT = { run: 'dot dot--run', ok: 'dot dot--ok', wait: 'dot dot--wait', idle: 'dot dot--idle' };
+  const ST_TXT = { run: '进行中', ok: '已完成', wait: '等待输入', idle: '空闲' };
+
+  /* ── 方案 A:金字塔节点(固定 344×380 坐标系) ── */
+  const pyramid = document.querySelector('[data-pyramid]');
+  const POS = [
+    { x: 172, y: 20, lead: true },                       // 塔尖
+    { x: 96, y: 150 }, { x: 248, y: 150 },               // 第二层
+    { x: 52, y: 280 }, { x: 172, y: 280 }, { x: 292, y: 280 }, // 第三层
+  ];
+  MEMBERS.forEach((m, i) => {
+    const p = POS[i];
+    const b = document.createElement('button');
+    b.className = 'node' + (p.lead ? ' node--lead' : ' node--m') + (i === 1 ? ' on' : '');
+    b.style.left = (p.x / 344 * 100) + '%';
+    b.style.top = (p.y / 380 * 100) + '%';
+    b.innerHTML = `<span class="node__c">${m.name.slice(0,1)}<span class="${DOT[m.st]}"></span></span>
+      <span class="node__name">${m.name}</span><span class="node__role">${m.roleLabel}</span>`;
+    b.addEventListener('click', () => {
+      pyramid.querySelectorAll('.node').forEach(n => n.classList.remove('on'));
+      b.classList.add('on');
+    });
+    pyramid.appendChild(b);
+  });
+
+  /* ── 方案 B:头像带 + 聚光灯 ── */
+  const strip = document.querySelector('[data-strip]');
+  const hero = document.querySelector('[data-hero]');
+  function renderHero(i) {
+    const m = MEMBERS[i];
+    hero.innerHTML = `
+      <span class="hero__c">${m.name.slice(0,1)}<span class="${DOT[m.st]}" style="width:14px;height:14px;"></span></span>
+      <strong class="hero__name">${m.name}</strong>
+      <span class="hero__role">${m.roleLabel} · ${ST_TXT[m.st]}</span>
+      <p class="hero__duty">${m.duty}</p>
+      <div class="hero__tags"><span>子会话 12 轮</span><span>产出 4 项</span></div>
+      <button class="hero__open">打开对话<svg viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>`;
+  }
+  MEMBERS.forEach((m, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (i === 1 ? ' on' : '');
+    b.innerHTML = `<span class="chip__c">${m.name.slice(0,1)}<span class="${DOT[m.st]}"></span></span><span class="chip__n">${m.name}</span>`;
+    b.addEventListener('click', () => {
+      strip.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+      b.classList.add('on');
+      renderHero(i);
+    });
+    strip.appendChild(b);
+  });
+  renderHero(1);
+
+  /* ── 方案 C:蜂巢矩阵 ── */
+  const hive = document.querySelector('[data-hive]');
+  MEMBERS.forEach((m, i) => {
+    const b = document.createElement('button');
+    if (m.role === 'lead') {
+      b.className = 'cell cell--lead';
+      b.innerHTML = `<span class="cell__c">${m.name.slice(0,1)}</span>
+        <span class="cell__txt"><span class="cell__name">${m.name} · ${m.roleLabel}</span>
+        <span class="cell__role">${m.duty}</span></span>
+        <span class="cell__st"><span class="${DOT[m.st]}"></span></span>`;
+    } else {
+      b.className = 'cell' + (i === 1 ? ' on' : '');
+      b.innerHTML = `<span class="cell__top"><span class="cell__c">${m.name.slice(0,1)}</span><span class="cell__st"><span class="${DOT[m.st]}"></span></span></span>
+        <span class="cell__name">${m.name}</span><span class="cell__role">${m.roleLabel}</span>`;
+    }
+    b.addEventListener('click', () => {
+      hive.querySelectorAll('.cell').forEach(c => c.classList.remove('on'));
+      b.classList.add('on');
+    });
+    hive.appendChild(b);
+  });
+
+  /* ── 通用交互:入口单选 / 模式丸 / 定制折叠 ── */
+  document.querySelectorAll('.scheme').forEach(scheme => {
+    scheme.querySelectorAll('[data-modes] button').forEach(btn => btn.addEventListener('click', e => {
+      e.stopPropagation();
+      scheme.querySelectorAll('[data-modes] button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    }));
+    scheme.querySelectorAll('.entry:not([data-expand]), .tile:not([data-expand]), .subtile, .rail-btn:not([data-expand]):not(.rail-btn--plus)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        scheme.querySelectorAll('.entry, .tile, .subtile, .rail-btn').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+      });
+    });
+    scheme.querySelectorAll('[data-expand]').forEach(btn => btn.addEventListener('click', () => {
+      const sub = btn.parentElement.querySelector('[data-sub]');
+      if (sub) sub.style.display = sub.style.display === 'none' ? '' : 'none';
+    }));
+  });
+</script>
+</body>
+</html>

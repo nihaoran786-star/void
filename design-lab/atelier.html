@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Void · Atelier — 三个世界观</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: #0a0a0a; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #e8e8e8; padding: 48px 24px 140px; }
+  svg { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  .lab-head { max-width: 1240px; margin: 0 auto 44px; }
+  .lab-head h1 { font-size: 22px; font-weight: 600; letter-spacing: .02em; }
+  .lab-head p { margin-top: 10px; color: #8a8a8a; font-size: 13px; line-height: 1.7; max-width: 720px; }
+  .lab-toc { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+  .lab-toc a { padding: 8px 16px; border: 1px solid rgba(255,255,255,.16); color: #c9c9c9; font-size: 13px; text-decoration: none; }
+  .lab-toc a:hover { border-color: rgba(255,255,255,.4); color: #fff; }
+
+  .scheme { max-width: 1240px; margin: 0 auto 96px; }
+  .scheme-meta { margin-bottom: 18px; max-width: 780px; }
+  .scheme-meta h2 { font-size: 17px; font-weight: 600; display: flex; align-items: baseline; gap: 12px; }
+  .scheme-meta h2 em { font-style: normal; font-size: 11px; letter-spacing: .2em; opacity: .55; }
+  .scheme-meta ul { margin-top: 10px; padding-left: 18px; color: #8a8a8a; font-size: 12px; line-height: 1.8; }
+
+  .stage { display: flex; height: 660px; overflow: hidden; }
+  .stage__canvas { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; letter-spacing: .3em; opacity: .3; }
+  .nav { width: 252px; flex: 0 0 252px; display: flex; flex-direction: column; }
+  .team { width: 368px; flex: 0 0 368px; display: flex; flex-direction: column; min-height: 0; }
+
+  /* ════════════════════════ 碑 STELE ════════════════════════ */
+  .stele { --bg: #161513; --panel: #1b1916; --ink: #c9c2ac; --ink-dim: rgba(201,194,172,.5); --ink-faint: rgba(201,194,172,.28); --line: rgba(201,194,172,.16); --line2: rgba(201,194,172,.3); --terra: #d74848; }
+  .stele .stage { background: var(--bg); border: 1px solid var(--line); }
+  .stele { color: var(--ink); font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .stele .serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
+  .stele .nav { background: var(--panel); border-right: 1px solid var(--line); padding: 18px 0; }
+  .stele .n-launch { display: flex; align-items: baseline; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--line2); border-bottom: 1px solid var(--line2); }
+  .stele .n-launch .serif { font-size: 19px; letter-spacing: .06em; }
+  .stele .n-launch small { margin-left: auto; font-size: 10px; letter-spacing: .25em; color: var(--ink-faint); }
+  .stele .n-launch:hover { background: rgba(201,194,172,.05); }
+  .stele .n-launch:hover .serif { color: #efe9d6; }
+  .stele .n-search { display: flex; align-items: center; gap: 10px; padding: 11px 18px; color: var(--ink-dim); font-size: 12px; }
+  .stele .n-search:hover { color: var(--ink); }
+  .stele .n-search svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.5; }
+  .stele .n-search small { margin-left: auto; font-size: 10px; letter-spacing: .15em; }
+  .stele .n-list { margin-top: 16px; display: flex; flex-direction: column; }
+  .stele .n-cap { padding: 0 18px 8px; font-size: 9px; letter-spacing: .3em; color: var(--ink-faint); }
+  .stele .n-item { position: relative; display: flex; align-items: baseline; gap: 12px; padding: 9px 18px; text-align: left; color: var(--ink-dim); }
+  .stele .n-item i { font-style: normal; font-size: 10px; letter-spacing: .1em; color: var(--ink-faint); width: 18px; }
+  .stele .n-item span { font-size: 14px; letter-spacing: .04em; }
+  .stele .n-item em { margin-left: auto; font-style: normal; font-size: 10px; color: var(--ink-faint); }
+  .stele .n-item:hover { color: var(--ink); }
+  .stele .n-item.on { color: #efe9d6; }
+  .stele .n-item.on::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--terra); }
+  .stele .n-item.on i { color: var(--terra); }
+  .stele .n-sub { margin-left: 30px; border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+  .stele .n-sub .n-item { padding-left: 14px; }
+
+  .stele .team { background: var(--panel); border-left: 1px solid var(--line); }
+  .stele .t-head { position: relative; padding: 20px 18px 16px; border-bottom: 1px solid var(--line2); }
+  .stele .t-head .l1 { display: block; font-size: 24px; letter-spacing: .1em; color: #efe9d6; }
+  .stele .t-head .l2 { display: block; margin-top: 2px; font-size: 24px; letter-spacing: .34em; text-align: right; color: var(--ink-dim); }
+  .stele .t-head .run { position: absolute; top: 22px; right: 18px; display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: .2em; color: var(--terra); }
+  .stele .t-head .run b { width: 5px; height: 5px; background: var(--terra); border-radius: 50%; }
+  .stele .t-head .x { position: absolute; bottom: 14px; right: 16px; color: var(--ink-faint); font-size: 14px; }
+  .stele .t-head .x:hover { color: var(--ink); }
+  .stele .t-obj { padding: 10px 18px; font-size: 11px; line-height: 1.7; color: var(--ink-dim); border-bottom: 1px solid var(--line); }
+  .stele .t-obj b { color: var(--ink); font-weight: 500; }
+  .stele .strata { flex: 1; min-height: 0; overflow-y: auto; }
+  .stele .stratum { padding: 12px 0 4px; }
+  .stele .stratum + .stratum { border-top: 1px solid var(--line); }
+  .stele .stratum__cap { display: flex; justify-content: space-between; padding: 0 18px 6px; font-size: 9px; letter-spacing: .3em; color: var(--ink-faint); }
+  .stele .tablet { position: relative; display: flex; align-items: center; gap: 14px; width: 100%; padding: 8px 18px; text-align: left; color: var(--ink-dim); }
+  .stele .tablet:hover { background: rgba(201,194,172,.04); color: var(--ink); }
+  .stele .tablet .glyph { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 26px; width: 34px; text-align: center; color: var(--ink-faint); }
+  .stele .tablet .who { flex: 1; min-width: 0; }
+  .stele .tablet .who strong { display: block; font-size: 14px; font-weight: 500; letter-spacing: .05em; color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stele .tablet .who small { display: block; margin-top: 1px; font-size: 10px; letter-spacing: .08em; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stele .tablet .st { font-size: 10px; letter-spacing: .12em; color: var(--ink-faint); }
+  .stele .tablet.on { color: #efe9d6; }
+  .stele .tablet.on::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; background: var(--terra); }
+  .stele .tablet.on .glyph { color: var(--terra); }
+  .stele .tablet .st--run { color: var(--terra); }
+  .stele .t-foot { padding: 14px 18px 16px; border-top: 1px solid var(--line2); }
+  .stele .epochs { display: flex; align-items: baseline; gap: 0; }
+  .stele .epochs i { font-style: normal; font-size: 13px; letter-spacing: .1em; color: var(--ink-faint); padding: 0 2px; }
+  .stele .epochs i.done { color: var(--ink); }
+  .stele .epochs i.now { color: var(--terra); }
+  .stele .epochs u { flex: 1; height: 1px; background: var(--line); margin: 0 8px; align-self: center; }
+  .stele .epochs u.done { background: var(--line2); }
+  .stele .t-foot .cap { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 9px; letter-spacing: .3em; color: var(--ink-faint); }
+  .stele .t-foot .now-name { margin-top: 8px; font-size: 10px; letter-spacing: .15em; color: var(--ink-dim); }
+  .stele .t-foot .now-name b { color: var(--terra); font-weight: 500; }
+
+  /* ════════════════════════ 星盘 ORRERY ════════════════════════ */
+  .orrery { --bg: #0c0f1d; --panel: #10142a; --ink: #e6e3d8; --ink-dim: rgba(230,227,216,.45); --ink-faint: rgba(230,227,216,.24); --line: rgba(230,227,216,.12); --brass: #c9a86a; --brass-dim: rgba(201,168,106,.4); }
+  .orrery .stage { background: var(--bg); border: 1px solid var(--line); color: var(--ink); }
+  .orrery .nav { position: relative; background: var(--panel); border-right: 1px solid var(--line); padding: 22px 0; }
+  .orrery .meridian { position: absolute; left: 26px; top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .orrery .n-star { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 14px 6px 17px; text-align: left; }
+  .orrery .n-star .astro { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; color: var(--brass); }
+  .orrery .n-star .astro svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.25; }
+  .orrery .n-star span { font-size: 14px; letter-spacing: .06em; color: var(--ink); }
+  .orrery .n-star small { margin-left: auto; font-size: 9px; letter-spacing: .25em; color: var(--ink-faint); font-variant-caps: small-caps; }
+  .orrery .n-star:hover .astro { color: #e8cc8f; }
+  .orrery .n-search { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 14px 6px 17px; color: var(--ink-dim); }
+  .orrery .n-search .astro { display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
+  .orrery .n-search .astro svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.25; }
+  .orrery .n-search span { font-size: 12px; }
+  .orrery .n-search small { margin-left: auto; font-size: 9px; letter-spacing: .2em; color: var(--ink-faint); }
+  .orrery .n-search:hover { color: var(--ink); }
+  .orrery .n-list { position: relative; margin-top: 20px; display: flex; flex-direction: column; gap: 2px; }
+  .orrery .n-cap { padding: 0 14px 10px 48px; font-size: 9px; letter-spacing: .3em; color: var(--ink-faint); font-variant-caps: small-caps; }
+  .orrery .n-item { position: relative; display: flex; align-items: center; gap: 0; padding: 8px 14px 8px 0; text-align: left; color: var(--ink-dim); }
+  .orrery .n-item .tick { flex: 0 0 auto; width: 12px; height: 1px; background: var(--ink-faint); margin-left: 21px; margin-right: 14px; }
+  .orrery .n-item span { font-size: 13px; letter-spacing: .05em; }
+  .orrery .n-item em { margin-left: auto; font-style: normal; font-size: 10px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .orrery .n-item:hover { color: var(--ink); }
+  .orrery .n-item:hover .tick { background: var(--ink); }
+  .orrery .n-item.on { color: var(--brass); }
+  .orrery .n-item.on .tick { width: 20px; margin-left: 13px; background: var(--brass); height: 2px; }
+  .orrery .n-sub { display: flex; flex-direction: column; }
+  .orrery .n-sub .n-item .tick { margin-left: 29px; width: 8px; margin-right: 14px; }
+  .orrery .n-sub .n-item.on .tick { width: 14px; margin-left: 23px; }
+
+  .orrery .team { background: var(--panel); border-left: 1px solid var(--line); }
+  .orrery .t-head { display: flex; align-items: baseline; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+  .orrery .t-head strong { font-size: 14px; font-weight: 500; letter-spacing: .08em; }
+  .orrery .t-head .run { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-size: 9px; letter-spacing: .25em; color: var(--brass); font-variant-caps: small-caps; }
+  .orrery .t-head .run b { width: 5px; height: 5px; border-radius: 50%; background: var(--brass); }
+  .orrery .t-head .x { color: var(--ink-faint); font-size: 13px; align-self: center; }
+  .orrery .t-head .x:hover { color: var(--ink); }
+  .orrery .wheel-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
+  .orrery .wheel { position: relative; width: 300px; height: 300px; }
+  .orrery .wheel svg.chart { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .orrery .sat { position: absolute; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--ink-faint); background: var(--panel); color: var(--ink-dim); font-size: 13px; transform: translate(-50%, -50%); font-family: "Songti SC", "STSong", "SimSun", serif; }
+  .orrery .sat:hover { border-color: var(--ink); color: var(--ink); }
+  .orrery .sat.on { border-color: var(--brass); color: var(--brass); box-shadow: 0 0 0 3px rgba(201,168,106,.15); }
+  .orrery .sat--lead { width: 46px; height: 46px; font-size: 17px; border-color: var(--brass-dim); color: var(--brass); }
+  .orrery .readout { margin-top: 6px; text-align: center; }
+  .orrery .readout .serif { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 21px; letter-spacing: .12em; color: var(--ink); }
+  .orrery .readout small { display: block; margin-top: 4px; font-size: 9px; letter-spacing: .3em; color: var(--ink-faint); font-variant-caps: small-caps; }
+  .orrery .t-foot { padding: 14px 18px 16px; border-top: 1px solid var(--line); }
+  .orrery .arc-progress { display: flex; align-items: center; gap: 12px; }
+  .orrery .arc-progress svg { flex: 1; height: 26px; }
+  .orrery .arc-progress .lbl { font-size: 9px; letter-spacing: .25em; color: var(--ink-faint); white-space: nowrap; font-variant-caps: small-caps; }
+  .orrery .arc-progress .lbl b { color: var(--brass); font-weight: 500; }
+  .orrery .t-foot .cap { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 9px; letter-spacing: .3em; color: var(--ink-faint); font-variant-caps: small-caps; }
+
+  /* ════════════════════════ 活字 TYPESET ════════════════════════ */
+  .typeset { --bg: #0f0f0f; --panel: #131313; --ink: #f0ede6; --ink-dim: rgba(240,237,230,.45); --ink-faint: rgba(240,237,230,.22); --line: rgba(240,237,230,.18); --line2: rgba(240,237,230,.34); --cinnabar: #d43d2a; }
+  .typeset .stage { background: var(--bg); border: 1px solid var(--line); color: var(--ink); }
+  .typeset .nav { background: var(--panel); border-right: 1px solid var(--line); padding: 14px; gap: 0; }
+  .typeset .n-launch { display: flex; align-items: center; gap: 10px; padding: 12px 12px; border: 1px solid var(--ink); }
+  .typeset .n-launch span { font-size: 13px; letter-spacing: .1em; }
+  .typeset .n-launch small { margin-left: auto; font-size: 10px; letter-spacing: .15em; font-variant-numeric: tabular-nums; }
+  .typeset .n-launch:hover { background: var(--ink); color: #0f0f0f; }
+  .typeset .n-launch:hover small { color: #0f0f0f; }
+  .typeset .n-search { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); color: var(--ink-dim); font-size: 12px; }
+  .typeset .n-search:hover { border-color: var(--line2); color: var(--ink); }
+  .typeset .n-search small { margin-left: auto; font-size: 10px; font-variant-numeric: tabular-nums; }
+  .typeset .n-list { margin-top: 18px; border-top: 1px solid var(--line2); }
+  .typeset .n-item { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 9px 4px; border-bottom: 1px solid var(--line); text-align: left; color: var(--ink-dim); font-size: 13px; }
+  .typeset .n-item i { font-style: normal; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+  .typeset .n-item .leader { flex: 1; border-bottom: 1px dotted var(--ink-faint); margin: 0 6px 3px; }
+  .typeset .n-item em { font-style: normal; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+  .typeset .n-item:hover { color: var(--ink); }
+  .typeset .n-item.on { background: var(--ink); color: #0f0f0f; padding-left: 8px; padding-right: 8px; }
+  .typeset .n-item.on i, .typeset .n-item.on em { color: rgba(15,15,15,.55); }
+  .typeset .n-item.on .leader { border-bottom-color: rgba(15,15,15,.3); }
+  .typeset .n-sub .n-item { padding-left: 22px; }
+
+  .typeset .team { background: var(--panel); border-left: 1px solid var(--line); }
+  .typeset .t-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--line2); }
+  .typeset .t-head .row { display: flex; align-items: baseline; }
+  .typeset .t-head strong { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 20px; font-weight: 600; letter-spacing: .14em; }
+  .typeset .t-head .x { margin-left: auto; color: var(--ink-faint); font-size: 13px; }
+  .typeset .t-head .x:hover { color: var(--ink); }
+  .typeset .t-head .meta { margin-top: 6px; display: flex; justify-content: space-between; font-size: 10px; letter-spacing: .2em; color: var(--ink-faint); font-variant-caps: small-caps; }
+  .typeset .t-head .meta b { color: var(--cinnabar); font-weight: 500; }
+  .typeset .t-obj { padding: 9px 16px; font-size: 11px; line-height: 1.7; color: var(--ink-dim); border-bottom: 1px solid var(--line); }
+  .typeset .stick { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; }
+  .typeset .sort { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border: 1px solid var(--line); color: var(--ink-dim); }
+  .typeset .sort:hover { border-color: var(--line2); color: var(--ink); }
+  .typeset .sort .glyph { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 26px; line-height: 1.15; }
+  .typeset .sort .who { font-size: 10px; letter-spacing: .05em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .typeset .sort .mark { position: absolute; top: 4px; right: 6px; font-size: 9px; color: var(--ink-faint); }
+  .typeset .sort .mark--run { color: var(--cinnabar); }
+  .typeset .sort.on { background: var(--cinnabar); border-color: var(--cinnabar); color: #f7f3ea; }
+  .typeset .sort.on .mark { color: rgba(247,243,234,.75); }
+  .typeset .sort--lead { grid-column: 1 / -1; flex-direction: row; gap: 12px; padding: 10px 12px; justify-content: flex-start; }
+  .typeset .sort--lead .glyph { font-size: 30px; }
+  .typeset .sort--lead .who { font-size: 12px; text-align: left; }
+  .typeset .sort--lead .who small { display: block; margin-top: 2px; font-size: 9px; letter-spacing: .2em; color: var(--ink-faint); font-variant-caps: small-caps; }
+  .typeset .sort--lead.on .who small { color: rgba(247,243,234,.75); }
+  .typeset .t-foot { padding: 12px 16px 14px; border-top: 1px solid var(--line2); }
+  .typeset .folio { display: flex; align-items: baseline; justify-content: space-between; font-size: 10px; letter-spacing: .18em; color: var(--ink-dim); }
+  .typeset .folio b { color: var(--ink); font-weight: 500; }
+  .typeset .blocks { display: flex; gap: 5px; margin-top: 10px; }
+  .typeset .blocks i { flex: 1; height: 10px; border: 1px solid var(--line2); }
+  .typeset .blocks i.done { background: var(--ink); border-color: var(--ink); }
+  .typeset .blocks i.now { background: var(--cinnabar); border-color: var(--cinnabar); }
+
+  /* ── 克制的微动效 ── */
+  @media (prefers-reduced-motion: no-preference) {
+    button { transition: background-color .14s ease, color .14s ease, border-color .14s ease, box-shadow .18s ease; }
+    .orrery .n-item .tick { transition: width .16s ease, margin .16s ease, background-color .14s ease; }
+    .orrery .sat { transition: border-color .14s ease, color .14s ease, box-shadow .18s ease; }
+    @keyframes void-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    .stele .t-head .run b, .orrery .t-head .run b, .stele .tablet .st--run, .typeset .sort .mark--run { animation: void-breathe 2.6s ease-in-out infinite; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lab-head">
+  <h1>Atelier — 三个世界观</h1>
+  <p>不再共享任何既有组件语言。每套概念有自己的材质、排版系统与 accent 色;功能不变(新建任务 / 搜索 / 助理 / 自动化 / 定制;团队成员 / 状态 / 阶段 / 关闭)。点击成员与导航项查看选中态。</p>
+  <div class="lab-toc">
+    <a href="#stele">碑 STELE</a>
+    <a href="#orrery">星盘 ORRERY</a>
+    <a href="#typeset">活字 TYPESET</a>
+  </div>
+</div>
+
+<!-- ════════════ 碑 ════════════ -->
+<section class="scheme stele" id="stele">
+  <div class="scheme-meta">
+    <h2>碑 STELE <em>石刻博物馆</em></h2>
+    <ul>
+      <li>材质:暖黑石材 + 米灰刻字,唯一 accent 是陶土红刻口。队名用衬线巨字分裂对齐——"电商大促"居左,"作战室"拉开字距居右,像碑额拓片。</li>
+      <li>团队是地层剖面:成员按层级嵌入 STRATUM I / II 岩层,衬线雕首字,选中 = 陶土红刻痕。</li>
+      <li>阶段是地质纪年:Ⅰ Ⅱ Ⅲ Ⅳ 罗马数字以发丝线串联,当前纪染红。</li>
+      <li>导航以罗马数字编号(I/II/III),活动态 = 3px 红刻口。一切交互"像搬动石头"般有重量。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <nav class="nav" data-nav></nav>
+    <div class="stage__canvas">CANVAS</div>
+    <aside class="team">
+      <div class="t-head">
+        <span class="serif l1">电商大促</span>
+        <span class="serif l2">作战室</span>
+        <span class="run"><b></b>运转中</span>
+        <button class="x" aria-label="关闭">✕</button>
+      </div>
+      <p class="t-obj"><b>大促落地页全链路交付</b> — 首页改版、投放素材与复盘看板,门禁通过后上线。</p>
+      <div class="strata" data-strata></div>
+      <div class="t-foot">
+        <div class="cap"><span>GEOLOGIC RECORD</span><span>Ⅱ / Ⅳ</span></div>
+        <div class="epochs"><i class="done">Ⅰ</i><u class="done"></u><i class="now">Ⅱ</i><u></u><i>Ⅲ</i><u></u><i>Ⅳ</i></div>
+        <p class="now-name">当前纪 · <b>素材生产</b></p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════════ 星盘 ════════════ -->
+<section class="scheme orrery" id="orrery">
+  <div class="scheme-meta">
+    <h2>星盘 ORRERY <em>天文仪器</em></h2>
+    <ul>
+      <li>导航是一条子午线:入口挂在线上成为刻度,选中时刻度伸长为黄铜短针;新建任务 = 线顶端的一颗八芒星,搜索 = 一枚小环。</li>
+      <li>团队面板是一架星盘:负责人居天心,成员分布在两圈同心轨道上,环上每 45° 有刻度;运行路径的弧段染黄铜。</li>
+      <li>点选星子,下方"读数窗"以衬线大字报出当前成员——仪器感来自:你只读取,不操作。</li>
+      <li>阶段 = 底部一段黄铜弧,像表盘上的动储显示。所有数字用 tabular-nums,标签用 small-caps。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <nav class="nav" data-nav><span class="meridian"></span></nav>
+    <div class="stage__canvas">CANVAS</div>
+    <aside class="team">
+      <div class="t-head">
+        <strong>电商大促作战室</strong>
+        <span class="run"><b></b>Running</span>
+        <button class="x" aria-label="关闭">✕</button>
+      </div>
+      <div class="wheel-wrap">
+        <div class="wheel" data-wheel>
+          <svg class="chart" viewBox="0 0 300 300" aria-hidden="true">
+            <circle cx="150" cy="140" r="62" stroke="rgba(230,227,216,.12)" stroke-width="1"/>
+            <circle cx="150" cy="140" r="102" stroke="rgba(230,227,216,.12)" stroke-width="1"/>
+            <circle cx="150" cy="140" r="118" stroke="rgba(230,227,216,.2)" stroke-width="1"/>
+            <g stroke="rgba(230,227,216,.3)" stroke-width="1" data-ticks></g>
+            <path d="M 88 140 A 62 62 0 0 1 119 86.3" stroke="#c9a86a" stroke-width="2"/>
+            <line x1="150" y1="140" x2="96.3" y2="109" stroke="rgba(230,227,216,.14)" stroke-width="1"/>
+            <line x1="150" y1="140" x2="203.7" y2="109" stroke="rgba(230,227,216,.14)" stroke-width="1"/>
+            <line x1="150" y1="140" x2="61.7" y2="191" stroke="rgba(230,227,216,.14)" stroke-width="1"/>
+            <line x1="150" y1="140" x2="150" y2="242" stroke="rgba(230,227,216,.14)" stroke-width="1"/>
+            <line x1="150" y1="140" x2="238.3" y2="191" stroke="rgba(230,227,216,.14)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="readout" data-readout></div>
+      </div>
+      <div class="t-foot">
+        <div class="cap"><span>Power Reserve</span><span>2 / 4</span></div>
+        <div class="arc-progress">
+          <svg viewBox="0 0 220 26" aria-hidden="true">
+            <path d="M 10 23 A 104 104 0 0 1 210 23" stroke="rgba(230,227,216,.15)" stroke-width="3" fill="none"/>
+            <path d="M 10 23 A 104 104 0 0 1 110 3.6" stroke="#c9a86a" stroke-width="3" fill="none"/>
+            <circle cx="110" cy="3.6" r="3" fill="#c9a86a" stroke="none"/>
+          </svg>
+          <span class="lbl"><b>素材生产</b> · Phase Ⅱ</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ════════════ 活字 ════════════ -->
+<section class="scheme typeset" id="typeset">
+  <div class="scheme-meta">
+    <h2>活字 TYPESET <em>印刷版面</em></h2>
+    <ul>
+      <li>1px 发丝线定义一切空间,零圆角、零阴影、零渐变;唯一颜色是一枚朱砂印。</li>
+      <li>导航 = 目录页:01 02 03 编号 + 点线 leader + 右侧页码;选中 = 整行反白,像铅字压上纸面。</li>
+      <li>团队成员是字盘里的活字:方形字模、宋体大字,选中 = 朱文印章(朱砂底白字);运行状态不用颜色,用 ● ◐ ○ 印刷符号。</li>
+      <li>阶段 = 版记:■ ■ □ □ 墨块 + "之二 / 共四" 的 folio 行。</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <nav class="nav" data-nav></nav>
+    <div class="stage__canvas">CANVAS</div>
+    <aside class="team">
+      <div class="t-head">
+        <div class="row"><strong>电商大促作战室</strong><button class="x" aria-label="关闭">✕</button></div>
+        <div class="meta"><span>Team Register · 六员</span><span><b>●</b> 运转中</span></div>
+      </div>
+      <p class="t-obj">大促落地页全链路交付 — 首页改版、投放素材与复盘看板。</p>
+      <div class="stick" data-stick></div>
+      <div class="t-foot">
+        <div class="folio"><span>阶段 <b>素材生产</b></span><span>之二 / 共四</span></div>
+        <div class="blocks"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<script>
+  const MEMBERS = [
+    { name: '林晓峰', role: 'lead', roleLabel: '负责人', st: 'run' },
+    { name: '苏婉清扬', role: 'member', roleLabel: '前端工程师', st: 'run' },
+    { name: '陈默', role: 'member', roleLabel: '视觉设计师', st: 'ok' },
+    { name: '欧阳娜丽莎', role: 'member', roleLabel: '数据分析师', st: 'wait' },
+    { name: '赵一鸣', role: 'quality', roleLabel: '质量门禁', st: 'idle' },
+    { name: '何雨桐', role: 'member', roleLabel: '文案策划', st: 'ok' },
+  ];
+  const ROMAN = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ', 'Ⅴ', 'Ⅵ'];
+  const ST_STELE = { run: '运转', ok: '已成', wait: '候令', idle: '息' };
+  const MARK = { run: '●', ok: '✓', wait: '◐', idle: '○' };
+
+  /* ─────── 碑 ─────── */
+  (() => {
+    const s = document.querySelector('.stele');
+    s.querySelector('[data-nav]').innerHTML = `
+      <button class="n-launch"><span class="serif">新建任务</span><small>N</small></button>
+      <button class="n-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>检索</span><small>⌘K</small></button>
+      <div class="n-list">
+        <div class="n-cap">INDEX</div>
+        <button class="n-item"><i>Ⅰ</i><span>助理</span></button>
+        <button class="n-item on"><i>Ⅱ</i><span>自动化</span><em>3</em></button>
+        <button class="n-item" data-expand><i>Ⅲ</i><span>定制</span></button>
+        <div class="n-sub" data-sub>
+          <button class="n-item on"><i>·</i><span>智能体</span></button>
+          <button class="n-item"><i>·</i><span>技能</span></button>
+          <button class="n-item"><i>·</i><span>连接器</span></button>
+        </div>
+      </div>`;
+    const strata = s.querySelector('[data-strata]');
+    const layer = (cap, list) => `
+      <div class="stratum"><div class="stratum__cap"><span>${cap}</span><span>${list.length}</span></div>
+      ${list.map(m => `
+        <button class="tablet${m.i === 1 ? ' on' : ''}" data-i="${m.i}">
+          <span class="glyph">${m.name.slice(0,1)}</span>
+          <span class="who"><strong>${m.name}</strong><small>${m.roleLabel}</small></span>
+          <span class="st${m.st === 'run' ? ' st--run' : ''}">${ST_STELE[m.st]}</span>
+        </button>`).join('')}</div>`;
+    strata.innerHTML =
+      layer('STRATUM Ⅰ · 决断层', [{ ...MEMBERS[0], i: 0 }]) +
+      layer('STRATUM Ⅱ · 执行层', MEMBERS.slice(1).map((m, k) => ({ ...m, i: k + 1 })));
+    strata.querySelectorAll('.tablet').forEach(b => b.addEventListener('click', () => {
+      strata.querySelectorAll('.tablet').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    }));
+  })();
+
+  /* ─────── 星盘 ─────── */
+  (() => {
+    const s = document.querySelector('.orrery');
+    s.querySelector('[data-nav]').insertAdjacentHTML('beforeend', `
+      <button class="n-star"><span class="astro"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9 4.9 19.1"/></svg></span><span>新建任务</span><small>Nova</small></button>
+      <button class="n-search"><span class="astro"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></svg></span><span>搜索</span><small>⌘K</small></button>
+      <div class="n-list">
+        <div class="n-cap">Coordinates</div>
+        <button class="n-item"><span class="tick"></span><span>助理</span></button>
+        <button class="n-item on"><span class="tick"></span><span>自动化</span><em>3</em></button>
+        <button class="n-item" data-expand><span class="tick"></span><span>定制</span></button>
+        <div class="n-sub" data-sub>
+          <button class="n-item on"><span class="tick"></span><span>智能体</span></button>
+          <button class="n-item"><span class="tick"></span><span>技能</span></button>
+          <button class="n-item"><span class="tick"></span><span>连接器</span></button>
+        </div>
+      </div>`);
+    // 外圈刻度:每 15° 一根,45° 处加长
+    const ticks = s.querySelector('[data-ticks]');
+    let tg = '';
+    for (let a = 0; a < 360; a += 15) {
+      const rad = a * Math.PI / 180, long = a % 45 === 0;
+      const r1 = long ? 110 : 113, r2 = 118;
+      tg += `<line x1="${150 + r1 * Math.cos(rad)}" y1="${140 + r1 * Math.sin(rad)}" x2="${150 + r2 * Math.cos(rad)}" y2="${140 + r2 * Math.sin(rad)}"/>`;
+    }
+    ticks.innerHTML = tg;
+    // 星子位置(与 SVG 连线一致)
+    const SAT = [
+      { x: 150, y: 140, lead: true },
+      { x: 96.3, y: 109 }, { x: 203.7, y: 109 },
+      { x: 61.7, y: 191 }, { x: 150, y: 242 }, { x: 238.3, y: 191 },
+    ];
+    const wheel = s.querySelector('[data-wheel]');
+    const readout = s.querySelector('[data-readout]');
+    const show = i => {
+      const m = MEMBERS[i];
+      readout.innerHTML = `<span class="serif">${m.name}</span><small>${m.roleLabel} · ${ST_STELE[m.st]}</small>`;
+    };
+    MEMBERS.forEach((m, i) => {
+      const p = SAT[i];
+      const b = document.createElement('button');
+      b.className = 'sat' + (p.lead ? ' sat--lead' : '') + (i === 1 ? ' on' : '');
+      b.style.left = (p.x / 300 * 100) + '%';
+      b.style.top = (p.y / 300 * 100) + '%';
+      b.textContent = m.name.slice(0, 1);
+      b.addEventListener('click', () => {
+        wheel.querySelectorAll('.sat').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+        show(i);
+      });
+      wheel.appendChild(b);
+    });
+    show(1);
+  })();
+
+  /* ─────── 活字 ─────── */
+  (() => {
+    const s = document.querySelector('.typeset');
+    s.querySelector('[data-nav]').innerHTML = `
+      <button class="n-launch"><span>新建任务</span><small>N°01</small></button>
+      <button class="n-search"><span>检索</span><small>⌘K</small></button>
+      <div class="n-list">
+        <button class="n-item"><i>01</i><span>助理</span><span class="leader"></span><em></em></button>
+        <button class="n-item on"><i>02</i><span>自动化</span><span class="leader"></span><em>3</em></button>
+        <button class="n-item" data-expand><i>03</i><span>定制</span><span class="leader"></span><em></em></button>
+        <div class="n-sub" data-sub>
+          <button class="n-item on"><i>03·1</i><span>智能体</span><span class="leader"></span><em></em></button>
+          <button class="n-item"><i>03·2</i><span>技能</span><span class="leader"></span><em></em></button>
+          <button class="n-item"><i>03·3</i><span>连接器</span><span class="leader"></span><em></em></button>
+        </div>
+      </div>`;
+    const stick = s.querySelector('[data-stick]');
+    stick.innerHTML = MEMBERS.map((m, i) => m.role === 'lead' ? `
+      <button class="sort sort--lead" data-i="${i}">
+        <span class="glyph">${m.name.slice(0,1)}</span>
+        <span class="who">${m.name}<small>Lead · 决断</small></span>
+        <span class="mark mark--run" style="position:static;margin-left:auto;">${MARK[m.st]}</span>
+      </button>` : `
+      <button class="sort${i === 1 ? ' on' : ''}" data-i="${i}">
+        <span class="mark${m.st === 'run' ? ' mark--run' : ''}">${MARK[m.st]}</span>
+        <span class="glyph">${m.name.slice(0,1)}</span>
+        <span class="who">${m.name}</span>
+      </button>`).join('');
+    stick.querySelectorAll('.sort').forEach(b => b.addEventListener('click', () => {
+      stick.querySelectorAll('.sort').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    }));
+  })();
+
+  /* ── 通用导航交互 ── */
+  document.querySelectorAll('.scheme').forEach(scheme => {
+    scheme.querySelectorAll('.n-item:not([data-expand])').forEach(btn => btn.addEventListener('click', () => {
+      scheme.querySelectorAll('.n-item').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    }));
+    scheme.querySelectorAll('[data-expand]').forEach(btn => btn.addEventListener('click', () => {
+      const sub = scheme.querySelector('[data-sub]');
+      if (sub) sub.style.display = sub.style.display === 'none' ? '' : 'none';
+    }));
+  });
+</script>
+</body>
+</html>
