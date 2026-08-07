@@ -199,6 +199,13 @@ vi.mock('@/infrastructure/api/service-api/SubagentAPI', () => ({
   },
 }));
 
+vi.mock('@/shared/services/customization/AgentDebugRuntimeService', () => ({
+  createAgentDebugRuntime: () => ({
+    sweepOrphanedDebugSubagents: vi.fn(async () => 0),
+  }),
+  defaultAgentDebugRuntimeDeps: vi.fn(() => ({})),
+}));
+
 vi.mock('@/shared/services/reviewTeamService', () => ({
   loadDefaultReviewTeam: vi.fn(async () => null),
 }));

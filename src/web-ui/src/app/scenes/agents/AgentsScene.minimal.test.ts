@@ -36,7 +36,7 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      '108df3626b2a17eaf851f8d93867dfb04d8cfe13b456058bc4079753c2398b3f',
+      'd37a703707b5e992cca9842f19a7bf744e7d4c172efe51e19ba19ec99b48ffc8',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
       '026b2577a8e54593b0450e64e905488a2b12ec5d06021f4fe158c0ec811d1299',

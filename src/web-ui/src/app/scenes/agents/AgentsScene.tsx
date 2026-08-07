@@ -68,9 +68,22 @@ import {
   type CustomizationTaskDispatcher,
 } from '@/app/services/CustomizationTaskDispatchService';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
+import {
+  createAgentDebugRuntime,
+  defaultAgentDebugRuntimeDeps,
+} from '@/shared/services/customization/AgentDebugRuntimeService';
+import { createLogger } from '@/shared/utils/logger';
+
+const agentsSceneLog = createLogger('AgentsScene');
 
 const UNGROUPED_SKILL_GROUP = '__ungrouped__';
 const AGENT_PAGE_SIZE = 8;
+
+let agentsSceneDebugRuntime: ReturnType<typeof createAgentDebugRuntime> | undefined;
+function resolveAgentsSceneDebugRuntime() {
+  agentsSceneDebugRuntime ??= createAgentDebugRuntime(defaultAgentDebugRuntimeDeps());
+  return agentsSceneDebugRuntime;
+}
 
 const SKILL_GROUP_ORDER: Record<string, number> = {
   office: 0,
@@ -1502,6 +1515,24 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
       openHome();
     };
   }, [openHome]);
+
+  useEffect(() => {
+    // The debug subagent/session lifecycle is contained inside CreateAgentPage
+    // (a page of this scene), so no debug subagent can be live at scene mount.
+    // Sweep leftovers from crashed runs; log the count but never surface it.
+    void resolveAgentsSceneDebugRuntime()
+      .sweepOrphanedDebugSubagents([])
+      .then((removed) => {
+        if (removed > 0) {
+          agentsSceneLog.info('swept orphaned agent-debug subagents', { removed });
+        }
+      })
+      .catch((error) => {
+        agentsSceneLog.warn('agent-debug subagent sweep failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+  }, []);
 
   if (runtimeCapability.status === 'unsupported') {
     return (
