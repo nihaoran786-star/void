@@ -2296,6 +2296,7 @@
     },
     "overview": { "title": "当前工作", "workflowUnavailable": "流程资料不可用", "waiting": "已召唤，等待任务" },
     "members": { "title": "团队成员", "count": "{{count}} 人", "empty": "暂无成员", "open": "查看{{name}}的会话" },
+    "map": { "resetView": "复位视图" },
     "phases": { "title": "工作阶段", "count": "{{count}} 个", "empty": "当前没有阶段任务" },
     "roles": { "lead": "主理人", "specialist": "专业成员", "quality_gate": "质量把关" },
     "lifecycle": { "provisioning": "准备中", "ready": "已就绪", "unavailable": "不可用", "archived": "已归档" },

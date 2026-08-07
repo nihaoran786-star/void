@@ -2296,6 +2296,7 @@
     },
     "overview": { "title": "Current work", "workflowUnavailable": "Workflow details unavailable", "waiting": "Summoned and waiting for a task" },
     "members": { "title": "Team members", "count": "{{count}} people", "empty": "No members", "open": "Open {{name}}'s conversation" },
+    "map": { "resetView": "Reset view" },
     "phases": { "title": "Workflow phases", "count": "{{count}} phases", "empty": "No workflow phases for this task" },
     "roles": { "lead": "Lead", "specialist": "Specialist", "quality_gate": "Quality gate" },
     "lifecycle": { "provisioning": "Preparing", "ready": "Ready", "unavailable": "Unavailable", "archived": "Archived" },

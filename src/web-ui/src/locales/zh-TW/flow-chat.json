@@ -2296,6 +2296,7 @@
     },
     "overview": { "title": "目前工作", "workflowUnavailable": "流程資料不可用", "waiting": "已召喚，等待任務" },
     "members": { "title": "團隊成員", "count": "{{count}} 人", "empty": "暫無成員", "open": "查看{{name}}的會話" },
+    "map": { "resetView": "復位視圖" },
     "phases": { "title": "工作階段", "count": "{{count}} 個", "empty": "目前沒有階段任務" },
     "roles": { "lead": "主理人", "specialist": "專業成員", "quality_gate": "品質把關" },
     "lifecycle": { "provisioning": "準備中", "ready": "已就緒", "unavailable": "不可用", "archived": "已歸檔" },
