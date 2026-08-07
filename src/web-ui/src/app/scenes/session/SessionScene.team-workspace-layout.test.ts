@@ -18,10 +18,15 @@ describe('SessionScene Team Workspace layout contract', () => {
       /@media \(min-width:\s*1280px\)[\s\S]*?\.void-session-scene--has-team-workspace[\s\S]*?\.void-session-scene__chat-pane\s*\{[\s\S]*?flex:\s*1 1 400px;[\s\S]*?max-width:\s*min\(520px, 36%\);/,
     );
     expect(source).toMatch(
-      /@media \(min-width:\s*1280px\)[\s\S]*?\.void-session-scene__aux-pane:not\(\.void-session-scene__aux-pane--collapsed\)[\s\S]*?flex:\s*1 1 auto;[\s\S]*?max-width:\s*calc\(100% - 741px\);/,
+      /@media \(min-width:\s*1280px\)[\s\S]*?\.void-session-scene__aux-pane:not\(\.void-session-scene__aux-pane--collapsed\)[\s\S]*?flex:\s*1 1 auto;[\s\S]*?max-width:\s*calc\(100% - 401px\);/,
+    );
+    // 第三列钉在场景物理右缘：列宽用 padding 预留，面板 absolute 钉住，
+    // 任何会话/画布宽度抖动都无法把面板推出被裁剪的窗口边界。
+    expect(source).toMatch(
+      /@media \(min-width:\s*1280px\)[\s\S]*?\.void-session-scene--has-team-workspace\s*\{[\s\S]*?padding-right:\s*clamp\(340px, 23vw, 400px\);/,
     );
     expect(source).toMatch(
-      /@media \(min-width:\s*1280px\)[\s\S]*?\.void-session-scene__team-workspace\s*\{[\s\S]*?position:\s*relative;[\s\S]*?width:\s*clamp\(340px, 23vw, 400px\);[\s\S]*?flex:\s*0 0 clamp\(340px, 23vw, 400px\);/,
+      /@media \(min-width:\s*1280px\)[\s\S]*?\.void-session-scene__team-workspace\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?right:\s*0;[\s\S]*?bottom:\s*0;[\s\S]*?width:\s*clamp\(340px, 23vw, 400px\);/,
     );
   });
 });

@@ -77,11 +77,14 @@
 }
 
 @media (min-width: 1280px) {
-  // A durable Team owns one real third column. Restored canvas widths can be
-  // wider than the space left after the Team binds, so both the chat and the
-  // canvas must participate in flex shrink instead of pushing the final child
-  // beyond the scene's clipped physical window bounds.
+  // A durable Team owns one real third column. The column is pinned to the
+  // scene's physical right edge and its width is reserved via padding, so
+  // transient chat/canvas width turbulence (poll-cadence state writes) can
+  // never push the panel beyond the scene's clipped window bounds — the panel
+  // stays put and any overflow is absorbed by the flexible panes instead.
   .void-session-scene--has-team-workspace {
+    padding-right: clamp(340px, 23vw, 400px);
+
     .void-session-scene__chat-pane {
       flex: 1 1 400px;
       min-width: 400px;
@@ -91,20 +94,18 @@
     .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed) {
       flex: 1 1 auto;
       min-width: 300px;
-      max-width: calc(100% - 741px);
+      max-width: calc(100% - 401px);
     }
   }
 
   .void-session-scene__team-workspace {
-    position: relative;
+    position: absolute;
     z-index: auto;
-    top: auto;
-    right: auto;
-    bottom: auto;
+    top: 0;
+    right: 0;
+    bottom: 0;
     width: clamp(340px, 23vw, 400px);
     min-width: 340px;
-    height: 100%;
-    flex: 0 0 clamp(340px, 23vw, 400px);
     border-width: 0 0 0 1px;
     border-radius: 0;
     box-shadow: none;
