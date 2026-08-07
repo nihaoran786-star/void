@@ -6,7 +6,10 @@ import type {
   DeleteSubagentPayload,
   SubagentInfo,
 } from '@/infrastructure/api/service-api/SubagentAPI';
-import type { SessionActivePersonaBinding } from '@/shared/types/session-history';
+import type {
+  SessionActivePersonaBinding,
+  SessionCustomizationScenario,
+} from '@/shared/types/session-history';
 import {
   computeAgentDraftFingerprint,
   type AgentDebugDraft,
@@ -21,10 +24,11 @@ export interface AgentDebugSessionHandle {
   subagentId: string;
   subagentKey: string;
   draftFingerprint: string;
+  workspacePath: string;
 }
 
 export interface AgentDebugPersonaState {
-  scenario: 'code' | 'cowork' | 'media';
+  scenario: SessionCustomizationScenario;
   executionPolicy: string;
   activePersonaBinding: SessionActivePersonaBinding;
 }
@@ -70,31 +74,41 @@ export function createAgentDebugRuntime(deps: AgentDebugRuntimeDeps) {
       workspacePath,
     });
 
-    const entries = await deps.listSubagents();
-    const revision = entries
-      .find(entry => entry.id === subagentId)
-      ?.promptCacheScopeKey?.trim();
-    if (!revision) {
-      throw new Error('Agent debug revision unavailable; cannot bind the persona.');
+    try {
+      const entries = await deps.listSubagents();
+      const revision = entries
+        .find(entry => entry.id === subagentId)
+        ?.promptCacheScopeKey?.trim();
+      if (!revision) {
+        throw new Error('Agent debug revision unavailable; cannot bind the persona.');
+      }
+
+      const sessionId = await deps.createChatSession({}, DEBUG_EXECUTION_POLICY);
+      await deps.persistPersona(sessionId, {
+        scenario: DEBUG_SCENARIO,
+        executionPolicy: DEBUG_EXECUTION_POLICY,
+        activePersonaBinding: {
+          kind: 'agent',
+          personaId: `user::void::${subagentId}`,
+          personaRevision: { status: 'known', value: revision },
+        },
+      });
+
+      return {
+        sessionId,
+        subagentId,
+        subagentKey: `user::void::${subagentId}`,
+        draftFingerprint: computeAgentDraftFingerprint(draft),
+        workspacePath,
+      };
+    } catch (error) {
+      await deps.deleteSubagent({
+        subagentKey: `user::void::${subagentId}`,
+        subagentId,
+        workspacePath,
+      });
+      throw error;
     }
-
-    const sessionId = await deps.createChatSession({}, DEBUG_EXECUTION_POLICY);
-    await deps.persistPersona(sessionId, {
-      scenario: DEBUG_SCENARIO,
-      executionPolicy: DEBUG_EXECUTION_POLICY,
-      activePersonaBinding: {
-        kind: 'agent',
-        personaId: `user::void::${subagentId}`,
-        personaRevision: { status: 'known', value: revision },
-      },
-    });
-
-    return {
-      sessionId,
-      subagentId,
-      subagentKey: `user::void::${subagentId}`,
-      draftFingerprint: computeAgentDraftFingerprint(draft),
-    };
   }
 
   async function prepareForSend(
@@ -102,13 +116,14 @@ export function createAgentDebugRuntime(deps: AgentDebugRuntimeDeps) {
     draft: AgentDebugDraft,
     workspacePath: string,
   ): Promise<AgentDebugSessionHandle> {
-    if (
-      current
-      && current.draftFingerprint === computeAgentDraftFingerprint(draft)
-    ) {
-      return current;
-    }
     if (current) {
+      const fingerprint = computeAgentDraftFingerprint(draft);
+      if (
+        current.draftFingerprint === fingerprint
+        && current.workspacePath === workspacePath
+      ) {
+        return current;
+      }
       await disposeDebugSession(current);
     }
     return createDebugSession(draft, workspacePath);
@@ -121,9 +136,15 @@ export function createAgentDebugRuntime(deps: AgentDebugRuntimeDeps) {
       await deps.deleteSubagent({
         subagentKey: handle.subagentKey,
         subagentId: handle.subagentId,
-        workspacePath: undefined,
       });
     }
+  }
+
+  async function sendMessage(
+    handle: AgentDebugSessionHandle,
+    message: string,
+  ): Promise<void> {
+    return deps.sendMessage(message, handle.sessionId, DEBUG_EXECUTION_POLICY);
   }
 
   async function sweepOrphanedDebugSubagents(
@@ -139,7 +160,6 @@ export function createAgentDebugRuntime(deps: AgentDebugRuntimeDeps) {
       await deps.deleteSubagent({
         subagentKey: entry.key,
         subagentId: entry.id,
-        workspacePath: undefined,
       });
       removed += 1;
     }
@@ -150,6 +170,7 @@ export function createAgentDebugRuntime(deps: AgentDebugRuntimeDeps) {
     createDebugSession,
     prepareForSend,
     disposeDebugSession,
+    sendMessage,
     sweepOrphanedDebugSubagents,
   };
 }
