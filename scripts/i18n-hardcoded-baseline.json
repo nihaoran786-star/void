@@ -3,8 +3,8 @@
   "budgets": [
     {
       "id": "web-ui-source",
-      "maxCjkLines": 25,
-      "note": "Current Void short-drama service debt. Lower as user-facing Chinese copy moves to locale resources; new CJK source lines remain blocked."
+      "maxCjkLines": 26,
+      "note": "Current Void short-drama service debt plus the agent-debug protocol marker ('调试草稿·', a backend prefix, not user-facing copy). Lower as user-facing Chinese copy moves to locale resources; new CJK source lines remain blocked."
     },
     {
       "id": "mobile-web-source",

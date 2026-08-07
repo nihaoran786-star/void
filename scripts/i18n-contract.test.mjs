@@ -296,8 +296,8 @@ test('i18n audit enforces the checked-in hardcoded source candidate budget', () 
   assert.match(auditSource, /i18n-hardcoded-baseline\.json/, 'i18n:audit should read the hardcoded copy baseline');
   assert.match(auditSource, /auditHardcodedSourceBudgets/, 'i18n:audit should fail when hardcoded candidate budgets grow');
   assert.ok(
-    baseline.budgets.some((budget) => budget.id === 'web-ui-source' && budget.maxCjkLines === 25),
-    'current short-drama CJK debt should be explicitly budgeted as a no-growth baseline',
+    baseline.budgets.some((budget) => budget.id === 'web-ui-source' && budget.maxCjkLines === 26),
+    'current CJK debt (short-drama services plus the agent-debug protocol marker) should be explicitly budgeted as a no-growth baseline',
   );
   assert.match(auditSource, /--report-json/, 'i18n:audit should expose a machine-readable governance report');
 });
