@@ -47,12 +47,13 @@ export function useAgentDebugSession({
   const mountedRef = useRef(true);
   const liveHandleRef = useRef<AgentDebugSessionHandle | null>(null);
   const createInFlightRef = useRef<{
-    fingerprint: string;
+    key: string;
     token: object;
     promise: Promise<AgentDebugSessionHandle>;
   }>();
   const replaceInFlightRef = useRef<Promise<void>>();
   const replaceTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingSendRef = useRef<Promise<void>>();
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -69,8 +70,9 @@ export function useAgentDebugSession({
     targetWorkspace: string,
   ): Promise<AgentDebugSessionHandle> => {
     const targetFingerprint = computeAgentDraftFingerprint(targetDraft);
+    const dedupeKey = `${targetFingerprint}::${targetWorkspace}`;
     const inFlight = createInFlightRef.current;
-    if (inFlight && inFlight.fingerprint === targetFingerprint) {
+    if (inFlight && inFlight.key === dedupeKey) {
       return inFlight.promise;
     }
 
@@ -82,16 +84,19 @@ export function useAgentDebugSession({
       }
       try {
         const handle = await resolvedRuntime.createDebugSession(targetDraft, targetWorkspace);
+        // Adopt only when this create still matches the CURRENT target. A create
+        // that resolved after the draft (or workspace) moved on is an orphan:
+        // never adopt it, dispose it.
         const stillCurrent = mountedRef.current
           && validRef.current
           && Boolean(workspaceRef.current?.trim())
-          && handle.draftFingerprint === computeAgentDraftFingerprint(draftRef.current);
+          && handle.draftFingerprint === computeAgentDraftFingerprint(draftRef.current)
+          && handle.workspacePath === workspaceRef.current?.trim();
         if (stillCurrent) {
           liveHandleRef.current = handle;
           setSessionId(handle.sessionId);
           setStatus('ready');
         } else {
-          // Stale or unmounted: never adopt a session the draft has outlived.
           void resolvedRuntime.disposeDebugSession(handle).catch(() => {});
         }
         return handle;
@@ -107,7 +112,7 @@ export function useAgentDebugSession({
         }
       }
     })();
-    createInFlightRef.current = { fingerprint: targetFingerprint, token, promise };
+    createInFlightRef.current = { key: dedupeKey, token, promise };
     return promise;
   }, [resolvedRuntime]);
 
@@ -207,38 +212,70 @@ export function useAgentDebugSession({
     if (mountedRef.current) {
       setJustReplaced(false);
     }
-    const replace = replaceInFlightRef.current;
-    if (replace) {
-      await replace;
+    // Dedupe concurrent sends: share one pending send so a second call never
+    // double-creates a session for the same draft.
+    if (pendingSendRef.current) {
+      return pendingSendRef.current;
     }
-    const inFlight = createInFlightRef.current;
-    if (inFlight) {
-      try {
-        await inFlight.promise;
-      } catch {
-        // a failed create is retried through prepareForSend below
-      }
-    }
-    const currentWorkspace = workspaceRef.current?.trim();
-    if (!currentWorkspace || !validRef.current) {
-      return;
-    }
+    // Synchronously detach the current handle and cancel any pending replace so
+    // neither the debounce callback nor replaceSession can dispose the very
+    // handle prepareForSend is about to hand to sendMessage.
+    const current = liveHandleRef.current;
+    liveHandleRef.current = null;
     if (replaceTimerRef.current) {
       clearTimeout(replaceTimerRef.current);
       replaceTimerRef.current = undefined;
     }
-    const handle = await resolvedRuntime.prepareForSend(
-      liveHandleRef.current,
-      draftRef.current,
-      currentWorkspace,
-    );
-    liveHandleRef.current = handle;
-    if (mountedRef.current) {
-      setSessionId(handle.sessionId);
-      setStatus('ready');
-      setError(undefined);
-    }
-    await resolvedRuntime.sendMessage(handle, message);
+    const replace = replaceInFlightRef.current;
+    const inFlight = createInFlightRef.current;
+    const promise = (async () => {
+      if (replace) {
+        await replace.catch(() => {});
+      }
+      if (inFlight) {
+        try {
+          await inFlight.promise;
+        } catch {
+          // a failed create is retried through prepareForSend below
+        }
+      }
+      const currentWorkspace = workspaceRef.current?.trim();
+      if (!currentWorkspace || !validRef.current) {
+        return;
+      }
+      // If the awaited in-flight create already adopted a handle for the current
+      // target, reuse it instead of creating yet another session.
+      const targetFingerprint = computeAgentDraftFingerprint(draftRef.current);
+      const live = liveHandleRef.current;
+      let handle: AgentDebugSessionHandle;
+      if (
+        live
+        && live.draftFingerprint === targetFingerprint
+        && live.workspacePath === currentWorkspace
+      ) {
+        handle = live;
+      } else {
+        handle = await resolvedRuntime.prepareForSend(
+          current,
+          draftRef.current,
+          currentWorkspace,
+        );
+      }
+      liveHandleRef.current = handle;
+      if (mountedRef.current) {
+        setSessionId(handle.sessionId);
+        setStatus('ready');
+        setError(undefined);
+      }
+      await resolvedRuntime.sendMessage(handle, message);
+    })();
+    pendingSendRef.current = promise;
+    void promise.finally(() => {
+      if (pendingSendRef.current === promise) {
+        pendingSendRef.current = undefined;
+      }
+    });
+    return promise;
   }, [resolvedRuntime]);
 
   const retry = useCallback(async (): Promise<void> => {

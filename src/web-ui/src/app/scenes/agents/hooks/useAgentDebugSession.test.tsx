@@ -313,6 +313,212 @@ describe('useAgentDebugSession', () => {
     );
   });
 
+  it('disposes the live session and returns to idle when the draft becomes invalid', async () => {
+    const { runtime, createDebugSession, disposeDebugSession } = makeRuntime();
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    await flush();
+    expect(latest?.status).toBe('ready');
+    expect(latest?.sessionId).toBe('session-1');
+
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid={false} workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    await flush();
+
+    expect(disposeDebugSession).toHaveBeenCalledTimes(1);
+    expect(disposeDebugSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1' }),
+    );
+    expect(latest?.status).toBe('idle');
+    expect(latest?.sessionId).toBeUndefined();
+    expect(createDebugSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('disposes a create that resolved after the draft moved on (no orphan adoption)', async () => {
+    const { runtime, createDebugSession, disposeDebugSession } = makeRuntime();
+    let resolveCreateA: (handle: AgentDebugSessionHandle) => void = () => {};
+    createDebugSession.mockImplementationOnce(
+      () => new Promise<AgentDebugSessionHandle>(resolve => {
+        resolveCreateA = resolve;
+      }),
+    );
+
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    expect(latest?.status).toBe('creating');
+
+    await act(async () => {
+      root.render(
+        <Harness draft={changedDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    await flush();
+    expect(latest?.status).toBe('ready');
+    expect(latest?.sessionId).toBe('session-1');
+
+    await act(async () => {
+      resolveCreateA({
+        sessionId: 'stale-session',
+        subagentId: 'custom-debug-stale',
+        subagentKey: 'user::void::custom-debug-stale',
+        draftFingerprint: computeAgentDraftFingerprint(baseDraft),
+        workspacePath: WORKSPACE,
+      });
+      await Promise.resolve();
+    });
+    await flush();
+
+    expect(disposeDebugSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'stale-session' }),
+    );
+    expect(latest?.sessionId).toBe('session-1');
+  });
+
+  it('reuses a session that resolves while a send is pending (no double create)', async () => {
+    const { runtime, createDebugSession, sendMessage } = makeRuntime();
+    let resolveCreate: (handle: AgentDebugSessionHandle) => void = () => {};
+    createDebugSession.mockImplementationOnce(
+      () => new Promise<AgentDebugSessionHandle>(resolve => {
+        resolveCreate = resolve;
+      }),
+    );
+
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    expect(latest?.status).toBe('creating');
+
+    let sendPromise: Promise<void>;
+    await act(async () => {
+      sendPromise = latest!.send('hello');
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveCreate({
+        sessionId: 'session-1',
+        subagentId: 'custom-debug-1',
+        subagentKey: 'user::void::custom-debug-1',
+        draftFingerprint: computeAgentDraftFingerprint(baseDraft),
+        workspacePath: WORKSPACE,
+      });
+      await sendPromise;
+    });
+    await flush();
+
+    expect(createDebugSession).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1' }),
+      'hello',
+    );
+    expect(latest?.status).toBe('ready');
+    expect(latest?.sessionId).toBe('session-1');
+  });
+
+  it('awaits an in-flight replace before sending on the fresh session', async () => {
+    const { runtime, createDebugSession, sendMessage } = makeRuntime();
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    await flush();
+    expect(latest?.sessionId).toBe('session-1');
+
+    await act(async () => {
+      root.render(
+        <Harness draft={changedDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    expect(latest?.status).toBe('stale');
+
+    let resolveReplace: (handle: AgentDebugSessionHandle) => void = () => {};
+    createDebugSession.mockImplementationOnce(
+      () => new Promise<AgentDebugSessionHandle>(resolve => {
+        resolveReplace = resolve;
+      }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AGENT_DEBUG_REPLACE_DEBOUNCE_MS);
+    });
+    expect(latest?.status).toBe('creating');
+
+    let sendPromise: Promise<void>;
+    await act(async () => {
+      sendPromise = latest!.send('during');
+    });
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveReplace({
+        sessionId: 'session-2',
+        subagentId: 'custom-debug-2',
+        subagentKey: 'user::void::custom-debug-2',
+        draftFingerprint: computeAgentDraftFingerprint(changedDraft),
+        workspacePath: WORKSPACE,
+      });
+      await sendPromise;
+    });
+    await flush();
+
+    expect(createDebugSession).toHaveBeenCalledTimes(2);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-2' }),
+      'during',
+    );
+    expect(latest?.status).toBe('ready');
+    expect(latest?.sessionId).toBe('session-2');
+    expect(latest?.justReplaced).toBe(true);
+  });
+
+  it('disposes a create that resolves after unmount without touching state', async () => {
+    const { runtime, createDebugSession, disposeDebugSession } = makeRuntime();
+    let resolveCreate: (handle: AgentDebugSessionHandle) => void = () => {};
+    createDebugSession.mockImplementationOnce(
+      () => new Promise<AgentDebugSessionHandle>(resolve => {
+        resolveCreate = resolve;
+      }),
+    );
+
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    expect(latest?.status).toBe('creating');
+
+    act(() => root.unmount());
+
+    await act(async () => {
+      resolveCreate({
+        sessionId: 'session-1',
+        subagentId: 'custom-debug-1',
+        subagentKey: 'user::void::custom-debug-1',
+        draftFingerprint: computeAgentDraftFingerprint(baseDraft),
+        workspacePath: WORKSPACE,
+      });
+      await Promise.resolve();
+    });
+
+    expect(disposeDebugSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1' }),
+    );
+  });
+
   it('captures create errors and recovers via retry', async () => {
     const { runtime, createDebugSession } = makeRuntime();
     let rejectCreate: (error: Error) => void = () => {};
