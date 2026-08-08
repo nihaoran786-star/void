@@ -25,34 +25,52 @@ describe('new-task draft examples presentation', () => {
     expect(source).not.toContain('width: min(100%, 172px);');
     expect(source).not.toContain('min-height: 14px;');
     expect(source).toMatch(
-      /@media \(max-height: 619px\)[\s\S]*?\.welcome-panel__examples\s*\{[\s\S]*?top:\s*calc\(100% \+ 48px\);/,
+      /@media \(max-height: 519px\)[\s\S]*?\.welcome-panel__examples\s*\{[\s\S]*?top:\s*calc\(\s*100% \+ var\(--workspace-space-6\) \+ var\(--workspace-space-8\)\s*\);/,
+    );
+  });
+
+  it('keeps tall-view examples above the shared centered composer anchor', () => {
+    expect(source).toMatch(
+      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-pane__content:has\(\.welcome-panel__creation-modes\)\s*\{[\s\S]*?--new-session-composer-anchor:\s*45%;/,
+    );
+    expect(source).toMatch(
+      /@media \(min-height: 520px\)[\s\S]*?\.welcome-panel__content\s*\{[\s\S]*?position:\s*static;/,
+    );
+    expect(source).toMatch(
+      /@media \(min-height: 520px\)[\s\S]*?\.welcome-panel__examples\s*\{[\s\S]*?top:\s*auto;[\s\S]*?bottom:\s*calc\(\s*100% - var\(--new-session-composer-anchor\) \+\s*var\(--workspace-space-4\)\s*\);/,
+    );
+    expect(source).toMatch(
+      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-input-drop-zone\s*\{[\s\S]*?top:\s*var\(--new-session-composer-anchor\);/,
+    );
+    expect(source).toMatch(
+      /@media \(min-height: 520px\)[\s\S]*?\.welcome-panel\s*\{[\s\S]*?padding-bottom:\s*calc\(\s*clamp\(360px, 48vh, 438px\) \+ var\(--workspace-space-8\)\s*\);/,
     );
   });
 
   it('opens slash commands below the centered draft composer only on tall views', () => {
     expect(source).toMatch(
-      /@media \(min-height: 620px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:\s*calc\(100% \+ 120px\);[\s\S]*?bottom:\s*auto;/,
+      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:\s*calc\(100% \+ 120px\);[\s\S]*?bottom:\s*auto;/,
     );
     expect(source).toMatch(
       /\.void-chat-input__slash-command-list\s*\{[\s\S]*?max-height:\s*min\(240px, calc\(57vh - 238px\)\);/,
     );
     expect(source).toMatch(
-      /@media \(max-height: 619px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?max-height:\s*clamp\(80px, calc\(100vh - 392px\), 220px\);/,
+      /@media \(max-height: 519px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?max-height:\s*clamp\(80px, calc\(100vh - 392px\), 220px\);/,
     );
     expect(source).toMatch(
-      /@media \(max-height: 619px\)[\s\S]*?\.void-chat-input__slash-command-header\s*\{[\s\S]*?display:\s*none;/,
+      /@media \(max-height: 519px\)[\s\S]*?\.void-chat-input__slash-command-header\s*\{[\s\S]*?display:\s*none;/,
     );
     expect(source).not.toMatch(
-      /@media \(max-height: 619px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:/,
+      /@media \(max-height: 519px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:/,
     );
   });
 
   it('lets the draft editor grow with content before switching to internal scroll', () => {
     expect(source).toMatch(
-      /@media \(min-height: 620px\)[\s\S]*?\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*var\(--workspace-composer-min-height\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
+      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*var\(--workspace-composer-min-height\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 620px\)[\s\S]*?\.rich-text-input\s*\{[\s\S]*?min-height:\s*22px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
+      /@media \(min-height: 520px\)[\s\S]*?\.rich-text-input\s*\{[\s\S]*?min-height:\s*22px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
     );
     expect(source).not.toMatch(
       /\.rich-text-input\s*\{[\s\S]*?min-height:\s*56px !important;[\s\S]*?max-height:\s*56px !important;/,

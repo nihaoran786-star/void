@@ -67,11 +67,27 @@
  * surface. The creation-mode control is the explicit draft marker, so existing
  * empty sessions keep their normal conversation layout.
  */
-@media (min-height: 620px) {
+@media (min-height: 520px) {
   .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
+    --new-session-composer-anchor: 45%;
+
     .welcome-panel {
       align-items: center;
-      padding-bottom: clamp(360px, 48vh, 438px);
+      padding-bottom: calc(
+        clamp(360px, 48vh, 438px) + var(--workspace-space-8)
+      );
+    }
+
+    .welcome-panel__content {
+      position: static;
+    }
+
+    .welcome-panel__examples {
+      top: auto;
+      bottom: calc(
+        100% - var(--new-session-composer-anchor) +
+          var(--workspace-space-4)
+      );
     }
 
     .welcome-panel__content,
@@ -88,7 +104,7 @@
     }
 
     .void-chat-input-drop-zone {
-      top: 45%;
+      top: var(--new-session-composer-anchor);
       bottom: auto;
       max-width: 640px;
       transform: translate(-50%, -4%);
@@ -160,7 +176,7 @@
   }
 }
 
-@media (max-height: 619px) {
+@media (max-height: 519px) {
   .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
     .welcome-panel {
       align-items: flex-start;
@@ -172,7 +188,9 @@
     }
 
     .welcome-panel__examples {
-      top: calc(100% + 48px);
+      top: calc(
+        100% + var(--workspace-space-6) + var(--workspace-space-8)
+      );
     }
 
     .void-chat-input__slash-command-picker {
