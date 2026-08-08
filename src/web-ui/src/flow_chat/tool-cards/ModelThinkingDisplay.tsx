@@ -14,7 +14,6 @@ import type { FlowThinkingItem } from '../types/flow-chat';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { useToolCardHeightContract } from './useToolCardHeightContract';
 import { Markdown } from '@/component-library/components/Markdown';
-import { useTheme } from '@/infrastructure/theme';
 import './ModelThinkingDisplay.scss';
 
 const ThinkingOrb = React.lazy(async () => {
@@ -35,7 +34,6 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
   displayContext = 'default',
 }) => {
   const { t } = useTranslation('flow-chat');
-  const { isLight } = useTheme();
   const { content, isStreaming, status } = thinkingItem;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -145,7 +143,7 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
             <ThinkingOrb
               state="composing"
               size={64}
-              theme={isLight ? 'light' : 'dark'}
+              theme="auto"
               className="thinking-orb"
               aria-hidden="true"
             />

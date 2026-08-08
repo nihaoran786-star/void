@@ -24,7 +24,8 @@ describe('ModelThinkingDisplay presentation contract', () => {
     expect(componentSource).toMatch(/isActive\s*\?\s*\(\s*<React\.Suspense[\s\S]*?<ThinkingOrb/);
     expect(componentSource).toContain('state="composing"');
     expect(componentSource).toContain('size={64}');
-    expect(componentSource).toContain("theme={isLight ? 'light' : 'dark'}");
+    expect(componentSource).toContain('theme="auto"');
+    expect(componentSource).not.toContain("@/infrastructure/theme");
     expect(componentSource).toContain('<React.Suspense fallback={<span className="thinking-orb" aria-hidden="true" />}>');
     expect(componentSource).toContain('<ChevronRight size={14} className="thinking-chevron" />');
   });
