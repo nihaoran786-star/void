@@ -1084,6 +1084,7 @@ export const FileOperationToolCard: React.FC<FileOperationToolCardProps> = ({
         status={status}
         isExpanded={false}
         className="read-file-card delete-file-card"
+        requiresConfirmation={showConfirmationActions}
         clickable={false}
         header={
           <CompactToolCardHeader
@@ -1133,6 +1134,7 @@ export const FileOperationToolCard: React.FC<FileOperationToolCardProps> = ({
     <div ref={cardRootRef} data-tool-card-id={toolId ?? ''}>
       <BaseToolCard
         status={status}
+        presentation="status-row"
         isExpanded={isCardContentExpanded}
         onClick={handleCardClick}
         className={`file-operation-card ${isDeleteTool ? 'non-clickable' : ''} ${isFileGuidanceBlocked ? 'file-operation-card--guidance' : ''}`.trim()}

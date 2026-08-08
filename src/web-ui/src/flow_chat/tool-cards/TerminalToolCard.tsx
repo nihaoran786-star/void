@@ -677,6 +677,7 @@ export const TerminalToolCard: React.FC<TerminalToolCardProps> = ({
           isExpanded={false}
           onClick={handleCardClick}
           className="terminal-tool-card terminal-tool-card--compact-collapsed"
+          requiresConfirmation={showConfirmButtons}
           clickable
           header={renderCompactHeader()}
         />

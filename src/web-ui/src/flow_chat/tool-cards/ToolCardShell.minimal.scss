@@ -27,6 +27,64 @@
       box-shadow: none;
     }
 
+    .base-tool-card-wrapper--status-row:not(.requires-confirmation):not(
+        :has(> .base-tool-card:is(.expanded, .status-error))
+      ) {
+      border: 0;
+      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      overflow: visible;
+
+      .base-tool-card-header {
+        min-height: 28px;
+        padding-block: 0;
+      }
+    }
+
+    .base-tool-card-wrapper--status-row:not(.requires-confirmation):not(
+        :has(> .base-tool-card:is(.expanded, .status-error))
+      ):hover {
+      border-color: transparent;
+      background: var(--workspace-surface-hover);
+    }
+
+    .compact-tool-card-wrapper:not(.media-generation-card):not(
+        .requires-confirmation
+      ):not(:has(> .compact-tool-card.status-error)) {
+      margin: var(--workspace-space-1) 0;
+      border: 0;
+      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      overflow: visible;
+
+      .compact-tool-card {
+        min-height: 28px;
+        background: transparent !important;
+      }
+
+      .compact-tool-card.clickable:hover {
+        background: var(--workspace-surface-hover) !important;
+      }
+    }
+
+    .compact-tool-card-wrapper:not(
+        .media-generation-card
+      ).requires-confirmation {
+      border: 1px solid var(--workspace-status-warning-border);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-status-warning-bg);
+      overflow: hidden;
+    }
+
+    .compact-tool-card-wrapper:not(.media-generation-card):has(
+        > .compact-tool-card.status-error
+      ) {
+      border: 1px solid var(--workspace-status-error-border);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-status-error-bg);
+      overflow: hidden;
+    }
+
     .base-tool-card-wrapper:not(.task-tool-display):not(
         .media-generation-card
       ):has(

@@ -166,6 +166,7 @@ export const ContextCompressionDisplay: React.FC<ContextCompressionDisplayProps>
   return (
     <BaseToolCard
       status={data.status}
+      presentation="status-row"
       isExpanded={usedNoSummary}
       className="context-compression-display"
       header={renderHeader()}

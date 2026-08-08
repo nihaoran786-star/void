@@ -7,6 +7,10 @@ const readFlowChatFile = (name: string) => readFileSync(
   new URL(`../../flow_chat/components/${name}`, import.meta.url),
   'utf8',
 );
+const readToolCardFile = (name: string) => readFileSync(
+  new URL(`../../flow_chat/tool-cards/${name}`, import.meta.url),
+  'utf8',
+);
 const headerSource = readFlowChatFile('modern/FlowChatHeader.tsx');
 const headerMinimalSource = readFlowChatFile('modern/FlowChatHeader.minimal.scss');
 const shellMinimalSource = readFlowChatFile('modern/FlowChatShell.minimal.scss');
@@ -15,6 +19,19 @@ const toolCardShellMinimalSource = readFileSync(
   new URL('../../flow_chat/tool-cards/ToolCardShell.minimal.scss', import.meta.url),
   'utf8',
 );
+const fileOperationToolSource = readToolCardFile('FileOperationToolCard.tsx');
+const ordinaryBaseToolSources = [
+  readToolCardFile('ContextCompressionDisplay.tsx'),
+  fileOperationToolSource,
+  readToolCardFile('MCPToolDisplay.tsx'),
+];
+const compactConfirmationToolSources = [
+  fileOperationToolSource,
+  readToolCardFile('ReadFileDisplay.tsx'),
+  readToolCardFile('GitToolDisplay.tsx'),
+  readToolCardFile('TerminalToolCard.tsx'),
+  readToolCardFile('DefaultToolCard.tsx'),
+];
 const presentationSource = readFileSync(
   new URL('./minimalWorkspacePresentation.scss', import.meta.url),
   'utf8',
@@ -258,6 +275,50 @@ describe('FlowChat minimal presentation contract', () => {
     );
     expect(toolCardShellMinimalSource).not.toContain('transition: all');
     expect(toolCardShellMinimalSource).not.toContain('infinite');
+  });
+
+  it('opts ordinary Base tool summaries into the compact status-row presentation', () => {
+    for (const source of ordinaryBaseToolSources) {
+      expect(source).toContain('presentation="status-row"');
+    }
+  });
+
+  it('keeps every compact approval row classified as a confirmation card', () => {
+    for (const source of compactConfirmationToolSources) {
+      expect(source).toMatch(
+        /<CompactToolCard[\s\S]{0,360}?requiresConfirmation=\{/,
+      );
+    }
+  });
+
+  it('flattens only ordinary collapsed tool summaries into stable single-line rows', () => {
+    expect(toolCardShellMinimalSource).toMatch(
+      /\.base-tool-card-wrapper--status-row:not\(\.requires-confirmation\):not\([\s\S]*?> \.base-tool-card:is\(\.expanded, \.status-error\)[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?overflow: visible;/,
+    );
+    expect(toolCardShellMinimalSource).toMatch(
+      /\.base-tool-card-wrapper--status-row[\s\S]*?\.base-tool-card-header \{[\s\S]*?min-height: 28px;/,
+    );
+    expect(toolCardShellMinimalSource).toMatch(
+      /\.compact-tool-card-wrapper:not\(\.media-generation-card\):not\(\s*\.requires-confirmation\s*\):not\([\s\S]*?> \.compact-tool-card\.status-error[\s\S]*?overflow: visible;[\s\S]*?\.compact-tool-card \{[\s\S]*?min-height: 28px;[\s\S]*?background: transparent !important;/,
+    );
+    expect(toolCardShellMinimalSource).toContain(
+      'background: var(--workspace-surface-hover) !important;',
+    );
+    expect(toolCardShellMinimalSource).toMatch(
+      /\.compact-tool-card-wrapper:not\(\s*\.media-generation-card\s*\)\.requires-confirmation \{[\s\S]*?border: 1px solid var\(--workspace-status-warning-border\);[\s\S]*?background: var\(--workspace-status-warning-bg\);/,
+    );
+    expect(toolCardShellMinimalSource).toMatch(
+      /\.compact-tool-card-wrapper:not\(\.media-generation-card\):has\([\s\S]*?> \.compact-tool-card\.status-error[\s\S]*?border: 1px solid var\(--workspace-status-error-border\);[\s\S]*?background: var\(--workspace-status-error-bg\);/,
+    );
+  });
+
+  it('keeps completed tool rows mounted without height or margin exit animation', () => {
+    expect(shellMinimalSource).toMatch(
+      /:where\([\s\S]*?\.flowchat-flow-item--tool-transition,[\s\S]*?\.flowchat-flow-item--tool-active,[\s\S]*?\.flowchat-flow-item--tool-completed[\s\S]*?\) \{[\s\S]*?overflow: visible;[\s\S]*?will-change: auto;[\s\S]*?animation: none;[\s\S]*?max-height: none;[\s\S]*?opacity: 1;[\s\S]*?transform: none;/,
+    );
+    expect(shellMinimalSource).not.toContain(
+      'will-change: opacity, transform, max-height',
+    );
   });
 
   it('projects composer child surfaces through the governed workspace tokens', () => {

@@ -205,6 +205,7 @@ export const ReadFileDisplay: React.FC<ToolCardProps> = React.memo(({
       isExpanded={false}
       onClick={() => canOpenFile && handleOpenInEditor()}
       className="read-file-card"
+      requiresConfirmation={showConfirmationActions || status === 'pending_confirmation'}
       clickable={canOpenFile}
       header={
         <CompactToolCardHeader

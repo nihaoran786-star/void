@@ -30,6 +30,8 @@ export type ToolCardStatus =
 export interface BaseToolCardProps {
   /** Tool status */
   status: ToolCardStatus;
+  /** Visual density hint; complex and actionable tools remain cards by default. */
+  presentation?: 'card' | 'status-row';
   /** Whether expanded */
   isExpanded?: boolean;
   /** Card click callback */
@@ -61,6 +63,7 @@ export interface BaseToolCardProps {
  */
 export const BaseToolCard: React.FC<BaseToolCardProps> = ({
   status,
+  presentation = 'card',
   isExpanded = false,
   onClick,
   className = '',
@@ -106,7 +109,7 @@ export const BaseToolCard: React.FC<BaseToolCardProps> = ({
 
   return (
     <div
-      className={`base-tool-card-wrapper ${showConfirmationHighlight ? 'requires-confirmation' : ''} ${statusUsesLoadingShimmer(status) ? 'base-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
+      className={`base-tool-card-wrapper ${presentation === 'status-row' ? 'base-tool-card-wrapper--status-row' : ''} ${showConfirmationHighlight ? 'requires-confirmation' : ''} ${statusUsesLoadingShimmer(status) ? 'base-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
     >
       <div 
         className={`base-tool-card status-${status} ${isExpanded ? 'expanded' : ''} ${resolvedHeaderExpandAffordance ? 'base-tool-card--header-expandable' : ''}`.trim()}

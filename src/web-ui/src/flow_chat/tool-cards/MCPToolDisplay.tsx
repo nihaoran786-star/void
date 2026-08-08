@@ -939,6 +939,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
     <div ref={cardRootRef} data-tool-card-id={toolId ?? ''}>
       <BaseToolCard
         status={status}
+        presentation="status-row"
         isExpanded={isExpanded}
         onClick={handleCardClick}
         className="mcp-tool-display"

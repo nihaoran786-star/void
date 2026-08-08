@@ -127,6 +127,26 @@ describe('shared tool-card keyboard interaction', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes the compact status-row presentation only when requested', () => {
+    let card = renderBase();
+    expect(card.parentElement?.classList.contains(
+      'base-tool-card-wrapper--status-row',
+    )).toBe(false);
+
+    card = renderBase({ presentation: 'status-row' });
+    expect(card.parentElement?.classList.contains(
+      'base-tool-card-wrapper--status-row',
+    )).toBe(true);
+  });
+
+  it('exposes confirmation semantics on compact tool rows only when requested', () => {
+    let card = renderCompact();
+    expect(card.parentElement?.classList.contains('requires-confirmation')).toBe(false);
+
+    card = renderCompact({ requiresConfirmation: true });
+    expect(card.parentElement?.classList.contains('requires-confirmation')).toBe(true);
+  });
+
   it('keeps the activation and nested action as independent accessible sibling controls', () => {
     const onClick = vi.fn();
     const nestedClick = vi.fn();

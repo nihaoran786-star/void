@@ -34,6 +34,8 @@ export interface CompactToolCardProps {
   className?: string;
   /** Whether clickable */
   clickable?: boolean;
+  /** Whether this row represents an actionable confirmation request. */
+  requiresConfirmation?: boolean;
   /** Header content */
   header: ReactNode;
   /** Expanded content (optional) */
@@ -46,6 +48,7 @@ export const CompactToolCard: React.FC<CompactToolCardProps> = ({
   onClick,
   className = '',
   clickable = false,
+  requiresConfirmation = false,
   header,
   expandedContent,
 }) => {
@@ -78,6 +81,7 @@ export const CompactToolCard: React.FC<CompactToolCardProps> = ({
         isExpanded
         onClick={isInteractive ? onClick : undefined}
         className={`compact-tool-card-wrapper--expanded-card ${className}`.trim()}
+        requiresConfirmation={requiresConfirmation}
         header={resolvedHeader}
         expandedContent={expandedContent}
         headerExpandAffordance={isInteractive}
@@ -87,7 +91,7 @@ export const CompactToolCard: React.FC<CompactToolCardProps> = ({
 
   return (
     <div
-      className={`compact-tool-card-wrapper compact-tool-card-wrapper--dense-command${statusUsesLoadingShimmer(status) ? ' compact-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
+      className={`compact-tool-card-wrapper compact-tool-card-wrapper--dense-command${requiresConfirmation ? ' requires-confirmation' : ''}${statusUsesLoadingShimmer(status) ? ' compact-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
     >
       <div
         className={`compact-tool-card status-${status} ${isInteractive ? 'clickable' : ''} ${isExpanded ? 'expanded' : ''}`}

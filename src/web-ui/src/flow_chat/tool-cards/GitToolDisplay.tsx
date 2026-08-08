@@ -419,6 +419,9 @@ export const GitToolDisplay: React.FC<ToolCardProps> = ({
           isExpanded={false}
           onClick={handleCardClick}
           className="git-tool-display"
+          requiresConfirmation={Boolean(
+            requiresConfirmation && !userConfirmed && status !== 'completed'
+          )}
           clickable
           header={renderCompactHeader()}
         />

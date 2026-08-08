@@ -214,7 +214,8 @@ export const DefaultToolCard: React.FC<ToolCardProps> = ({
         status={status}
         isExpanded={isExpanded}
         onClick={handleToggleExpand}
-        className={`default-tool-card ${showConfirmationHighlight ? 'requires-confirmation' : ''}`}
+        className="default-tool-card"
+        requiresConfirmation={showConfirmationHighlight}
         clickable={canExpand}
           header={
           <CompactToolCardHeader

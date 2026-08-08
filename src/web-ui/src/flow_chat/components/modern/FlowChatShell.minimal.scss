@@ -76,6 +76,19 @@
       }
     }
 
+    :where(
+        .flowchat-flow-item--tool-transition,
+        .flowchat-flow-item--tool-active,
+        .flowchat-flow-item--tool-completed
+      ) {
+      overflow: visible;
+      will-change: auto;
+      animation: none;
+      max-height: none;
+      opacity: 1;
+      transform: none;
+    }
+
     .user-message-item {
       margin-top: 2px;
       margin-bottom: var(--flowchat-turn-gap);
