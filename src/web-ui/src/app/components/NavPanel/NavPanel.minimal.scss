@@ -310,6 +310,117 @@
     }
   }
 
+  // Collapsed Minimal navigation is a presentation projection of the same
+  // mounted NavBar + NavPanel + MainNav tree, so local component state survives.
+  .void-ui--minimal .void-workspace-body__nav-area.is-collapsed .void-nav-panel {
+    width: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    border-right: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+
+    &__content {
+      overflow: hidden;
+    }
+
+    &__layer--main {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: none;
+    }
+
+    &__layer--scene {
+      display: none;
+    }
+
+    &__top-actions {
+      align-items: center;
+      gap: var(--workspace-space-1, 4px);
+      padding: var(--workspace-space-1, 4px) 4px;
+    }
+
+    &__session-create {
+      display: block;
+      width: 40px;
+    }
+
+    &__session-create-footer {
+      display: block;
+    }
+
+    &__session-create-action,
+    &__top-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      min-width: 40px;
+      height: 40px;
+      min-height: 40px;
+      padding: 0;
+      border-radius: var(--workspace-radius-control, 4px);
+    }
+
+    &__session-create-action {
+      color: var(--color-bg-primary);
+      background: var(--color-accent-500);
+    }
+
+    &__session-create-action > svg {
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      opacity: 1;
+    }
+
+    &__session-create-action-text,
+    &__session-create-action-kbd,
+    &__session-create-action-mode,
+    &__session-create > [role='radiogroup'],
+    &__top-action-btn > span:not(.void-nav-panel__top-action-icon-slot),
+    [class~='void-nav-panel__brand-header'],
+    &__session-search-slot,
+    &__top-action-expand,
+    &__sections,
+    &__bottom-bar,
+    &__footer-more-wrap,
+    &__footer-quick-action,
+    &__footer-right {
+      display: none;
+    }
+
+    &__top-action-btn.is-active {
+      background: var(--workspace-surface-active, var(--element-bg-medium));
+    }
+
+    &__top-action-btn.is-active::before {
+      top: 8px;
+      bottom: 8px;
+      left: 0;
+    }
+
+    &__top-action-icon-slot {
+      width: 18px;
+      min-width: 18px;
+      height: 18px;
+    }
+
+    &__footer {
+      justify-content: center;
+      padding: var(--workspace-space-1, 4px) 4px 0;
+    }
+
+    &__footer-left {
+      justify-content: center;
+    }
+
+    &__footer-settings-action {
+      display: inline-flex;
+      width: 40px;
+      height: 40px;
+    }
+  }
+
   .void-ui--minimal .void-nav-panel__workspace-item:hover .void-nav-panel__workspace-item-card,
   .void-ui--minimal .void-nav-panel__assistant-item:hover .void-nav-panel__assistant-item-card {
     color: var(--workspace-text-primary);

@@ -100,22 +100,24 @@ export const SessionCreateLauncher: React.FC<SessionCreateLauncherProps> = ({
   return (
     <div className="void-nav-panel__session-create void-nav-panel__session-create--minimal">
       <div className="void-nav-panel__session-create-footer">
-        <button
-          type="button"
-          className="void-nav-panel__session-create-action"
-          onClick={onCreate}
-          aria-label={groupLabel}
-        >
-          <Plus size={14} strokeWidth={1.5} aria-hidden="true" />
-          <span className="void-nav-panel__session-create-action-text">
-            {groupLabel}
-          </span>
-          {createShortcutHint ? (
-            <kbd className="void-nav-panel__session-create-action-kbd">
-              {createShortcutHint}
-            </kbd>
-          ) : null}
-        </button>
+        <Tooltip content={groupLabel} placement="right" followCursor>
+          <button
+            type="button"
+            className="void-nav-panel__session-create-action"
+            onClick={onCreate}
+            aria-label={groupLabel}
+          >
+            <Plus size={14} strokeWidth={1.5} aria-hidden="true" />
+            <span className="void-nav-panel__session-create-action-text">
+              {groupLabel}
+            </span>
+            {createShortcutHint ? (
+              <kbd className="void-nav-panel__session-create-action-kbd">
+                {createShortcutHint}
+              </kbd>
+            ) : null}
+          </button>
+        </Tooltip>
         {searchTrigger ? (
           <div className="void-nav-panel__session-search-slot">
             {searchTrigger}

@@ -320,6 +320,18 @@ const PersistentFooterActions: React.FC = () => {
               </span>
             </button>
           </Tooltip>
+
+          <Tooltip content={t('tabs.settings')} placement="right" followCursor>
+            <button
+              type="button"
+              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon void-nav-panel__footer-settings-action${activeTabId === 'settings' ? ' is-active' : ''}`}
+              aria-label={t('tabs.settings')}
+              aria-pressed={activeTabId === 'settings'}
+              onClick={handleOpenSettings}
+            >
+              <Settings size={15} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
 
         <div className="void-nav-panel__footer-right">

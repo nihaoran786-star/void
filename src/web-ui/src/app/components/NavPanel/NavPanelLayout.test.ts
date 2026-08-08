@@ -50,6 +50,34 @@ function readPersistentFooterActionsSource(): string {
   ).replace(/\r\n/g, '\n');
 }
 
+function readWorkspaceBodySource(): string {
+  return readFileSync(
+    fileURLToPath(new URL('../../layout/WorkspaceBody.tsx', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
+function readWorkspaceBodyStylesheet(): string {
+  return readFileSync(
+    fileURLToPath(new URL('../../layout/WorkspaceBody.scss', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
+function readNavBarSource(): string {
+  return readFileSync(
+    fileURLToPath(new URL('../NavBar/NavBar.tsx', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
+function readNavBarStylesheet(): string {
+  return readFileSync(
+    fileURLToPath(new URL('../NavBar/NavBar.scss', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
 function extractBlock(stylesheet: string, selector: string): string {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = stylesheet.match(new RegExp(`${escapedSelector}\\s*\\{(?<body>[\\s\\S]*?)\\n\\s*\\}`));
@@ -57,6 +85,77 @@ function extractBlock(stylesheet: string, selector: string): string {
 }
 
 describe('NavPanel layout styles', () => {
+  it('keeps one mounted navigation tree and projects collapse as a strict 48px rail', () => {
+    const source = readWorkspaceBodySource();
+    const stylesheet = readWorkspaceBodyStylesheet();
+
+    expect(source.match(/<NavBar/g)).toHaveLength(1);
+    expect(source.match(/<NavPanel/g)).toHaveLength(1);
+    expect(source).toContain('isCollapsed={isNavCollapsed}');
+    expect(source).not.toContain('void-workspace-body__collapsed-nav');
+    expect(source).toContain('const NAV_MIN_WIDTH = 240;');
+    expect(source).toContain('const NAV_MAX_WIDTH = 480;');
+    expect(source).toContain('const COLLAPSE_THRESHOLD = 64;');
+
+    expect(stylesheet).toContain('$_nav-collapsed-width: 48px;');
+    expect(stylesheet).toContain('width: $_nav-collapsed-width;');
+    expect(stylesheet).not.toContain('pointer-events: none;');
+    expect(stylesheet).not.toContain('transition: width');
+    expect(stylesheet).not.toContain('void-workspace-body__collapsed-nav');
+    expect(stylesheet).toContain('transform: translateX(-8px);');
+    expect(stylesheet).toContain('transform: translateX(0);');
+    expect(stylesheet).toContain(
+      '.void-app-layout--macos.void-ui--minimal .void-workspace-body__nav-area.is-collapsed',
+    );
+    expect(stylesheet).toContain('margin-left: 72px;');
+    expect(stylesheet).toContain(
+      '.void-ui--classic .void-workspace-body__nav-area.is-collapsed',
+    );
+  });
+
+  it('keeps only essential named controls interactive in the collapsed Minimal rail', () => {
+    const stylesheet = readMinimalNavPanelStylesheet();
+    const navBarSource = readNavBarSource();
+    const navBarStylesheet = readNavBarStylesheet();
+    const baseStylesheet = readNavPanelStylesheet();
+    const footerSource = readPersistentFooterActionsSource();
+    const launcherSource = readSessionCreateLauncherSource();
+
+    expect(navBarSource).toContain('className="void-nav-bar__brand-mark"');
+    expect(navBarSource).toContain('className="void-nav-bar__classic-collapse-mark"');
+    expect(navBarSource).toContain("aria-label={t('header.expandLeftPanel')}");
+    expect(navBarStylesheet).toContain(
+      '.void-ui--classic .void-nav-bar--collapsed .void-nav-bar__brand-mark',
+    );
+    expect(navBarStylesheet).toContain(
+      '.void-ui--minimal .void-nav-bar--collapsed .void-nav-bar__classic-collapse-mark',
+    );
+    expect(launcherSource).toContain(
+      '<Tooltip content={groupLabel} placement="right" followCursor>',
+    );
+    expect(stylesheet).toContain(
+      '.void-workspace-body__nav-area.is-collapsed .void-nav-panel',
+    );
+    expect(stylesheet).not.toContain('.void-ui--classic');
+    expect(stylesheet).toContain('&__session-search-slot');
+    expect(stylesheet).toContain('&__top-action-expand');
+    expect(stylesheet).toContain('&__sections');
+    expect(stylesheet).toContain('&__bottom-bar');
+    expect(stylesheet).toContain('display: none;');
+    expect(footerSource).toContain(
+      'className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon void-nav-panel__footer-settings-action',
+    );
+    expect(footerSource).toContain("aria-label={t('tabs.settings')}");
+    expect(footerSource).toContain("aria-pressed={activeTabId === 'settings'}");
+    const iconButtonRuleIndex = baseStylesheet.indexOf(
+      '.void-nav-panel__footer-btn--icon {',
+    );
+    const settingsHiddenRuleIndex = baseStylesheet.indexOf(
+      '.void-nav-panel__footer-btn--icon.void-nav-panel__footer-settings-action {\n  display: none;',
+    );
+    expect(settingsHiddenRuleIndex).toBeGreaterThan(iconButtonRuleIndex);
+  });
+
   it('allows navigation list wrappers to shrink instead of inheriting long item widths', () => {
     const stylesheet = readNavPanelStylesheet();
     const rootBlock = extractBlock(stylesheet, '.void-nav-panel');

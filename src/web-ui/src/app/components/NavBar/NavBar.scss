@@ -18,9 +18,9 @@
   user-select: none;
 
   &--collapsed {
-    justify-content: flex-start;
-    // Add tiny horizontal breathing room so edge buttons keep full corner rendering.
-    padding: 0 calc(#{$size-gap-2} + 1px);
+    justify-content: center;
+    padding: 0;
+    background: var(--workspace-surface-panel, var(--color-bg-primary));
   }
 
   &--macos {
@@ -95,11 +95,38 @@
     }
   }
 
+  &__brand-mark {
+    display: block;
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+  }
+
+  &__classic-collapse-mark {
+    display: none;
+  }
+
   // ── WindowControls container ────────────────────────────
   // WindowControls renders its own wrapper; just align it here.
   .window-controls {
     flex-shrink: 0;
   }
+}
+
+.void-ui--classic .void-nav-bar--collapsed .void-nav-bar__brand-mark {
+  display: none;
+}
+
+.void-ui--classic .void-nav-bar--collapsed .void-nav-bar__classic-collapse-mark {
+  display: block;
+}
+
+.void-ui--minimal .void-nav-bar--collapsed .void-nav-bar__classic-collapse-mark {
+  display: none;
+}
+
+.void-app-layout--macos.void-ui--minimal .void-nav-bar--collapsed {
+  padding: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

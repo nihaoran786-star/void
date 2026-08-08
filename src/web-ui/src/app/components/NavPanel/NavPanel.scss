@@ -1570,6 +1570,10 @@ $_section-header-height: 24px;
   }
 }
 
+.void-nav-panel__footer-btn--icon.void-nav-panel__footer-settings-action {
+  display: none;
+}
+
 // Footer icon buttons: default icon fades to alternate on hover / focus-visible
 .void-nav-panel__footer-btn-icon-swap {
   position: relative;

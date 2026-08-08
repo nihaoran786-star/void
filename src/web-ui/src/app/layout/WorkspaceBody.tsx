@@ -104,18 +104,16 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
 
   return (
     <div className={`void-workspace-body${isEntering ? ' is-entering' : ''}${isExiting ? ' is-exiting' : ''}${isDividerHovered ? ' is-divider-hovered' : ''} ${className}`}>
-      {isNavCollapsed && (
-        <div className="void-workspace-body__collapsed-nav">
-          <NavBar isCollapsed onExpandNav={toggleLeftPanel} onMaximize={onMaximize} />
-        </div>
-      )}
-
-      {/* Left: nav history bar + navigation sidebar — always rendered for slide animation */}
+      {/* Left: one persistent navigation tree; collapse is a presentation projection. */}
       <div
         className={`void-workspace-body__nav-area${isNavCollapsed ? ' is-collapsed' : ''}`}
         style={isNavCollapsed ? undefined : { '--nav-width': `${navWidth}px` } as React.CSSProperties}
       >
-        <NavBar onExpandNav={toggleLeftPanel} onMaximize={onMaximize} />
+        <NavBar
+          isCollapsed={isNavCollapsed}
+          onExpandNav={toggleLeftPanel}
+          onMaximize={onMaximize}
+        />
         <NavPanel className="void-workspace-body__nav-panel" />
       </div>
 

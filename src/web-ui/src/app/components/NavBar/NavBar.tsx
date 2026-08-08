@@ -92,7 +92,16 @@ const NavBar: React.FC<NavBarProps> = ({
             onClick={onExpandNav}
             aria-label={t('header.expandLeftPanel')}
           >
-            <PanelLeftIcon size={13} />
+            <img
+              className="void-nav-bar__brand-mark"
+              src="/Logo-ICON.png"
+              alt=""
+              aria-hidden="true"
+            />
+            <PanelLeftIcon
+              className="void-nav-bar__classic-collapse-mark"
+              size={13}
+            />
           </button>
         </Tooltip>
       </div>

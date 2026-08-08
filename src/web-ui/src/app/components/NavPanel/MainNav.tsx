@@ -620,6 +620,7 @@ const MainNav: React.FC<MainNavProps> = ({
             className={`void-nav-panel__top-action-btn${isAssistantActive ? ' is-active' : ''}`}
             onClick={handleOpenAssistant}
             aria-label={assistantTooltip}
+            aria-pressed={isAssistantActive}
           >
             <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
               <User size={15} />
@@ -634,6 +635,7 @@ const MainNav: React.FC<MainNavProps> = ({
             className={`void-nav-panel__top-action-btn${isAutomationActive ? ' is-active' : ''}`}
             onClick={handleOpenAutomation}
             aria-label={automationTooltip}
+            aria-pressed={isAutomationActive}
           >
             <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
               <CalendarClock size={15} />
