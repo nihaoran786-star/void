@@ -27,6 +27,17 @@ describe('MainNav workspace menu accessibility contract', () => {
     expect(source).toContain('aria-expanded={isExtensionsOpen}');
     expect(source).toContain('aria-controls="void-nav-panel-extensions"');
     expect(source).toContain('aria-label={extensionsLabel}');
+    expect(source).toContain(
+      "{workspacePresentation === 'minimal' ? (\n                <span className=\"void-nav-panel__top-action-icon-slot\" aria-hidden=\"true\">\n                  <Blocks size={15} />",
+    );
+    expect(source).toContain(
+      ') : (\n                <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">\n                  <Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />',
+    );
+    expect(
+      source.indexOf(
+        '<Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />',
+      ),
+    ).toBeLessThan(source.indexOf('<span>{extensionsLabel}</span>'));
     expect(source).toContain('aria-pressed={isAssistantActive}');
     expect(source).toContain('aria-pressed={isAutomationActive}');
     expect(source).toContain('id="void-nav-panel-extensions"');

@@ -658,17 +658,34 @@ const MainNav: React.FC<MainNavProps> = ({
               aria-controls="void-nav-panel-extensions"
               aria-label={extensionsLabel}
             >
-              <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
-                <Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />
-                <ChevronDown
-                  size={15}
-                  className={[
-                    'void-nav-panel__top-action-expand-icon-chevron',
-                    isExtensionsOpen ? 'is-open' : '',
-                  ].filter(Boolean).join(' ')}
-                />
-              </span>
+              {workspacePresentation === 'minimal' ? (
+                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
+                  <Blocks size={15} />
+                </span>
+              ) : (
+                <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
+                  <Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />
+                  <ChevronDown
+                    size={15}
+                    className={[
+                      'void-nav-panel__top-action-expand-icon-hover',
+                      isExtensionsOpen ? 'is-open' : '',
+                    ].filter(Boolean).join(' ')}
+                  />
+                </span>
+              )}
               <span>{extensionsLabel}</span>
+              {workspacePresentation === 'minimal' ? (
+                <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
+                  <ChevronDown
+                    size={15}
+                    className={[
+                      'void-nav-panel__top-action-expand-icon-chevron',
+                      isExtensionsOpen ? 'is-open' : '',
+                    ].filter(Boolean).join(' ')}
+                  />
+                </span>
+              ) : null}
             </button>
           </Tooltip>
 

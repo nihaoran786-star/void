@@ -113,6 +113,62 @@ describe('NavPanel layout styles', () => {
     );
   });
 
+  it('insets and clips only the collapsed Minimal rail as a rounded workspace panel', () => {
+    const stylesheet = readWorkspaceBodyStylesheet();
+    const minimalCollapsedBlock = extractBlock(
+      stylesheet,
+      '.void-ui--minimal .void-workspace-body__nav-area.is-collapsed',
+    );
+    const classicCollapsedBlock = extractBlock(
+      stylesheet,
+      '.void-ui--classic .void-workspace-body__nav-area.is-collapsed',
+    );
+    const macosMinimalCollapsedBlock = extractBlock(
+      stylesheet,
+      '.void-app-layout--macos.void-ui--minimal .void-workspace-body__nav-area.is-collapsed',
+    );
+
+    expect(stylesheet).toContain(
+      'padding: 0 $size-gap-2 $size-gap-2 $size-gap-2;',
+    );
+    expect(minimalCollapsedBlock).toContain('width: $_nav-collapsed-width;');
+    expect(minimalCollapsedBlock).toContain('margin-top: $size-gap-2;');
+    expect(minimalCollapsedBlock).toContain(
+      'height: calc(100% - #{$size-gap-2});',
+    );
+    expect(minimalCollapsedBlock).toContain(
+      'border-radius: var(--workspace-radius-panel);',
+    );
+    expect(minimalCollapsedBlock).toContain('overflow: hidden;');
+    expect(classicCollapsedBlock).not.toContain('margin-top:');
+    expect(classicCollapsedBlock).not.toContain('border-radius:');
+    expect(classicCollapsedBlock).not.toContain('overflow: hidden;');
+    expect(macosMinimalCollapsedBlock).toContain('margin-left: 72px;');
+  });
+
+  it('softens Minimal navigation toggles with compositor-only motion', () => {
+    const source = readWorkspaceBodySource();
+    const stylesheet = readWorkspaceBodyStylesheet();
+
+    expect(source).toContain('const previousNavCollapsedRef = useRef(isNavCollapsed);');
+    expect(source).toContain("isNavCollapsed ? 'is-nav-collapsing' : 'is-nav-expanding'");
+    expect(stylesheet).toContain(
+      '.void-ui--minimal .void-workspace-body.is-nav-collapsing',
+    );
+    expect(stylesheet).toContain(
+      '.void-ui--minimal .void-workspace-body.is-nav-expanding',
+    );
+    expect(stylesheet).toContain('animation: wb-nav-rail-collapse-in 180ms');
+    expect(stylesheet).toContain('animation: wb-nav-panel-expand-in 180ms');
+    expect(stylesheet).toContain('animation: wb-scene-after-collapse 180ms');
+    expect(stylesheet).toContain('animation: wb-scene-after-expand 180ms');
+    expect(stylesheet).toContain('transform: translateX(12px);');
+    expect(stylesheet).toContain('transform: translateX(-12px);');
+    expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(stylesheet).not.toContain('transition: width');
+    expect(stylesheet).not.toContain('animation: wb-nav-width');
+  });
+
   it('keeps only essential named controls interactive in the collapsed Minimal rail', () => {
     const stylesheet = readMinimalNavPanelStylesheet();
     const navBarSource = readNavBarSource();
@@ -352,9 +408,20 @@ describe('NavPanel layout styles', () => {
     expect(minimalCreateBlock).toContain('overflow: visible;');
     expect(minimalFooterBlock).toContain('display: contents;');
     expect(stylesheet).toContain(
-      '&__session-create-action {\n      grid-row: 2;\n      grid-template-columns: 18px minmax(0, 1fr) auto;\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 40px;',
+      '&__session-create-action {\n      grid-row: 2;\n      grid-template-columns: 18px minmax(0, 1fr) auto;\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 36px;',
     );
-    expect(stylesheet).toContain('background: var(--color-accent-500);');
+    expect(stylesheet).toContain(
+      'border: 1px solid color-mix(\n        in srgb,\n        var(--color-accent-500) 24%,',
+    );
+    expect(stylesheet).toContain(
+      'background: color-mix(\n        in srgb,\n        var(--color-accent-500) 10%,',
+    );
+    expect(stylesheet).toContain('&__session-create-action:active {');
+    expect(stylesheet).toContain('&__session-create-action:focus-visible {');
+    expect(stylesheet).toContain('outline: 2px solid var(--workspace-focus-ring);');
+    expect(stylesheet).toContain(
+      '&__session-create-action {\n      width: 32px;\n      min-width: 32px;\n      height: 32px;\n      min-height: 32px;',
+    );
     expect(stylesheet).toContain('&__session-create-action-kbd {');
     expect(stylesheet).toContain('&__search-trigger__kbd {');
     expect(stylesheet).toContain('&__top-action-btn.is-active::before {');

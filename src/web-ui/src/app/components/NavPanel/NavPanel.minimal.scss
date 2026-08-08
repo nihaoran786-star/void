@@ -198,11 +198,25 @@
       grid-template-columns: 18px minmax(0, 1fr) auto;
       gap: var(--workspace-space-1);
       width: 100%;
-      height: 40px;
+      height: 36px;
       padding: 0 var(--workspace-space-2);
-      color: var(--color-bg-primary);
-      background: var(--color-accent-500);
+      border: 1px solid color-mix(
+        in srgb,
+        var(--color-accent-500) 24%,
+        var(--workspace-border-subtle)
+      );
+      border-radius: var(--workspace-radius-panel);
+      color: var(--color-accent-600);
+      background: color-mix(
+        in srgb,
+        var(--color-accent-500) 10%,
+        var(--workspace-surface-raised)
+      );
       font-weight: var(--workspace-font-weight-medium);
+      transition:
+        color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard);
     }
 
     &__session-create-action-kbd {
@@ -214,10 +228,37 @@
     }
 
     &__session-create-action:hover {
-      color: var(--color-text-primary);
-      background: var(--color-accent-600);
+      border-color: color-mix(
+        in srgb,
+        var(--color-accent-500) 42%,
+        var(--workspace-border-subtle)
+      );
+      color: var(--color-accent-600);
+      background: color-mix(
+        in srgb,
+        var(--color-accent-500) 16%,
+        var(--workspace-surface-raised)
+      );
       box-shadow: none;
       transform: none;
+    }
+
+    &__session-create-action:active {
+      border-color: color-mix(
+        in srgb,
+        var(--color-accent-500) 52%,
+        var(--workspace-border-subtle)
+      );
+      background: color-mix(
+        in srgb,
+        var(--color-accent-500) 22%,
+        var(--workspace-surface-raised)
+      );
+    }
+
+    &__session-create-action:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: 2px;
     }
 
     &__session-search-slot {
@@ -341,7 +382,7 @@
 
     &__session-create {
       display: block;
-      width: 40px;
+      width: 32px;
     }
 
     &__session-create-footer {
@@ -362,14 +403,17 @@
     }
 
     &__session-create-action {
-      color: var(--color-bg-primary);
-      background: var(--color-accent-500);
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      min-height: 32px;
+      border-radius: var(--workspace-radius-panel, 8px);
     }
 
     &__session-create-action > svg {
-      width: 15px;
-      height: 15px;
-      flex: 0 0 15px;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 16px;
       opacity: 1;
     }
 

@@ -10,7 +10,7 @@
  *     SceneViewport (flex:1 — active scene content)
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCurrentWorkspace } from '../../infrastructure/contexts/WorkspaceContext';
 import { NavBar } from '../components/NavBar';
 import NavPanel from '../components/NavPanel/NavPanel';
@@ -50,6 +50,14 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
   const isNavCollapsed = state.layout.leftPanelCollapsed;
   const [navWidth, setNavWidth] = useState(NAV_DEFAULT_WIDTH);
   const [isDividerHovered, setIsDividerHovered] = useState(false);
+  const previousNavCollapsedRef = useRef(isNavCollapsed);
+  const navTransitionClass = previousNavCollapsedRef.current === isNavCollapsed
+    ? ''
+    : isNavCollapsed ? 'is-nav-collapsing' : 'is-nav-expanding';
+
+  useEffect(() => {
+    previousNavCollapsedRef.current = isNavCollapsed;
+  }, [isNavCollapsed]);
 
   const handleDividerMouseEnter = useCallback(() => {
     setIsDividerHovered(true);
@@ -103,7 +111,7 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
   }, [isNavCollapsed, navWidth, toggleLeftPanel]);
 
   return (
-    <div className={`void-workspace-body${isEntering ? ' is-entering' : ''}${isExiting ? ' is-exiting' : ''}${isDividerHovered ? ' is-divider-hovered' : ''} ${className}`}>
+    <div className={`void-workspace-body${isEntering ? ' is-entering' : ''}${isExiting ? ' is-exiting' : ''}${isDividerHovered ? ' is-divider-hovered' : ''}${navTransitionClass ? ` ${navTransitionClass}` : ''} ${className}`}>
       {/* Left: one persistent navigation tree; collapse is a presentation projection. */}
       <div
         className={`void-workspace-body__nav-area${isNavCollapsed ? ' is-collapsed' : ''}`}
