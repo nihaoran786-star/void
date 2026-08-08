@@ -59,7 +59,7 @@ describe('new-task draft examples presentation', () => {
 
   it('lets the draft editor grow with content before switching to internal scroll', () => {
     expect(source).toMatch(
-      /\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*var\(--workspace-composer-min-height\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
+      /\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*calc\(\s*var\(--workspace-control-height\) \+\s*var\(--workspace-space-8\)\s*\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
     );
     expect(source).toMatch(
       /\.rich-text-input\s*\{[\s\S]*?min-height:\s*22px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
