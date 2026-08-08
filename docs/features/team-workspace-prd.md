@@ -7,7 +7,7 @@ built-in definition over the shared Team runtime while retaining its dedicated
 project tools and Canvas. Deep Review remains adapter-owned, and specialist
 tool/readonly expansion remains staged.
 
-Updated: 2026-08-06
+Updated: 2026-08-08
 
 ## Product decision
 
@@ -529,15 +529,21 @@ The Desktop/Tauri reusable-Team slice implements:
   path, strict identity/hash validation, and compare-and-swap migration of only
   eligible legacy empty-policy launches to explicit `no_policy`;
 - runtime-enforced lead/member separation: child sessions cannot call `Task`
-  or `Team`, member launches receive a concise positive role- and phase-scoped
-  execution assignment, completed prerequisites automatically dispatch successor
-  phases, and cancelled or interrupted members terminalize the current run so
-  a new run can start instead of remaining falsely active;
+  or `Team`, member launches receive a concise positive phase assignment with
+  the expected output, completion rule, and Team goal, while the member Agent
+  definition remains the sole owner of its professional persona. Completed
+  prerequisites automatically dispatch successor phases, and cancelled or
+  interrupted members terminalize the current run so a new run can start
+  instead of remaining falsely active;
 - Web composer activation for otherwise-compatible ordinary Teams with member
   Skill allowlists;
 - one right-side Team Workspace presentation for all durable Team members,
   fixed desktop three-column composition, Task-card routing into that workspace,
   and automatic restoration of the short-drama Canvas from session binding;
+- the Team Workspace roster is presented as one operations map with bounded
+  pan/zoom, semantic orbit sizing, constant-screen-size member nodes, status,
+  selection, and entry into the existing member conversation. It is a view of
+  the typed Team snapshot, not a second Team model or runtime path;
 - stable Team Workspace background refresh: only a new binding uses the initial
   loading presentation, equivalent snapshots preserve their references and do
   not republish member indexes, and parent-turn refresh keeps the selected
@@ -555,6 +561,11 @@ Desktop commands, and Web runtime gateway. Definitions that request specialist t
 narrowing, specialist readonly behavior, a readonly lead, or an explicit lead
 tool set without `Task` remain visible and fail closed as `definition_only` in
 the composer.
+
+Further interaction and theme normalization follows
+[Interaction And Theme Governance Specification](interaction-theme-governance.md)
+and must not change Team identity, workflow, runtime authority, persistence, or
+member-session ownership.
 
 ## Delivery sequence and status
 

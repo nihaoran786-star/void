@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-08-06
+Updated: 2026-08-08
 
 ## Product state
 
@@ -93,6 +93,13 @@ Updated: 2026-08-06
   updates, and equivalent snapshots keep the last usable projection mounted;
   semantically unchanged snapshots are no-ops, and typing or streaming in the
   left lead conversation must not remount or flash the selected member panel.
+- The canonical Team Workspace now presents the durable Team as an operations
+  map rather than a second member list. It supports bounded pan/zoom, semantic
+  orbit sizing, constant-screen-size member nodes, explicit selection, and the
+  existing member-conversation projection. This is a presentation over the
+  same typed Team snapshot; it does not create another runtime, roster, or
+  child-session path. Wide layouts pin the docked workspace to the physical
+  scene edge, while medium layouts retain the established bounded overlay.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards
@@ -126,6 +133,16 @@ Updated: 2026-08-06
   empty state still explains local-command and remote-URL paths and preserves
   the JSON add action. Connector loading and installation failures are explicit
   and retryable. This is not an online or arbitrary remote connector store.
+- Agent authoring now includes a live draft debug chat beside the configuration
+  form. A typed runtime service installs a temporary user Agent, creates a
+  persona-bound temporary session, sends through the existing Flow Chat path,
+  and disposes or sweeps orphaned debug artifacts. Draft replacement is
+  fail-closed: the composer is available only when the current fingerprint and
+  temporary session are ready, so a stale persona cannot receive the next
+  message. Replacement notices clear after the first successful send. This is
+  a real Agent conversation path, not a local prompt preview; per-Agent model
+  override and Agent-level Skill/MCP selection remain outside the current
+  contract.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.
@@ -136,6 +153,12 @@ Updated: 2026-08-06
   state.
 - Runtime, persistence, Skill policy, media tool routing, session history, and
   desktop host behavior remain outside presentation-only changes.
+
+The next presentation phase is governed by
+[docs/features/interaction-theme-governance.md](docs/features/interaction-theme-governance.md).
+It covers interaction consistency, theme tokens, responsive layout,
+accessibility, full-window evidence, and presentation performance without
+authorizing runtime or domain changes.
 
 ## Architecture map
 
@@ -208,6 +231,16 @@ refresh gating, and navigation-intent preload reduced measured hot-switch p95 to
 resetting scene state or widening permissions. Exact evidence and commands are
 recorded in [design-qa.md](design-qa.md).
 
+The 2026-08-08 Agent-authoring and Team-Workspace closeout added the durable
+operations-map presentation, fixed right-column ownership, and real draft
+Agent debug chat. The final Web gate passed 521 files and 2,997 tests together
+with Web type checking, focused production lint, theme color and visual
+contracts, i18n contract/audit, core-boundary and repository-hygiene checks,
+and the production Web build. The debug-chat follow-up blocks stale-session
+sends and hides the composer until the replacement persona is ready. This
+evidence does not reclassify the known repository-wide lint, E2E, Rust format,
+or Clippy baseline gaps as passing.
+
 High-confidence defects fixed in the current audit:
 
 - three undefined minimal-workspace CSS tokens that broke the theme-color Gate
@@ -235,6 +268,10 @@ Open baseline debt:
 - legacy non-Team short-drama stage-agent binding persistence and bounded retry
   still have a confirmed async state gap; Team-bound short-drama sessions no
   longer use that bootstrap path.
+- Agent draft debug chat currently validates the real transport and lifecycle
+  through automated tests and Desktop runtime wiring. A provider-backed manual
+  response still depends on the user's configured model/provider and should be
+  included in the next full-window Desktop acceptance pass.
 
 Evidence and exact commands are in
 [docs/qa/repository-stability-audit-2026-07-28.md](docs/qa/repository-stability-audit-2026-07-28.md).

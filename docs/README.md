@@ -23,6 +23,9 @@ automatically the current source of truth.
 - [Team Workspace product and architecture specification](features/team-workspace-prd.md)
   — current reusable-Team definition/runtime status and staged expansion
   contract
+- [Interaction and theme governance specification](features/interaction-theme-governance.md)
+  — current presentation-only rules for interaction states, theme ownership,
+  responsive layout, accessibility, full-window evidence, and performance
 - [Web UI performance boundaries](architecture/web-ui-performance-boundaries.md)
 - [Core decomposition](architecture/core-decomposition.md)
 - [i18n architecture](architecture/i18n.md)
@@ -56,6 +59,15 @@ dated implementation and decision evidence; they are not active work queues.
 - [Agent runtime migration decisions](decisions/2026-07-25-bitfun-runtime-migration-ledger.md)
 - [Agent runtime Slice A result](results/2026-07-25-agent-runtime-upgrade-result.md)
 
+## Long-lived engineering plans
+
+- [Core decomposition plan](plans/core-decomposition-plan.md) — staged
+  architecture work; completed checkboxes are evidence and remaining owner
+  slices require their own risk review before execution.
+- [Desktop fullscreen plan](plans/desktop-window-fullscreen-plan.md) — core
+  capability is implemented; unchecked menu/settings and cross-platform manual
+  checks are deferred follow-ups, not the current UI queue.
+
 ## Dated evidence and implementation records
 
 - `docs/qa/*audit*.md` and `docs/architecture/*results.md` are checkpoint
@@ -65,6 +77,15 @@ dated implementation and decision evidence; they are not active work queues.
 - `docs/superpowers/specs/` records accepted design specifications.
 - `docs/superpowers/plans/` records implementation plans.
 - `docs/plans/` records longer-lived engineering plans.
+- [Agent draft debug chat implementation plan](plans/2026-08-07-agent-debug-chat.md)
+  is completed implementation evidence; its current product contract is folded
+  into the Customization Center specification.
+- Feature PRDs not listed under “Current architecture and product
+  specifications” are retained design or implementation records. In
+  particular, the original UI-system foundation draft is superseded by the
+  current interaction/theme governance specification; old Media, Automation,
+  compact-chat, usage, and branding documents do not override `CONTEXT.md` or
+  a newer current specification.
 - `docs/obsidian/` is a historical 2026-06 collaboration snapshot.
 
 ## Cleanup record
@@ -79,3 +100,13 @@ deleted after confirming it had no inbound link or runtime consumer. Its
 accepted layout, progressive-disclosure, media-focus, and accessibility
 constraints are preserved in the current Minimal workspace migration and Team
 Workspace specifications. Nothing was deleted solely because of age.
+
+The 2026-08-08 review covered all 143 Markdown files then tracked under
+`docs/`, added one current governance specification, and leaves 144 tracked
+files under `docs/` (363 tracked Markdown files repository-wide). No historical
+document was deleted: dated plans, audits, decisions, results, migration
+ledgers, and the Obsidian snapshot still contain unique contracts or checkpoint
+evidence. Current status was reconciled into `CONTEXT.md`; the documentation
+map now points to the current interaction/theme governance specification, and
+the completed Agent debug-chat plan is explicitly classified as evidence
+rather than an active queue.

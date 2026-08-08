@@ -1,5 +1,11 @@
 # Desktop Window Fullscreen Implementation Plan
 
+> **Status review (2026-08-08):** the core Desktop fullscreen capability is
+> implemented by `647f1cdc1`. Checked tasks below are implementation evidence.
+> The remaining unchecked menu/settings and cross-platform manual-verification
+> items are deferred follow-ups, not part of the current interaction/theme
+> optimization queue.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add OS-level fullscreen support for the void Desktop main window without changing maximize, panel fullscreen, CLI/TUI rendering, or product runtime logic.

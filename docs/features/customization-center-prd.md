@@ -7,7 +7,7 @@ trusted Team tool, Desktop commands, and Web runtime gateway; direct Team
 Workspace pause/resume controls, specialist tool/readonly expansion,
 browser/server parity, and future flagship-adapter expansion are deferred.
 
-Updated: 2026-08-05
+Updated: 2026-08-08
 
 ## Product decision
 
@@ -1234,6 +1234,15 @@ As of this specification update:
 - Agent and Skill authoring are implemented behind typed services, including
   validation, immutable runtime IDs, installation/removal rollback, scenario
   eligibility, and structured errors;
+- Agent authoring includes a real draft-persona debug conversation beside the
+  form. The page delegates temporary Agent installation, persona-bound session
+  creation, sending, replacement, disposal, and orphan sweeping to typed
+  services and the existing Flow Chat runtime. A draft fingerprint binds the
+  visible composer to the active temporary persona; while replacement is in
+  progress, sending is disabled and the stale session is never reused. The
+  composer appears only after the current temporary session is ready, and the
+  replacement notice clears after a successful send. This does not create a
+  second chat transport or move runtime lifecycle into the page;
 - Team definition management is implemented for Desktop/Tauri behind the Team
   Interface: user/project isolation, validated create/edit/install/delete,
   optimistic revision checks, atomic replacement/recovery, bounded packages,
@@ -1245,8 +1254,10 @@ As of this specification update:
   Desktop/Tauri path with durable `TeamInstance` persistence, parent-persona
   lead activation, a trusted `Team` tool, typed
   start/observe/recover/message/stop paths, and live Team Workspace plus BTW
-  member-conversation projection. Pause/resume remains unsupported; this is not
-  a claim that every `TeamOrchestrator` action is complete;
+  member-conversation projection. Typed pause/resume exists across Core, the
+  trusted Team tool, Desktop commands, and the Web runtime gateway; direct
+  Team Workspace pause/resume controls remain deferred. This is not a claim
+  that every `TeamOrchestrator` action or platform path is complete;
 - lead Skill allowlists can only narrow the effective
   scenario/workspace/user Skill set: an empty list preserves that set and a
   non-empty list intersects it. Lead tool policy can likewise narrow the
@@ -1268,6 +1279,11 @@ As of this specification update:
   expansion remain deferred;
 - no provider KV-cache hit rate is promised; correctness and role isolation are
   the release gate.
+
+Presentation-only follow-up is governed by
+[Interaction And Theme Governance Specification](interaction-theme-governance.md).
+That work may normalize interaction, layout, theme, and accessibility, but it
+may not change the persona, cache, permission, Team, or session contracts above.
 
 ### 7. Visual, stability, and scene-switch acceptance
 

@@ -3,12 +3,16 @@
 > **Status: COMPLETE** — all Tasks 1–7 landed on `codex/minimal-workspace-ui`.
 > Evidence: `8d0c71491` (T1), `d21054512`+`0978f0766` (T2), `08ef50814`+`50eaac545` (T3),
 > `ab174cd1f` (T4), `709ccd2fd` (T5), `d53f10a1d`+`8e7feed5c` (T7 i18n), `16a9daf2a` (T6 sweeper).
+> Follow-up stabilization: `f87a450aa` blocks sends during draft replacement,
+> keeps the composer bound to the ready fingerprint/session, clears replacement
+> feedback after a successful send, and fixes the remaining radius-token use.
 > Task 6 also bumped the `AgentsScene.tsx` source-hash contract in
 > `AgentsScene.minimal.test.ts` and added a runtime-service mock to `AgentsScene.test.tsx`.
 > Verification gate passed: agents-scene tests (92), type-check, lint, build, repo-hygiene,
 > core-boundaries.
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> The task-by-task instructions below are retained as implementation evidence;
+> they are not an active execution queue.
 
 **Goal:** Turn the agent creation page into a two-column "character lab": a real streaming debug chat on the left that runs the current draft (prompt + tools) as a live persona, with the config editor (name / prompt / tools tabs) on the right.
 
@@ -657,4 +661,8 @@ git commit -m "feat(agents): i18n labels for agent debug chat"
 - **Skills / MCP are not testable at agent level.** Custom subagents expose prompt + tools + readonly/review + model only; skill keys and connector tool membership are team-level concepts. The "技能" tab maps to the tools picker; a disabled MCP tab with a hint is acceptable in this iteration.
 - **Transient artifacts.** Each draft change writes one `{user_agents_dir}/{id}.md` and one empty session. They are disposed on replacement/unmount and swept at startup. A hard crash can still leak until the next app start.
 - **Model override** for the debug subagent (via `update_subagent_config`) is out of scope for this iteration; the draft page does not yet set per-agent model.
-- **Rerun of a stale turn**: if a turn is in flight when the draft changes, the hook cancels/disposes the session only after the turn settles (follow `DeepReviewContinuationService` patterns for cancel-before-delete).
+- **Provider-backed manual response:** automated coverage verifies the real
+  Flow Chat send path, temporary-persona binding, replacement races, cleanup,
+  and startup sweeping. A manual model response still depends on a configured
+  Desktop provider and remains part of full-window acceptance rather than a
+  transport implementation gap.

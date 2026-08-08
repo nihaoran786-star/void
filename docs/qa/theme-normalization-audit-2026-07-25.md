@@ -4,6 +4,12 @@ This checkpoint audits the Minimal presentation of Assistant, Automation, and
 Professional Agents in the real desktop shell. It is dated evidence, not a
 permanent statement of repository quality.
 
+Current note (2026-08-08): later work introduced standalone Skills and
+Connectors catalogs, the durable Team Workspace operations map, and Agent draft
+debug chat. The historical “Next actions” below must not be treated as the
+current queue. New interaction and theme work is governed by
+[Interaction And Theme Governance Specification](../features/interaction-theme-governance.md).
+
 ## Audit health score
 
 | Dimension | Score | Evidence |

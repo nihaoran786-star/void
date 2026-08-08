@@ -1,6 +1,8 @@
 # UI System Foundation PRD
 
-> Status: Draft
+> Status: Superseded as a current queue on 2026-08-08. Retained as early design
+> evidence; accepted boundaries now live in
+> [Interaction And Theme Governance Specification](interaction-theme-governance.md).
 > Scope: Desktop shell visual consistency, left navigation, top bar, shared UI primitives, low-risk spacing and styling cleanup
 > Non-goal: this document does not prescribe a full visual rebrand, a global CSS skin, runtime behavior changes, or Agent capability changes.
 
