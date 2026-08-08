@@ -108,6 +108,22 @@ export interface TeamAuthoringResult {
   isValid: boolean;
 }
 
+export interface TeamRosterAgentInput {
+  agentId: string;
+  displayName: string;
+  description: string;
+  scenarioEligibility: TeamDefinitionScenario[];
+  isReadonly: boolean;
+}
+
+export interface TeamRosterDraftInput {
+  displayName: string;
+  goal: string;
+  selectedAgents: TeamRosterAgentInput[];
+  leadAgentId: string;
+  template?: Partial<TeamAuthoringTemplate>;
+}
+
 export type TeamDescriptionAuthoringInput = Omit<TeamAuthoringInput, 'route'>;
 export type TeamMaterialAuthoringInput = Omit<TeamAuthoringInput, 'route'>;
 export type TeamManualAuthoringInput = Omit<TeamAuthoringInput, 'route'>;
@@ -276,6 +292,96 @@ function generatedWorkflow(
       },
     ],
   };
+}
+
+function commonRosterScenarios(
+  agents: readonly TeamRosterAgentInput[],
+): TeamDefinitionScenario[] {
+  return ORDERED_SCENARIOS.filter(scenario => agents.length > 0 && agents.every(
+    agent => agent.scenarioEligibility.length === 0
+      || agent.scenarioEligibility.includes(scenario),
+  ));
+}
+
+/**
+ * Converts the minimal "pick existing Agents" UI into the canonical Team draft.
+ * The UI owns only selection; member responsibilities and workflow references are
+ * rebuilt here so changing the lead or removing a member cannot leave stale IDs.
+ */
+export function createTeamDraftFromRoster(
+  input: TeamRosterDraftInput,
+): TeamAuthoringResult {
+  const template = resolveTemplate(input.template);
+  const selectedAgents = Array.from(new Map(
+    input.selectedAgents
+      .filter(agent => agent.agentId.trim())
+      .map(agent => [agent.agentId.trim(), agent]),
+  ).values());
+  const members = selectedAgents.map((agent, index): TeamMemberDraft => {
+    const isLead = agent.agentId === input.leadAgentId;
+    return {
+      clientKey: `member-${index + 1}`,
+      displayName: agent.displayName,
+      professionalRole: agent.displayName,
+      role: isLead ? 'lead' : 'specialist',
+      instructions: `${
+        isLead
+          ? template.describeLeadInstructions
+          : template.describeSpecialistInstructions
+      }\n\n${input.goal}`,
+      outputResponsibility: isLead
+        ? template.leadOutputResponsibility
+        : template.specialistOutputResponsibility,
+      agentId: agent.agentId,
+      allowedSkillKeys: [],
+      allowedToolNames: [],
+      isReadonly: agent.isReadonly,
+    };
+  });
+  const leadMemberKey = members.find(member => member.role === 'lead')?.clientKey ?? '';
+  const specialistMemberKeys = members
+    .filter(member => member.role !== 'lead')
+    .map(member => member.clientKey);
+  const workflows: TeamWorkflowDraft[] = members.length >= 2 && leadMemberKey
+    ? [{
+        clientKey: 'default-workflow',
+        displayName: template.workflowDisplayName,
+        triggerDescription: template.describeWorkflowTrigger,
+        phases: [
+          {
+            clientKey: 'specialist-work',
+            displayName: template.specialistPhaseDisplayName,
+            kind: specialistMemberKeys.length > 1 ? 'parallel' : 'serial',
+            dependsOnPhaseKeys: [],
+            assignedMemberKeys: specialistMemberKeys,
+            expectedOutputs: [template.specialistExpectedOutput],
+            completionRule: template.specialistCompletionRule,
+          },
+          {
+            clientKey: 'lead-review',
+            displayName: template.leadPhaseDisplayName,
+            kind: 'review',
+            dependsOnPhaseKeys: ['specialist-work'],
+            assignedMemberKeys: [leadMemberKey],
+            expectedOutputs: [template.leadExpectedOutput],
+            completionRule: template.leadCompletionRule,
+          },
+        ],
+      }]
+    : [];
+
+  return organizeTeamDraft({
+    route: 'manual',
+    displayName: input.displayName,
+    description: input.goal,
+    category: template.defaultCategory,
+    capabilityTags: selectedAgents.map(agent => agent.displayName).slice(0, 3),
+    scenarioEligibility: commonRosterScenarios(selectedAgents),
+    leadMemberKey,
+    members,
+    workflows,
+    template,
+  });
 }
 
 function normalizeMember(member: TeamMemberDraft): TeamMemberDraft {

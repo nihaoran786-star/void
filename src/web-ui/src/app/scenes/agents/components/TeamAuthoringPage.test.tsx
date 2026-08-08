@@ -21,7 +21,48 @@ const agentApi = vi.hoisted(() => ({
   }]),
 }));
 const subagentApi = vi.hoisted(() => ({
-  listSubagents: vi.fn(async () => []),
+  listSubagents: vi.fn(async () => [
+    {
+      key: 'user::void::product-lead',
+      id: 'product-lead',
+      name: '产品主理人',
+      description: '负责产品方向与最终交付',
+      isReadonly: false,
+      isReview: false,
+      toolCount: 3,
+      defaultTools: [],
+      defaultEnabled: true,
+      effectiveEnabled: true,
+      subagentSource: 'user',
+      promptCacheScopeKey: 'custom_prompt_sha256:lead',
+      visibility: {
+        exposure: 'public',
+        allowedParentAgentIds: ['agentic'],
+        deniedParentAgentIds: [],
+        showInGlobalRegistry: true,
+      },
+    },
+    {
+      key: 'project::void::frontend-maker',
+      id: 'frontend-maker',
+      name: '前端开发智能体',
+      description: '负责界面实现与验证',
+      isReadonly: false,
+      isReview: false,
+      toolCount: 5,
+      defaultTools: [],
+      defaultEnabled: true,
+      effectiveEnabled: true,
+      subagentSource: 'project',
+      promptCacheScopeKey: 'custom_prompt_sha256:frontend',
+      visibility: {
+        exposure: 'public',
+        allowedParentAgentIds: ['agentic'],
+        deniedParentAgentIds: [],
+        showInGlobalRegistry: true,
+      },
+    },
+  ]),
 }));
 const notifications = vi.hoisted(() => ({
   success: vi.fn(),
@@ -333,27 +374,29 @@ describeWithJsdom('TeamAuthoringPage', () => {
     expect(gateway.update).not.toHaveBeenCalled();
   });
 
-  it('创建时展示中文智能体名称但提交稳定的 raw agentId', async () => {
+  it('像选角色一样组队，第一位自动成为主理人并提交稳定 raw agentId', async () => {
     const gateway = gatewayFixture();
 
     await renderPage(gateway);
     await flush();
-    await clickButton('teamAuthoring.routes.manual');
 
-    expect(container.textContent).toContain('代码执行智能体');
-    const agentSelects = Array.from(container.querySelectorAll('select'))
-      .filter(select => Array.from(select.options).some(
-        option => option.textContent === '代码执行智能体',
-      ));
-    expect(agentSelects).toHaveLength(2);
-    expect(agentSelects.every(select => select.value === 'agentic')).toBe(true);
+    expect(container.textContent).toContain('产品主理人');
+    expect(container.textContent).toContain('前端开发智能体');
+    await clickButton('产品主理人');
+    await clickButton('前端开发智能体');
+    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    expect(Array.from(container.querySelectorAll('.team-roster__agent'))
+      .every(agent => agent.getAttribute('aria-pressed') === 'true'))
+      .toBe(true);
+    expect(container.querySelector('.team-roster__slot.is-lead')?.textContent)
+      .toContain('产品主理人');
 
     const inputs = container.querySelectorAll<HTMLInputElement>('input');
     const displayName = Array.from(inputs).find(
-      input => input.placeholder === 'teamAuthoring.basics.displayNamePlaceholder',
+      input => input.placeholder === 'teamAuthoring.roster.namePlaceholder',
     );
     const description = container.querySelector<HTMLTextAreaElement>(
-      'textarea[placeholder="teamAuthoring.basics.descriptionPlaceholder"]',
+      'textarea[placeholder="teamAuthoring.roster.goalPlaceholder"]',
     );
     expect(displayName).toBeTruthy();
     expect(description).toBeTruthy();
@@ -365,20 +408,115 @@ describeWithJsdom('TeamAuthoringPage', () => {
     await clickButton('teamAuthoring.actions.create');
 
     expect(gateway.create).toHaveBeenCalledWith(expect.objectContaining({
-      level: 'user',
-      workspacePath: undefined,
+      level: 'project',
+      workspacePath: 'D:/workspace/project',
       draft: expect.objectContaining({
         displayName: '中文软件开发团队',
         members: expect.arrayContaining([
-          expect.objectContaining({ agentId: 'agentic' }),
+          expect.objectContaining({ agentId: 'user::void::product-lead' }),
+          expect.objectContaining({ agentId: 'project::void::frontend-maker' }),
         ]),
       }),
     }));
     const createInput = vi.mocked(gateway.create).mock.calls[0]?.[0];
     expect(createInput?.draft.members.map(member => member.agentId))
-      .toEqual(['agentic', 'agentic']);
-    expect(createInput?.draft.members.map(member => member.agentId))
-      .not.toContain('代码执行智能体');
+      .toEqual(['user::void::product-lead', 'project::void::frontend-maker']);
+    expect(createInput?.draft.members.filter(member => member.role === 'lead'))
+      .toEqual([expect.objectContaining({
+        agentId: 'user::void::product-lead',
+      })]);
+    const userScope = Array.from(container.querySelectorAll<HTMLButtonElement>(
+      '.team-roster__scope button',
+    )).find(button => button.textContent === 'teamAuthoring.scope.user');
+    expect(userScope?.disabled).toBe(true);
+  });
+
+  it('允许一键更换主理人，且同一智能体不会重复出现在阵容', async () => {
+    const gateway = gatewayFixture();
+
+    await renderPage(gateway);
+    await flush();
+    await clickButton('产品主理人');
+    await clickButton('前端开发智能体');
+
+    const makeLead = container.querySelector<HTMLButtonElement>(
+      '.team-roster__lead-action',
+    );
+    expect(makeLead).toBeTruthy();
+    await act(async () => {
+      makeLead!.click();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('.team-roster__slot.is-lead')?.textContent)
+      .toContain('前端开发智能体');
+    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    expect(Array.from(container.querySelectorAll('.team-roster__slot'))
+      .filter(slot => slot.textContent?.includes('前端开发智能体')))
+      .toHaveLength(1);
+  });
+
+  it('没有已创建智能体时给出明确空态并可直接进入智能体创建页', async () => {
+    subagentApi.listSubagents.mockResolvedValueOnce([]);
+    const gateway = gatewayFixture();
+
+    await renderPage(gateway);
+    await flush();
+
+    expect(container.textContent).toContain('teamAuthoring.roster.emptyAgents');
+    await clickButton('teamAuthoring.roster.createAgentFirst');
+    expect(useAgentsStore.getState().page).toBe('createAgent');
+  });
+
+  it('目录刷新失败时保留已选阵容并提供重试', async () => {
+    const gateway = gatewayFixture();
+
+    await renderPage(gateway);
+    await flush();
+    await clickButton('产品主理人');
+    await clickButton('前端开发智能体');
+    subagentApi.listSubagents.mockRejectedValueOnce(new Error('catalog offline'));
+    workspaceFixture.workspacePath = 'D:/workspace/changed';
+    await renderPage(gateway);
+    await flush();
+
+    expect(container.textContent).toContain('teamAuthoring.roster.loadFailed');
+    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    await clickButton('teamAuthoring.roster.retry');
+    await flush();
+    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    expect(container.textContent).not.toContain('teamAuthoring.roster.loadFailed');
+  });
+
+  it('创建失败时保留名称、目标和完整阵容供用户重试', async () => {
+    const gateway = gatewayFixture({
+      create: vi.fn(async () => {
+        throw new Error('disk busy');
+      }),
+    });
+
+    await renderPage(gateway);
+    await flush();
+    await clickButton('产品主理人');
+    await clickButton('前端开发智能体');
+    const displayName = container.querySelector<HTMLInputElement>(
+      'input[placeholder="teamAuthoring.roster.namePlaceholder"]',
+    );
+    const goal = container.querySelector<HTMLTextAreaElement>(
+      'textarea[placeholder="teamAuthoring.roster.goalPlaceholder"]',
+    );
+    await act(async () => {
+      setInputValue(displayName!, '保留现场团队');
+      setInputValue(goal!, '创建失败后可以直接重试。');
+      await Promise.resolve();
+    });
+    await clickButton('teamAuthoring.actions.create');
+    await flush();
+
+    expect(notifications.error).toHaveBeenCalledWith('teamAuthoring.errors.write_failed');
+    expect(displayName?.value).toBe('保留现场团队');
+    expect(goal?.value).toBe('创建失败后可以直接重试。');
+    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
   });
 
   it('编辑时保留定义、成员、工作流和阶段 ID 并携带 expectedRevision', async () => {

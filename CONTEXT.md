@@ -46,6 +46,15 @@ Updated: 2026-08-08
   lead as the parent persona through a trusted `Team` tool, expose typed
   start/observe/recover/message/stop paths, and project live Team Workspace
   state plus BTW member conversations.
+- Team creation now uses a minimal roster builder instead of exposing the full
+  `TeamDefinition` schema. Users provide a Team name and one-line goal, then
+  select two to twelve available user/project Agents like a game lineup. The
+  first selection becomes lead, lead changes and removals rebuild canonical
+  member/workflow references in `TeamAuthoringService`, and only source-qualified
+  raw Agent IDs are persisted. Common room eligibility is derived from the
+  selected Agents; incompatible rosters fail closed, and any project Agent
+  forces project-scoped persistence. Catalog loading, empty, retry, and save
+  failure states are explicit and never fall back to runtime modes.
 - Reusable-Team policy remains deliberately narrow. A lead Skill allowlist can
   only intersect the scenario/workspace/user effective Skill set, and an
   explicit lead tool policy is supported only when it retains `Task`.

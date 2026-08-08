@@ -7,12 +7,16 @@ import React, {
 } from 'react';
 import {
   ArrowLeft,
+  Check,
+  Crown,
   FileText,
   Plus,
+  Search,
   SlidersHorizontal,
   Trash2,
   Users,
   WandSparkles,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +37,7 @@ import {
   CapabilityCatalogService,
   customizationRuntimeCapabilityService,
   ExistingAgentCatalogAdapter,
+  createTeamDraftFromRoster,
   existingTeamDefinitionAdapter,
   localizeCatalogPresentation,
   organizeTeamDraft,
@@ -47,6 +52,7 @@ import {
 } from '@/shared/services/customization';
 import { useNotification } from '@/shared/notification-system';
 import { useAgentsStore } from '../agentsStore';
+import AgentAvatar from './AgentAvatar';
 import './TeamAuthoringPage.scss';
 
 const ROUTES: Array<{ id: TeamAuthoringRoute; icon: LucideIcon }> = [
@@ -229,6 +235,7 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
     editingTeamDefinitionId,
     editingTeamLevel,
     openHome,
+    openCreateAgent,
     requestCatalogRefresh,
   } = useAgentsStore();
   const isEdit = teamEditorMode === 'edit';
@@ -273,25 +280,40 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [agentOptions, setAgentOptions] = useState<AgentCatalogEntry[]>([]);
+  const [agentCatalogStatus, setAgentCatalogStatus] = useState<
+    'loading' | 'ready' | 'empty' | 'partial' | 'error'
+  >('loading');
+  const [agentCatalogRetryKey, setAgentCatalogRetryKey] = useState(0);
+  const [rosterSearch, setRosterSearch] = useState('');
+  const [selectedRosterAgentIds, setSelectedRosterAgentIds] = useState<string[]>([]);
+  const [rosterLeadAgentId, setRosterLeadAgentId] = useState('');
 
   useEffect(() => {
     if (managementCapability.status === 'unsupported') return;
     let cancelled = false;
+    setAgentCatalogStatus('loading');
     void agentCatalog.list({
       kinds: ['agent'],
       workspacePath: workspacePath || undefined,
     }).then(result => {
       if (cancelled) return;
+      if (result.errors.some(error => error.code === 'subagent_catalog_load_failed')) {
+        setAgentCatalogStatus('error');
+        return;
+      }
       setAgentOptions(result.entries.filter(
         (entry): entry is AgentCatalogEntry => entry.kind === 'agent',
       ));
+      setAgentCatalogStatus(result.status);
     }).catch(() => {
-      if (!cancelled) setAgentOptions([]);
+      if (!cancelled) {
+        setAgentCatalogStatus('error');
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [managementCapability.status, workspacePath]);
+  }, [agentCatalogRetryKey, managementCapability.status, workspacePath]);
 
   useEffect(() => {
     if (
@@ -388,6 +410,83 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
     }
     return entries;
   }, [agentOptions, t]);
+
+  const rosterAgentOptions = useMemo(() => agentOptions
+    .filter(entry => (
+      entry.agentKind === 'subagent'
+      && (entry.origin === 'user' || entry.origin === 'project')
+      && (entry.origin !== 'project' || (hasWorkspace && !isRemoteWorkspace))
+      && entry.availability.status === 'available'
+      && entry.activationSupport === 'parent_persona'
+    ))
+    .map(entry => ({
+      id: entry.identity.id,
+      origin: entry.origin,
+      scenarios: entry.scenarioEligibility,
+      isReadonly: entry.isReadonly,
+      ...localizeCatalogPresentation(entry.identity, key => t(key)),
+    })), [agentOptions, hasWorkspace, isRemoteWorkspace, t]);
+
+  const visibleRosterAgentOptions = useMemo(() => {
+    const query = rosterSearch.trim().toLocaleLowerCase();
+    if (!query) return rosterAgentOptions;
+    return rosterAgentOptions.filter(agent => [
+      agent.displayName,
+      agent.description,
+      agent.id,
+      ...agent.aliases,
+    ].some(value => value.toLocaleLowerCase().includes(query)));
+  }, [rosterAgentOptions, rosterSearch]);
+
+  const selectedRosterAgents = useMemo(() => selectedRosterAgentIds
+    .map(id => rosterAgentOptions.find(agent => agent.id === id))
+    .filter((agent): agent is NonNullable<typeof agent> => Boolean(agent)), [
+      rosterAgentOptions,
+      selectedRosterAgentIds,
+    ]);
+  const rosterRequiresProjectScope = selectedRosterAgents.some(
+    agent => agent.origin === 'project',
+  );
+
+  const rosterDraftResult = useMemo(() => createTeamDraftFromRoster({
+    displayName: draft.displayName,
+    goal: draft.description,
+    leadAgentId: rosterLeadAgentId,
+    selectedAgents: selectedRosterAgents.map(agent => ({
+      agentId: agent.id,
+      displayName: agent.displayName,
+      description: agent.description,
+      scenarioEligibility: agent.scenarios,
+      isReadonly: agent.isReadonly,
+    })),
+    template,
+  }), [
+    draft.description,
+    draft.displayName,
+    rosterLeadAgentId,
+    selectedRosterAgents,
+    template,
+  ]);
+
+  const toggleRosterAgent = (agentId: string) => {
+    setSelectedRosterAgentIds(current => {
+      if (current.includes(agentId)) {
+        const next = current.filter(id => id !== agentId);
+        if (rosterLeadAgentId === agentId) {
+          setRosterLeadAgentId(next[0] ?? '');
+        }
+        return next;
+      }
+      if (current.length >= 12) return current;
+      if (rosterAgentOptions.find(agent => agent.id === agentId)?.origin === 'project') {
+        setLevel('project');
+      }
+      if (current.length === 0) setRosterLeadAgentId(agentId);
+      return [...current, agentId];
+    });
+    clearDiagnostic('members');
+    clearDiagnostic('leadMemberKey');
+  };
 
   const updateDraft = (
     patch: Partial<TeamDefinitionDraft>,
@@ -552,6 +651,54 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
     notification.success(t('teamAuthoring.messages.prepared'));
   };
 
+  const handleRosterSubmit = async () => {
+    setDiagnostics(rosterDraftResult.diagnostics);
+    if (!rosterDraftResult.isValid) {
+      const first = rosterDraftResult.diagnostics[0];
+      if (first) notification.error(diagnosticMessage(first));
+      return;
+    }
+    if (level === 'project' && (!workspacePath || isRemoteWorkspace)) {
+      notification.error(
+        isRemoteWorkspace
+          ? errorMessage('unsupported_remote_project')
+          : t('teamAuthoring.messages.noWorkspace'),
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const record = await gateway.create({
+        level,
+        draft: rosterDraftResult.draft,
+        workspacePath: level === 'project' ? workspacePath : undefined,
+      });
+      notification.success(t('teamAuthoring.messages.createSuccess', {
+        name: record.definition.displayName,
+      }));
+      requestCatalogRefresh();
+      openHome();
+    } catch (error) {
+      const code = error instanceof TeamAuthoringError
+        ? error.code
+        : 'write_failed';
+      const recoveryPath = error instanceof TeamAuthoringError
+        ? error.recoveryPath
+        : undefined;
+      notification.error(
+        recoveryPath
+          ? t('teamAuthoring.messages.failedWithRecovery', {
+            error: errorMessage(code),
+            path: recoveryPath,
+          })
+          : errorMessage(code),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (managementCapability.status === 'unsupported') {
       notification.error(t('teamAuthoring.runtimeUnsupported'));
@@ -664,6 +811,265 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
         </button>
         <div className={`team-authoring__status${loadError ? ' is-error' : ''}`}>
           {loadError ? errorMessage(loadError) : t('teamAuthoring.loading')}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isEdit) {
+    const hasNoCompatibleScenario = selectedRosterAgents.length >= 2
+      && rosterDraftResult.draft.scenarioEligibility.length === 0;
+    const rosterIsEmpty = agentCatalogStatus !== 'loading'
+      && agentCatalogStatus !== 'error'
+      && rosterAgentOptions.length === 0;
+
+    return (
+      <div className="team-authoring team-authoring--roster">
+        <button type="button" className="team-authoring__back" onClick={openHome}>
+          <ArrowLeft size={14} />
+          {t('teamAuthoring.back')}
+        </button>
+        <div className="team-authoring__scroll">
+          <main className="team-roster" data-testid="team-roster-authoring">
+            <header className="team-roster__header">
+              <div className="team-roster__mark" aria-hidden="true">
+                <Users size={18} />
+              </div>
+              <div>
+                <h1>{t('teamAuthoring.roster.title')}</h1>
+                <p>{t('teamAuthoring.roster.subtitle')}</p>
+              </div>
+            </header>
+
+            <section className="team-roster__identity" aria-labelledby="team-roster-identity-title">
+              <h2 id="team-roster-identity-title">{t('teamAuthoring.roster.identity')}</h2>
+              <div className="team-roster__identity-fields">
+                <label>
+                  <span>{t('teamAuthoring.basics.displayName')}</span>
+                  <Input
+                    value={draft.displayName}
+                    onChange={event => updateDraft(
+                      { displayName: event.target.value },
+                      'displayName',
+                    )}
+                    placeholder={t('teamAuthoring.roster.namePlaceholder')}
+                    inputSize="small"
+                    error={Boolean(firstDiagnostic('displayName'))}
+                  />
+                </label>
+                <label>
+                  <span>{t('teamAuthoring.roster.goal')}</span>
+                  <Textarea
+                    value={draft.description}
+                    onChange={event => updateDraft(
+                      { description: event.target.value },
+                      'description',
+                    )}
+                    placeholder={t('teamAuthoring.roster.goalPlaceholder')}
+                    rows={2}
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="team-roster__lineup" aria-labelledby="team-roster-lineup-title">
+              <div className="team-roster__section-head">
+                <div>
+                  <h2 id="team-roster-lineup-title">{t('teamAuthoring.roster.lineup')}</h2>
+                  <p>{t('teamAuthoring.roster.lineupHint')}</p>
+                </div>
+                <span className="team-roster__count">
+                  {selectedRosterAgents.length}/12
+                </span>
+              </div>
+
+              {selectedRosterAgents.length === 0 ? (
+                <div className="team-roster__lineup-empty">
+                  <Users size={18} />
+                  <span>{t('teamAuthoring.roster.lineupEmpty')}</span>
+                </div>
+              ) : (
+                <div className="team-roster__slots">
+                  {selectedRosterAgents.map(agent => {
+                    const isLead = agent.id === rosterLeadAgentId;
+                    return (
+                      <article
+                        key={agent.id}
+                        className={`team-roster__slot${isLead ? ' is-lead' : ''}`}
+                      >
+                        <AgentAvatar
+                          identity={agent.id}
+                          name={agent.displayName}
+                          className="team-roster__avatar"
+                        />
+                        <div className="team-roster__slot-copy">
+                          <strong>{agent.displayName}</strong>
+                          <span>{isLead
+                            ? t('teamAuthoring.roster.lead')
+                            : t('teamAuthoring.roster.member')}</span>
+                        </div>
+                        {!isLead ? (
+                          <button
+                            type="button"
+                            className="team-roster__lead-action"
+                            onClick={() => setRosterLeadAgentId(agent.id)}
+                            aria-label={t('teamAuthoring.roster.makeLeadAria', {
+                              name: agent.displayName,
+                            })}
+                            title={t('teamAuthoring.members.makeLead')}
+                          >
+                            <Crown size={14} />
+                          </button>
+                        ) : (
+                          <Crown className="team-roster__lead-icon" size={14} aria-hidden="true" />
+                        )}
+                        <button
+                          type="button"
+                          className="team-roster__remove-action"
+                          onClick={() => toggleRosterAgent(agent.id)}
+                          aria-label={t('teamAuthoring.roster.removeAria', {
+                            name: agent.displayName,
+                          })}
+                        >
+                          <X size={14} />
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="team-roster__lineup-meta">
+                <span className={selectedRosterAgents.length >= 2 ? 'is-ready' : ''}>
+                  {selectedRosterAgents.length >= 2
+                    ? t('teamAuthoring.roster.ready')
+                    : t('teamAuthoring.roster.minimum')}
+                </span>
+                {rosterDraftResult.draft.scenarioEligibility.length > 0 ? (
+                  <div className="team-roster__scenarios" aria-label={t('teamAuthoring.roster.rooms')}>
+                    {rosterDraftResult.draft.scenarioEligibility.map(scenario => (
+                      <span key={scenario}>{t(`teamAuthoring.scenarios.${scenario}`)}</span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {hasNoCompatibleScenario ? (
+                <p className="team-roster__error" role="alert">
+                  {t('teamAuthoring.roster.noCommonRoom')}
+                </p>
+              ) : null}
+            </section>
+
+            <section className="team-roster__picker" aria-labelledby="team-roster-picker-title">
+              <div className="team-roster__section-head team-roster__section-head--picker">
+                <div>
+                  <h2 id="team-roster-picker-title">{t('teamAuthoring.roster.pickAgents')}</h2>
+                  <p>{t('teamAuthoring.roster.pickHint')}</p>
+                </div>
+                <label className="team-roster__search">
+                  <Search size={14} aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={rosterSearch}
+                    onChange={event => setRosterSearch(event.target.value)}
+                    placeholder={t('teamAuthoring.roster.searchPlaceholder')}
+                    aria-label={t('teamAuthoring.roster.searchLabel')}
+                  />
+                </label>
+              </div>
+
+              {agentCatalogStatus === 'loading' ? (
+                <div className="team-roster__catalog-state" aria-live="polite">
+                  {t('teamAuthoring.roster.loadingAgents')}
+                </div>
+              ) : agentCatalogStatus === 'error' ? (
+                <div className="team-roster__catalog-state is-error" role="alert">
+                  <p>{t('teamAuthoring.roster.loadFailed')}</p>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={() => setAgentCatalogRetryKey(value => value + 1)}
+                  >
+                    {t('teamAuthoring.roster.retry')}
+                  </Button>
+                </div>
+              ) : rosterIsEmpty ? (
+                <div className="team-roster__catalog-state">
+                  <p>{t('teamAuthoring.roster.emptyAgents')}</p>
+                  <Button variant="secondary" size="small" onClick={openCreateAgent}>
+                    <Plus size={14} />
+                    {t('teamAuthoring.roster.createAgentFirst')}
+                  </Button>
+                </div>
+              ) : visibleRosterAgentOptions.length === 0 ? (
+                <div className="team-roster__catalog-state">
+                  {t('teamAuthoring.roster.noSearchResult')}
+                </div>
+              ) : (
+                <div className="team-roster__agent-grid">
+                  {visibleRosterAgentOptions.map(agent => {
+                    const selected = selectedRosterAgentIds.includes(agent.id);
+                    const limitReached = !selected && selectedRosterAgentIds.length >= 12;
+                    return (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        className={`team-roster__agent${selected ? ' is-selected' : ''}`}
+                        aria-pressed={selected}
+                        disabled={limitReached}
+                        onClick={() => toggleRosterAgent(agent.id)}
+                      >
+                        <AgentAvatar
+                          identity={agent.id}
+                          name={agent.displayName}
+                          className="team-roster__avatar"
+                        />
+                        <span className="team-roster__agent-copy">
+                          <strong>{agent.displayName}</strong>
+                          <small>{agent.description || t('teamAuthoring.roster.customAgent')}</small>
+                        </span>
+                        <span className="team-roster__agent-check" aria-hidden="true">
+                          {selected ? <Check size={14} /> : <Plus size={14} />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <footer className="team-roster__footer">
+              <div className="team-roster__scope" aria-label={t('teamAuthoring.scope.title')}>
+                {(['user', 'project'] as TeamDefinitionLevel[]).map(nextLevel => (
+                  <button
+                    key={nextLevel}
+                    type="button"
+                    className={level === nextLevel ? 'is-active' : ''}
+                    disabled={
+                      (nextLevel === 'project' && (!hasWorkspace || isRemoteWorkspace))
+                      || (nextLevel === 'user' && rosterRequiresProjectScope)
+                    }
+                    onClick={() => setLevel(nextLevel)}
+                  >
+                    {t(`teamAuthoring.scope.${nextLevel}`)}
+                  </button>
+                ))}
+              </div>
+              <div className="team-roster__footer-actions">
+                <Button variant="secondary" size="small" onClick={openHome} disabled={submitting}>
+                  {t('teamAuthoring.actions.cancel')}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="small"
+                  onClick={() => void handleRosterSubmit()}
+                  disabled={submitting || agentCatalogStatus === 'loading'}
+                >
+                  {submitting ? '…' : t('teamAuthoring.actions.create')}
+                </Button>
+              </div>
+            </footer>
+          </main>
         </div>
       </div>
     );

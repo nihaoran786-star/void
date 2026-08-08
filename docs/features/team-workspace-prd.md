@@ -94,9 +94,12 @@ activates its lead through the same durable `prompt_orchestrated` contract as a
 compatible reusable Team. Incompatible definitions remain visible and fail
 closed.
 
-Teams may be created manually, assembled from a description or supplied
-material, edited, or installed from a bounded local package. All routes produce
-the same validated `TeamDefinition`.
+The primary Team authoring flow is a roster builder: the user names the Team,
+writes one concise goal, and selects existing user/project Agents. The first
+selected Agent becomes lead, and the user may switch the lead before saving.
+Advanced workflow editing and bounded package installation remain separate
+management paths. Every path still produces the same validated
+`TeamDefinition`.
 
 ## Domain model
 
@@ -213,8 +216,19 @@ Customization Center rather than a separate top-level product silo.
 It supports:
 
 - create a single expert or a team;
-- build a team manually or from supplied material;
-- choose a lead and add specialist members;
+- build a Team by selecting two to twelve existing, currently available custom
+  Agents; runtime modes are not silently substituted when the Agent catalog is
+  empty or unavailable;
+- make the first selection the default lead, switch the lead explicitly, and
+  prevent duplicate Agent references;
+- store source-qualified Agent IDs while showing localized names and stable
+  avatars;
+- derive the common conversation-scenario eligibility of the selected Agents;
+  a roster with no common room fails closed;
+- force project scope when any selected Agent is project-scoped so a user-level
+  Team cannot retain a dangling project Agent reference;
+- generate the default specialist-execution and lead-review workflow through
+  the Team authoring service rather than in the page component;
 - arrange serial, parallel, decision, and review phases;
 - assign Skills, tools, model policy, and permissions per role;
 - validate, version, duplicate, archive, export, and later install teams;
@@ -505,8 +519,8 @@ The Desktop/Tauri reusable-Team slice implements:
 - optimistic revision checks, serialized writes, atomic replacement and
   recovery, bounded package reads, read-only installed definitions, and
   per-record diagnostics instead of clearing a catalog when one file is bad;
-- Team Center cards, detail, three creation routes, edit, package selection,
-  installation, and deletion through Web Module Interfaces;
+- Team Center cards, detail, minimal roster-based creation, advanced edit,
+  package selection, installation, and deletion through Web Module Interfaces;
 - a fixed Deep Review catalog adapter plus a trusted, read-only AI Short Drama
   definition that reuses the durable Team runtime, fixed stage personas, and
   dedicated short-drama project runtime;

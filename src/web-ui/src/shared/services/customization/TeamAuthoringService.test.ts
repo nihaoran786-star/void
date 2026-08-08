@@ -5,6 +5,7 @@ import type {
 } from '@/infrastructure/config/types';
 import {
   createManualTeamDraft,
+  createTeamDraftFromRoster,
   createTeamDraftFromDescription,
   createTeamDraftFromMaterial,
 } from './TeamAuthoringService';
@@ -67,6 +68,121 @@ function validWorkflow(): TeamWorkflowDraft {
 }
 
 describe('TeamAuthoringService', () => {
+  it('把选中的已有智能体整理为唯一主理人与默认协作流程', () => {
+    const result = createTeamDraftFromRoster({
+      displayName: '游戏制作小队',
+      goal: '完成游戏玩法、视觉与交付复核。',
+      leadAgentId: 'user::void::producer',
+      selectedAgents: [
+        {
+          agentId: 'user::void::producer',
+          displayName: '游戏制作人',
+          description: '负责整体方向',
+          scenarioEligibility: ['code', 'media'],
+          isReadonly: false,
+        },
+        {
+          agentId: 'project::void::developer',
+          displayName: '玩法开发',
+          description: '负责玩法实现',
+          scenarioEligibility: ['code'],
+          isReadonly: false,
+        },
+        {
+          agentId: 'user::void::reviewer',
+          displayName: '质量审核',
+          description: '负责交付审核',
+          scenarioEligibility: ['code', 'cowork'],
+          isReadonly: true,
+        },
+      ],
+      template: { defaultCategory: '智能体团队' },
+    });
+
+    expect(result.isValid).toBe(true);
+    expect(result.draft.scenarioEligibility).toEqual(['code']);
+    expect(result.draft.members.map(member => member.agentId)).toEqual([
+      'user::void::producer',
+      'project::void::developer',
+      'user::void::reviewer',
+    ]);
+    expect(result.draft.members.filter(member => member.role === 'lead'))
+      .toEqual([expect.objectContaining({ agentId: 'user::void::producer' })]);
+    expect(result.draft.workflows[0]?.phases).toEqual([
+      expect.objectContaining({
+        kind: 'parallel',
+        assignedMemberKeys: ['member-2', 'member-3'],
+      }),
+      expect.objectContaining({
+        kind: 'review',
+        assignedMemberKeys: ['member-1'],
+        dependsOnPhaseKeys: ['specialist-work'],
+      }),
+    ]);
+  });
+
+  it('去重智能体引用，并在切换主理人时重建复核阶段引用', () => {
+    const duplicateAgent = {
+      agentId: 'user::void::writer',
+      displayName: '剧情编剧',
+      description: '负责剧情',
+      scenarioEligibility: ['media'] as const,
+      isReadonly: false,
+    };
+    const result = createTeamDraftFromRoster({
+      displayName: '短剧小队',
+      goal: '交付一版可拍摄短剧。',
+      leadAgentId: 'user::void::director',
+      selectedAgents: [
+        duplicateAgent,
+        duplicateAgent,
+        {
+          agentId: 'user::void::director',
+          displayName: '短剧导演',
+          description: '负责统筹',
+          scenarioEligibility: ['media'],
+          isReadonly: false,
+        },
+      ],
+    });
+
+    expect(result.isValid).toBe(true);
+    expect(result.draft.members).toHaveLength(2);
+    expect(result.draft.leadMemberKey).toBe('member-2');
+    expect(result.draft.workflows[0]?.phases[1]?.assignedMemberKeys)
+      .toEqual(['member-2']);
+  });
+
+  it('没有共同可用房间时拒绝生成可保存团队', () => {
+    const result = createTeamDraftFromRoster({
+      displayName: '不兼容团队',
+      goal: '尝试跨房间协作。',
+      leadAgentId: 'user::void::coder',
+      selectedAgents: [
+        {
+          agentId: 'user::void::coder',
+          displayName: '代码智能体',
+          description: '',
+          scenarioEligibility: ['code'],
+          isReadonly: false,
+        },
+        {
+          agentId: 'user::void::artist',
+          displayName: '设计智能体',
+          description: '',
+          scenarioEligibility: ['media'],
+          isReadonly: false,
+        },
+      ],
+    });
+
+    expect(result.isValid).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'scenario_required',
+      field: 'scenarioEligibility',
+    }));
+  });
+
   it('把自然语言入口整理为含主理人、专家和显式工作流的 canonical draft', () => {
     const result = createTeamDraftFromDescription({
       displayName: '软件交付团队',
