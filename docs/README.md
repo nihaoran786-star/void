@@ -26,11 +26,11 @@ automatically the current source of truth.
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
   responsive layout, accessibility, full-window evidence, and performance
-- [Porcelain Graphite design system](design/porcelain-graphite-design-system.md)
-  — selected density and interaction direction; the current slice preserves
-  theme tone and targets collapsed navigation, chat, tool calls, user messages,
-  and the composer
-- [Porcelain Graphite navigation/chat execution prompt](handoffs/porcelain-graphite-nav-chat-prompt.md)
+- [Porcelain Air design system](design/porcelain-graphite-design-system.md)
+  — selected light, friendly productivity direction; the current slice keeps
+  the token architecture, permits scoped semantic-color correction, and targets
+  collapsed navigation, chat, tool calls, user messages, and the composer
+- [Porcelain Air navigation/chat execution prompt](handoffs/porcelain-graphite-nav-chat-prompt.md)
   — self-contained prompt for a fresh AI to implement only the approved first
   slice without relying on this conversation
 - [Web UI performance boundaries](architecture/web-ui-performance-boundaries.md)

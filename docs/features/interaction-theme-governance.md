@@ -8,13 +8,15 @@ orchestration, media routing, or session lifecycle.
 
 Updated: 2026-08-08
 
-Selected direction: **Porcelain Graphite / 瓷灰编辑台**. Its concrete
+Selected direction: **Porcelain Air / 瓷白轻盈工作台**. Its concrete
 typography, borders, components, shell rules, and migration contract are
 defined in
-[Porcelain Graphite Design System](../design/porcelain-graphite-design-system.md).
-The current authorized slice preserves the existing theme tone and focuses on
-collapsed navigation, chat information flow, tool calls, user messages, and the
-composer. Palette and broader Canvas/catalog migration remain deferred.
+[Porcelain Air Design System](../design/porcelain-graphite-design-system.md).
+The current authorized slice keeps the existing token architecture while
+allowing its owned light-theme semantic values to move toward the selected
+warm, airy tone. It focuses on collapsed navigation, chat information flow,
+tool calls, user messages, and the composer. Broader Canvas/catalog migration
+remains deferred.
 
 ## Goal
 
@@ -95,6 +97,8 @@ Rules:
 
 Theme values flow from shared semantic tokens into feature-owned presentation
 styles. Feature CSS may compose tokens but must not invent a parallel palette.
+The existing token pipeline is a technical contract; its current concrete
+light values are not a visual contract when they conflict with Porcelain Air.
 
 Required token groups:
 
@@ -110,6 +114,8 @@ Governance rules:
 - no raw product color when a semantic token exists;
 - no gradient, blur, decorative shadow, lift, scale, or looping motion unless a
   current specification explicitly owns it;
+- no serious-enterprise fallback made from cold gray panels, heavy separators,
+  repeated semibold labels, or large high-contrast controls;
 - a state may not rely on color alone;
 - Chinese and English text must fit the same component contract without font
   scaling hacks or hidden overflow;

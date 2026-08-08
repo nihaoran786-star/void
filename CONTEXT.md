@@ -169,6 +169,14 @@ It covers interaction consistency, theme tokens, responsive layout,
 accessibility, full-window evidence, and presentation performance without
 authorizing runtime or domain changes.
 
+The selected visual direction is **Porcelain Air / 瓷白轻盈工作台**. The
+reference image is authoritative for warmth, openness, hierarchy, whitespace,
+edge softness, and interaction quietness. The current navigation/chat slice
+keeps the existing token architecture but may correct the concrete light-theme
+semantic values it owns; preserving a cold or severe existing value is not a
+design goal. Enterprise-admin, finance-console, dense-IDE, and gray-card-wall
+results fail visual acceptance even when functional checks pass.
+
 ## Architecture map
 
 The main dependency direction is:

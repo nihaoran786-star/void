@@ -1,4 +1,4 @@
-# Porcelain Graphite Design System
+# Porcelain Air Design System
 
 Status: selected visual direction and current execution specification for the
 next Void presentation-quality phase. This document refines, but does not
@@ -7,28 +7,56 @@ replace, the architecture and safety boundaries in
 
 Selected: 2026-08-08
 
+Direction corrected: 2026-08-08. The legacy filename is retained so existing
+handoffs and inbound links do not break.
+
 Visual target:
-`C:\Users\17949\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec-4b53f3a0-dd4d-4165-a1a0-ff4c4f11f053.png`
+`%USERPROFILE%\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec-4b53f3a0-dd4d-4165-a1a0-ff4c4f11f053.png`
 
 ## 1. Direction
 
-**Porcelain Graphite / 瓷灰编辑台** is a compact, professional density and
-interaction system. The current implementation keeps Void's existing theme
-tone and applies this direction first to hierarchy, typography, borders,
-spacing, navigation, conversation, tool activity, and the composer. It should
-feel precise and calm rather than empty, decorative, or card-heavy.
+**Porcelain Air / 瓷白轻盈工作台** is a soft productivity-minimalism system.
+It applies the visual target's warmth, openness, quiet confidence, and friendly
+editorial rhythm to Void without weakening its professional capability. It
+must feel like an approachable creative workspace, not an enterprise admin
+console, financial control panel, or monochrome developer tool.
+
+The existing theme architecture remains authoritative. Existing concrete
+colors do not. The current implementation may tune the semantic colors used by
+the authorized surfaces when that is required to reach the selected visual
+tone. Changes still flow through the existing token owners and must not become
+page-local overrides or an unrelated application-wide reskin.
 
 The memorable qualities are:
 
-- cool porcelain surfaces instead of pure white;
-- graphite text instead of pure black;
-- one restrained cobalt accent for focus, selection, and the primary action;
-- thin separators, small radii, compact type, and exact alignment;
+- warm porcelain surfaces instead of pure white or cold blue-gray panels;
+- soft graphite text instead of pure black or washed-out gray;
+- small functional pastel accents for orientation, with calm blue reserved for
+  focus, selection, and the primary action;
+- hairline separators, gentle radii, compact type, exact alignment, and visible
+  breathing room;
 - a continuous working transcript instead of a stack of chat bubbles;
-- one quiet shell shared by sibling Canvas pages and an optional Team panel.
+- one quiet, open shell shared by sibling Canvas pages and an optional Team
+  panel.
 
 This is not permission to copy generated text, invented nodes, or mock data
-from the visual target. The image defines visual hierarchy and density only.
+from the visual target. The image is authoritative for emotional tone, color
+relationships, density, hierarchy, whitespace, edge softness, and interaction
+quietness.
+
+### Mood guardrails
+
+The direction passes only when a full-window screenshot feels light, calm,
+friendly, capable, and easy to enter. It fails when it resembles:
+
+- a serious enterprise administration system;
+- a dense IDE, operations console, or financial dashboard;
+- a gray card wall with heavy borders and repeated section chrome;
+- a toy-like pastel app whose decoration competes with the work.
+
+Minimal does not mean cold or empty. Professional does not mean severe. Use
+warmth, whitespace, typography, tiny functional color cues, and progressive
+disclosure to make capability feel approachable.
 
 Current authorized implementation slice:
 
@@ -37,9 +65,10 @@ Current authorized implementation slice:
 3. the composer and its contextual controls;
 4. focused token reuse and governance needed by those surfaces.
 
-Global palette replacement, Canvas/Browser redesign, Team Workspace redesign,
-catalog restyling, Settings restyling, and broad component migration are future
-work and are not authorized by this slice.
+Unrelated Canvas/Browser redesign, Team Workspace redesign, catalog restyling,
+Settings restyling, and broad component migration remain future work. The
+authorized surfaces may update the shared semantic tokens they genuinely own;
+they may not recolor unrelated surfaces by accident.
 
 ## 2. Existing ownership
 
@@ -63,34 +92,36 @@ one giant global override, a page-local palette, or a second component library.
 
 ## 3. Color tokens
 
-The values below describe an optional future light preset and help explain the
-selected image. They are **not** a requirement for the current navigation/chat
-slice. Current theme colors remain authoritative. The current slice reuses the
-existing semantic tokens and may only fix undefined variables, raw duplicates,
-or incorrect semantic mappings inside touched surfaces.
+The values below define the active light-direction targets for the authorized
+navigation/chat slice. They must be introduced through the existing primitive
+and semantic token pipeline. An implementation may map to an existing token
+when it already produces the intended result, but it must not preserve a cold,
+severe value merely because that value predates this specification. Dark and
+Classic compatibility remain protected rollback paths.
 
 ### 3.1 Primitive palette
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `porcelain-0` | `#FCFDFE` | raised controls and menus |
-| `porcelain-25` | `#F8FAFC` | main Canvas and conversation |
-| `porcelain-50` | `#F3F6F8` | panels and grouped regions |
-| `porcelain-100` | `#E9EEF2` | selected-neutral and hover |
-| `porcelain-200` | `#D9E0E6` | base border |
-| `porcelain-300` | `#C4CED6` | strong border |
-| `graphite-500` | `#66727D` | metadata and secondary text |
-| `graphite-700` | `#3E4851` | secondary body text |
-| `graphite-900` | `#1B2127` | primary text and icons |
+| `porcelain-0` | `#FFFDFC` | raised controls and menus |
+| `porcelain-25` | `#FBFAF8` | main Canvas and conversation |
+| `porcelain-50` | `#F6F4F1` | panels and grouped regions |
+| `porcelain-100` | `#EFEEEB` | selected-neutral and hover |
+| `porcelain-200` | `#E2E0DC` | base border |
+| `porcelain-300` | `#D1CEC8` | strong border |
+| `graphite-500` | `#737771` | metadata and secondary text |
+| `graphite-700` | `#4D514C` | secondary body text |
+| `graphite-900` | `#20231F` | primary text and icons |
 | `cobalt-50` | `#EEF5FF` | selected background |
 | `cobalt-100` | `#DCEAFF` | active hover background |
 | `cobalt-300` | `#8DB7FF` | decorative selection handles |
 | `cobalt-500` | `#4C86F7` | focus, selection, primary action |
 | `cobalt-600` | `#2F6FE4` | primary hover/active |
 | `cobalt-700` | `#2559B8` | high-contrast accent text |
-| `sage-500` | `#3C9B72` | success and online |
-| `amber-500` | `#B77A27` | warning and waiting |
-| `red-500` | `#BF5757` | error and destructive |
+| `sage-500` | `#479A73` | success, online, mint icon cue |
+| `amber-500` | `#C38A32` | warning, waiting, amber icon cue |
+| `lilac-500` | `#826AC2` | collaboration or creative icon cue |
+| `red-500` | `#B95757` | error and destructive |
 
 ### 3.2 Semantic surfaces
 
@@ -101,7 +132,7 @@ or incorrect semantic mappings inside touched surfaces.
 | `--workspace-surface-raised` | `porcelain-0` |
 | `--workspace-surface-hover` | `porcelain-100` |
 | `--workspace-surface-active` | `cobalt-50` |
-| `--workspace-surface-scrim` | `rgba(27, 33, 39, 0.28)` |
+| `--workspace-surface-scrim` | `rgba(32, 35, 31, 0.24)` |
 | `--workspace-text-primary` | `graphite-900` |
 | `--workspace-text-secondary` | `graphite-700` |
 | `--workspace-text-muted` | `graphite-500` |
@@ -115,14 +146,15 @@ must include an icon, label, or shape and may not rely on color alone.
 
 ### 3.3 Status tokens
 
-Each status has text, background, and border tokens:
+Each status has text, background, and border tokens. Functional pastels are
+small orientation cues, not large decorative surfaces:
 
 | Status | Text | Background | Border |
 | --- | --- | --- | --- |
-| success | `#287A57` | `#EAF7F0` | `#B9E3CE` |
+| success | `#287A57` | `#EDF8F2` | `#C3E6D2` |
 | info | `#2559B8` | `#EEF5FF` | `#C9DCFF` |
-| warning | `#8B5A1D` | `#FFF6E8` | `#E8CCA2` |
-| error | `#993F3F` | `#FFF0F0` | `#E8BBBB` |
+| warning | `#85591F` | `#FFF7EA` | `#EBD3AA` |
+| error | `#923F3F` | `#FFF2F1` | `#E9C2C0` |
 
 ## 4. Typography
 
@@ -148,6 +180,8 @@ Rules:
 
 - most desktop UI uses 12–13px; long AI output remains 14px;
 - never shrink meaningful text below 12px;
+- favor regular and medium weights; repeated semibold labels make the product
+  feel like a management console;
 - never use a large title when the active tab or breadcrumb already names the
   page;
 - a description is normally one line and never more than two lines in a
@@ -170,7 +204,9 @@ Use the existing four-pixel rhythm:
 | space-8 | 32px | sparse empty-state separation |
 
 Avoid padding every element with 16px. Rows use 8–12px; panels use 12–16px;
-only major composition boundaries use 24–32px.
+only major composition boundaries use 24–32px. Compact controls must be
+surrounded by enough negative space that the workspace feels airy rather than
+compressed.
 
 ## 6. Border, radius, shadow, and motion
 
@@ -178,9 +214,9 @@ only major composition boundaries use 24–32px.
 
 | Role | Definition |
 | --- | --- |
-| subtle divider | `1px solid #E9EEF2` |
-| base control | `1px solid #D9E0E6` |
-| strong/hover | `1px solid #C4CED6` |
+| subtle divider | `1px solid #ECEAE6` |
+| base control | `1px solid #E2E0DC` |
+| strong/hover | `1px solid #D1CEC8` |
 | selected | `1px solid #4C86F7` |
 | focus | `2px solid #4C86F7`, 2px offset where possible |
 
@@ -206,8 +242,8 @@ Normal buttons, filters, search, inputs, tabs, and cards are not pills.
 | Role | Value |
 | --- | --- |
 | normal content | `none` |
-| floating toolbar/menu | `0 2px 8px rgba(27, 33, 39, 0.08)` |
-| modal/drawer | `0 10px 28px rgba(27, 33, 39, 0.12)` |
+| floating toolbar/menu | `0 2px 10px rgba(32, 35, 31, 0.07)` |
+| modal/drawer | `0 12px 30px rgba(32, 35, 31, 0.11)` |
 
 No glow, glass, backdrop blur, inset highlight, or decorative elevation.
 
@@ -229,19 +265,23 @@ No glow, glass, backdrop blur, inset highlight, or decorative elevation.
 - default stroke should read as approximately 1.5px;
 - desktop icon target: 30–32px; coarse pointer target: at least 40px;
 - collapsed navigation always provides tooltip and accessible name;
-- use a filled or tinted background only for the active destination.
+- use a filled or tinted background for the active destination;
+- small blue, mint, amber, and lilac icon tiles may distinguish meaningful
+  object types or workflow roles. They must stay pale, compact, and consistent,
+  never become decorative badges on every row.
 
 ## 8. Component language
 
 ### 8.1 Buttons
 
 - heights: 28px compact, 32px standard, 36px emphasized;
-- one solid cobalt primary action per region;
+- one calm blue primary action per region;
 - secondary button: raised surface + base border;
 - tertiary button: text/icon only;
 - destructive button remains neutral until confirmation context, then uses the
   semantic error treatment;
-- no gradient, lift, glow, or universal rounded capsule.
+- no gradient, lift, glow, severe black button treatment, or universal rounded
+  capsule.
 
 ### 8.2 Inputs and search
 
@@ -311,6 +351,8 @@ The main conversation becomes a continuous working transcript.
 
 - AI output renders directly on the base surface without a bubble;
 - user messages use one quiet `porcelain-100` quote block or compact surface;
+- AI and user content should feel editorial and conversational, not like a
+  ticketing system or operator log;
 - author/time metadata is shown only where it helps orientation;
 - tool activity is a compact, keyboard-expandable status row;
 - cards remain only for files, media, snapshots, approvals, significant tasks,
@@ -412,7 +454,7 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 ### Deferred full-system roadmap
 
 1. Inventory current primitive, semantic, component, and page-local values.
-2. Add failing governance tests for the selected Porcelain Graphite contract.
+2. Add failing governance tests for the selected Porcelain Air contract.
 3. Map light primitive and `--workspace-*` semantic tokens through existing
    owners; do not delete dark/Classic compatibility yet.
 4. Migrate the desktop shell, collapsed/expanded navigation, typography, basic
@@ -426,10 +468,11 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 8. Remove only proven dead presentation aliases after every consumer has moved
    and repository/theme/i18n/full-Web gates pass.
 
-The first implementation target is the existing Minimal tone on the three
-authorized surfaces. Existing theme values and Classic remain rollback paths.
-The optional porcelain palette must not be introduced until the user separately
-approves a palette migration.
+The first implementation target is the Porcelain Air tone on the three
+authorized surfaces. Existing semantic-token architecture and Classic remain
+rollback paths; existing light-theme values are not a visual acceptance target.
+The authorized slice may introduce the specified porcelain targets through
+existing owners, while unrelated surfaces wait for their own reviewed slice.
 
 ## 16. Verification
 
@@ -455,6 +498,7 @@ baseline gaps remain governed by the current repository audit.
 ## 17. Fresh-agent execution prompt
 
 The only current self-contained execution prompt is
-[Porcelain Graphite Navigation And Chat Execution Prompt](../handoffs/porcelain-graphite-nav-chat-prompt.md).
-It preserves the existing theme tone and limits implementation to collapsed
-navigation, AI/user message flow, tool-call presentation, and the composer.
+[Porcelain Air Navigation And Chat Execution Prompt](../handoffs/porcelain-graphite-nav-chat-prompt.md).
+It applies the selected light, friendly tone while limiting implementation to
+collapsed navigation, AI/user message flow, tool-call presentation, and the
+composer.

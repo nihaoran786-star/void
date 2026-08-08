@@ -1,12 +1,12 @@
-# Porcelain Graphite Navigation And Chat Execution Prompt
+# Porcelain Air Navigation And Chat Execution Prompt
 
 Copy everything inside the following code block into a new AI conversation.
 
 ```text
-你正在维护 Windows 本地仓库 D:\codex\void-source。
+你正在维护当前打开的 Void Windows 本地仓库。以下路径均相对于仓库根目录。
 
-任务目标：在保留 Void 当前主题色调的前提下，把“Porcelain Graphite / 瓷灰
-编辑台”的紧凑、低噪音设计语言应用到三个范围：
+任务目标：把“Porcelain Air / 瓷白轻盈工作台”的轻盈、亲和、安静、低噪音
+设计语言应用到三个范围：
 
 1. 左侧导航栏的展开与 48px 极简折叠形态；
 2. AI 回复、用户消息和工具调用的信息流；
@@ -21,22 +21,28 @@ Browser、Infinite Canvas、Team Workspace、欢迎页、智能体市场、技�
 
 开始前完整阅读：
 
-1. D:\codex\void-source\AGENTS.md
-2. D:\codex\void-source\CONTEXT.md
-3. D:\codex\void-source\docs\README.md
-4. D:\codex\void-source\docs\features\interaction-theme-governance.md
-5. D:\codex\void-source\docs\design\porcelain-graphite-design-system.md
-6. D:\codex\void-source\docs\features\customization-center-prd.md
-7. D:\codex\void-source\docs\features\team-workspace-prd.md
-8. D:\codex\void-source\docs\architecture\frontend-minimal-workspace-migration.md
+1. AGENTS.md
+2. CONTEXT.md
+3. docs\README.md
+4. docs\features\interaction-theme-governance.md
+5. docs\design\porcelain-graphite-design-system.md
+6. docs\features\customization-center-prd.md
+7. docs\features\team-workspace-prd.md
+8. docs\architecture\frontend-minimal-workspace-migration.md
 
 选定视觉参考：
-C:\Users\17949\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec-4b53f3a0-dd4d-4165-a1a0-ff4c4f11f053.png
+%USERPROFILE%\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec-4b53f3a0-dd4d-4165-a1a0-ff4c4f11f053.png
 
-视觉参考只规定密度、层级、排版、边框和交互语言，不规定必须替换为它的瓷白/
-钴蓝配色。继续使用当前主题与现有 --workspace-* 语义颜色。不要进行全局换色。
-设计系统文档中的“可选未来浅色调色板”和“延后的全系统路线图”只作未来参考，
-本轮不得实施。
+视觉参考对情绪、色彩关系、密度、层级、留白、边缘柔和度和交互安静程度具有
+最高视觉优先级。不要复制图中的假数据，但最终结果必须具有相同的轻盈工作台
+气质。保留现有 Token 架构、主题服务和 --workspace-* 语义颜色管道，不强制
+保留当前具体颜色值。本轮允许通过既有 owner 调整上述三个范围真正使用的浅色
+语义 Token；不得通过页面局部硬编码换色，也不得误伤未授权页面、Dark 或
+Classic 回滚路径。
+
+视觉反目标：严肃企业后台、财务/运维控制台、密集 IDE、黑白灰卡片墙、沉重
+分区和大面积高对比按钮。若完整窗口截图呈现以上任一气质，即使代码和测试通过，
+视觉验收仍然失败。
 
 第一步必须只读审查并报告，不要立即写 CSS：
 
@@ -69,12 +75,15 @@ C:\Users\17949\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec
 
 设计规则：
 
-- 当前主题颜色保持不变；只修复触及范围内的未定义 Token、原始颜色重复和
-  错误语义映射；
+- 现有 Token 所有权和语义保持不变；允许把触及范围内偏冷、偏重、偏严肃的
+  具体映射校正为设计系统规定的暖瓷白、柔和石墨和少量功能色；
+- 保留暗色和 Classic 兼容性，不在页面内复制一套浅色调色板；
 - 大部分桌面 UI 使用现有 12–13px Token，AI 长正文保持 14px 和舒适行高；
 - 正常分隔使用 1px 语义边框；控件约 6px 圆角，面板/输入框约 8px；
 - 正常内容无阴影；菜单/弹层只用既有轻量语义阴影；
 - 通过排版、间距、对齐和轻分隔建立层级，不通过更多容器建立层级；
+- 专业感来自秩序和能力，不来自粗字、深灰、厚边框或管理后台式分区；
+- 小面积蓝、薄荷、琥珀和淡紫可用于功能类型与状态识别，不得扩张成装饰色块；
 - hover 只改变语义背景/边框/文字；focus-visible 必须清楚且不能只靠颜色；
 - 动画只使用 opacity/transform，支持 prefers-reduced-motion。
 
@@ -155,6 +164,17 @@ Slice 5：跨场景回归、性能、主题/i18n、完整视觉证据、文档�
    Workspace 时没有频闪、堵塞、输入丢失和无关重渲染；
 7. 只有门禁通过后才做干净的本地提交，不混入版本生成文件和测试产物。
 
+每个视觉 Slice 还必须按 100 分自评并留下依据：
+
+- 轻盈、温暖、亲和的整体气质：30 分；
+- 留白、层级和低容器化：25 分；
+- AI/用户/工具信息流的自然程度：20 分；
+- 48px 左栏的极简与可发现性：15 分；
+- 状态、键盘、缩放和响应式完整性：10 分。
+
+低于 85 分不得提交。只要仍明显像企业后台、IDE 或灰色管理系统，第一项不得
+超过 10 分，必须继续调整。
+
 适用门禁按风险逐步扩大：
 
 pnpm run check:repo-hygiene
@@ -172,6 +192,6 @@ pnpm run build:web
 描述成本轮通过。某项无法完成时，明确说明原因、替代验证和剩余风险。
 
 先完成 Slice 0 并报告真实盘点和切片计划，然后在架构边界清晰的情况下持续
-执行其余 Slice。遇到需要改变运行时、产品逻辑、依赖、数据、现有主题色调或
+执行其余 Slice。遇到需要改变运行时、产品逻辑、依赖、数据、未授权页面色调或
 用户已有改动时必须暂停并请求确认。
 ```
