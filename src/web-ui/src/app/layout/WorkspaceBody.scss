@@ -115,9 +115,9 @@ $_nav-collapsed-width: 48px;
 }
 
 // Keep the layout state change immediate for scroll/session stability, then
-// visually bridge the old and new compositions on the compositor. A short
-// scene nudge and quiet content fade soften the layout cut without allowing
-// either column to cross behind the other or animating width/height.
+// visually bridge the old and new compositions on the compositor. Keep both
+// surfaces fully opaque while a short translate bridges the layout cut, so the
+// porcelain background never flashes through during expansion or collapse.
 .void-ui--minimal .void-workspace-body.is-nav-collapsing {
   .void-workspace-body__nav-area.is-collapsed
     > :is(.void-nav-bar, .void-nav-panel) {
@@ -206,45 +206,37 @@ $_nav-collapsed-width: 48px;
 
 @keyframes wb-nav-rail-collapse-in {
   from {
-    opacity: 0.84;
-    transform: translateX(-4px);
+    transform: translate3d(-4px, 0, 0);
   }
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes wb-nav-panel-expand-in {
   from {
-    opacity: 0.86;
-    transform: translateX(-6px);
+    transform: translate3d(-6px, 0, 0);
   }
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes wb-scene-after-collapse {
   from {
-    opacity: 0.97;
-    transform: translateX(12px);
+    transform: translate3d(12px, 0, 0);
   }
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes wb-scene-after-expand {
   from {
-    opacity: 0.97;
-    transform: translateX(-12px);
+    transform: translate3d(-12px, 0, 0);
   }
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 

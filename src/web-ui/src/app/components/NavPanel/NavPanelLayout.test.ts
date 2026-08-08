@@ -162,8 +162,11 @@ describe('NavPanel layout styles', () => {
     expect(stylesheet).toContain('animation: wb-nav-panel-expand-in 180ms');
     expect(stylesheet).toContain('animation: wb-scene-after-collapse 180ms');
     expect(stylesheet).toContain('animation: wb-scene-after-expand 180ms');
-    expect(stylesheet).toContain('transform: translateX(12px);');
-    expect(stylesheet).toContain('transform: translateX(-12px);');
+    expect(stylesheet).toContain('transform: translate3d(12px, 0, 0);');
+    expect(stylesheet).toContain('transform: translate3d(-12px, 0, 0);');
+    expect(stylesheet).not.toContain('opacity: 0.84;');
+    expect(stylesheet).not.toContain('opacity: 0.86;');
+    expect(stylesheet).not.toContain('opacity: 0.97;');
     expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
     expect(stylesheet).not.toContain('transition: width');
     expect(stylesheet).not.toContain('animation: wb-nav-width');
