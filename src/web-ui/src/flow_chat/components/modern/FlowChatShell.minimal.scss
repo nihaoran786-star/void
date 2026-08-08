@@ -28,7 +28,52 @@
 
     .model-round-item {
       padding-inline: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       animation: none;
+
+      .flow-text-block:not(.flow-text-block--runtime-status),
+      .flow-text-block:not(.flow-text-block--runtime-status)
+        .markdown-renderer,
+      .flow-text-block:not(.flow-text-block--runtime-status) .text-content {
+        font-size: var(--workspace-font-size-body);
+        line-height: var(--workspace-line-height-body);
+      }
+
+      .flow-text-block:not(.flow-text-block--runtime-status)
+        .markdown-renderer {
+        --markdown-font-size: var(--workspace-font-size-body);
+        --markdown-line-height: var(--workspace-line-height-body);
+      }
+
+      .flow-text-block--runtime-status {
+        font-size: var(--workspace-font-size-control);
+        line-height: var(--workspace-line-height-control);
+      }
+
+      .flow-text-block:not(.flow-text-block--runtime-status)
+        .markdown-renderer
+        .code-block-wrapper
+        pre[class*='language-'],
+      .flow-text-block:not(.flow-text-block--runtime-status)
+        .markdown-renderer
+        .code-block-wrapper
+        pre
+        code,
+      .flow-text-block:not(.flow-text-block--runtime-status)
+        .markdown-renderer
+        pre
+        code {
+        font-size: var(--flowchat-font-size-sm) !important;
+      }
+
+      .flow-text-block:not(.flow-text-block--runtime-status)
+        .markdown-renderer
+        .table-wrapper
+        table {
+        font-size: var(--flowchat-font-size-sm);
+      }
     }
 
     .user-message-item {
@@ -60,6 +105,42 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 100ms ease;
+    }
+
+    .model-round-item__action-btn {
+      transition:
+        color 100ms ease,
+        background 100ms ease,
+        opacity 100ms ease;
+    }
+
+    .model-round-item__action-btn:hover {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-hover);
+      transform: none;
+    }
+
+    .model-round-item__action-btn:active {
+      transform: none;
+    }
+
+    .model-round-item
+      .flow-text-block
+      .markdown-renderer
+      .code-block-wrapper
+      .copy-button {
+      transition:
+        color 100ms ease,
+        background 100ms ease,
+        opacity 100ms ease;
+    }
+
+    .model-round-item
+      .flow-text-block
+      .markdown-renderer
+      .code-block-wrapper
+      .copy-button:is(:hover, :active) {
+      transform: none;
     }
 
     .user-message-item:hover .user-message-item__actions,

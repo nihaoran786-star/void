@@ -100,6 +100,48 @@ describe('FlowChat minimal presentation contract', () => {
     );
   });
 
+  it('gives model prose the governed body scale without inflating support or rich data', () => {
+    expect(shellMinimalSource).toContain('--flowchat-font-size-base: 13px;');
+    expect(shellMinimalSource).toMatch(
+      /\.model-round-item[\s\S]*?\.flow-text-block:not\(\.flow-text-block--runtime-status\)[\s\S]*?font-size: var\(--workspace-font-size-body\);[\s\S]*?line-height: var\(--workspace-line-height-body\);/,
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.flow-text-block:not\(\.flow-text-block--runtime-status\)[\s\S]*?\.markdown-renderer \{[\s\S]*?--markdown-font-size: var\(--workspace-font-size-body\);[\s\S]*?--markdown-line-height: var\(--workspace-line-height-body\);/,
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.flow-text-block--runtime-status \{[\s\S]*?font-size: var\(--workspace-font-size-control\);[\s\S]*?line-height: var\(--workspace-line-height-control\);/,
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.markdown-renderer[\s\S]*?\.code-block-wrapper[\s\S]*?pre\[class\*='language-'\]/,
+    );
+    expect(shellMinimalSource).toContain(
+      'font-size: var(--flowchat-font-size-sm) !important;',
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.markdown-renderer[\s\S]*?\.table-wrapper[\s\S]*?table \{[\s\S]*?font-size: var\(--flowchat-font-size-sm\);/,
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.model-round-item \{[\s\S]*?border: 0;[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;/,
+    );
+  });
+
+  it('removes broad and scale transitions from minimal message controls', () => {
+    expect(shellMinimalSource).toMatch(
+      /\.model-round-item__action-btn \{[\s\S]*?transition:[\s\S]*?color 100ms ease,[\s\S]*?background 100ms ease,[\s\S]*?opacity 100ms ease;/,
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.model-round-item__action-btn:active \{[\s\S]*?transform: none;/,
+    );
+    expect(shellMinimalSource).toMatch(
+      /\.code-block-wrapper[\s\S]*?\.copy-button:is\(:hover, :active\)[\s\S]*?transform: none;/,
+    );
+    expect(userMessageMinimalSource).toMatch(
+      /\.user-message-item__content \{[\s\S]*?transition: color 100ms ease;/,
+    );
+    expect(shellMinimalSource).not.toContain('transition: all');
+    expect(userMessageMinimalSource).not.toContain('transition: all');
+  });
+
   it('aligns the composer to the same readable width with one bounded two-level layout', () => {
     expect(inputMinimalSource).toMatch(
       /\.void-ui--minimal \.void-chat-input-drop-zone \{[\s\S]*?bottom: var\(--workspace-space-2\);[\s\S]*?max-width: 760px;[\s\S]*?padding-inline: var\(--workspace-space-2\);/,
@@ -143,10 +185,22 @@ describe('FlowChat minimal presentation contract', () => {
     expect(presentationSource).toContain('@include chat-input-workspace-strip.styles;');
   });
 
-  it('projects user messages as compact right-aligned bubbles without hiding rich content', () => {
+  it('projects successful user messages as compact right-aligned quote surfaces without hiding rich content', () => {
     expect(userMessageMinimalSource).toContain('width: fit-content;');
     expect(userMessageMinimalSource).toContain(
-      'max-width: min(620px, calc(100% - 32px));',
+      'max-width: min(560px, calc(100% - 32px));',
+    );
+    expect(userMessageMinimalSource).toContain(
+      'padding: var(--workspace-space-1) var(--workspace-space-2);',
+    );
+    expect(userMessageMinimalSource).toContain(
+      'border-left: 2px solid var(--workspace-border-strong);',
+    );
+    expect(userMessageMinimalSource).toContain(
+      'border-radius: var(--workspace-radius-control);',
+    );
+    expect(userMessageMinimalSource).toContain(
+      'background: var(--workspace-surface-panel);',
     );
     expect(userMessageMinimalSource).toMatch(
       /\.user-message-item__actions \{[\s\S]*?position: absolute;[\s\S]*?right: 100%;/,
@@ -156,6 +210,12 @@ describe('FlowChat minimal presentation contract', () => {
     );
     expect(userMessageMinimalSource).toContain(
       'margin-bottom: calc(var(--flowchat-turn-gap) + 30px);',
+    );
+    expect(userMessageMinimalSource).toMatch(
+      /@media \(max-width: 768px\) \{[\s\S]*?\.user-message-item:not\(\.user-message-item--failed\) \{[\s\S]*?margin-bottom: calc\(var\(--flowchat-turn-gap\) \+ 30px\);/,
+    );
+    expect(userMessageMinimalSource).not.toMatch(
+      /\.user-message-item:not\(\.user-message-item--failed\):is\([\s\S]*?margin-bottom:/,
     );
     expect(userMessageMinimalSource).toContain(
       '.user-message-item:not(.user-message-item--failed)',

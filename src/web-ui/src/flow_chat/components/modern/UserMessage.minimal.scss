@@ -3,15 +3,16 @@
     .user-message-item:not(.user-message-item--failed) {
       width: fit-content;
       min-width: 0;
-      max-width: min(620px, calc(100% - 32px));
+      max-width: min(560px, calc(100% - 32px));
       margin-top: var(--workspace-space-1);
       margin-right: max(16px, calc((100% - 760px) / 2));
       margin-bottom: var(--flowchat-turn-gap);
       margin-left: auto;
-      padding: var(--workspace-space-2) var(--workspace-space-3);
+      padding: var(--workspace-space-1) var(--workspace-space-2);
       border-color: transparent;
-      border-radius: var(--workspace-radius-panel);
-      background: var(--workspace-surface-active);
+      border-left: 2px solid var(--workspace-border-strong);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
       box-shadow: none;
       animation: none;
       transition:
@@ -20,8 +21,8 @@
     }
 
     .user-message-item:not(.user-message-item--failed):hover {
-      border-color: transparent;
-      background: var(--workspace-surface-active);
+      border-left-color: var(--workspace-border-strong);
+      background: var(--workspace-surface-panel);
     }
 
     .user-message-item:not(.user-message-item--failed)
@@ -33,6 +34,7 @@
       .user-message-item__content {
       font-weight: 400;
       line-height: var(--flowchat-text-line-height);
+      transition: color 100ms ease;
     }
 
     .user-message-item:not(.user-message-item--failed)
@@ -104,12 +106,13 @@
     .user-message {
       width: fit-content;
       min-width: 0;
-      max-width: min(620px, 100%);
+      max-width: min(560px, 100%);
       margin: var(--workspace-space-1) 0 var(--flowchat-turn-gap) auto;
-      padding: var(--workspace-space-2) var(--workspace-space-3);
+      padding: var(--workspace-space-1) var(--workspace-space-2);
       border-color: transparent;
-      border-radius: var(--workspace-radius-panel);
-      background: var(--workspace-surface-active);
+      border-left: 2px solid var(--workspace-border-strong);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
       box-shadow: none;
       animation: none;
     }
@@ -130,6 +133,7 @@
       .user-message-item:not(.user-message-item--failed) {
         max-width: calc(100% - 20px);
         margin-right: 10px;
+        margin-bottom: calc(var(--flowchat-turn-gap) + 30px);
       }
 
       .user-message-item:not(.user-message-item--failed)
@@ -141,16 +145,6 @@
         transform: none;
       }
 
-      .user-message-item:not(.user-message-item--failed):is(
-          :hover,
-          :focus-within
-        ),
-      .user-message-item:not(.user-message-item--failed):has(
-          .user-message-item__actions .copied,
-          .user-message-item__rollback-spinner
-        ) {
-        margin-bottom: calc(var(--flowchat-turn-gap) + 30px);
-      }
     }
   }
 
