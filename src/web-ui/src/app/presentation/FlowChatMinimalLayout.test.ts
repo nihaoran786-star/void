@@ -15,6 +15,7 @@ const headerSource = readFlowChatFile('modern/FlowChatHeader.tsx');
 const headerMinimalSource = readFlowChatFile('modern/FlowChatHeader.minimal.scss');
 const shellMinimalSource = readFlowChatFile('modern/FlowChatShell.minimal.scss');
 const userMessageMinimalSource = readFlowChatFile('modern/UserMessage.minimal.scss');
+const userMessageBaseSource = readFlowChatFile('modern/UserMessageItem.scss');
 const toolCardShellMinimalSource = readFileSync(
   new URL('../../flow_chat/tool-cards/ToolCardShell.minimal.scss', import.meta.url),
   'utf8',
@@ -259,6 +260,12 @@ describe('FlowChat minimal presentation contract', () => {
   });
 
   it('projects successful user messages as compact right-aligned quote surfaces without hiding rich content', () => {
+    expect(userMessageBaseSource).toMatch(
+      /\.user-message-item \{[\s\S]*?box-shadow: none;[\s\S]*?transition: background 0\.2s ease, border-color 0\.2s ease;/,
+    );
+    expect(userMessageBaseSource).not.toContain(
+      'box-shadow: 0 1px 0 color-mix(in srgb, #fff 4%, transparent) inset;',
+    );
     expect(userMessageMinimalSource).toContain('width: fit-content;');
     expect(userMessageMinimalSource).toContain(
       'max-width: min(560px, calc(100% - 32px));',
