@@ -58,4 +58,75 @@
     outline-offset: 1px;
     opacity: 1;
   }
+
+  .void-ui--minimal .void-chat-input-workspace-strip__permission-trigger {
+    min-height: 28px;
+    padding: var(--workspace-space-1) var(--workspace-space-2);
+    color: var(--workspace-text-secondary);
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    transition:
+      color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      background var(--workspace-motion-fast) var(--workspace-easing-standard);
+  }
+
+  .void-ui--minimal
+    .void-chat-input-workspace-strip__permission-trigger:hover:not(:disabled),
+  .void-ui--minimal
+    .void-chat-input-workspace-strip__permission-trigger[aria-expanded='true'] {
+    color: var(--workspace-text-primary);
+    background: var(--workspace-surface-hover);
+  }
+
+  .void-ui--minimal .void-chat-input-workspace-strip__permission-trigger--auto {
+    color: var(--workspace-status-info-text);
+  }
+
+  .void-ui--minimal .void-chat-input-workspace-strip__permission-trigger--full_access {
+    color: var(--workspace-status-warning-text);
+  }
+
+  .void-ui--minimal
+    :where(
+      .void-chat-input-workspace-strip__permission-menu,
+      .void-chat-input-workspace-strip__picker-menu
+    ) {
+    border-color: var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-raised);
+    box-shadow: var(--workspace-shadow-raised);
+  }
+
+  .void-ui--minimal
+    :where(
+      .void-chat-input-workspace-strip__permission-option,
+      .void-chat-input-workspace-strip__picker-option
+    ) {
+    color: var(--workspace-text-secondary);
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    transition:
+      color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      background var(--workspace-motion-fast) var(--workspace-easing-standard);
+  }
+
+  .void-ui--minimal
+    :where(
+      .void-chat-input-workspace-strip__permission-option:hover,
+      .void-chat-input-workspace-strip__permission-option[aria-checked='true'],
+      .void-chat-input-workspace-strip__picker-option:hover,
+      .void-chat-input-workspace-strip__picker-option[aria-selected='true']
+    ) {
+    color: var(--workspace-text-primary);
+    background: var(--workspace-surface-active);
+  }
+
+  .void-ui--minimal .void-chat-input-workspace-strip__permission-option strong {
+    color: inherit;
+    font-weight: var(--workspace-font-weight-medium);
+  }
+
+  .void-ui--minimal .void-chat-input-workspace-strip__permission-option small {
+    color: var(--workspace-text-muted);
+  }
 }

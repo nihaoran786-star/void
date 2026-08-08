@@ -1156,6 +1156,12 @@ $badge-info-text: $color-info;
   --workspace-border-subtle: var(--border-subtle);
   --workspace-border-strong: var(--border-medium);
   --workspace-accent: var(--color-accent-400);
+  --workspace-primary-action: var(--flowchat-link-color);
+  --workspace-primary-action-hover: color-mix(
+    in srgb,
+    var(--flowchat-link-color) 84%,
+    var(--workspace-text-primary)
+  );
   --workspace-focus-ring: var(--color-accent-600);
   --workspace-focus-ring-subtle: color-mix(
     in srgb,

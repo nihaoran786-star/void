@@ -29,11 +29,14 @@ describe('new session home visual governance', () => {
     expect(panelSource).not.toContain('welcome.creationModeShortDrama');
     expect(paneStyles).toContain(':has(.welcome-panel__creation-modes)');
     expect(paneStyles).toContain('.void-chat-input-drop-zone');
-    expect(paneStyles).toContain(
-      'min-height: var(--workspace-composer-min-height)',
+    expect(paneStyles).toMatch(
+      /min-height:\s*calc\(\s*var\(--workspace-control-height\) \+\s*var\(--workspace-space-8\)\s*\)/,
     );
     expect(paneStyles).toMatch(
-      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 640px\);/,
+      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*static;[\s\S]*?width:\s*min\(100%, 640px\);/,
+    );
+    expect(paneStyles).toMatch(
+      /\.void-chat-input__box\s*\{[\s\S]*?border-radius:\s*var\(--workspace-radius-panel\);[\s\S]*?box-shadow:\s*none;/,
     );
     expect(sceneStyles).toMatch(
       /\.void-ui--minimal \.void-session-scene__chat-pane\s*\{[\s\S]*?min-width:\s*min\(400px, 100%\);[\s\S]*?container-name:\s*session-chat-pane;/,

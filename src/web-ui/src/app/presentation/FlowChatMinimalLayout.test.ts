@@ -52,6 +52,10 @@ const workspaceStripMinimalSource = readFileSync(
   new URL('../../flow_chat/components/ChatInputWorkspaceStrip.minimal.scss', import.meta.url),
   'utf8',
 );
+const tokenSource = readFileSync(
+  new URL('../../component-library/styles/tokens.scss', import.meta.url),
+  'utf8',
+);
 const compiledPresentationCss = compile(
   fileURLToPath(new URL('./minimalWorkspacePresentation.scss', import.meta.url)),
   { style: 'expanded' },
@@ -159,15 +163,42 @@ describe('FlowChat minimal presentation contract', () => {
     expect(userMessageMinimalSource).not.toContain('transition: all');
   });
 
-  it('aligns the composer to the same readable width with one bounded two-level layout', () => {
+  it('keeps the composer low-profile with one blue primary action', () => {
     expect(inputMinimalSource).toMatch(
       /\.void-ui--minimal \.void-chat-input-drop-zone \{[\s\S]*?bottom: var\(--workspace-space-2\);[\s\S]*?max-width: 760px;[\s\S]*?padding-inline: var\(--workspace-space-2\);/,
     );
     expect(inputMinimalSource).toMatch(
-      /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?row-gap: var\(--workspace-space-2\);[\s\S]*?min-height: var\(--workspace-composer-min-height\);[\s\S]*?max-height: min\(240px, 38vh\);/,
+      /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?row-gap: var\(--workspace-space-1\);[\s\S]*?border-radius: var\(--workspace-radius-panel\);/,
     );
     expect(inputMinimalSource).toMatch(
-      /&__box--multi-line \{[\s\S]*?height: auto;[\s\S]*?min-height: var\(--workspace-composer-min-height\);[\s\S]*?max-height: min\(280px, 42vh\);[\s\S]*?\.rich-text-input \{[\s\S]*?min-height: 22px;[\s\S]*?max-height: min\(216px, 32vh\);[\s\S]*?overflow-y: auto;/,
+      /\.void-chat-input__box--capsule \{[\s\S]*?min-height: calc\([\s\S]*?var\(--workspace-control-height\) \+ var\(--workspace-space-8\)[\s\S]*?\);[\s\S]*?max-height: min\(240px, 38vh\);[\s\S]*?padding: var\(--workspace-space-1\) var\(--workspace-space-2\);/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /&__box--multi-line \{[\s\S]*?height: auto;[\s\S]*?min-height: calc\(\s*var\(--workspace-control-height\) \+\s*var\(--workspace-space-8\)\s*\);[\s\S]*?max-height: min\(280px, 42vh\);[\s\S]*?\.rich-text-input \{[\s\S]*?min-height: 22px;[\s\S]*?max-height: min\(216px, 32vh\);[\s\S]*?overflow-y: auto;/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /&__box,[\s\S]*?border-radius: var\(--workspace-radius-panel\);/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /&__send-button,[\s\S]*?&__breathing-circle \{[\s\S]*?background: var\(--workspace-primary-action\);/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /&__send-button:hover:not\(:disabled\),[\s\S]*?&__send-button:active:not\(:disabled\) \{[\s\S]*?background: var\(--workspace-primary-action-hover\);/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /:is\([\s\S]*?:root\[data-theme-type='light'\][\s\S]*?\)[\s\S]*?\.void-ui--minimal[\s\S]*?\.void-chat-input[\s\S]*?\.void-chat-input__send-button:not\([\s\S]*?\.void-chat-input__send-button--breathing[\s\S]*?\):not\(:disabled\)[\s\S]*?\{[\s\S]*?background: var\(--workspace-primary-action\);/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /\.void-chat-input__send-button:not\([\s\S]*?\.void-chat-input__send-button--breathing[\s\S]*?\):hover:not\(:disabled\)[\s\S]*?background: var\(--workspace-primary-action-hover\);[\s\S]*?transform: none;/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /:root\[data-theme-type='light'\][\s\S]*?\.void-chat-input__box--capsule:hover,[\s\S]*?\.void-chat-input__box--capsule:focus-within[\s\S]*?\{[\s\S]*?background: var\(--workspace-surface-raised\);[\s\S]*?box-shadow: none;/,
+    );
+    expect(tokenSource).toContain(
+      '--workspace-primary-action: var(--flowchat-link-color);',
+    );
+    expect(tokenSource).toMatch(
+      /--workspace-primary-action-hover: color-mix\([\s\S]*?var\(--flowchat-link-color\) 84%,[\s\S]*?var\(--workspace-text-primary\)/,
     );
     expect(inputMinimalSource).toMatch(
       /\.void-chat-input-workspace-strip \{[\s\S]*?grid-area: meta;[\s\S]*?align-self: stretch;/,
@@ -182,6 +213,31 @@ describe('FlowChat minimal presentation contract', () => {
     );
     expect(compiledPresentationCss).not.toContain(
       '.void-ui--minimal .void-chat-input--capsule .void-ui--minimal',
+    );
+  });
+
+  it('keeps workspace, permission, and usage controls quiet until interaction', () => {
+    expect(workspaceStripMinimalSource).toMatch(
+      /\.void-chat-input-workspace-strip__permission-trigger \{[\s\S]*?min-height: 28px;[\s\S]*?color: var\(--workspace-text-secondary\);[\s\S]*?background: transparent;/,
+    );
+    expect(workspaceStripMinimalSource).toContain(
+      'color var(--workspace-motion-fast) var(--workspace-easing-standard),',
+    );
+    expect(workspaceStripMinimalSource).toContain(
+      'background var(--workspace-motion-fast) var(--workspace-easing-standard);',
+    );
+    expect(workspaceStripMinimalSource).toMatch(
+      /:where\([\s\S]*?\.void-chat-input-workspace-strip__permission-menu,[\s\S]*?\.void-chat-input-workspace-strip__picker-menu[\s\S]*?\) \{[\s\S]*?border-color: var\(--workspace-border-subtle\);[\s\S]*?border-radius: var\(--workspace-radius-panel\);[\s\S]*?background: var\(--workspace-surface-raised\);[\s\S]*?box-shadow: var\(--workspace-shadow-raised\);/,
+    );
+    expect(workspaceStripMinimalSource).toMatch(
+      /\.void-chat-input-workspace-strip__permission-trigger--full_access \{[\s\S]*?color: var\(--workspace-status-warning-text\);/,
+    );
+    expect(workspaceStripMinimalSource).not.toContain('transition: all');
+  });
+
+  it('keeps the persona flyout inside narrow chat panes', () => {
+    expect(inputMinimalSource).toMatch(
+      /@container session-chat-pane \(max-width: 360px\)[\s\S]*?\.void-ui--minimal \.void-chat-input__boost-submenu-shell \{[\s\S]*?top: 100%;[\s\S]*?bottom: auto;[\s\S]*?left: 0;[\s\S]*?right: auto;[\s\S]*?padding: var\(--workspace-space-1\) 0 0;[\s\S]*?\.void-ui--minimal[\s\S]*?\.void-chat-input__persona-submenu-shell[\s\S]*?\.void-chat-input__boost-submenu-panel \{[\s\S]*?min-width: min\(15rem, calc\(100vw - var\(--workspace-space-6\)\)\);[\s\S]*?max-width: min\(15rem, calc\(100vw - var\(--workspace-space-6\)\)\);/,
     );
   });
 
