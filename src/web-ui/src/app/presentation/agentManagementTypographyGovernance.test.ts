@@ -72,9 +72,9 @@ const migratedDistribution = {
 // feature additions, while preserving the historical migration baseline.
 const preExistingDistribution = {
   xxs: 0,
-  '2xs': 33,
-  xs: 53,
-  sm: 46,
+  '2xs': 35,
+  xs: 54,
+  sm: 47,
   base: 6,
   xl: 7,
   '2xl': 0,

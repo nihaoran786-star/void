@@ -372,6 +372,7 @@ const SupportedCreateAgentPage: React.FC = () => {
     justReplaced: debugJustReplaced,
     error: debugError,
     retry: retryDebugSession,
+    acknowledgeMessageSent: acknowledgeDebugMessageSent,
   } = useAgentDebugSession({
     draft: debugDraft,
     isDraftValid: debugDraftValid,
@@ -417,6 +418,7 @@ const SupportedCreateAgentPage: React.FC = () => {
             justReplaced={debugJustReplaced}
             error={debugError}
             onRetry={retryDebugSession}
+            onMessageSent={acknowledgeDebugMessageSent}
           />
         </div>
 

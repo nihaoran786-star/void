@@ -257,7 +257,7 @@
 
     .th-create-lab__sheet-chip {
       border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-pill);
+      border-radius: var(--size-radius-full);
       color: var(--workspace-text-muted);
       font-family: var(--workspace-font-family);
       font-size: var(--workspace-font-size-meta);
@@ -265,7 +265,7 @@
 
     .th-create-lab__sheet-level {
       background: var(--workspace-surface-active);
-      border-radius: var(--workspace-radius-pill);
+      border-radius: var(--size-radius-full);
       color: var(--workspace-text-primary);
       font-family: var(--workspace-font-family);
       font-size: var(--workspace-font-size-meta);

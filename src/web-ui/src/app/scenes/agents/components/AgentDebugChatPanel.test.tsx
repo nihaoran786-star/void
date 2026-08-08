@@ -19,6 +19,7 @@ vi.mock('@/flow_chat/components/LazyChatInput', () => ({
     sessionId?: string;
     parentSessionId?: string;
     className?: string;
+    onSendMessage?: (message: string) => void;
   }) => {
     composerRenderMock(props);
     return <div data-testid="mock-debug-composer" />;
@@ -171,21 +172,7 @@ describe('AgentDebugChatPanel', () => {
     }));
   });
 
-  it('renders the stale banner and the composer for a stale session with justReplaced', () => {
-    renderPanel({
-      status: 'stale',
-      draftFingerprint: 'a1b2c3d4',
-      justReplaced: true,
-      session: createSession(),
-    });
-
-    expect(container.querySelector('.agent-debug-chat-panel__stale-banner')?.textContent)
-      .toContain('agentsOverview.debug.stale');
-    expect(container.querySelector('[data-testid="mock-debug-composer"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="virtual-item"]')).toHaveLength(2);
-  });
-
-  it('hides the stale banner when justReplaced is false', () => {
+  it('keeps the stale conversation visible but blocks sending while the persona is being replaced', () => {
     renderPanel({
       status: 'stale',
       draftFingerprint: 'a1b2c3d4',
@@ -193,8 +180,29 @@ describe('AgentDebugChatPanel', () => {
       session: createSession(),
     });
 
-    expect(container.querySelector('.agent-debug-chat-panel__stale-banner')).toBeNull();
+    expect(container.querySelector('[data-testid="mock-debug-composer"]')).toBeNull();
+    expect(container.querySelectorAll('[data-testid="virtual-item"]')).toHaveLength(2);
+  });
+
+  it('shows the replacement notice only after the fresh session is ready', () => {
+    const onMessageSent = vi.fn();
+    renderPanel({
+      status: 'ready',
+      draftFingerprint: 'a1b2c3d4',
+      justReplaced: true,
+      session: createSession(),
+      onMessageSent,
+    });
+
+    expect(container.querySelector('.agent-debug-chat-panel__stale-banner')?.textContent)
+      .toContain('agentsOverview.debug.stale');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).not.toBeNull();
+
+    const composerProps = composerRenderMock.mock.lastCall?.[0] as {
+      onSendMessage?: (message: string) => void;
+    };
+    composerProps.onSendMessage?.('hello');
+    expect(onMessageSent).toHaveBeenCalledTimes(1);
   });
 
   it('renders the error message and a retry button that calls onRetry', () => {

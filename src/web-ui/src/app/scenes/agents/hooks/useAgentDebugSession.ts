@@ -289,6 +289,12 @@ export function useAgentDebugSession({
     await createSession(draftRef.current, currentWorkspace).catch(() => {});
   }, [createSession]);
 
+  const acknowledgeMessageSent = useCallback(() => {
+    if (mountedRef.current) {
+      setJustReplaced(false);
+    }
+  }, []);
+
   return {
     status,
     sessionId,
@@ -296,5 +302,6 @@ export function useAgentDebugSession({
     error,
     send,
     retry,
+    acknowledgeMessageSent,
   };
 }

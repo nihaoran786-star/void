@@ -30,6 +30,7 @@ export interface AgentDebugChatPanelProps {
   justReplaced?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  onMessageSent?: () => void;
 }
 
 type PanelStatus = AgentDebugChatPanelProps['status'];
@@ -72,6 +73,7 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
   justReplaced = false,
   error,
   onRetry,
+  onMessageSent,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const { t: tFlow } = useTranslation('flow-chat');
@@ -223,6 +225,7 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
 
   const activeSession = status === 'ready' || status === 'stale' ? session : null;
   const showConversation = activeSession != null;
+  const canSend = status === 'ready' && activeSession != null;
   const fingerprint = draftFingerprint.slice(0, 8);
 
   return (
@@ -237,7 +240,7 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
         </span>
       </div>
 
-      {status === 'stale' && justReplaced && showConversation && (
+      {status === 'ready' && justReplaced && showConversation && (
         <div
           className="agent-debug-chat-panel__stale-banner"
           data-testid="agent-debug-chat-stale-banner"
@@ -317,12 +320,15 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
               />
             </div>
           </FlowChatPresentationActivityProvider>
-          <div className="agent-debug-chat-panel__composer" data-testid="agent-debug-chat-composer">
-            <LazyChatInput
-              sessionId={activeSession.sessionId}
-              className="void-chat-input--embedded"
-            />
-          </div>
+          {canSend && (
+            <div className="agent-debug-chat-panel__composer" data-testid="agent-debug-chat-composer">
+              <LazyChatInput
+                sessionId={activeSession.sessionId}
+                className="void-chat-input--embedded"
+                onSendMessage={onMessageSent}
+              />
+            </div>
+          )}
         </FlowChatContext.Provider>
       )}
     </div>
