@@ -61,6 +61,13 @@
     transform: rotate(0deg);
   }
 
+  .thinking-orb {
+    display: block;
+    flex: 0 0 64px;
+    width: 64px;
+    height: 64px;
+  }
+
   .thinking-label {
     font-size: var(--flowchat-font-size-sm);
     font-weight: normal;

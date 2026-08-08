@@ -14,7 +14,13 @@ import type { FlowThinkingItem } from '../types/flow-chat';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { useToolCardHeightContract } from './useToolCardHeightContract';
 import { Markdown } from '@/component-library/components/Markdown';
+import { useTheme } from '@/infrastructure/theme';
 import './ModelThinkingDisplay.scss';
+
+const ThinkingOrb = React.lazy(async () => {
+  const { ThinkingOrb: Orb } = await import('thinking-orbs');
+  return { default: Orb };
+});
 
 interface ModelThinkingDisplayProps {
   thinkingItem: FlowThinkingItem;
@@ -29,6 +35,7 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
   displayContext = 'default',
 }) => {
   const { t } = useTranslation('flow-chat');
+  const { isLight } = useTheme();
   const { content, isStreaming, status } = thinkingItem;
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -133,7 +140,19 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
         className="thinking-collapsed-header"
         onClick={handleToggleClick}
       >
-        <ChevronRight size={14} className="thinking-chevron" />
+        {isActive ? (
+          <React.Suspense fallback={<span className="thinking-orb" aria-hidden="true" />}>
+            <ThinkingOrb
+              state="composing"
+              size={64}
+              theme={isLight ? 'light' : 'dark'}
+              className="thinking-orb"
+              aria-hidden="true"
+            />
+          </React.Suspense>
+        ) : (
+          <ChevronRight size={14} className="thinking-chevron" />
+        )}
         <span className="thinking-label">{headerLabel}</span>
       </div>
 
