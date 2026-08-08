@@ -8,6 +8,14 @@ orchestration, media routing, or session lifecycle.
 
 Updated: 2026-08-08
 
+Selected direction: **Porcelain Graphite / 瓷灰编辑台**. Its concrete
+typography, borders, components, shell rules, and migration contract are
+defined in
+[Porcelain Graphite Design System](../design/porcelain-graphite-design-system.md).
+The current authorized slice preserves the existing theme tone and focuses on
+collapsed navigation, chat information flow, tool calls, user messages, and the
+composer. Palette and broader Canvas/catalog migration remain deferred.
+
 ## Goal
 
 Make Void feel like one coherent desktop product while preserving every
