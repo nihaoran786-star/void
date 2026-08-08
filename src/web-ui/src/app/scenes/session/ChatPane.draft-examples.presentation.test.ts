@@ -14,7 +14,7 @@ const examplesSource = readFileSync(
 describe('new-task draft examples presentation', () => {
   it('keeps readable mode examples between the mode switch and composer', () => {
     expect(source).toMatch(
-      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 640px\);/,
+      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*static;[\s\S]*?width:\s*min\(100%, 640px\);/,
     );
     expect(source).toMatch(
       /\.void-session-example-cards__option\s*\{[\s\S]*?min-height:\s*36px;/,
@@ -24,53 +24,45 @@ describe('new-task draft examples presentation', () => {
     );
     expect(source).not.toContain('width: min(100%, 172px);');
     expect(source).not.toContain('min-height: 14px;');
-    expect(source).toMatch(
-      /@media \(max-height: 519px\)[\s\S]*?\.welcome-panel__examples\s*\{[\s\S]*?top:\s*calc\(\s*100% \+ var\(--workspace-space-6\) \+ var\(--workspace-space-8\)\s*\);/,
-    );
   });
 
-  it('keeps tall-view examples above the shared centered composer anchor', () => {
+  it('keeps every viewport ratio in one centered non-overlapping layout flow', () => {
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-pane__content:has\(\.welcome-panel__creation-modes\)\s*\{[\s\S]*?--new-session-composer-anchor:\s*45%;/,
+      /\.void-chat-pane__content:has\(\.welcome-panel__creation-modes\)\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-rows:\s*minmax\(170px, 1fr\) auto minmax\(var\(--workspace-space-2\), 1fr\);/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.welcome-panel__content\s*\{[\s\S]*?position:\s*static;/,
+      /\.welcome-panel__creation-modes\s*\{[\s\S]*?position:\s*static;[\s\S]*?transform:\s*none;/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.welcome-panel__examples\s*\{[\s\S]*?top:\s*auto;[\s\S]*?bottom:\s*calc\(\s*100% - var\(--new-session-composer-anchor\) \+\s*var\(--workspace-space-4\)\s*\);/,
+      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*static;[\s\S]*?transform:\s*none;/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-input-drop-zone\s*\{[\s\S]*?top:\s*var\(--new-session-composer-anchor\);/,
+      /\.void-chat-input-drop-zone\s*\{[\s\S]*?position:\s*relative;[\s\S]*?grid-row:\s*2;[\s\S]*?transform:\s*none;/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.welcome-panel\s*\{[\s\S]*?padding-bottom:\s*calc\(\s*clamp\(360px, 48vh, 438px\) \+ var\(--workspace-space-8\)\s*\);/,
+      /\.welcome-panel\s*\{[\s\S]*?align-items:\s*flex-end;[\s\S]*?padding-bottom:\s*var\(--workspace-space-4\);/,
     );
+    expect(source).not.toContain('--new-session-composer-anchor');
+    expect(source).not.toContain('@media (min-height: 520px)');
+    expect(source).not.toContain('@media (max-height: 519px)');
   });
 
   it('opens slash commands below the centered draft composer only on tall views', () => {
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:\s*calc\(100% \+ 120px\);[\s\S]*?bottom:\s*auto;/,
+      /@media \(min-height: 600px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:\s*calc\(100% \+ 120px\);[\s\S]*?bottom:\s*auto;/,
     );
     expect(source).toMatch(
       /\.void-chat-input__slash-command-list\s*\{[\s\S]*?max-height:\s*min\(240px, calc\(57vh - 238px\)\);/,
     );
-    expect(source).toMatch(
-      /@media \(max-height: 519px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?max-height:\s*clamp\(80px, calc\(100vh - 392px\), 220px\);/,
-    );
-    expect(source).toMatch(
-      /@media \(max-height: 519px\)[\s\S]*?\.void-chat-input__slash-command-header\s*\{[\s\S]*?display:\s*none;/,
-    );
-    expect(source).not.toMatch(
-      /@media \(max-height: 519px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:/,
-    );
+    expect(source).not.toContain('@media (max-height: 519px)');
   });
 
   it('lets the draft editor grow with content before switching to internal scroll', () => {
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*var\(--workspace-composer-min-height\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
+      /\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*var\(--workspace-composer-min-height\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 520px\)[\s\S]*?\.rich-text-input\s*\{[\s\S]*?min-height:\s*22px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
+      /\.rich-text-input\s*\{[\s\S]*?min-height:\s*22px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
     );
     expect(source).not.toMatch(
       /\.rich-text-input\s*\{[\s\S]*?min-height:\s*56px !important;[\s\S]*?max-height:\s*56px !important;/,

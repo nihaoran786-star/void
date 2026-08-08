@@ -27,11 +27,27 @@
 }
 
 /*
- * Draft examples are supporting content, not part of the greeting's layout.
- * Keep the heading and mode switch anchored while examples rotate.
+ * Keep the complete new-session draft in one layout flow. Equal flexible rows
+ * centre the composer when there is room; the protected first row keeps the
+ * complete greeting and examples visible when the window becomes short.
  */
 .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
+  display: grid;
+  grid-template-rows:
+    minmax(170px, 1fr) auto minmax(var(--workspace-space-2), 1fr);
+
+  .void-chat-pane__chat-container {
+    grid-row: 1;
+    min-height: 0;
+    height: auto;
+    overflow: visible;
+  }
+
   .welcome-panel {
+    align-items: flex-end;
+    min-height: 0;
+    height: 100%;
+    padding-bottom: var(--workspace-space-4);
     scrollbar-width: none;
   }
 
@@ -41,15 +57,20 @@
   }
 
   .welcome-panel__content {
-    position: relative;
+    position: static;
+  }
+
+  .welcome-panel__creation-modes {
+    position: static;
+    margin-top: var(--workspace-space-2);
+    transform: none;
   }
 
   .welcome-panel__examples {
-    position: absolute;
-    top: calc(100% + 48px);
-    left: 50%;
+    position: static;
     width: min(100%, 640px);
-    transform: translateX(-50%);
+    max-width: 760px;
+    transform: none;
   }
 
   .void-session-example-cards__grid {
@@ -60,154 +81,84 @@
   .void-session-example-cards__option {
     min-height: 36px;
   }
-}
 
-/*
- * The unpersisted new-session draft uses the existing composer as its home
- * surface. The creation-mode control is the explicit draft marker, so existing
- * empty sessions keep their normal conversation layout.
- */
-@media (min-height: 520px) {
-  .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
-    --new-session-composer-anchor: 45%;
+  .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
+    display: none;
+  }
 
-    .welcome-panel {
-      align-items: center;
-      padding-bottom: calc(
-        clamp(360px, 48vh, 438px) + var(--workspace-space-8)
-      );
-    }
+  .void-chat-input-drop-zone {
+    position: relative;
+    inset: auto;
+    grid-row: 2;
+    justify-self: center;
+    max-width: 640px;
+    transform: none;
+  }
 
-    .welcome-panel__content {
-      position: static;
-    }
+  .void-chat-input__box {
+    height: auto;
+    min-height: var(--workspace-composer-min-height);
+    max-height: min(340px, 55vh);
+    padding: 16px 14px 8px;
+    border-color: var(--border-subtle);
+    border-radius: calc(var(--flowchat-card-radius, 8px) + 6px);
+    box-shadow: 0 8px 24px
+      color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 
-    .welcome-panel__examples {
-      top: auto;
-      bottom: calc(
-        100% - var(--new-session-composer-anchor) +
-          var(--workspace-space-4)
-      );
-    }
+  .void-chat-input--capsule .void-chat-input__box--capsule {
+    grid-template-areas:
+      'input input input'
+      'tools spacer status'
+      'meta meta meta';
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+  }
 
-    .welcome-panel__content,
-    .welcome-panel__examples {
-      max-width: 760px;
-    }
+  .void-chat-input__input-area {
+    flex: 0 1 auto;
+    min-height: 22px;
+    padding: 0 2px;
+  }
 
-    .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
-      display: none;
-    }
+  .rich-text-input {
+    min-height: 22px !important;
+    max-height: min(216px, 28vh) !important;
+    overflow-y: auto;
+  }
 
-    .welcome-panel--needs-workspace .welcome-panel__narrative {
-      margin-top: clamp(120px, 18vh, 168px);
-    }
+  .void-chat-input__placeholder {
+    top: 0;
+    left: 2px;
+    right: 2px;
+    transform: none;
+  }
 
-    .void-chat-input-drop-zone {
-      top: var(--new-session-composer-anchor);
-      bottom: auto;
-      max-width: 640px;
-      transform: translate(-50%, -4%);
-    }
-
-    .void-chat-input__box {
-      height: auto;
-      min-height: var(--workspace-composer-min-height);
-      max-height: min(340px, 55vh);
-      padding: 16px 14px 8px;
-      border-color: var(--border-subtle);
-      border-radius: calc(var(--flowchat-card-radius, 8px) + 6px);
-      box-shadow: 0 8px 24px color-mix(in srgb, var(--color-text-primary) 5%, transparent);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-    }
-
-    .void-chat-input--capsule .void-chat-input__box--capsule {
-      grid-template-areas:
-        'input input input'
-        'tools spacer status'
-        'meta meta meta';
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      grid-template-rows: auto auto auto;
-    }
-
-    .void-chat-input__input-area {
-      flex: 0 1 auto;
-      min-height: 22px;
-      padding: 0 2px;
-    }
-
-    .rich-text-input {
-      min-height: 22px !important;
-      max-height: min(216px, 28vh) !important;
-      overflow-y: auto;
-    }
-
-    .void-chat-input__placeholder {
-      top: 0;
-      left: 2px;
-      right: 2px;
-      transform: none;
-    }
-
-    /*
-     * The draft composer sits in the middle of tall views. Opening slash
-     * commands above it would cover the fixed greeting and creation modes, so
-     * use the available lower viewport and keep the command list scrollable.
-     * Short views retain the default upward picker beside the bottom composer.
-     */
-    .void-chat-input__slash-command-picker {
-      top: calc(100% + 120px);
-      bottom: auto;
-      max-height: min(280px, calc(57vh - 195px));
-    }
-
-    .void-chat-input__slash-command-list {
-      max-height: min(240px, calc(57vh - 238px));
-    }
-
-    .void-chat-input-workspace-strip {
-      grid-area: meta;
-      min-height: 34px;
-      margin-top: 8px;
-      padding: 9px 2px 0;
-      border-top: 1px solid var(--border-subtle);
-    }
+  .void-chat-input-workspace-strip {
+    grid-area: meta;
+    min-height: 34px;
+    margin-top: 8px;
+    padding: 9px 2px 0;
+    border-top: 1px solid var(--border-subtle);
   }
 }
 
-@media (max-height: 519px) {
-  .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
-    .welcome-panel {
-      align-items: flex-start;
-      padding-top: clamp(72px, 16vh, 112px);
-    }
-
-    .welcome-panel__creation-modes {
-      margin-top: 8px;
-    }
-
-    .welcome-panel__examples {
-      top: calc(
-        100% + var(--workspace-space-6) + var(--workspace-space-8)
-      );
-    }
-
+/* The lower half has enough room for the draft command menu on tall views. */
+@media (min-height: 600px) {
+  .void-ui--minimal
+    .void-chat-pane__content:has(.welcome-panel__creation-modes)
     .void-chat-input__slash-command-picker {
-      max-height: clamp(80px, calc(100vh - 392px), 220px);
-    }
+    top: calc(100% + 120px);
+    bottom: auto;
+    max-height: min(280px, calc(57vh - 195px));
+  }
 
-    .void-chat-input__slash-command-header {
-      display: none;
-    }
-
+  .void-ui--minimal
+    .void-chat-pane__content:has(.welcome-panel__creation-modes)
     .void-chat-input__slash-command-list {
-      max-height: clamp(80px, calc(100vh - 392px), 220px);
-    }
-
-    .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
-      display: none;
-    }
+    max-height: min(240px, calc(57vh - 238px));
   }
 }
 
