@@ -353,6 +353,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const teamCanvasCapability = resolveTeamCanvasCapability(
     activeTeamWorkspace.snapshot?.activeTeam?.teamDefinitionId,
   );
+  const restoredTeamCanvasBindingRef = useRef<string | null>(null);
   useEffect(() => {
     const activeTeam = activeTeamWorkspace.snapshot?.activeTeam;
     if (!activeTeamWorkspace.sessionId || !activeTeam) return;
@@ -371,7 +372,17 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     workspacePath,
   ]);
   useEffect(() => {
-    if (!activeTeamWorkspace.teamBindingKey || !teamCanvasCapability) return;
+    if (!activeTeamWorkspace.teamBindingKey || !teamCanvasCapability) {
+      restoredTeamCanvasBindingRef.current = null;
+      return;
+    }
+    const restorationKey = [
+      activeTeamWorkspace.teamBindingKey,
+      teamCanvasCapability,
+    ].join(':');
+    if (restoredTeamCanvasBindingRef.current === restorationKey) return;
+    restoredTeamCanvasBindingRef.current = restorationKey;
+
     if (state.layout.rightPanelCollapsed) toggleRightPanel();
     const eventName = teamCanvasCapability === 'short-drama'
       ? 'void:open-short-drama-center'

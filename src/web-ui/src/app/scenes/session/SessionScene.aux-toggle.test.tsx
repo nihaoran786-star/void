@@ -508,6 +508,51 @@ describe('SessionScene universal canvas toggle control', () => {
     window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
+  it('allows the canvas to stay collapsed while the bound team workspace remains open', async () => {
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'short-drama:revision-1:instance-1';
+    mocks.teamWorkspace.displayName = 'AI 短剧制作团队';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+    mocks.teamWorkspace.snapshot = {
+      parentSessionId: 'session-1',
+      activeTeam: {
+        teamDefinitionId: 'custom-00000000000000000000000000000001',
+        members: [],
+      },
+    };
+    mocks.layout.rightPanelCollapsed = false;
+    const openShortDrama = vi.fn();
+    window.addEventListener('void:open-short-drama-center', openShortDrama);
+
+    await act(async () => {
+      root.render(<SessionScene workspacePath="D:\\workspace" />);
+    });
+    mocks.toggleRightPanel.mockClear();
+    openShortDrama.mockClear();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="session-aux-pane-toggle"]',
+      )?.click();
+    });
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+
+    mocks.layout.rightPanelCollapsed = true;
+    await act(async () => {
+      root.render(<SessionScene workspacePath="D:\\workspace" />);
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+    expect(openShortDrama).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .not.toBeNull();
+    expect(container.querySelector('[data-testid="session-aux-pane-toggle"]')
+      ?.getAttribute('aria-expanded')).toBe('false');
+    window.removeEventListener('void:open-short-drama-center', openShortDrama);
+  });
+
   it('keeps an empty media-session capability available to reopen the media canvas', async () => {
     mocks.layout.rightPanelCollapsed = true;
     mocks.capabilities = [{
