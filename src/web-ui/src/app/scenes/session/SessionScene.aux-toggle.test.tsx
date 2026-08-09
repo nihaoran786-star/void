@@ -508,7 +508,7 @@ describe('SessionScene universal canvas toggle control', () => {
     window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
-  it('allows the canvas to stay collapsed while the bound team workspace remains open', async () => {
+  it('collapses the canvas and bound team workspace as one right-side surface', async () => {
     mocks.teamWorkspace.status = 'ready';
     mocks.teamWorkspace.sessionId = 'session-1';
     mocks.teamWorkspace.hasTeamBinding = true;
@@ -538,6 +538,8 @@ describe('SessionScene universal canvas toggle control', () => {
       )?.click();
     });
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .toBeNull();
 
     mocks.layout.rightPanelCollapsed = true;
     await act(async () => {
@@ -547,7 +549,9 @@ describe('SessionScene universal canvas toggle control', () => {
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
     expect(openShortDrama).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
+      .toBeNull();
+    expect(container.querySelector('[data-testid="session-team-workspace-toggle"]')
+      ?.getAttribute('aria-expanded')).toBe('false');
     expect(container.querySelector('[data-testid="session-aux-pane-toggle"]')
       ?.getAttribute('aria-expanded')).toBe('false');
     window.removeEventListener('void:open-short-drama-center', openShortDrama);

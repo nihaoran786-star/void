@@ -399,6 +399,22 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     && !isRightAsMain
     && !state.layout.centerPanelCollapsed;
   const isAuxPaneExpanded = !state.layout.rightPanelCollapsed;
+  const toggleAuxPane = useCallback(() => {
+    if (
+      isAuxPaneExpanded
+      && isTeamWorkspaceOpen
+      && activeTeamWorkspace.sessionId
+    ) {
+      closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
+    }
+    toggleRightPanel();
+  }, [
+    activeTeamWorkspace.sessionId,
+    closeTeamWorkspacePresentation,
+    isAuxPaneExpanded,
+    isTeamWorkspaceOpen,
+    toggleRightPanel,
+  ]);
   const ensureAuxPaneExpanded = useCallback(() => {
     if (state.layout.rightPanelCollapsed) {
       toggleRightPanel();
@@ -450,7 +466,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
               }
               isCanvasExpanded={isAuxPaneExpanded}
               onOpenCapability={handleOpenSessionCapability}
-              onCanvasToggle={toggleRightPanel}
+              onCanvasToggle={toggleAuxPane}
             />
           )}
         </div>
