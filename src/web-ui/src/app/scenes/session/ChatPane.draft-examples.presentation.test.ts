@@ -69,6 +69,18 @@ describe('new-task draft examples presentation', () => {
     );
   });
 
+  it('keeps the draft composer chrome stable across capsule and multiline measurements', () => {
+    expect(source).toMatch(
+      /\.void-chat-input__box\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-areas:\s*'input input input'\s*'tools spacer status'\s*'meta meta meta';/,
+    );
+    expect(source).toMatch(
+      /\.void-chat-input__actions\s*\{[\s\S]*?display:\s*contents;/,
+    );
+    expect(source).toMatch(
+      /\.void-chat-input__agent-boost-add\s*\{[\s\S]*?width:\s*20px !important;[\s\S]*?height:\s*20px !important;/,
+    );
+  });
+
   it('uses a clear accent highlight for the active mode and example interactions', () => {
     expect(welcomeSource).toMatch(
       /\.welcome-panel__creation-mode\.is-active\s*\{[\s\S]*?background:\s*color-mix\([\s\S]*?var\(--color-accent-500\)\s*12%,[\s\S]*?var\(--color-bg-elevated\)\s*\);[\s\S]*?0 3px 10px/,
