@@ -7,7 +7,7 @@ built-in definition over the shared Team runtime while retaining its dedicated
 project tools and Canvas. Deep Review remains adapter-owned, and specialist
 tool/readonly expansion remains staged.
 
-Updated: 2026-08-08
+Updated: 2026-08-09
 
 ## Product decision
 
@@ -273,8 +273,10 @@ Wide desktop:
 main conversation | active Canvas surface | Team Workspace
 ```
 
-The Team Workspace uses a stable 340–400 px desktop column and has three visual
-levels:
+The Team Workspace uses a compact 280–320 px column between 1024 and 1279 CSS
+pixels, and a 340–400 px column from 1280 CSS pixels upward. The compact range
+is what a 1690×900 physical window uses at 150% Windows scaling. It has three
+visual levels:
 
 1. a quiet team header with identity, workflow, and overall status;
 2. a compact member roster with role-owned status;
@@ -580,6 +582,19 @@ Further interaction and theme normalization follows
 [Interaction And Theme Governance Specification](interaction-theme-governance.md)
 and must not change Team identity, workflow, runtime authority, persistence, or
 member-session ownership.
+
+The 2026-08-09 presentation checkpoint verified the strict three-column
+composition at a 1690×900 physical DWM boundary, Per-Monitor-V2, DPI 144. The
+lead conversation, artifact Canvas, and 281 px specialist workspace remained
+simultaneously visible; a member with no child session could be selected into
+the explicit not-started state. Closing and reopening the right presentation
+preserved the selected member and did not duplicate either composer. Canvas
+collapse/maximize was exercised, and the maximized Canvas stacking fix stays in
+the workspace shell rather than this domain module. The missing local dependency
+was subsequently repaired without manifest or lockfile drift; focused Team and
+presentation contracts plus the complete controlled Web suite now pass. This
+evidence still does not replace provider-backed manual execution, packaging, or
+cross-platform Desktop acceptance.
 
 ## Delivery sequence and status
 

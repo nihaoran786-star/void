@@ -125,6 +125,23 @@
   display: none;
 }
 
+.void-ui--minimal .void-nav-bar {
+  height: 36px;
+  padding-inline: $size-gap-1;
+  background: transparent;
+
+  &__btn,
+  &__panel-toggle {
+    color: var(--workspace-text-muted, var(--color-text-muted));
+  }
+
+  &__btn:hover:not(.is-inactive),
+  &__panel-toggle:hover {
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    background: var(--workspace-surface-hover, var(--element-bg-soft));
+  }
+}
+
 .void-app-layout--macos.void-ui--minimal .void-nav-bar--collapsed {
   padding: 0;
 }

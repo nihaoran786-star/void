@@ -146,6 +146,35 @@ describe('NavPanel layout styles', () => {
     expect(macosMinimalCollapsedBlock).toContain('margin-left: 72px;');
   });
 
+  it('projects expanded and collapsed Minimal navigation into one inset shell', () => {
+    const stylesheet = readMinimalNavPanelStylesheet();
+    const shellBlock = extractBlock(
+      stylesheet,
+      '.void-ui--minimal .void-workspace-body__nav-area',
+    );
+    const dividerBlock = extractBlock(
+      stylesheet,
+      '.void-ui--minimal .void-workspace-body__nav-divider',
+    );
+
+    expect(shellBlock).toContain(
+      'height: calc(100% - var(--workspace-space-2));',
+    );
+    expect(shellBlock).toContain('margin-top: var(--workspace-space-2);');
+    expect(shellBlock).toContain('overflow: hidden;');
+    expect(shellBlock).toContain(
+      'border-radius: var(--workspace-radius-shell);',
+    );
+    expect(shellBlock).toContain('background: var(--workspace-surface-panel);');
+    expect(shellBlock).toContain(
+      'box-shadow: inset 0 0 0 1px var(--workspace-border-subtle);',
+    );
+    expect(dividerBlock).toContain('top: var(--workspace-space-2);');
+
+    const tokens = readWorkspaceTokensStylesheet();
+    expect(tokens).toContain('--workspace-radius-shell: 14px;');
+  });
+
   it('softens Minimal navigation toggles with compositor-only motion', () => {
     const source = readWorkspaceBodySource();
     const stylesheet = readWorkspaceBodyStylesheet();
@@ -414,10 +443,11 @@ describe('NavPanel layout styles', () => {
       '&__session-create-action {\n      grid-row: 2;\n      grid-template-columns: 18px minmax(0, 1fr) auto;\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 36px;',
     );
     expect(stylesheet).toContain(
-      'border: 1px solid color-mix(\n        in srgb,\n        var(--color-accent-500) 24%,',
+      'border: 1px solid var(--workspace-border-subtle);',
     );
+    expect(stylesheet).toContain('color: var(--workspace-text-primary);');
     expect(stylesheet).toContain(
-      'background: color-mix(\n        in srgb,\n        var(--color-accent-500) 10%,',
+      'background: var(--workspace-surface-active);',
     );
     expect(stylesheet).toContain('&__session-create-action:active {');
     expect(stylesheet).toContain('&__session-create-action:focus-visible {');

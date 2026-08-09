@@ -7,7 +7,7 @@ trusted Team tool, Desktop commands, and Web runtime gateway; direct Team
 Workspace pause/resume controls, specialist tool/readonly expansion,
 browser/server parity, and future flagship-adapter expansion are deferred.
 
-Updated: 2026-08-08
+Updated: 2026-08-09
 
 ## Product decision
 
@@ -1198,8 +1198,8 @@ As of this specification update:
 - Connectors is a registered standalone scene opened directly from the existing
   left navigation. It selects a catalog presentation on the existing
   `McpToolsConfig` infrastructure component instead of routing through
-  Settings. The catalog provides search, status filtering, eight-item
-  pagination, two-column desktop cards that collapse to one column,
+  Settings. The catalog provides search, status filtering, pagination, a
+  compact four-column desktop grid that collapses responsively,
   configuration details, JSON add/configure, server lifecycle actions,
   deletion, remote auth, OAuth, explicit loading/empty/error states, and retry.
   A deliberately small audited marketplace exposes six fixed local-command
@@ -1300,8 +1300,9 @@ permission, session, media, or Team orchestration behavior to a page component.
   uses a 36 px icon, two-line purpose copy, and lightweight actions while
   keeping the card heading across the full row so localized titles are not
   squeezed by the action column.
-- Configured Connector cards use a two-column wide horizontal layout and
-  collapse to one column. The curated market uses the same icon-forward catalog
+- Configured Connector cards and the curated market use the same compact
+  four-column desktop rhythm as the Agent, Team, and Skill catalogs and
+  collapse responsively. The curated market keeps the same icon-forward catalog
   language and installs only audited local argument-array templates or the
   fixed Context7 remote endpoint. The true empty state keeps local-command and
   remote-URL explanations plus the JSON add action. The established JSON,
@@ -1318,3 +1319,14 @@ permission, session, media, or Team orchestration behavior to a page component.
 - Desktop acceptance budgets are hot-switch `p95 <= 150 ms`, cold-switch
   `p95 <= 600 ms`, and data-ready `p95 <= 1500 ms`. The measured result was
   `62.0 ms`, `197.1 ms`, and `513.7 ms` respectively.
+
+The 2026-08-09 OpenWork-referenced visual checkpoint verified the Agent, Team,
+installed Skill, Skill market, configured Connector, and Connector market
+scenes at a 1690×900 physical DWM boundary, Per-Monitor-V2, DPI 144. Each ready
+catalog rendered four columns without title/action overlap or clipped search
+and category controls. The dependency gap was repaired with a frozen-lockfile
+install and no manifest or lockfile changes. Focused presentation contracts and
+the complete controlled Web suite subsequently passed (527/527 files,
+3042/3042 tests, zero unhandled errors), as did the production Web build and
+performance budget. These results do not replace provider-backed manual Agent
+chat or cross-platform Desktop acceptance.

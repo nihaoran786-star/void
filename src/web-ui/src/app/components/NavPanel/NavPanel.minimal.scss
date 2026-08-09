@@ -1,4 +1,22 @@
 @mixin styles {
+  // OpenWork-inspired shell: keep the existing mounted navigation tree and
+  // resize behavior, but present the expanded and collapsed variants as the
+  // same inset workspace surface.  The parent owns clipping so NavBar and
+  // NavPanel cannot leak square backgrounds through the shared radius.
+  .void-ui--minimal .void-workspace-body__nav-area {
+    height: calc(100% - var(--workspace-space-2));
+    margin-top: var(--workspace-space-2);
+    overflow: hidden;
+    border-radius: var(--workspace-radius-shell);
+    background: var(--workspace-surface-panel);
+    box-shadow: inset 0 0 0 1px var(--workspace-border-subtle);
+  }
+
+  .void-ui--minimal .void-workspace-body__nav-divider {
+    top: var(--workspace-space-2);
+    height: calc(100% - (2 * var(--workspace-space-2)));
+  }
+
   .void-ui--minimal .void-nav-panel {
     --void-nav-status-unknown: var(--workspace-text-muted);
 
@@ -200,18 +218,10 @@
       width: 100%;
       height: 36px;
       padding: 0 var(--workspace-space-2);
-      border: 1px solid color-mix(
-        in srgb,
-        var(--color-accent-500) 24%,
-        var(--workspace-border-subtle)
-      );
+      border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
-      color: var(--color-accent-600);
-      background: color-mix(
-        in srgb,
-        var(--color-accent-500) 10%,
-        var(--workspace-surface-raised)
-      );
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-active);
       font-weight: var(--workspace-font-weight-medium);
       transition:
         color var(--workspace-motion-fast) var(--workspace-easing-standard),
@@ -228,32 +238,16 @@
     }
 
     &__session-create-action:hover {
-      border-color: color-mix(
-        in srgb,
-        var(--color-accent-500) 42%,
-        var(--workspace-border-subtle)
-      );
-      color: var(--color-accent-600);
-      background: color-mix(
-        in srgb,
-        var(--color-accent-500) 16%,
-        var(--workspace-surface-raised)
-      );
+      border-color: var(--workspace-border-subtle);
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-hover);
       box-shadow: none;
       transform: none;
     }
 
     &__session-create-action:active {
-      border-color: color-mix(
-        in srgb,
-        var(--color-accent-500) 52%,
-        var(--workspace-border-subtle)
-      );
-      background: color-mix(
-        in srgb,
-        var(--color-accent-500) 22%,
-        var(--workspace-surface-raised)
-      );
+      border-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-active);
     }
 
     &__session-create-action:focus-visible {
@@ -279,6 +273,22 @@
       font-size: var(--workspace-font-size-meta);
       font-weight: var(--workspace-font-weight-medium);
       line-height: var(--workspace-line-height-meta);
+    }
+
+    &__section-label,
+    &__workspace-group-title {
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    &__section-header {
+      height: 22px;
+      margin-inline: var(--workspace-space-1);
+    }
+
+    &__workspace-item-card,
+    &__assistant-item-card {
+      background: transparent;
     }
 
     &__workspace-list-empty {

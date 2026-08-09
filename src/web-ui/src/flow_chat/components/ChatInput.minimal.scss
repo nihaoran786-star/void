@@ -2,7 +2,7 @@
   .void-ui--minimal .void-chat-input-drop-zone {
     bottom: var(--workspace-space-2);
     width: 100%;
-    max-width: 760px;
+    max-width: var(--workspace-content-max);
     padding-inline: var(--workspace-space-2);
   }
 
@@ -18,7 +18,7 @@
     &__box--capsule:focus-within {
       color: var(--workspace-text-primary);
       border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-panel);
+      border-radius: var(--workspace-radius-composer);
       background: var(--workspace-surface-raised);
       box-shadow: none;
       backdrop-filter: none;
@@ -28,6 +28,7 @@
 
     &__box:focus-within {
       border-color: var(--workspace-focus-ring-subtle);
+      border-radius: var(--workspace-radius-composer);
       box-shadow: none;
     }
 
@@ -41,6 +42,7 @@
 
     &__box--multi-line {
       height: auto;
+      border-radius: var(--workspace-radius-composer);
       min-height: calc(
         var(--workspace-control-height) + var(--workspace-space-8)
       );
@@ -69,7 +71,7 @@
         align-items: center;
         column-gap: var(--workspace-space-2);
         row-gap: var(--workspace-space-1);
-        border-radius: var(--workspace-radius-panel);
+        border-radius: var(--workspace-radius-composer);
         min-height: calc(
           var(--workspace-control-height) + var(--workspace-space-8)
         );

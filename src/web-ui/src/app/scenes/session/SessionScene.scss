@@ -76,6 +76,49 @@
   box-shadow: var(--workspace-shadow-raised, var(--shadow-lg));
 }
 
+// Minimal keeps the Team Workspace inside the same inset shell as the Canvas.
+// The overlay remains absolute, so closing it or crossing a breakpoint never
+// changes the durable Team binding or child-session state.
+.void-ui--minimal .void-session-scene__team-workspace {
+  top: var(--workspace-space-2);
+  right: var(--workspace-space-2);
+  bottom: var(--workspace-space-2);
+  width: min(368px, calc(100% - (2 * var(--workspace-space-2))));
+  border-color: var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-shell);
+  background: var(--workspace-surface-panel);
+  box-shadow: var(--workspace-shadow-raised);
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  // A 1690px Per-Monitor-V2 window can be only ~1124 CSS px at 150% DPI.
+  // Keep that desktop in a compact three-column layout instead of covering
+  // the working Canvas with the medium overlay.
+  .void-ui--minimal .void-session-scene--has-team-workspace {
+    --team-workspace-column-width: clamp(280px, 25vw, 320px);
+
+    padding-right: calc(
+      var(--team-workspace-column-width) + var(--workspace-space-2)
+    );
+
+    .void-session-scene__chat-pane {
+      flex: 1 1 280px;
+      min-width: 280px;
+      max-width: 34%;
+    }
+
+    .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed) {
+      flex: 1 1 auto;
+      min-width: 240px;
+      max-width: calc(100% - 281px);
+    }
+  }
+
+  .void-ui--minimal .void-session-scene__team-workspace {
+    width: var(--team-workspace-column-width);
+  }
+}
+
 @media (min-width: 1280px) {
   // A durable Team owns one real third column. The column is pinned to the
   // scene's physical right edge and its width is reserved via padding, so
@@ -109,6 +152,27 @@
     border-width: 0 0 0 1px;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  .void-ui--minimal .void-session-scene--has-team-workspace {
+    --team-workspace-column-width: clamp(340px, 23vw, 400px);
+
+    // The reserved column contains the Team panel plus one Canvas-side inset.
+    // AuxPane owns the visible 8px gap, avoiding a doubled 16px gutter.
+    padding-right: calc(
+      var(--team-workspace-column-width) + var(--workspace-space-2)
+    );
+  }
+
+  .void-ui--minimal .void-session-scene__team-workspace {
+    top: var(--workspace-space-2);
+    right: var(--workspace-space-2);
+    bottom: var(--workspace-space-2);
+    width: var(--team-workspace-column-width);
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-shell);
+    background: var(--workspace-surface-panel);
+    box-shadow: var(--workspace-shadow-raised);
   }
 }
 

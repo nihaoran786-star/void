@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-08-08
+Updated: 2026-08-09
 
 ## Product state
 
@@ -132,8 +132,9 @@ Updated: 2026-08-08
   catalog presentation on the existing MCP infrastructure component, so JSON
   configuration, lifecycle controls, deletion, remote authentication and OAuth
   still use the established adapter. Settings retains the original MCP
-  presentation. Configured Connectors use a two-column desktop gallery of
-  wide horizontal cards and collapse to one column on narrow containers. A
+  presentation. Configured Connectors and the curated market use the shared
+  compact four-column desktop gallery and collapse responsively on narrower
+  containers. A
   deliberately small audited catalog offers six fixed local-command templates
   plus the fixed Context7 remote endpoint. Templates use argument arrays rather
   than user-authored shell snippets; required runtime/path inputs are validated.
@@ -176,6 +177,17 @@ keeps the existing token architecture but may correct the concrete light-theme
 semantic values it owns; preserving a cold or severe existing value is not a
 design goal. Enterprise-admin, finance-console, dense-IDE, and gray-card-wall
 results fail visual acceptance even when functional checks pass.
+
+The 2026-08-09 presentation pass uses `different-ai/openwork` `dev` at
+`71bc6e7fec974233f03a951aa4fe5b186bec12b8` as a density and interaction
+reference, while retaining Void's product identity and every existing Module
+Interface. The compact physical-window shell, 48 px collapsed navigation,
+bounded conversation measure, flat AI/user transcript, compact tool status
+rows, composer, Welcome/new-session composition, Agent/Team/Skill/Connector
+markets, Content Canvas, and canonical right Team Workspace now share one
+Porcelain Air language. This is a presentation migration, not a replacement of
+Flow Chat, Canvas, Team, customization, MCP, short-drama, or desktop runtime
+paths.
 
 ## Architecture map
 
@@ -258,6 +270,25 @@ sends and hides the composer until the replacement persona is ready. This
 evidence does not reclassify the known repository-wide lint, E2E, Rust format,
 or Clippy baseline gaps as passing.
 
+The 2026-08-09 OpenWork-referenced presentation checkpoint completed the shell,
+collapsed navigation, conversation/tool/composer, customization-market, and
+three-column Team-session visual slices. At a 1690×900 physical DWM boundary
+with Per-Monitor-V2 awareness at 144 DPI, Agent, Team, installed Skill, Skill
+market, configured Connector, and Connector market scenes render four columns;
+the Team session keeps the lead conversation, artifact Canvas, and specialist
+workspace simultaneously visible. Canvas collapse/maximize and pre-dispatch
+member selection were exercised without creating a second Team or child-chat
+path. The maximize stacking-context defect and invalid Lucide CSS-string size
+  warnings found during that pass were corrected. The incomplete local
+  dependency tree was repaired with a frozen-lockfile install without changing
+  a manifest or lockfile. Theme color/visual contracts, Web type checking,
+  focused source contracts, repository hygiene, core boundaries, and diff
+  checks passed. The complete controlled Web suite also passed: 527/527 files,
+  3042/3042 tests, and zero unhandled errors. The production Web build and
+  performance budget passed as well. The final dark-theme DWM capture is layout,
+  density, and complete-window evidence; it does not by itself close the
+  separate light-theme visual-acceptance check.
+
 High-confidence defects fixed in the current audit:
 
 - three undefined minimal-workspace CSS tokens that broke the theme-color Gate
@@ -289,9 +320,20 @@ Open baseline debt:
   through automated tests and Desktop runtime wiring. A provider-backed manual
   response still depends on the user's configured model/provider and should be
   included in the next full-window Desktop acceptance pass.
+- the OpenWork-referenced visual slice has completed dependency repair, focused
+  presentation contracts, the complete controlled Web suite, the production
+  Web build, and a successful Desktop preview restart; the default parallel Vitest
+  runner can still expose repository-wide cross-file `localStorage`/`act`
+  pollution even though every affected file and the complete single-worker run
+  pass;
+- final release evidence still needs one broad full-window pass over Welcome,
+  ordinary sessions, all customization tabs, Team authoring, Team member
+  conversations, and protected Code/Cowork/Media flows after a clean restart.
 
-Evidence and exact commands are in
+Repository baseline evidence and exact commands are in
 [docs/qa/repository-stability-audit-2026-07-28.md](docs/qa/repository-stability-audit-2026-07-28.md).
+The current OpenWork-referenced presentation evidence is indexed in
+[docs/features/interaction-theme-governance.md](docs/features/interaction-theme-governance.md).
 
 ## Documentation policy
 

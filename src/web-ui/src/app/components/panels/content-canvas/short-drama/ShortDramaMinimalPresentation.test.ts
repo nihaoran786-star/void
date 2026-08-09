@@ -123,13 +123,13 @@ describe('ShortDramaCenter minimal presentation contract', () => {
 
   it('uses a compact horizontally reachable stage navigation strip', () => {
     expect(source).toMatch(
-      /\.short-drama-center__topbar \{[\s\S]*?min-height: calc\(var\(--workspace-icon-target\) \+ var\(--workspace-space-2\)\);/,
+      /\.short-drama-center__topbar \{[\s\S]*?min-height: var\(--workspace-topbar-height\);/,
     );
     expect(source).toMatch(
       /\.short-drama-center__tabs \{[\s\S]*?overflow-x: auto;[\s\S]*?scrollbar-width: none;/,
     );
     expect(source).toMatch(
-      /\.short-drama-center__tab \{[\s\S]*?min-height: var\(--workspace-icon-target\);[\s\S]*?flex: 0 0 auto;/,
+      /\.short-drama-center__tab \{[\s\S]*?min-height: var\(--workspace-control-height\);[\s\S]*?flex: 0 0 auto;/,
     );
     expect(source).toMatch(
       /@container short-drama-panel \(max-width: 420px\)[\s\S]*?\.short-drama-center__tab \{[\s\S]*?flex: 1 0 auto;[\s\S]*?justify-content: center;[\s\S]*?padding-inline: var\(--workspace-space-1\);/,

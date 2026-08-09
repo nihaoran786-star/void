@@ -842,7 +842,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                       aria-expanded={openMenuSessionId === session.sessionId}
                       onClick={e => handleMenuOpen(e, session.sessionId)}
                     >
-                      <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />
+                      <MoreHorizontal size={13} />
                     </button>
                   </div>
                   {openMenuSessionId === session.sessionId && sessionMenuPosition && createPortal(

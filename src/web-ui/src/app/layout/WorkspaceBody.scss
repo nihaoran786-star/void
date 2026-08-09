@@ -97,6 +97,14 @@ $_nav-collapsed-width: 48px;
   transition: opacity $motion-fast $easing-standard;
 }
 
+// A maximized Canvas is fixed to the physical viewport, but the scene column
+// remains a stacking-context child of the workspace shell. Raise that one
+// column above the navigation while it owns the maximized surface; keep the
+// normal scene/nav ordering unchanged for every other state.
+.void-workspace-body__scene-area:has(.canvas-content-canvas.is-maximized) {
+  z-index: 11;
+}
+
 // Minimal collapsed navigation is a compact workspace panel, inset from every
 // physical window edge. Clip the shared NavBar + NavPanel backgrounds at this
 // single shell so their internal square surfaces cannot leak past the radius.

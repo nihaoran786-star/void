@@ -14,6 +14,23 @@ const readSource = (relativePath: string): string =>
 const sha256 = (relativePath: string): string =>
   sha256SourceText(pathFor(relativePath));
 
+const extractScssBlock = (source: string, marker: string): string => {
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex < 0) throw new Error(`Missing SCSS marker: ${marker}`);
+
+  const openBraceIndex = source.indexOf('{', markerIndex);
+  if (openBraceIndex < 0) throw new Error(`Missing opening brace after: ${marker}`);
+
+  let depth = 0;
+  for (let index = openBraceIndex; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}') depth -= 1;
+    if (depth === 0) return source.slice(markerIndex, index + 1);
+  }
+
+  throw new Error(`Unbalanced SCSS block after: ${marker}`);
+};
+
 describe('Agents scene Minimal presentation contract', () => {
   const source = readSource('./AgentsScene.minimal.scss');
   const marketContract = readSource('../../../component-library/styles/customization-market.scss');
@@ -145,9 +162,13 @@ describe('Agents scene Minimal presentation contract', () => {
   });
 
   it('uses one real portrait slot for both core and specialist employees', () => {
-    expect(source).toMatch(
-      /\.agent-avatar--card \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;/,
+    const portraitSlots = extractScssBlock(
+      source,
+      '.agent-avatar--card,\n    .agent-team-card__avatar',
     );
+
+    expect(portraitSlots).toContain('width: 44px;');
+    expect(portraitSlots).toContain('height: 44px;');
     expect(readSource('./components/AgentAvatar.tsx')).toContain('<img');
     expect(readSource('./components/AgentAvatar.tsx')).toContain('onError={() => setImageFailed(true)}');
   });

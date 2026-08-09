@@ -10,6 +10,11 @@ Selected: 2026-08-08
 Direction corrected: 2026-08-08. The legacy filename is retained so existing
 handoffs and inbound links do not break.
 
+Implementation checkpoint: 2026-08-09. The selected tone is now applied beyond
+the original navigation/chat slice to the current shell, Welcome/new session,
+customization markets, Canvas chrome, and Team Workspace. The wider coverage
+does not authorize runtime or domain changes.
+
 Visual target:
 `%USERPROFILE%\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec-4b53f3a0-dd4d-4165-a1a0-ff4c4f11f053.png`
 
@@ -58,17 +63,20 @@ Minimal does not mean cold or empty. Professional does not mean severe. Use
 warmth, whitespace, typography, tiny functional color cues, and progressive
 disclosure to make capability feel approachable.
 
-Current authorized implementation slice:
+Current authorized presentation coverage:
 
 1. the collapsed and expanded left navigation;
 2. AI output, user messages, and tool-call presentation;
 3. the composer and its contextual controls;
-4. focused token reuse and governance needed by those surfaces.
+4. Welcome and the unpersisted new-session draft;
+5. Agent, Team, Skill, and Connector catalog presentation;
+6. Content Canvas chrome and the canonical Team Workspace;
+7. focused token reuse and governance needed by those surfaces.
 
-Unrelated Canvas/Browser redesign, Team Workspace redesign, catalog restyling,
-Settings restyling, and broad component migration remain future work. The
-authorized surfaces may update the shared semantic tokens they genuinely own;
-they may not recolor unrelated surfaces by accident.
+Browser internals, Infinite Canvas, Settings, Automation, media authoring, and
+remaining feature-specific surfaces still require their own reviewed slices.
+The authorized surfaces may update the shared semantic tokens they genuinely
+own; they may not recolor unrelated surfaces by accident.
 
 ## 2. Existing ownership
 
@@ -398,7 +406,8 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 ## 12. Team Workspace
 
 - Team lead remains the left parent conversation;
-- the optional right panel is 264–300px when docked;
+- the optional right panel is 280–320px in the compact desktop layout and
+  340–400px on wide CSS viewports;
 - closed Team presentation does not detach the Team or stop members;
 - member list uses compact rows, avatar, role, and explicit status;
 - no member card gallery and no duplicate lead entry;
@@ -436,7 +445,7 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 
 ## 15. Migration order
 
-### Current authorized slice
+### Implemented presentation slices
 
 1. Inventory the navigation, AI transcript, user message, tool activity, and
    composer consumers plus their current semantic tokens.
@@ -451,28 +460,35 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 6. Verify full-window, responsive, keyboard, reduced-motion, i18n, performance,
    and protected-capability behavior; then make clean local commits.
 
-### Deferred full-system roadmap
+The shell/navigation, conversation/tool/composer, customization-market,
+right-Team-workspace, and Welcome/new-session slices reached the 2026-08-09
+visual checkpoint. The local dependency tree was repaired without manifest or
+lockfile drift. Focused presentation contracts and the complete controlled Web
+suite now pass (527/527 files, 3042/3042 tests, zero unhandled errors), together
+with the production Web build and performance budget. Provider-backed manual
+Agent chat, packaging, and cross-platform visual evidence remain separate
+release checks rather than presentation-contract blockers.
+
+### Remaining full-system roadmap
 
 1. Inventory current primitive, semantic, component, and page-local values.
 2. Add failing governance tests for the selected Porcelain Air contract.
 3. Map light primitive and `--workspace-*` semantic tokens through existing
    owners; do not delete dark/Classic compatibility yet.
-4. Migrate the desktop shell, collapsed/expanded navigation, typography, basic
-   controls, overlays, and focus states.
-5. Migrate Flow Chat transcript, user message, tool rows, artifact cards, and
-   composer presentation without changing orchestration.
-6. Migrate shared Canvas chrome, Browser presentation, Infinite Canvas, and
-   Team Workspace.
-7. Migrate Welcome, Agent/Team, Skill, Connector, Settings, Automation, media,
-   Short Drama, and remaining feature surfaces in small reviewable slices.
-8. Remove only proven dead presentation aliases after every consumer has moved
+4. Continue the completed desktop shell, navigation, Flow Chat, composer,
+   customization-market, Canvas-chrome, Team-Workspace, and Welcome language
+   into only the remaining reviewed consumers.
+5. Migrate Browser internals and Infinite Canvas without changing their
+   ownership or making Browser a node inside another Canvas.
+6. Migrate Settings, Automation, media authoring, Short Drama details, and
+   remaining feature surfaces in small reviewable slices.
+7. Remove only proven dead presentation aliases after every consumer has moved
    and repository/theme/i18n/full-Web gates pass.
 
-The first implementation target is the Porcelain Air tone on the three
-authorized surfaces. Existing semantic-token architecture and Classic remain
-rollback paths; existing light-theme values are not a visual acceptance target.
-The authorized slice may introduce the specified porcelain targets through
-existing owners, while unrelated surfaces wait for their own reviewed slice.
+Existing semantic-token architecture and Classic remain rollback paths;
+existing light-theme values are not a visual acceptance target. Every
+additional slice must introduce the specified porcelain targets through
+existing owners while unrelated surfaces wait for their own review.
 
 ## 16. Verification
 

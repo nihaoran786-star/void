@@ -25,11 +25,14 @@ automatically the current source of truth.
   contract
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
-  responsive layout, accessibility, full-window evidence, and performance
+  responsive layout, accessibility, full-window evidence, and performance;
+  includes the 2026-08-09 OpenWork-referenced implementation checkpoint, full
+  controlled Web-suite result, and remaining release-evidence boundaries
 - [Porcelain Air design system](design/porcelain-graphite-design-system.md)
   — selected light, friendly productivity direction; the current slice keeps
-  the token architecture, permits scoped semantic-color correction, and targets
-  collapsed navigation, chat, tool calls, user messages, and the composer
+  the token architecture, permits scoped semantic-color correction, and now
+  covers the shell, navigation, chat, tool calls, composer, customization
+  markets, Canvas, Team Workspace, and Welcome/new-session presentation
 - [Porcelain Air navigation/chat execution prompt](handoffs/porcelain-graphite-nav-chat-prompt.md)
   — self-contained prompt for a fresh AI to implement only the approved first
   slice without relying on this conversation

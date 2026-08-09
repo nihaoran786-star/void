@@ -109,6 +109,26 @@
   &__conversation { flex: 1; min-height: 0; overflow: hidden; }
 }
 
+.void-ui--minimal .team-workspace-panel {
+  border-radius: inherit;
+  background: var(--workspace-surface-panel);
+
+  &__header {
+    height: 44px;
+    min-height: 44px;
+    border-bottom-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
+
+  &__conversation-header {
+    height: 44px;
+    min-height: 44px;
+    padding: 0 8px;
+    border-bottom-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
+}
+
 @keyframes team-workspace-spin { to { transform: rotate(360deg); } }
 
 @container (max-width: 300px) {

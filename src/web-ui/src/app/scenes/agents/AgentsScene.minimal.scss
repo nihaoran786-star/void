@@ -140,10 +140,22 @@
       --gallery-grid-min: 280px;
     }
 
+    .team-catalog-skeleton {
+      height: var(--customization-market-card-height, 160px);
+      min-height: var(--customization-market-card-height, 160px);
+    }
+
     .agent-card,
     .core-agent-card,
     .agent-team-card {
       @include market.card;
+
+      width: 100%;
+      min-width: 0;
+      height: var(--customization-market-card-height, 160px);
+      min-height: var(--customization-market-card-height, 160px);
+      contain: layout paint style;
+      animation: none;
 
       &::before {
         content: none;
@@ -169,11 +181,36 @@
       }
     }
 
+    .agent-card__dispatch,
+    .agent-team-card__dispatch {
+      top: var(--workspace-space-2);
+      right: var(--workspace-space-2);
+      justify-content: center;
+      gap: 0;
+      width: var(--workspace-control-height);
+      min-height: var(--workspace-control-height);
+      padding: 0;
+
+      span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    }
+
     .agent-card__header,
     .core-agent-card__top,
     .agent-team-card__header {
       gap: var(--workspace-space-2);
       padding: var(--workspace-space-2) var(--workspace-space-3) 0;
+    }
+
+    .agent-card.agent-card--dispatchable .agent-card__header,
+    .agent-team-card.agent-team-card--dispatchable .agent-team-card__header {
+      padding-right: calc(var(--workspace-control-height) + var(--workspace-space-3));
     }
 
     .agent-card__icon-area,
@@ -207,7 +244,8 @@
       gap: 0;
     }
 
-    .agent-avatar--card {
+    .agent-avatar--card,
+    .agent-team-card__avatar {
       width: 44px;
       height: 44px;
       border-color: var(--workspace-border-subtle);

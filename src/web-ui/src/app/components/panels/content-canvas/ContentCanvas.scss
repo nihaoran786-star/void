@@ -41,3 +41,17 @@
     height: 100%;
   }
 }
+
+.void-ui--minimal .canvas-content-canvas {
+  box-sizing: border-box;
+  border: 1px solid var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-shell);
+  background: var(--workspace-surface-canvas);
+  box-shadow: var(--workspace-shadow-raised);
+
+  &.is-maximized {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}

@@ -113,8 +113,9 @@ describe('FlowChat minimal presentation contract', () => {
       /\.message-list-header \{[\s\S]*?height: 57px;[\s\S]*?min-height: 57px;/,
     );
     expect(shellMinimalSource).toMatch(
-      /:where\(\.model-round-item, \.user-message-item\)[\s\S]*?max-width: 760px;[\s\S]*?margin-inline: auto;/,
+      /:where\(\.model-round-item, \.user-message-item\)[\s\S]*?width: min\(var\(--workspace-content-max\), calc\(100% - 32px\)\);[\s\S]*?max-width: var\(--workspace-content-max\);[\s\S]*?margin-inline: auto;/,
     );
+    expect(tokenSource).toContain('--workspace-content-max: 800px;');
     expect(shellMinimalSource).toContain('.user-message-item__actions:has(.copied, .user-message-item__rollback-spinner)');
     expect(shellMinimalSource).toContain('.model-round-item__footer:has(.copied, .spinning)');
     expect(shellMinimalSource).not.toMatch(
@@ -166,10 +167,10 @@ describe('FlowChat minimal presentation contract', () => {
 
   it('keeps the composer low-profile with one blue primary action', () => {
     expect(inputMinimalSource).toMatch(
-      /\.void-ui--minimal \.void-chat-input-drop-zone \{[\s\S]*?bottom: var\(--workspace-space-2\);[\s\S]*?max-width: 760px;[\s\S]*?padding-inline: var\(--workspace-space-2\);/,
+      /\.void-ui--minimal \.void-chat-input-drop-zone \{[\s\S]*?bottom: var\(--workspace-space-2\);[\s\S]*?max-width: var\(--workspace-content-max\);[\s\S]*?padding-inline: var\(--workspace-space-2\);/,
     );
     expect(inputMinimalSource).toMatch(
-      /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?row-gap: var\(--workspace-space-1\);[\s\S]*?border-radius: var\(--workspace-radius-panel\);/,
+      /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?row-gap: var\(--workspace-space-1\);[\s\S]*?border-radius: var\(--workspace-radius-composer\);/,
     );
     expect(inputMinimalSource).toMatch(
       /\.void-chat-input__box--capsule \{[\s\S]*?min-height: calc\([\s\S]*?var\(--workspace-control-height\) \+ var\(--workspace-space-8\)[\s\S]*?\);[\s\S]*?max-height: min\(240px, 38vh\);[\s\S]*?padding: var\(--workspace-space-1\) var\(--workspace-space-2\);/,
@@ -178,8 +179,15 @@ describe('FlowChat minimal presentation contract', () => {
       /&__box--multi-line \{[\s\S]*?height: auto;[\s\S]*?min-height: calc\(\s*var\(--workspace-control-height\) \+\s*var\(--workspace-space-8\)\s*\);[\s\S]*?max-height: min\(280px, 42vh\);[\s\S]*?\.rich-text-input \{[\s\S]*?min-height: 22px;[\s\S]*?max-height: min\(216px, 32vh\);[\s\S]*?overflow-y: auto;/,
     );
     expect(inputMinimalSource).toMatch(
-      /&__box,[\s\S]*?border-radius: var\(--workspace-radius-panel\);/,
+      /&__box,[\s\S]*?border-radius: var\(--workspace-radius-composer\);/,
     );
+    expect(inputMinimalSource).toMatch(
+      /&__box:focus-within \{[\s\S]*?border-radius: var\(--workspace-radius-composer\);/,
+    );
+    expect(inputMinimalSource).toMatch(
+      /&__box--multi-line \{[\s\S]*?border-radius: var\(--workspace-radius-composer\);/,
+    );
+    expect(tokenSource).toContain('--workspace-radius-composer: 18px;');
     expect(inputMinimalSource).toMatch(
       /&__send-button,[\s\S]*?&__breathing-circle \{[\s\S]*?background: var\(--workspace-primary-action\);/,
     );

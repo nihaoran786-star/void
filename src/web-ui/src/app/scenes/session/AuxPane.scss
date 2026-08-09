@@ -21,7 +21,7 @@
     background: var(--color-bg-workbench);
     min-width: 0;
     overflow: hidden;
-    border: none !important;
+    border: none;
     border-radius: 0;
     margin: 0;
     padding: 0;
@@ -34,6 +34,22 @@
   & > * {
     min-height: 0;
     flex-shrink: 1;
+    margin: 0;
+  }
+}
+
+.void-ui--minimal .void-aux-pane {
+  box-sizing: border-box;
+  padding: var(--workspace-space-2);
+  background: var(--workspace-surface-canvas);
+}
+
+.void-ui--classic .void-aux-pane {
+  &__tabbed-panel {
+    border: none !important;
+  }
+
+  & > * {
     border-left: none !important;
     border-right: none !important;
     border-bottom: none !important;

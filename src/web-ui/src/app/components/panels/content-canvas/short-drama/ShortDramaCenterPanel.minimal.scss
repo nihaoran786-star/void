@@ -27,7 +27,8 @@
   }
 
   .void-ui--minimal .short-drama-center__topbar {
-    min-height: calc(var(--workspace-icon-target) + var(--workspace-space-2));
+    height: var(--workspace-topbar-height);
+    min-height: var(--workspace-topbar-height);
     padding: 0 var(--workspace-space-2);
     border-color: var(--workspace-border-subtle);
     background: var(--workspace-surface-canvas);
@@ -47,7 +48,7 @@
   }
 
   .void-ui--minimal .short-drama-center__tab {
-    min-height: var(--workspace-icon-target);
+    min-height: var(--workspace-control-height);
     flex: 0 0 auto;
     border-radius: var(--workspace-radius-control);
     padding: 0 var(--workspace-space-2);

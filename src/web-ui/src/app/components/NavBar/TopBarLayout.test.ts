@@ -27,6 +27,14 @@ describe('top bar layout styles', () => {
     expect(stylesheet).toContain('border-radius: var(--void-topbar-control-radius);');
   });
 
+  it('keeps the Minimal shell header compact without changing control targets', () => {
+    const stylesheet = readStylesheet('./NavBar.scss');
+
+    expect(stylesheet).toMatch(
+      /\.void-ui--minimal \.void-nav-bar\s*\{[\s\S]*?height:\s*36px;[\s\S]*?background:\s*transparent;/,
+    );
+  });
+
   it('removes secondary tab labels before narrow tabs clip their text', () => {
     const stylesheet = readStylesheet('../SceneBar/SceneBar.scss');
 

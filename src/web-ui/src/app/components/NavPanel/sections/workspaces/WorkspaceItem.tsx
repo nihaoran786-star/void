@@ -774,7 +774,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 onClick={() => { void handleOpenFiles(); }}
                 aria-label={t('nav.items.project')}
               >
-                <Folder size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
+                <Folder size={13} aria-hidden="true" />
               </button>
             </Tooltip>
             <div ref={menuAnchorRef}>
@@ -785,7 +785,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 aria-label={t('nav.moreOptions')}
                 aria-expanded={menuOpen}
               >
-                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
+                <MoreHorizontal size={13} aria-hidden="true" />
               </button>
             </div>
 
@@ -1084,7 +1084,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 onClick={() => { void handleOpenFiles(); }}
                 aria-label={t('nav.items.project')}
               >
-                <Folder size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
+                <Folder size={13} aria-hidden="true" />
               </button>
             </Tooltip>
             <div ref={menuAnchorRef}>
@@ -1095,7 +1095,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 aria-label={t('nav.moreOptions')}
                 aria-expanded={menuOpen}
               >
-                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
+                <MoreHorizontal size={13} aria-hidden="true" />
               </button>
             </div>
 

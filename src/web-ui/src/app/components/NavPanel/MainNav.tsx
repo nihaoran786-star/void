@@ -827,7 +827,7 @@ const MainNav: React.FC<MainNavProps> = ({
                     onClick={toggleWorkspaceMenu}
                     onKeyDown={handleWorkspaceMenuTriggerKeyDown}
                   >
-                    <Plus size="var(--void-nav-row-action-icon-size)" />
+                    <Plus size={13} />
                   </button>
                 </Tooltip>
               </div>
