@@ -2,3 +2,14 @@
 .codex-artifacts/
 .void/
 tests/e2e/media/generated/media_batch_*/
+
+# Local verification/build outputs. Keep disposable agent work outside the
+# repository index and under .codex-artifacts/ whenever possible.
+/target-*/
+/artifacts/
+/media/
+/design-lab/flicker/
+/design-lab/shot-*.png
+/design-lab/workbench-*.html
+/design-demos/
+/src/web-ui/NUL

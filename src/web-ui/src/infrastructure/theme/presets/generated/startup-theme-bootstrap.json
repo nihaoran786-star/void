@@ -5,13 +5,13 @@
   "themes": [
     {
       "id": "void-light",
-      "bgPrimary": "#f3f3f5",
-      "bgSecondary": "#ffffff",
-      "bgScene": "#ffffff",
+      "bgPrimary": "#F6F4F1",
+      "bgSecondary": "#FBFAF8",
+      "bgScene": "#FBFAF8",
       "isLight": true,
-      "textPrimary": "#1e293b",
-      "textMuted": "#64748b",
-      "accentColor": "#64748b"
+      "textPrimary": "#20231F",
+      "textMuted": "#70746E",
+      "accentColor": "#4C86F7"
     },
     {
       "id": "void-slate",

@@ -1320,13 +1320,13 @@ permission, session, media, or Team orchestration behavior to a page component.
   `p95 <= 600 ms`, and data-ready `p95 <= 1500 ms`. The measured result was
   `62.0 ms`, `197.1 ms`, and `513.7 ms` respectively.
 
-The 2026-08-09 OpenWork-referenced visual checkpoint verified the Agent, Team,
+The 2026-08-09 Porcelain Air visual checkpoint verified the Agent, Team,
 installed Skill, Skill market, configured Connector, and Connector market
 scenes at a 1690×900 physical DWM boundary, Per-Monitor-V2, DPI 144. Each ready
 catalog rendered four columns without title/action overlap or clipped search
 and category controls. The dependency gap was repaired with a frozen-lockfile
 install and no manifest or lockfile changes. Focused presentation contracts and
-the complete controlled Web suite subsequently passed (527/527 files,
+the default parallel Web suite subsequently passed (527/527 files,
 3042/3042 tests, zero unhandled errors), as did the production Web build and
 performance budget. These results do not replace provider-backed manual Agent
 chat or cross-platform Desktop acceptance.

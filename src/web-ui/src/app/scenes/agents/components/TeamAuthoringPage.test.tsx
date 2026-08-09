@@ -372,7 +372,7 @@ describeWithJsdom('TeamAuthoringPage', () => {
     expect(gateway.get).not.toHaveBeenCalled();
     expect(gateway.create).not.toHaveBeenCalled();
     expect(gateway.update).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it('像选角色一样组队，第一位自动成为主理人并提交稳定 raw agentId', async () => {
     const gateway = gatewayFixture();

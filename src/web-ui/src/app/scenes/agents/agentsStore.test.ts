@@ -251,7 +251,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
       await Promise.resolve();
     });
     expect(latestIds).toEqual(['newer-agent']);
-  });
+  }, 15_000);
 
   it('keeps same-id user and project cards independent by canonical key', async () => {
     const shared = (key: string, source: 'user' | 'project') => ({

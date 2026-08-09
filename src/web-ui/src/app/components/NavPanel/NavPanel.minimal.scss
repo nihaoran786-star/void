@@ -1,5 +1,5 @@
 @mixin styles {
-  // OpenWork-inspired shell: keep the existing mounted navigation tree and
+  // Porcelain Air shell: keep the existing mounted navigation tree and
   // resize behavior, but present the expanded and collapsed variants as the
   // same inset workspace surface.  The parent owns clipping so NavBar and
   // NavPanel cannot leak square backgrounds through the shared radius.

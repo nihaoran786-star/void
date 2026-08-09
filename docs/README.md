@@ -26,8 +26,8 @@ automatically the current source of truth.
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
   responsive layout, accessibility, full-window evidence, and performance;
-  includes the 2026-08-09 OpenWork-referenced implementation checkpoint, full
-  controlled Web-suite result, and remaining release-evidence boundaries
+  includes the 2026-08-09 Porcelain Air implementation checkpoint, full
+  parallel Web-suite result, and remaining release-evidence boundaries
 - [Porcelain Air design system](design/porcelain-graphite-design-system.md)
   — selected light, friendly productivity direction; the current slice keeps
   the token architecture, permits scoped semantic-color correction, and now
@@ -111,12 +111,12 @@ accepted layout, progressive-disclosure, media-focus, and accessibility
 constraints are preserved in the current Minimal workspace migration and Team
 Workspace specifications. Nothing was deleted solely because of age.
 
-The 2026-08-08 review covered all 143 Markdown files then tracked under
-`docs/`, added one current governance specification, and leaves 144 tracked
-files under `docs/` (363 tracked Markdown files repository-wide). No historical
+The 2026-08-09 cleanup leaves 146 tracked Markdown files under `docs/` and 365
+tracked Markdown files repository-wide. No historical
 document was deleted: dated plans, audits, decisions, results, migration
 ledgers, and the Obsidian snapshot still contain unique contracts or checkpoint
 evidence. Current status was reconciled into `CONTEXT.md`; the documentation
-map now points to the current interaction/theme governance specification, and
-the completed Agent debug-chat plan is explicitly classified as evidence
-rather than an active queue.
+map points to the current interaction/theme governance specification, and the
+completed Agent debug-chat plan remains evidence rather than an active queue.
+The rejected live OpenWork UI/code reference was removed from current guidance;
+only the user-approved promotional image remains a visual reference.

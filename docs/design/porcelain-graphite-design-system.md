@@ -117,7 +117,7 @@ Classic compatibility remain protected rollback paths.
 | `porcelain-100` | `#EFEEEB` | selected-neutral and hover |
 | `porcelain-200` | `#E2E0DC` | base border |
 | `porcelain-300` | `#D1CEC8` | strong border |
-| `graphite-500` | `#737771` | metadata and secondary text |
+| `graphite-500` | `#70746E` | metadata and secondary text; AA-safe on porcelain surfaces |
 | `graphite-700` | `#4D514C` | secondary body text |
 | `graphite-900` | `#20231F` | primary text and icons |
 | `cobalt-50` | `#EEF5FF` | selected background |

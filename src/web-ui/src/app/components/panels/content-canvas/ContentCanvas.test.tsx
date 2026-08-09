@@ -73,6 +73,14 @@ const flowChatStoreMock = vi.hoisted(() => {
   };
 });
 
+const transportAdapterMock = vi.hoisted(() => ({
+  connect: vi.fn(async () => undefined),
+  request: vi.fn(async () => undefined),
+  listen: vi.fn(() => () => undefined),
+  disconnect: vi.fn(async () => undefined),
+  isConnected: vi.fn(() => true),
+}));
+
 import { ContentCanvas } from './ContentCanvas';
 import { useKeyboardShortcuts } from './hooks';
 import { useAgentCanvasStore } from './stores';
@@ -119,6 +127,18 @@ vi.mock('@/flow_chat/store/FlowChatStore', () => ({
   flowChatStore: flowChatStoreMock,
 }));
 
+vi.mock('@/infrastructure/api/adapters', () => ({
+  getTransportAdapter: () => transportAdapterMock,
+}));
+
+vi.mock('@/shared/services/short-drama/ShortDramaWorkspaceManifestAdapter', () => ({
+  createShortDramaWorkspaceManifestAdapter: vi.fn(() => ({})),
+}));
+
+vi.mock('@/shared/services/short-drama/ShortDramaStageAgentSessionBinding', () => ({
+  readShortDramaStageAgentBindings: vi.fn(() => new Promise(() => undefined)),
+}));
+
 describe('ContentCanvas workspace media opening', () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -147,8 +167,10 @@ describe('ContentCanvas workspace media opening', () => {
       checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
       scanLibrary: vi.fn(),
     };
-    flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
-    flowChatStore.switchSession('media-session');
+    act(() => {
+      flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
+      flowChatStore.switchSession('media-session');
+    });
 
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
@@ -284,8 +306,10 @@ describe('ContentCanvas workspace media opening', () => {
     act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
 
-    flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
-    flowChatStore.switchSession('media-session');
+    act(() => {
+      flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
+      flowChatStore.switchSession('media-session');
+    });
 
     await act(async () => {
       root.render(
@@ -427,8 +451,10 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
-    flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
-    flowChatStore.switchSession('media-session');
+    act(() => {
+      flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
+      flowChatStore.switchSession('media-session');
+    });
 
     act(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
@@ -458,14 +484,18 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
-    flowChatStore.addExternalSession('legacy-media-session', 'Legacy Media', 'Media', 'C:/work');
-    flowChatStore.switchSession('legacy-media-session');
+    act(() => {
+      flowChatStore.addExternalSession('legacy-media-session', 'Legacy Media', 'Media', 'C:/work');
+      flowChatStore.switchSession('legacy-media-session');
+    });
     act(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
     });
 
-    flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
-    flowChatStore.switchSession('team-media-session');
+    act(() => {
+      flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
+      flowChatStore.switchSession('team-media-session');
+    });
     act(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
     });
@@ -517,23 +547,25 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
-    flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
-    flowChatStore.setState(previous => {
-      const sessions = new Map(previous.sessions);
-      const session = sessions.get('team-media-session');
-      sessions.set('team-media-session', {
-        ...session,
-        activePersonaBinding: {
-          kind: 'team_lead',
-          personaId: 'short-drama-team-lead',
-          personaRevision: { status: 'known', value: 'revision:1' },
-          teamDefinitionId: SHORT_DRAMA_TEAM_CATALOG_ID,
-          teamInstanceId: 'team-instance',
-        },
+    act(() => {
+      flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
+      flowChatStore.setState(previous => {
+        const sessions = new Map(previous.sessions);
+        const session = sessions.get('team-media-session');
+        sessions.set('team-media-session', {
+          ...session,
+          activePersonaBinding: {
+            kind: 'team_lead',
+            personaId: 'short-drama-team-lead',
+            personaRevision: { status: 'known', value: 'revision:1' },
+            teamDefinitionId: SHORT_DRAMA_TEAM_CATALOG_ID,
+            teamInstanceId: 'team-instance',
+          },
+        });
+        return { ...previous, sessions };
       });
-      return { ...previous, sessions };
+      flowChatStore.switchSession('team-media-session');
     });
-    flowChatStore.switchSession('team-media-session');
 
     act(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
@@ -558,8 +590,10 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
-    flowChatStore.addExternalSession('code-session', 'Code session', 'agentic', 'C:/work');
-    flowChatStore.switchSession('code-session');
+    act(() => {
+      flowChatStore.addExternalSession('code-session', 'Code session', 'agentic', 'C:/work');
+      flowChatStore.switchSession('code-session');
+    });
 
     act(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));

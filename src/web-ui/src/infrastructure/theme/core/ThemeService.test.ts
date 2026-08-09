@@ -49,13 +49,13 @@ describe('ThemeService flow chat link tokens', () => {
     vi.clearAllMocks();
   });
 
-  it('keeps light theme Flow Chat markdown links browser-blue even with a neutral app accent', async () => {
+  it('keeps light theme Flow Chat markdown links browser-blue with the Porcelain Air cobalt accent', async () => {
     const service = new ThemeService();
 
     await service.applyTheme('void-light');
 
     const rootStyle = document.documentElement.style;
-    expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#64748b');
+    expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#4C86F7');
     expect(rootStyle.getPropertyValue('--flowchat-link-color')).toBe('#0969da');
     expect(rootStyle.getPropertyValue('--flowchat-link-hover-color')).toBe('#0550ae');
   });

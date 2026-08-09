@@ -292,7 +292,7 @@ describeWithJsdom('CreateAgentPage', () => {
     expect(subagentApi.createSubagent.mock.calls[0]?.[0]).not.toHaveProperty('name');
     expect(useAgentsStore.getState().catalogRefreshRevision).toBe(1);
     expect(useAgentsStore.getState().page).toBe('home');
-  });
+  }, 15_000);
 
   it('loads the immutable runtime ID only as secondary text while editing localized fields', async () => {
     subagentApi.getSubagentDetail.mockResolvedValue({

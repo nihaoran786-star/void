@@ -23,7 +23,7 @@ const navActionSources = [
   sessionsSource,
 ];
 
-describe('OpenWork-inspired welcome and workspace stability contract', () => {
+describe('Porcelain Air welcome and workspace stability contract', () => {
   it('raises only the scene containing a maximized Canvas above the navigation', () => {
     expect(workspaceBodySource).toMatch(
       /\.void-workspace-body__scene-area:has\(\.canvas-content-canvas\.is-maximized\) \{[\s\S]*?z-index: 11;/,

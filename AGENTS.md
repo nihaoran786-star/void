@@ -60,6 +60,11 @@ historical evidence.
 
 ## Verification
 
+Put temporary screenshots, logs, and verifier-specific build outputs under
+`.codex-artifacts/` or the operating-system temp directory. Do not create
+repository-root `target-*`, `artifacts/`, or `media/` directories. Remove
+temporary verifier outputs after the relevant result has been recorded.
+
 Choose the smallest matching checks, then widen in proportion to risk:
 
 ```powershell

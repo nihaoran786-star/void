@@ -17,7 +17,7 @@ const connectorMarket = read('../../infrastructure/config/components/ConnectorMa
 const auxPane = read('../scenes/session/AuxPane.scss');
 const teamWorkspace = read('../../team_workspace/components/TeamWorkspacePanel.scss');
 
-describe('OpenWork presentation remains isolated from Classic', () => {
+describe('Minimal presentation remains isolated from Classic', () => {
   it('keeps Classic agent cards unchanged and projects compact cards only in Minimal', () => {
     expect(agentCard).toContain('height: 184px;');
     expect(agentCard).toContain('padding-right: 104px;');

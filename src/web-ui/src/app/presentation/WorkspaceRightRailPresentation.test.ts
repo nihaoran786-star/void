@@ -35,7 +35,7 @@ const teamWorkspaceSource = read(
   '../../team_workspace/components/TeamWorkspacePanel.scss',
 );
 
-describe('OpenWork-inspired right rail presentation contract', () => {
+describe('Porcelain Air right rail presentation contract', () => {
   it('keeps the wide Team Workspace inset without changing its absolute third-column ownership', () => {
     expect(sessionSource).toMatch(
       /\.void-ui--minimal \.void-session-scene--has-team-workspace \{[\s\S]*?--team-workspace-column-width: clamp\(340px, 23vw, 400px\);[\s\S]*?padding-right: calc\([\s\S]*?var\(--team-workspace-column-width\) \+ var\(--workspace-space-2\)[\s\S]*?\);/,

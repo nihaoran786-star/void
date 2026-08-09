@@ -12,6 +12,12 @@ Selected direction: **Porcelain Air / 瓷白轻盈工作台**. Its concrete
 typography, borders, components, shell rules, and migration contract are
 defined in
 [Porcelain Air Design System](../design/porcelain-graphite-design-system.md).
+
+The 2026-08-09 palette migration intentionally replaces the former neutral
+light preset with the Porcelain Air warm porcelain, graphite, cobalt, lilac,
+and pastel status ladders. Theme-color governance baselines therefore record
+the new explicit preset vocabulary; future work must lower those budgets and
+must not silently add another parallel light palette.
 The current authorized presentation coverage keeps the existing token
 architecture while allowing owned light-theme semantic values to move toward
 the selected warm, airy tone. It includes the shell, collapsed navigation,
@@ -19,11 +25,11 @@ chat information flow, tool calls, user messages, composer, Welcome/new
 session, customization catalogs, Content Canvas chrome, and the canonical Team
 Workspace. Runtime and domain expansion remain outside this specification.
 
-`different-ai/openwork` `dev` at
-`71bc6e7fec974233f03a951aa4fe5b186bec12b8` is the implementation reference for
-quiet density, compact chrome, whitespace, and progressive disclosure. It is
-not a source of Void runtime semantics, product data, branding, or a second
-component system.
+The user-approved promotional workspace image is the visual reference for quiet
+density, compact chrome, whitespace, translucent navigation, and progressive
+disclosure. The live OpenWork application and its source code were evaluated
+and rejected as product-level UI references; they are not implementation
+authority, runtime semantics, branding, or a second component system.
 
 ## Goal
 
@@ -190,8 +196,9 @@ Completed presentation slices:
   numeric Lucide dimensions used where CSS-variable strings caused invalid SVG
   width/height warnings.
 
-Authoritative local evidence is stored under
-`%USERPROFILE%\.codex\visualizations\2026\08\09\void-openwork-goal\`.
+Authoritative local evidence is stored under the dated 2026-08-09 visualizations
+directory. Some historical capture filenames retain `openwork` because that was
+the experiment name; filenames do not define the current design authority.
 Accepted captures use `PrintWindow(PW_RENDERFULLCONTENT)`, Per-Monitor-V2 DPI
 awareness, DPI 144, and the 1690×900 DWM extended-frame boundary with no
 occlusion. The final market captures cover Agents, Teams, installed Skills,
@@ -201,8 +208,8 @@ Canvas. `content-canvas-maximized-z11-runtime-proof.png` records the corrected
 maximized state, and `welcome-new-task-audit.png` covers the complete
 new-session window.
 
-The final fresh Desktop preview capture `openwork-final-full-window.png` uses the same
-capture contract at DPI 144. Its 1804×1204 image exactly matches the physical
+The final fresh Desktop preview capture uses the same capture contract at
+DPI 144. Its 1804×1204 image exactly matches the physical
 DWM extended-frame boundary and contains the complete left navigation, top
 chrome, right edge, bottom region, and window controls; the adjacent JSON
 sidecar records the bounds and capture method. The visible recovery notice
@@ -218,9 +225,9 @@ Verification is intentionally split:
   checks;
 - passed: focused presentation contracts, including the compact-tool six-file
   set (35 tests);
-- passed after frozen-lockfile dependency repair: the complete controlled
-  single-worker Web suite, 527/527 files and 3042/3042 tests with zero unhandled
-  errors;
+- passed after frozen-lockfile dependency repair and follow-up isolation fixes:
+  the default parallel Web suite, 527/527 files and 3042/3042 tests with zero
+  unhandled errors;
 - passed: the production Web build, Monaco asset checks, and performance budget
   (JS raw 2,343,031 bytes; CSS raw 603,004 bytes; 54 dynamic entries, none
   unresolved);

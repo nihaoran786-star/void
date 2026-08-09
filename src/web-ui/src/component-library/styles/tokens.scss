@@ -1243,6 +1243,17 @@ $badge-info-text: $color-info;
   );
 }
 
+[data-theme-type="light"] .void-ui--minimal {
+  // Porcelain Air light projection: hover stays a quiet warm porcelain tint,
+  // selection is the calm cobalt wash, and the primary action uses the solid
+  // cobalt step instead of the translucent dark-theme accent overlays.
+  --workspace-surface-hover: var(--color-bg-tertiary);
+  --workspace-surface-active: var(--color-accent-100);
+  --workspace-accent: var(--color-accent-500);
+  --workspace-primary-action: var(--color-accent-500);
+  --workspace-primary-action-hover: var(--color-accent-600);
+}
+
 :root[data-theme="light"],
 :root[data-theme-type="light"],
 [data-theme-type="light"] {

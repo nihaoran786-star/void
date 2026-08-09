@@ -198,6 +198,10 @@ export class FlowChatStore {
   }
 
   private clearOldStorage(): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
     try {
       const keysToRemove = [
         'void-flow-chat-state',

@@ -178,16 +178,15 @@ semantic values it owns; preserving a cold or severe existing value is not a
 design goal. Enterprise-admin, finance-console, dense-IDE, and gray-card-wall
 results fail visual acceptance even when functional checks pass.
 
-The 2026-08-09 presentation pass uses `different-ai/openwork` `dev` at
-`71bc6e7fec974233f03a951aa4fe5b186bec12b8` as a density and interaction
-reference, while retaining Void's product identity and every existing Module
-Interface. The compact physical-window shell, 48 px collapsed navigation,
-bounded conversation measure, flat AI/user transcript, compact tool status
-rows, composer, Welcome/new-session composition, Agent/Team/Skill/Connector
-markets, Content Canvas, and canonical right Team Workspace now share one
-Porcelain Air language. This is a presentation migration, not a replacement of
-Flow Chat, Canvas, Team, customization, MCP, short-drama, or desktop runtime
-paths.
+The user-approved promotional workspace image, not OpenWork's live application
+or source code, is the visual reference for density, whitespace, translucent
+navigation, and quiet interaction. An OpenWork checkout was evaluated on
+2026-08-09 and rejected as a product-level UI reference; its historical name
+must not drive new implementation or test terminology. The compact shell,
+48 px collapsed navigation, bounded conversation measure, flat transcript,
+compact tool rows, composer, customization markets, Content Canvas, and Team
+Workspace share the Porcelain Air language while retaining every existing
+Module Interface.
 
 ## Architecture map
 
@@ -238,71 +237,21 @@ stronger evidence than their apparent convenience.
 
 ## Current quality state
 
-Repository graph and automated review on 2026-07-28 covered 3,034 files,
-54,239 structural nodes, repository governance checks, Web UI type/lint/tests,
-core checks, theme contracts, i18n contracts, production build budgets, and
-full-window desktop evidence.
+Current verified baseline on 2026-08-09:
 
-The 2026-07-30 customization integration additionally passed the complete Web
-UI test suite, type and lint checks, repository/theme/i18n contracts, production
-Web build and bundle budgets, focused persona/Skill/Team contract tests, and the
-full `void-core` test suite. Desktop Team API and workspace checks are recorded
-in the current customization specification. The known baseline debt below is
-not reclassified as passing.
+- the default parallel Web suite passes 527/527 files and 3042/3042 tests with
+  zero unhandled errors;
+- Desktop Rust tests pass 197 tests with one explicit manual smoke ignored;
+- Web type checking, theme contracts, core boundaries, repository hygiene,
+  production build, Monaco assets, and performance budgets pass;
+- the 1690×900 physical DWM evidence uses Per-Monitor-V2 awareness at 144 DPI
+  and covers the complete window boundary;
+- measured scene switching remains within the current performance budgets.
 
-The 2026-08-02 Desktop visual and performance pass added authoritative
-full-window capture metadata, keyboard/retry/error-state coverage for Welcome,
-Skills, and Connectors, and measured scene-switch gates. Priority surfaces plus
-Agent, Team, and the session composer were reviewed at the complete DWM window
-boundary. Narrow store selectors, retained memoized scene slots, inactive-scene
-refresh gating, and navigation-intent preload reduced measured hot-switch p95 to
-62.0 ms, cold-switch p95 to 197.1 ms, and data-ready p95 to 513.7 ms without
-resetting scene state or widening permissions. Exact evidence and commands are
-recorded in [design-qa.md](design-qa.md).
-
-The 2026-08-08 Agent-authoring and Team-Workspace closeout added the durable
-operations-map presentation, fixed right-column ownership, and real draft
-Agent debug chat. The final Web gate passed 521 files and 2,997 tests together
-with Web type checking, focused production lint, theme color and visual
-contracts, i18n contract/audit, core-boundary and repository-hygiene checks,
-and the production Web build. The debug-chat follow-up blocks stale-session
-sends and hides the composer until the replacement persona is ready. This
-evidence does not reclassify the known repository-wide lint, E2E, Rust format,
-or Clippy baseline gaps as passing.
-
-The 2026-08-09 OpenWork-referenced presentation checkpoint completed the shell,
-collapsed navigation, conversation/tool/composer, customization-market, and
-three-column Team-session visual slices. At a 1690×900 physical DWM boundary
-with Per-Monitor-V2 awareness at 144 DPI, Agent, Team, installed Skill, Skill
-market, configured Connector, and Connector market scenes render four columns;
-the Team session keeps the lead conversation, artifact Canvas, and specialist
-workspace simultaneously visible. Canvas collapse/maximize and pre-dispatch
-member selection were exercised without creating a second Team or child-chat
-path. The maximize stacking-context defect and invalid Lucide CSS-string size
-  warnings found during that pass were corrected. The incomplete local
-  dependency tree was repaired with a frozen-lockfile install without changing
-  a manifest or lockfile. Theme color/visual contracts, Web type checking,
-  focused source contracts, repository hygiene, core boundaries, and diff
-  checks passed. The complete controlled Web suite also passed: 527/527 files,
-  3042/3042 tests, and zero unhandled errors. The production Web build and
-  performance budget passed as well. The final dark-theme DWM capture is layout,
-  density, and complete-window evidence; it does not by itself close the
-  separate light-theme visual-acceptance check.
-
-High-confidence defects fixed in the current audit:
-
-- three undefined minimal-workspace CSS tokens that broke the theme-color Gate
-  and caused declarations to be ignored at runtime;
-- reopening a tab after its split auto-merged could restore it into an invisible
-  editor group;
-- tertiary canvas operations incorrectly aliased the group to secondary, so a
-  short-drama stage-agent open could report success without moving the real tab.
-- BTW history hydration was globally serialized and could skip the newly
-  selected child session while another child was still loading;
-- background short-drama events could contaminate the active workspace;
-- stale short-drama project loads could overwrite a newer workspace state;
-- overlapping runtime-focus writes could persist an older stage or artifact;
-- the team-rail E2E no longer adds errors to the strict TypeScript baseline.
+Exact historical commands and checkpoint evidence belong in
+[the repository stability audit](docs/qa/repository-stability-audit-2026-07-28.md),
+[design QA](design-qa.md), and the active feature specifications, not in this
+collaboration summary.
 
 Open baseline debt:
 
@@ -320,20 +269,9 @@ Open baseline debt:
   through automated tests and Desktop runtime wiring. A provider-backed manual
   response still depends on the user's configured model/provider and should be
   included in the next full-window Desktop acceptance pass.
-- the OpenWork-referenced visual slice has completed dependency repair, focused
-  presentation contracts, the complete controlled Web suite, the production
-  Web build, and a successful Desktop preview restart; the default parallel Vitest
-  runner can still expose repository-wide cross-file `localStorage`/`act`
-  pollution even though every affected file and the complete single-worker run
-  pass;
 - final release evidence still needs one broad full-window pass over Welcome,
   ordinary sessions, all customization tabs, Team authoring, Team member
   conversations, and protected Code/Cowork/Media flows after a clean restart.
-
-Repository baseline evidence and exact commands are in
-[docs/qa/repository-stability-audit-2026-07-28.md](docs/qa/repository-stability-audit-2026-07-28.md).
-The current OpenWork-referenced presentation evidence is indexed in
-[docs/features/interaction-theme-governance.md](docs/features/interaction-theme-governance.md).
 
 ## Documentation policy
 
