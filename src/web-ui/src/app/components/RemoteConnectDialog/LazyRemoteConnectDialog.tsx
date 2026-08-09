@@ -1,14 +1,13 @@
-import React, { lazy, Suspense } from 'react';
-import type { RemoteConnectDialogProps } from './RemoteConnectDialog';
-
-const RemoteConnectDialogContent = lazy(async () => {
-  const { RemoteConnectDialog } = await import('./RemoteConnectDialog');
-  return { default: RemoteConnectDialog };
-});
+import React from 'react';
+import {
+  RemoteConnectDialog as RemoteConnectDialogContent,
+  type RemoteConnectDialogProps,
+} from './RemoteConnectDialog';
 
 /**
- * Defers the optional network/bot connection UI, QR renderer and stylesheet
- * until the user explicitly opens Remote Connect.
+ * Keeps the optional connection UI unmounted until it is opened. The module is
+ * imported eagerly because a failed dynamic import is cached by React.lazy and
+ * would otherwise turn this optional dialog into an application-level error.
  */
 export const LazyRemoteConnectDialog: React.FC<
   RemoteConnectDialogProps
@@ -17,11 +16,7 @@ export const LazyRemoteConnectDialog: React.FC<
     return null;
   }
 
-  return (
-    <Suspense fallback={null}>
-      <RemoteConnectDialogContent {...props} />
-    </Suspense>
-  );
+  return <RemoteConnectDialogContent {...props} />;
 };
 
 export default LazyRemoteConnectDialog;

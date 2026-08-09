@@ -51,7 +51,6 @@
 		"src/app/components/NavPanel/NavSearchDialog.tsx",
 		"src/app/components/NavPanel/sections/sessions/SessionsSection.tsx",
 		"src/app/components/NewProjectDialog/NewProjectDialog.tsx",
-		"src/app/components/RemoteConnectDialog/RemoteConnectDialog.tsx",
 		"src/infrastructure/update/UpdateAvailableDialog.tsx",
 		"src/infrastructure/update/UpdateInstallProgressModal.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",

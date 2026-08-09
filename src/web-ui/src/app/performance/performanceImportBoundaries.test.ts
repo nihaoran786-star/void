@@ -118,7 +118,7 @@ describe('Web UI startup import boundaries', () => {
     expect(lazyDialog).toContain('if (!props.isOpen)');
   });
 
-  it('loads the remote-connect implementation only after the user opens it', () => {
+  it('keeps remote connect off the runtime dynamic-import failure path', () => {
     const footer = readSource(
       '../components/NavPanel/components/PersistentFooterActions.tsx',
     );
@@ -138,7 +138,11 @@ describe('Web UI startup import boundaries', () => {
     expect(dialogBarrel).toContain(
       'LazyRemoteConnectDialog as RemoteConnectDialog',
     );
-    expect(lazyDialog).toContain("await import('./RemoteConnectDialog')");
+    expect(lazyDialog).toContain(
+      "from './RemoteConnectDialog'",
+    );
+    expect(lazyDialog).not.toContain("import('./RemoteConnectDialog')");
+    expect(lazyDialog).not.toContain('lazy(');
     expect(lazyDialog).toContain('if (!props.isOpen)');
   });
 
