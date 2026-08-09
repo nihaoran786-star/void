@@ -204,10 +204,10 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     if (!containerRef.current) return newWidth;
     const containerWidth = containerRef.current.offsetWidth;
     // NavPanel (240px) is outside SessionScene — only account for resizer + min chat width
-    const teamWorkspaceWidth = isTeamWorkspaceOpen
-      && window.matchMedia('(min-width: 1280px)').matches
-      ? 368
-      : 0;
+    const isWideTeamLayout = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(min-width: 1280px)').matches
+      : window.innerWidth >= 1280;
+    const teamWorkspaceWidth = isTeamWorkspaceOpen && isWideTeamLayout ? 368 : 0;
     const reserved = PANEL_COMMON_CONFIG.RESIZER_WIDTH
       + PANEL_COMMON_CONFIG.MIN_CENTER_WIDTH
       + teamWorkspaceWidth;

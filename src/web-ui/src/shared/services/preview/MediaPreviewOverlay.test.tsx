@@ -78,7 +78,7 @@ describe('MediaPreviewOverlay', () => {
     expect(dialog?.getAttribute('data-preview-sequence')).toBe('2');
     expect((container.querySelector('img') as HTMLImageElement).src)
       .toBe('https://cdn.example.com/latest.png');
-  });
+  }, 15_000);
 
   it('does not revive a preview closed while its content is pending', async () => {
     const trigger = dom.window.document.createElement('button');

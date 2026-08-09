@@ -181,7 +181,6 @@ fn bound_runtime_for_session(
 
     Ok(BoundTeamRuntime {
         service,
-        prompt_adapter,
         workspace: scope.workspace,
         scenario: scenario_for_agent_type(&session.agent_type),
         execution_policy: session.agent_type.trim().to_string(),
@@ -748,7 +747,6 @@ impl TeamToolExecutor for DesktopTeamToolExecutor {
 
 struct BoundTeamRuntime {
     service: TeamRuntimeService,
-    prompt_adapter: Arc<PromptTeamRuntimeAdapter>,
     workspace: TeamWorkspaceIdentity,
     scenario: TeamScenario,
     execution_policy: String,
@@ -1968,7 +1966,19 @@ mod tests {
         let task_id = "legacy-team-member-task".to_string();
         let child_session_id = "legacy-team-member-child".to_string();
         let team_run_id = "team-run-1".to_string();
-        let objective = "recover the persisted specialist".to_string();
+        let team_objective = "recover the persisted specialist".to_string();
+        let delivery_requirement = if phase.expected_outputs.is_empty() {
+            phase.completion_rule.clone()
+        } else {
+            phase.expected_outputs.join("、")
+        };
+        let member_objective = format!(
+            "<team_member_assignment>\n当前阶段：{}\n交付要求：{}\n完成标准：{}\n团队目标：{}\n</team_member_assignment>",
+            phase.display_name,
+            delivery_requirement,
+            phase.completion_rule,
+            team_objective
+        );
         let parent_turn_id = "parent-turn-1".to_string();
         let parent_tool_call_id = "parent-tool-1".to_string();
         let agent_id = specialist.agent_id.clone().expect("specialist agent ID");
@@ -1976,7 +1986,7 @@ mod tests {
             &team_run_id,
             &team_instance_id,
             &workflow.workflow_id,
-            &objective,
+            &team_objective,
             &parent_turn_id,
             &parent_tool_call_id,
             1,
@@ -2066,7 +2076,7 @@ mod tests {
         let mut task = SubagentTaskRecord::new(
             task_id,
             parent_session_id.clone(),
-            objective,
+            member_objective,
             specialist.member_id.clone(),
             7,
         );

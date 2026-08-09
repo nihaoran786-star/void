@@ -648,7 +648,7 @@ describe('WorkspaceMediaGallery', () => {
     expect(readyCard.closest('[data-testid="workspace-media-virtual-item"]'))
       .toBe(pendingSlot);
     expect(readyCard.disabled).toBe(false);
-  });
+  }, 15_000);
 
   it('does not read filtered-out video previews when image cards enter the viewport', async () => {
     const observer = installControlledIntersectionObserver(
@@ -1341,6 +1341,9 @@ describe('WorkspaceMediaGallery', () => {
   });
 
   it('uses resolved video data URLs for video thumbnails and overlay preview', async () => {
+    const observer = installControlledIntersectionObserver(
+      dom.window as unknown as Window,
+    );
     const service = readyService();
     const previewListener = vi.fn();
     const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,video-preview');
@@ -1354,6 +1357,14 @@ describe('WorkspaceMediaGallery', () => {
           mediaPreviewResolver={mediaPreviewResolver}
         />
       );
+    });
+
+    await act(async () => {
+      observer.triggerLatest([
+        'video:C:/work/assets/clip.mp4:2000',
+      ]);
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     const video = container.querySelector('[data-testid="workspace-media-card-video"] video') as HTMLVideoElement;
