@@ -10,10 +10,6 @@
 
   .task-icon {
     color: var(--color-text-secondary, #6b7280);
-
-    &.is-running {
-      color: var(--color-primary, #3b82f6);
-    }
   }
 
   &.base-tool-card-wrapper:hover
@@ -179,12 +175,6 @@
       justify-content: center;
       flex-shrink: 0;
     }
-
-    .cube-loading {
-      flex-direction: column;
-      gap: 0 !important;
-      line-height: 0;
-    }
   }
 
   .task-header-main {
@@ -264,10 +254,6 @@
     }
   }
 
-  .task-status-icon--rail {
-    margin: 0;
-    padding: 0;
-  }
 
   /* Prompt uses the thinking markdown typography, but needs its own clipping box.
      The generic thinking content has vertical padding; with a one-line max-height
@@ -575,14 +561,199 @@
   }
 }
 
-/* Loading: task status icon (cube) hidden; border-pulse + text-fade from BaseToolCard handle the rest */
-.task-tool-display.base-tool-card-wrapper--loading-shimmer .tool-card-status-icon:has(.cube-loading) {
-  display: none !important;
+/* ========== Delegation status ring (replaces the dot-matrix loader) ========== */
+.task-status-ring {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+
+  &__core {
+    position: absolute;
+    inset: 5px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    opacity: 0.45;
+    transition:
+      background-color 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  &__spin {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0%,
+      var(--color-accent-500, #60a5fa) 12%,
+      var(--color-accent-500, #60a5fa) 28%,
+      transparent 40%
+    );
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.6px), #000 calc(100% - 1.3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 1.6px), #000 calc(100% - 1.3px));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &__mark {
+    position: absolute;
+    inset: 0;
+    width: 16px;
+    height: 16px;
+    opacity: 0;
+
+    circle,
+    path {
+      fill: none;
+      stroke-linecap: round;
+    }
+  }
+
+  &__mark--done {
+    circle,
+    path {
+      stroke: var(--color-accent-600, var(--color-accent-500, #60a5fa));
+    }
+
+    circle {
+      stroke-width: 1.2;
+    }
+
+    path {
+      stroke-width: 1.5;
+    }
+  }
+
+  &__mark--failed {
+    circle,
+    path {
+      stroke: var(--color-error, #ef4444);
+      stroke-width: 1.3;
+    }
+  }
+
+  &--active {
+    .task-status-ring__spin {
+      opacity: 1;
+      animation: task-status-ring-orbit 1.6s linear infinite;
+    }
+
+    .task-status-ring__core {
+      background: var(--color-accent-500, #60a5fa);
+      opacity: 1;
+    }
+  }
+
+  &--done {
+    .task-status-ring__core {
+      opacity: 0;
+    }
+
+    .task-status-ring__mark--done {
+      opacity: 1;
+    }
+  }
+
+  &--animate {
+    .task-status-ring__mark--done circle {
+      stroke-dasharray: 44;
+      stroke-dashoffset: 44;
+      animation: task-status-ring-draw 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .task-status-ring__mark--done path {
+      stroke-dasharray: 12;
+      stroke-dashoffset: 12;
+      animation: task-status-ring-draw 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
+    }
+  }
+
+  &--error {
+    .task-status-ring__core {
+      opacity: 0;
+    }
+
+    .task-status-ring__mark--failed {
+      opacity: 1;
+    }
+  }
+
+  &--cancelled {
+    .task-status-ring__core {
+      opacity: 0.25;
+    }
+  }
 }
 
-/* E — task description text fades with the card */
-.task-tool-display.base-tool-card-wrapper--loading-shimmer .task-action {
-  animation: tool-card-text-fade 1.6s ease-in-out infinite;
+@keyframes task-status-ring-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes task-status-ring-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ========== Delegation step narrative: queued -> launching -> executing ========== */
+.task-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 1px;
+  font-family: var(--tool-card-font-mono);
+  font-size: var(--flowchat-font-size-xxs);
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+
+  &__step {
+    opacity: 0.45;
+    transition: opacity 0.3s ease;
+
+    &--past {
+      text-decoration: line-through;
+      text-decoration-color: var(--color-text-muted);
+    }
+
+    &--now {
+      opacity: 1;
+      color: var(--color-accent-600, var(--color-accent-500, #60a5fa));
+
+      &::after {
+        content: '';
+        display: inline-block;
+        width: 3px;
+        height: 0.85em;
+        margin-left: 3px;
+        background: currentColor;
+        vertical-align: -0.1em;
+        animation: task-steps-caret 1s steps(2) infinite;
+      }
+    }
+  }
+}
+
+@keyframes task-steps-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-status-ring--active .task-status-ring__spin,
+  .task-status-ring--animate .task-status-ring__mark--done circle,
+  .task-status-ring--animate .task-status-ring__mark--done path,
+  .task-steps__step--now::after {
+    animation: none;
+  }
+
+  .task-status-ring--animate .task-status-ring__mark--done circle,
+  .task-status-ring--animate .task-status-ring__mark--done path {
+    stroke-dashoffset: 0;
+  }
 }
 
 /* Reviewer context block — replaces raw prompt for review-team members. */

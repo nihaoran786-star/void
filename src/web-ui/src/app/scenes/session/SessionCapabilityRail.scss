@@ -4,7 +4,9 @@
   position: absolute;
   top: 50%;
   right: 8px;
-  z-index: $z-floating;
+  // Stay operable while the sibling Team surface floats over the scene. The
+  // rail owns the explicit controls that close Team and Canvas presentation.
+  z-index: calc(#{$z-floating} + 1);
   display: flex;
   width: 36px;
   padding: 4px;
@@ -364,6 +366,52 @@
 
     span {
       display: inline;
+    }
+  }
+}
+
+// The rail is a floating control, but transcript content remains readable and
+// operable beneath it. Reserve exactly the resting rail footprint plus gaps.
+.void-session-scene__chat-pane:has(.session-capability-rail) {
+  .modern-flowchat-container__messages {
+    box-sizing: border-box;
+    padding-right: 52px;
+  }
+}
+
+// Compact chat panes cannot afford a 148px hover surface. Tooltips retain the
+// labels while the rail stays icon-only and never expands across the transcript.
+@container session-chat-pane (max-width: 960px) {
+  .session-capability-rail:hover {
+    width: 36px;
+    padding: 4px;
+    border-radius: 11px;
+
+    .session-capability-rail__capability,
+    .session-capability-rail__team,
+    .short-drama-team-panel-controls__summary {
+      min-height: 28px;
+      padding: 2px;
+      justify-content: center;
+    }
+
+    .session-capability-rail__copy,
+    .short-drama-team-panel-controls__copy {
+      display: none;
+    }
+
+    .session-capability-rail__status-dot,
+    .short-drama-team-panel-controls__status-dot {
+      position: absolute;
+    }
+
+    .session-capability-rail__toggle {
+      min-height: 26px;
+      padding: 3px;
+
+      span {
+        display: none;
+      }
     }
   }
 }

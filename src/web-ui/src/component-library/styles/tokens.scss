@@ -1170,6 +1170,24 @@ $badge-info-text: $color-info;
   );
   --workspace-shadow-raised: var(--shadow-xs);
 
+  // Glass Air material. Defaults reproduce the current solid Porcelain
+  // surfaces exactly, so dark themes and Classic keep their established
+  // rendering; the light projection below turns these into the selected
+  // frosted-glass treatment (demo direction B).
+  --workspace-glass-panel-bg: var(--workspace-surface-panel);
+  --workspace-glass-deep-bg: var(--workspace-surface-canvas);
+  --workspace-glass-raised-bg: var(--workspace-surface-raised);
+  --workspace-glass-blur: none;
+  --workspace-glass-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  --workspace-composer-shadow: none;
+  --workspace-shell-backdrop: var(--workspace-surface-canvas);
+  // Divider hover/resize glow. Defaults are the deep-space cyan signal used
+  // by dark themes; the light projection recolors it to the pulse-blue accent.
+  --workspace-shadow-divider-glow: inset 0 0 72px -18px rgba(34, 211, 238, 0.14);
+  --workspace-shadow-divider-glow-active: inset 0 0 64px -16px rgba(34, 211, 238, 0.16);
+  // Foreground on the accent primary action.
+  --workspace-on-accent: #ffffff;
+
   --workspace-space-1: var(--size-gap-1);
   --workspace-space-2: var(--size-gap-2);
   --workspace-space-3: var(--size-gap-3);
@@ -1179,7 +1197,7 @@ $badge-info-text: $color-info;
   --workspace-content-max: 800px;
   --workspace-radius-control: var(--size-radius-sm);
   --workspace-radius-panel: var(--size-radius-base);
-  --workspace-radius-shell: 14px;
+  --workspace-radius-shell: 16px;
   --workspace-radius-composer: 18px;
   --workspace-composer-min-height: 76px;
   --workspace-control-height: var(--control-height-sm);
@@ -1244,19 +1262,35 @@ $badge-info-text: $color-info;
 }
 
 [data-theme-type="light"] .void-ui--minimal {
-  // Porcelain Air light projection: hover stays a quiet warm porcelain tint,
-  // selection is the calm cobalt wash, and the primary action uses the solid
-  // cobalt step instead of the translucent dark-theme accent overlays.
+  // Cool White light projection: hover stays a quiet cool-gray tint,
+  // selection is the pulse-blue wash, and the primary action uses the
+  // solid pulse step instead of the translucent dark-theme accent overlays.
   --workspace-surface-hover: var(--color-bg-tertiary);
   --workspace-surface-active: var(--color-accent-100);
   --workspace-accent: var(--color-accent-500);
   --workspace-primary-action: var(--color-accent-500);
   --workspace-primary-action-hover: var(--color-accent-600);
+
+  // Tech glass material: a cool gradient shell backdrop with faint cyan and
+  // ultraviolet ambience, frosted panels floating over it. Blur stays off the
+  // surface color itself so text contrast is unchanged.
+  --workspace-glass-panel-bg: rgba(255, 255, 255, 0.55);
+  --workspace-glass-deep-bg: rgba(255, 255, 255, 0.72);
+  --workspace-glass-raised-bg: rgba(255, 255, 255, 0.85);
+  --workspace-glass-blur: blur(18px) saturate(1.25);
+  --workspace-glass-shadow: 0 8px 24px rgba(18, 24, 38, 0.06);
+  --workspace-composer-shadow: 0 10px 28px rgba(18, 24, 38, 0.09);
+  --workspace-shell-backdrop:
+    radial-gradient(1000px 700px at -12% -12%, rgba(8, 145, 178, 0.10) 0%, transparent 55%),
+    radial-gradient(900px 700px at 112% 108%, rgba(124, 58, 237, 0.08) 0%, transparent 55%),
+    linear-gradient(140deg, #F2F5F9 0%, #EEF1F6 52%, #EAEFF5 100%);
+  --workspace-shadow-divider-glow: inset 0 0 72px -18px rgba(37, 99, 235, 0.14);
+  --workspace-shadow-divider-glow-active: inset 0 0 64px -16px rgba(37, 99, 235, 0.16);
 }
 
 :root[data-theme="light"],
 :root[data-theme-type="light"],
 [data-theme-type="light"] {
-  --flowchat-link-color: #0969da;
-  --flowchat-link-hover-color: #0550ae;
+  --flowchat-link-color: #1D4ED8;
+  --flowchat-link-hover-color: #1E40AF;
 }

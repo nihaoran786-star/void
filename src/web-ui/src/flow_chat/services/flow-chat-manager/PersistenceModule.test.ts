@@ -82,6 +82,14 @@ async function flushMicrotasks(): Promise<void> {
   await Promise.resolve();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('PersistenceModule', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -357,6 +365,73 @@ describe('PersistenceModule', () => {
     saveSessionMetadata.mockRejectedValueOnce(new Error('disk unavailable'));
     await expect(persistSessionMetadata(context, SESSION_ID)).rejects.toThrow(
       'disk unavailable',
+    );
+  });
+
+  it('does not let an older metadata load overwrite a newer team binding', async () => {
+    const context = createContext(createDialogTurn('completed'));
+    let session = context.flowChatStore.getState().sessions.get(SESSION_ID);
+    session = {
+      ...session,
+      activePersonaBinding: null,
+    };
+    context.flowChatStore.getState = () => ({
+      sessions: new Map([[SESSION_ID, session]]),
+      activeSessionId: SESSION_ID,
+    });
+
+    const olderLoad = deferred<null>();
+    loadSessionMetadata
+      .mockImplementationOnce(() => olderLoad.promise)
+      .mockResolvedValueOnce(null);
+
+    const olderSave = persistSessionMetadata(context, SESSION_ID);
+    await vi.waitFor(() => {
+      expect(loadSessionMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    const teamBinding = {
+      kind: 'team_lead',
+      personaId: 'project::void::team-b-lead',
+      personaRevision: { status: 'known', value: 'team-b-v2' },
+      teamDefinitionId: 'team-b',
+      teamInstanceId: 'team-b-instance',
+    };
+    session = {
+      ...session,
+      scenario: 'code',
+      executionPolicy: 'agentic',
+      activePersonaBinding: teamBinding,
+    };
+
+    await persistSessionMetadata(context, SESSION_ID);
+    expect(saveSessionMetadata).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        customMetadata: expect.objectContaining({
+          customization: expect.objectContaining({
+            activePersonaBinding: teamBinding,
+          }),
+        }),
+      }),
+      'D:/workspace/void',
+      undefined,
+      undefined,
+    );
+
+    olderLoad.resolve(null);
+    await olderSave;
+
+    expect(saveSessionMetadata).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        customMetadata: expect.objectContaining({
+          customization: expect.objectContaining({
+            activePersonaBinding: teamBinding,
+          }),
+        }),
+      }),
+      'D:/workspace/void',
+      undefined,
+      undefined,
     );
   });
 });

@@ -32,15 +32,34 @@ vi.mock('../FlowTextBlock', () => ({
 }));
 
 vi.mock('../FlowToolCard', () => ({
-  FlowToolCard: () => <div className="mock-flow-tool-card" />,
+  FlowToolCard: ({ toolItem }: { toolItem: FlowToolItem }) => (
+    <div className="mock-flow-tool-card" data-tool-name={toolItem.toolName} />
+  ),
 }));
 
 vi.mock('../../tool-cards/ModelThinkingDisplay', () => ({
   ModelThinkingDisplay: () => <div className="mock-model-thinking-display" />,
 }));
 
-vi.mock('../../tool-cards', () => ({
-  isCollapsibleTool: () => false,
+vi.mock('../../tool-cards/toolCardClassification', () => ({
+  isCollapsibleTool: (toolName: string) => toolName === 'GetToolSpec',
+  isCollapsibleToolItem: (item: FlowToolItem) => (
+    item.toolName === 'GetToolSpec' && item.status === 'completed'
+  ),
+  READ_TOOL_NAMES: new Set(['Read', 'LS']),
+  SEARCH_TOOL_NAMES: new Set(['Grep', 'Glob', 'WebSearch']),
+  COMMAND_TOOL_NAMES: new Set(['Bash', 'Git']),
+}));
+
+vi.mock('./ExploreGroupRenderer', () => ({
+  ExploreGroupRenderer: ({ data }: { data: { allItems: Array<{ type: string }> } }) => (
+    <button
+      type="button"
+      className="mock-explore-group"
+      aria-expanded="false"
+      data-tool-count={data.allItems.filter(item => item.type === 'tool').length}
+    />
+  ),
 }));
 
 vi.mock('../../tool-cards/MediaGenerationToolGroupCard', () => ({
@@ -132,6 +151,36 @@ function makeTaskTool(index: number): FlowToolItem {
       success: true,
       result: `task result ${index}`,
     },
+  };
+}
+
+function makeRoutineTool(index: number): FlowToolItem {
+  return {
+    id: `spec-${index}`,
+    type: 'tool',
+    toolName: 'GetToolSpec',
+    timestamp: 2500 + index,
+    status: 'completed',
+    toolCall: {
+      id: `spec-${index}`,
+      input: { name: 'catalog_generation' },
+    },
+    toolResult: {
+      success: true,
+      result: 'tool specification',
+    },
+  };
+}
+
+function makeThinkingItem(index: number): ModelRound['items'][number] {
+  return {
+    id: `thinking-${index}`,
+    type: 'thinking',
+    content: `reasoning ${index}`,
+    isStreaming: false,
+    isCollapsed: true,
+    timestamp: 2400 + index,
+    status: 'completed',
   };
 }
 
@@ -299,5 +348,33 @@ describe('ModelRoundItem progressive rendering', () => {
     expect(subagentProjection).not.toBeNull();
     expect(renderedTextItems).toHaveLength(MODEL_ROUND_INITIAL_GROUP_RENDER_LIMIT + 24);
     expect(renderedTextItems[0]?.textContent).toBe('assistant text 0');
+  });
+
+  it('renders routine tools as one collapsed disclosure inside a mixed critical round', () => {
+    act(() => {
+      root.render(
+        <FlowChatContext.Provider value={{ sessionId: 'session-1' }}>
+          <ModelRoundItem
+            round={makeRoundWithItems(
+              [
+                makeThinkingItem(1),
+                makeRoutineTool(1),
+                makeThinkingItem(2),
+                makeTaskTool(1),
+              ],
+              false,
+            )}
+            turnId="turn-1"
+          />
+        </FlowChatContext.Provider>,
+      );
+    });
+
+    const aggregate = container.querySelector('.mock-explore-group');
+    expect(aggregate?.getAttribute('aria-expanded')).toBe('false');
+    expect(aggregate?.getAttribute('data-tool-count')).toBe('1');
+    expect(container.querySelectorAll('.mock-model-thinking-display')).toHaveLength(0);
+    expect(container.querySelector('[data-tool-name="GetToolSpec"]')).toBeNull();
+    expect(container.querySelector('.mock-subagent-projection-view')).not.toBeNull();
   });
 });

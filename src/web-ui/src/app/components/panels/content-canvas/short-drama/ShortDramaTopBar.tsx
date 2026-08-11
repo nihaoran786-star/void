@@ -1,4 +1,12 @@
 import React from 'react';
+import {
+  Clapperboard,
+  FileText,
+  Images,
+  PanelsTopLeft,
+  Sparkles,
+  type LucideIcon,
+} from 'lucide-react';
 
 import type { ShortDramaStage } from '@/shared/services/short-drama';
 import { getNextShortDramaRovingTabIndex } from './ShortDramaKeyboardNavigation';
@@ -10,6 +18,14 @@ const SHORT_DRAMA_STAGE_ORDER: readonly ShortDramaStage[] = [
   'video',
   'post',
 ];
+
+const SHORT_DRAMA_STAGE_ICONS: Readonly<Record<ShortDramaStage, LucideIcon>> = {
+  script: FileText,
+  assets: Images,
+  storyboards: PanelsTopLeft,
+  video: Clapperboard,
+  post: Sparkles,
+};
 
 interface ShortDramaTopBarProps {
   selectedStage: ShortDramaStage;
@@ -54,6 +70,8 @@ export function ShortDramaTopBar({
       >
         {SHORT_DRAMA_STAGE_ORDER.map((stage, index) => {
           const isSelected = selectedStage === stage;
+          const label = t(`shortDrama.tabs.${stage}`);
+          const StageIcon = SHORT_DRAMA_STAGE_ICONS[stage];
           return (
             <button
               key={stage}
@@ -63,6 +81,8 @@ export function ShortDramaTopBar({
               data-short-drama-stage={stage}
               role="tab"
               aria-selected={isSelected}
+              aria-label={label}
+              title={label}
               tabIndex={isSelected ? 0 : -1}
               onClick={() => onStageSelect(stage)}
               onKeyDown={event => handleKeyDown(event, index)}
@@ -73,7 +93,12 @@ export function ShortDramaTopBar({
                 });
               }}
             >
-              {t(`shortDrama.tabs.${stage}`)}
+              <StageIcon
+                className="short-drama-center__tab-icon"
+                size={16}
+                aria-hidden="true"
+              />
+              <span className="short-drama-center__tab-label">{label}</span>
             </button>
           );
         })}

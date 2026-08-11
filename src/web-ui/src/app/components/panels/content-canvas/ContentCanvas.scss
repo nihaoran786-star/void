@@ -42,16 +42,19 @@
   }
 }
 
+// Frameless scene (every minimal theme): the Canvas is not a stacked floating
+// card. It flattens into the scene's single plane and separates from the
+// conversation with one quiet hairline plus the floating split handle, so
+// chat | canvas read as columns of one surface instead of layered cards.
 .void-ui--minimal .canvas-content-canvas {
   box-sizing: border-box;
-  border: 1px solid var(--workspace-border-subtle);
-  border-radius: var(--workspace-radius-shell);
-  background: var(--workspace-surface-canvas);
-  box-shadow: var(--workspace-shadow-raised);
+  border: 0;
+  border-left: 1px solid var(--workspace-border-subtle);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 
   &.is-maximized {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
+    border-left: 0;
   }
 }

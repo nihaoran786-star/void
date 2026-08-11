@@ -100,7 +100,6 @@ describe('NavPanel layout styles', () => {
     expect(stylesheet).toContain('$_nav-collapsed-width: 48px;');
     expect(stylesheet).toContain('width: $_nav-collapsed-width;');
     expect(stylesheet).not.toContain('pointer-events: none;');
-    expect(stylesheet).not.toContain('transition: width');
     expect(stylesheet).not.toContain('void-workspace-body__collapsed-nav');
     expect(stylesheet).toContain('transform: translateX(-8px);');
     expect(stylesheet).toContain('transform: translateX(0);');
@@ -132,12 +131,14 @@ describe('NavPanel layout styles', () => {
       'padding: 0 $size-gap-2 $size-gap-2 $size-gap-2;',
     );
     expect(minimalCollapsedBlock).toContain('width: $_nav-collapsed-width;');
-    expect(minimalCollapsedBlock).toContain('margin-top: $size-gap-2;');
     expect(minimalCollapsedBlock).toContain(
-      'height: calc(100% - #{$size-gap-2});',
+      'margin: $size-gap-2 $size-gap-2 $size-gap-2 0;',
     );
     expect(minimalCollapsedBlock).toContain(
-      'border-radius: var(--workspace-radius-panel);',
+      'height: calc(100% - (2 * #{$size-gap-2}));',
+    );
+    expect(minimalCollapsedBlock).toContain(
+      'border-radius: var(--workspace-radius-shell);',
     );
     expect(minimalCollapsedBlock).toContain('overflow: hidden;');
     expect(classicCollapsedBlock).not.toContain('margin-top:');
@@ -158,47 +159,51 @@ describe('NavPanel layout styles', () => {
     );
 
     expect(shellBlock).toContain(
-      'height: calc(100% - var(--workspace-space-2));',
+      'height: calc(100% - (2 * var(--workspace-space-2)));',
     );
-    expect(shellBlock).toContain('margin-top: var(--workspace-space-2);');
+    expect(shellBlock).toContain(
+      'margin: var(--workspace-space-2) var(--workspace-space-2) var(--workspace-space-2) 0;',
+    );
     expect(shellBlock).toContain('overflow: hidden;');
     expect(shellBlock).toContain(
       'border-radius: var(--workspace-radius-shell);',
     );
-    expect(shellBlock).toContain('background: var(--workspace-surface-panel);');
+    expect(shellBlock).toContain('background: var(--workspace-glass-panel-bg);');
     expect(shellBlock).toContain(
-      'box-shadow: inset 0 0 0 1px var(--workspace-border-subtle);',
+      'backdrop-filter: var(--workspace-glass-blur);',
+    );
+    expect(shellBlock).toContain(
+      'border: 1px solid var(--workspace-border-subtle);',
     );
     expect(dividerBlock).toContain('top: var(--workspace-space-2);');
 
     const tokens = readWorkspaceTokensStylesheet();
-    expect(tokens).toContain('--workspace-radius-shell: 14px;');
+    expect(tokens).toContain('--workspace-radius-shell: 16px;');
   });
 
-  it('softens Minimal navigation toggles with compositor-only motion', () => {
+  it('animates the Minimal shell width without remounting or compensating scene jumps', () => {
     const source = readWorkspaceBodySource();
     const stylesheet = readWorkspaceBodyStylesheet();
+    const minimalStylesheet = readMinimalNavPanelStylesheet();
 
-    expect(source).toContain('const previousNavCollapsedRef = useRef(isNavCollapsed);');
-    expect(source).toContain("isNavCollapsed ? 'is-nav-collapsing' : 'is-nav-expanding'");
-    expect(stylesheet).toContain(
-      '.void-ui--minimal .void-workspace-body.is-nav-collapsing',
+    expect(source).not.toContain('previousNavCollapsedRef');
+    expect(source).not.toContain('is-nav-collapsing');
+    expect(source).not.toContain('is-nav-expanding');
+    expect(stylesheet).toContain('@media (prefers-reduced-motion: no-preference)');
+    expect(stylesheet).toMatch(
+      /\.void-ui--minimal \.void-workspace-body__nav-area\s*\{\s*transition: width 220ms \$easing-decelerate;/,
     );
-    expect(stylesheet).toContain(
-      '.void-ui--minimal .void-workspace-body.is-nav-expanding',
+    expect(stylesheet).toMatch(
+      /\.void-is-resizing-nav \.void-ui--minimal \.void-workspace-body__nav-area\s*\{\s*transition: none;/,
     );
-    expect(stylesheet).toContain('animation: wb-nav-rail-collapse-in 180ms');
-    expect(stylesheet).toContain('animation: wb-nav-panel-expand-in 180ms');
-    expect(stylesheet).toContain('animation: wb-scene-after-collapse 180ms');
-    expect(stylesheet).toContain('animation: wb-scene-after-expand 180ms');
-    expect(stylesheet).toContain('transform: translate3d(12px, 0, 0);');
-    expect(stylesheet).toContain('transform: translate3d(-12px, 0, 0);');
-    expect(stylesheet).not.toContain('opacity: 0.84;');
-    expect(stylesheet).not.toContain('opacity: 0.86;');
-    expect(stylesheet).not.toContain('opacity: 0.97;');
+    expect(minimalStylesheet).toMatch(
+      /\.void-ui--minimal\s+\.void-workspace-body__nav-area:not\(\.is-collapsed\)\s+\.void-nav-panel\s*\{[\s\S]*?min-width: var\(--workspace-nav-effective-width\);/,
+    );
     expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(stylesheet).not.toContain('transition: width');
-    expect(stylesheet).not.toContain('animation: wb-nav-width');
+    expect(stylesheet).not.toContain('animation: wb-nav-rail-collapse-in');
+    expect(stylesheet).not.toContain('animation: wb-nav-panel-expand-in');
+    expect(stylesheet).not.toContain('animation: wb-scene-after-collapse');
+    expect(stylesheet).not.toContain('animation: wb-scene-after-expand');
   });
 
   it('keeps only essential named controls interactive in the collapsed Minimal rail', () => {

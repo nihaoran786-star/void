@@ -67,6 +67,70 @@
       }
     }
 
+    /* The status slot is the sole running signal in Porcelain Air. Keep the
+       transcript readable instead of animating the row edge and its text. */
+    .compact-tool-card-wrapper--loading-shimmer:not(
+        .media-generation-card
+      ) {
+      .compact-tool-card::before {
+        display: none;
+        animation: none;
+      }
+
+      .compact-card-content {
+        background: none;
+        background-clip: border-box;
+        -webkit-background-clip: border-box;
+        -webkit-text-fill-color: currentColor;
+        animation: none;
+      }
+    }
+
+    /* Task progress is already conveyed by the live status ring. */
+    .task-tool-display .task-steps__step--now::after {
+      display: none;
+      animation: none;
+    }
+
+    /* Shared Task cards still carry the Classic broad-transition baseline.
+       Limit Minimal to paint-only state feedback so merging a live subagent
+       cannot interpolate width, radius, or padding. */
+    .base-tool-card-wrapper.task-tool-display {
+      transition:
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background-color var(--workspace-motion-fast)
+          var(--workspace-easing-standard),
+        box-shadow var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    /* Git and Terminal secondary actions float over the clipped summary.
+       Hover and keyboard focus reveal them without claiming layout width. */
+    .compact-tool-card .compact-extra-on-hover {
+      position: absolute;
+      z-index: 2;
+      inset-inline-end: var(--workspace-space-2);
+      max-width: min(240px, calc(100% - var(--workspace-space-8)));
+      margin-left: 0;
+      padding-left: var(--workspace-space-1);
+      border-left: 1px solid var(--workspace-border-subtle);
+      background: var(--workspace-surface-hover);
+      opacity: 0;
+      transform: translateX(var(--workspace-space-1));
+      pointer-events: none;
+      transition:
+        opacity var(--workspace-motion-fast) var(--workspace-easing-standard),
+        transform var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .compact-tool-card:is(:hover, :focus-within)
+      .compact-extra-on-hover {
+      max-width: min(240px, calc(100% - var(--workspace-space-8)));
+      margin-left: 0;
+      opacity: 1;
+      transform: none;
+      pointer-events: auto;
+    }
+
     .compact-tool-card-wrapper:not(
         .media-generation-card
       ).requires-confirmation {
@@ -241,6 +305,11 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .virtual-message-list
+      .base-tool-card-wrapper.task-tool-display {
+      transition-duration: 0.01ms !important;
+    }
+
     .void-ui--minimal .virtual-message-list
       :where(
         .base-tool-card-wrapper:not(.task-tool-display):not(

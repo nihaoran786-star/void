@@ -110,10 +110,10 @@ $_nav-collapsed-width: 48px;
 // single shell so their internal square surfaces cannot leak past the radius.
 .void-ui--minimal .void-workspace-body__nav-area.is-collapsed {
   width: $_nav-collapsed-width;
-  height: calc(100% - #{$size-gap-2});
-  margin-top: $size-gap-2;
+  height: calc(100% - (2 * #{$size-gap-2}));
+  margin: $size-gap-2 $size-gap-2 $size-gap-2 0;
   overflow: hidden;
-  border-radius: var(--workspace-radius-panel);
+  border-radius: var(--workspace-radius-shell);
 }
 
 // Minimal keeps a persistent 48px rail. On macOS the rail begins after the
@@ -122,30 +122,17 @@ $_nav-collapsed-width: 48px;
   margin-left: 72px;
 }
 
-// Keep the layout state change immediate for scroll/session stability, then
-// visually bridge the old and new compositions on the compositor. Keep both
-// surfaces fully opaque while a short translate bridges the layout cut, so the
-// porcelain background never flashes through during expansion or collapse.
-.void-ui--minimal .void-workspace-body.is-nav-collapsing {
-  .void-workspace-body__nav-area.is-collapsed
-    > :is(.void-nav-bar, .void-nav-panel) {
-    animation: wb-nav-rail-collapse-in 180ms $easing-decelerate both;
-  }
-
-  .void-workspace-body__scene-area {
-    animation: wb-scene-after-collapse 180ms $easing-decelerate both;
+// Animate the surface that owns the physical column. The mounted NavBar and
+// NavPanel stay clipped inside it while the scene flexes continuously, avoiding
+// the one-frame composition jump caused by animating already-swapped children.
+@media (prefers-reduced-motion: no-preference) {
+  .void-ui--minimal .void-workspace-body__nav-area {
+    transition: width 220ms $easing-decelerate;
   }
 }
 
-.void-ui--minimal .void-workspace-body.is-nav-expanding {
-  .void-workspace-body__nav-area:not(.is-collapsed)
-    > :is(.void-nav-bar, .void-nav-panel) {
-    animation: wb-nav-panel-expand-in 180ms $easing-decelerate both;
-  }
-
-  .void-workspace-body__scene-area {
-    animation: wb-scene-after-expand 180ms $easing-decelerate both;
-  }
+.void-is-resizing-nav .void-ui--minimal .void-workspace-body__nav-area {
+  transition: none;
 }
 
 // Classic remains the rollback presentation: reuse the same mounted tree but
@@ -212,51 +199,9 @@ $_nav-collapsed-width: 48px;
   }
 }
 
-@keyframes wb-nav-rail-collapse-in {
-  from {
-    transform: translate3d(-4px, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes wb-nav-panel-expand-in {
-  from {
-    transform: translate3d(-6px, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes wb-scene-after-collapse {
-  from {
-    transform: translate3d(12px, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes wb-scene-after-expand {
-  from {
-    transform: translate3d(-12px, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .void-ui--minimal
-    .void-workspace-body:is(.is-nav-collapsing, .is-nav-expanding)
-    :is(
-      .void-workspace-body__nav-area > .void-nav-bar,
-      .void-workspace-body__nav-area > .void-nav-panel,
-      .void-workspace-body__scene-area
-    ) {
-    animation: none;
+  .void-ui--minimal .void-workspace-body__nav-area {
+    transition: none;
   }
 }
 

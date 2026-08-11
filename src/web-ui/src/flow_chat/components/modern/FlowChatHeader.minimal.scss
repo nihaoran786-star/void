@@ -141,3 +141,12 @@
     }
   }
 }
+
+// ── Glass Air light projection ─────────────────────────────
+// The scene viewport already owns the frosted material, so the conversation
+// top bar blends into the same glass panel instead of painting a second
+// opaque strip.
+:root[data-theme='light'] .void-ui--minimal .flowchat-header,
+:root[data-theme-type='light'] .void-ui--minimal .flowchat-header {
+  background: transparent;
+}

@@ -267,7 +267,7 @@ describe('FlowChat minimal presentation contract', () => {
     expect(presentationSource).toContain('@include chat-input-workspace-strip.styles;');
   });
 
-  it('projects successful user messages as compact right-aligned quote surfaces without hiding rich content', () => {
+  it('projects successful user messages as flat right-edge quotes without hiding rich content', () => {
     expect(userMessageBaseSource).toMatch(
       /\.user-message-item \{[\s\S]*?box-shadow: none;[\s\S]*?transition: background 0\.2s ease, border-color 0\.2s ease;/,
     );
@@ -276,19 +276,22 @@ describe('FlowChat minimal presentation contract', () => {
     );
     expect(userMessageMinimalSource).toContain('width: fit-content;');
     expect(userMessageMinimalSource).toContain(
-      'max-width: min(560px, calc(100% - 32px));',
+      'max-width: min(640px, calc(100% - 32px));',
     );
     expect(userMessageMinimalSource).toContain(
       'padding: var(--workspace-space-1) var(--workspace-space-2);',
     );
     expect(userMessageMinimalSource).toContain(
-      'border-left: 2px solid var(--workspace-border-strong);',
+      'border-right: 2px solid var(--workspace-border-strong);',
     );
     expect(userMessageMinimalSource).toContain(
       'border-radius: var(--workspace-radius-control);',
     );
-    expect(userMessageMinimalSource).toContain(
-      'background: var(--workspace-surface-panel);',
+    expect(userMessageMinimalSource).toMatch(
+      /\.user-message-item:not\(\.user-message-item--failed\) \{[\s\S]*?max-width: min\(640px, calc\(100% - 32px\)\);[\s\S]*?border-left: 0;[\s\S]*?border-right: 2px solid var\(--workspace-border-strong\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+    );
+    expect(userMessageMinimalSource).toMatch(
+      /\.user-message \{[\s\S]*?border-left: 0;[\s\S]*?border-right: 2px solid var\(--workspace-border-strong\);[\s\S]*?background: transparent;/,
     );
     expect(userMessageMinimalSource).toMatch(
       /\.user-message-item__actions \{[\s\S]*?position: absolute;[\s\S]*?right: 100%;/,

@@ -259,6 +259,68 @@ describeWithJsdom('TaskToolDisplay', () => {
     expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(true);
   });
 
+  it('renders the quiet status ring and step narrative while a subagent runs', async () => {
+    await act(async () => {
+      root.render(
+        <TaskToolDisplay
+          toolItem={reviewTaskItem('running', 'Explore', 'Map the dependency chain')}
+          config={config}
+          sessionId="parent-session"
+        />,
+      );
+    });
+
+    expect(container.querySelector('.task-status-ring--active')).toBeTruthy();
+    const steps = Array.from(container.querySelectorAll('.task-steps__step'));
+    expect(steps).toHaveLength(3);
+    expect(steps[2]?.classList.contains('task-steps__step--now')).toBe(true);
+    expect(steps[0]?.classList.contains('task-steps__step--past')).toBe(true);
+    expect(container.querySelector('[data-testid="cube-loading"]')).toBeNull();
+  });
+
+  it('keeps settled delegation cards quiet: static ring, no step narrative', async () => {
+    await act(async () => {
+      root.render(
+        <TaskToolDisplay
+          toolItem={reviewTaskItem('completed', 'Explore', 'Map the dependency chain')}
+          config={config}
+          sessionId="parent-session"
+        />,
+      );
+    });
+
+    expect(container.querySelector('.task-status-ring--done')).toBeTruthy();
+    expect(container.querySelector('.task-status-ring--animate')).toBeNull();
+    expect(container.querySelector('.task-steps')).toBeNull();
+  });
+
+  it('animates completion once after this mount observes the task running', async () => {
+    const renderStatus = async (status: FlowToolItem['status']) => {
+      await act(async () => {
+        root.render(
+          <TaskToolDisplay
+            toolItem={reviewTaskItem(status, 'Explore', 'Map the dependency chain')}
+            config={config}
+            sessionId="parent-session"
+          />,
+        );
+      });
+    };
+
+    await renderStatus('pending');
+    expect(container.querySelector('.task-status-ring--animate')).toBeNull();
+
+    await renderStatus('running');
+    expect(container.querySelector('.task-status-ring--active')).toBeTruthy();
+
+    await renderStatus('completed');
+    expect(container.querySelector('.task-status-ring--animate')).toBeTruthy();
+
+    await renderStatus('running');
+    await renderStatus('completed');
+    expect(container.querySelector('.task-status-ring--animate')).toBeNull();
+  });
+
   it('opens the real subagent session in the aux pane when the task card rail is clicked', async () => {
     const toolItem: FlowToolItem = {
       ...reviewTaskItem('completed', 'Explore', 'Investigate task card behavior'),

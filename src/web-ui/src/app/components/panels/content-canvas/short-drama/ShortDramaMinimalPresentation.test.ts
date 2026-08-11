@@ -129,10 +129,16 @@ describe('ShortDramaCenter minimal presentation contract', () => {
       /\.short-drama-center__tabs \{[\s\S]*?overflow-x: auto;[\s\S]*?scrollbar-width: none;/,
     );
     expect(source).toMatch(
-      /\.short-drama-center__tab \{[\s\S]*?min-height: var\(--workspace-control-height\);[\s\S]*?flex: 0 0 auto;/,
+      /\.short-drama-center__tab \{[\s\S]*?width: var\(--workspace-icon-target\);[\s\S]*?min-height: var\(--workspace-control-height\);[\s\S]*?flex: 0 0 auto;[\s\S]*?padding: 0;/,
     );
     expect(source).toMatch(
-      /@container short-drama-panel \(max-width: 420px\)[\s\S]*?\.short-drama-center__tab \{[\s\S]*?flex: 1 0 auto;[\s\S]*?justify-content: center;[\s\S]*?padding-inline: var\(--workspace-space-1\);/,
+      /\.short-drama-center__tab-icon \{[\s\S]*?display: block;/,
+    );
+    expect(source).toMatch(
+      /\.short-drama-center__tab-label \{[\s\S]*?position: absolute;[\s\S]*?clip-path: inset\(50%\);/,
+    );
+    expect(source).toMatch(
+      /@container short-drama-panel \(max-width: 420px\)[\s\S]*?\.short-drama-center__tab \{[\s\S]*?width: var\(--workspace-icon-target\);[\s\S]*?flex: 0 0 auto;/,
     );
   });
 

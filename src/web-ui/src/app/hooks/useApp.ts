@@ -59,7 +59,6 @@ export const useApp = (): UseAppReturn => {
   const switchLeftPanelTab = useCallback((tab: PanelType) => {
     appManager.updateLayout({
       leftPanelActiveTab: tab,
-      leftPanelCollapsed: false // Auto-expand panel when switching tabs
     });
   }, []);
 

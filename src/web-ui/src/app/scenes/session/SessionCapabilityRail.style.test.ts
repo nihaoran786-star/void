@@ -33,4 +33,16 @@ describe('SessionCapabilityRail visual contract', () => {
       '.short-drama-team-panel-controls__status-dot',
     );
   });
+
+  it('reserves transcript space and keeps compact panes icon-only', () => {
+    expect(source).toMatch(
+      /\.void-session-scene__chat-pane:has\(\.session-capability-rail\)[\s\S]*?\.modern-flowchat-container__messages[\s\S]*?padding-right: 52px;/,
+    );
+    expect(source).toMatch(
+      /@container session-chat-pane \(max-width: 960px\)[\s\S]*?\.session-capability-rail:hover[\s\S]*?width: 36px;/,
+    );
+    expect(source).toMatch(
+      /@container session-chat-pane \(max-width: 960px\)[\s\S]*?\.session-capability-rail__copy[\s\S]*?display: none;/,
+    );
+  });
 });

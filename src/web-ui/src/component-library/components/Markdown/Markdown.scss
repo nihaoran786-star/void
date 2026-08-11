@@ -641,8 +641,8 @@
 :root[data-theme-type="light"] .markdown-renderer,
 [data-theme-type="light"] .markdown-renderer,
 .light .markdown-renderer {
-  --markdown-link-color: #0969da;
-  --markdown-link-hover-color: #0550ae;
+  --markdown-link-color: #1D4ED8;
+  --markdown-link-hover-color: #1E40AF;
   --markdown-code-bg-elevated: #f6f8fa;
   --markdown-inline-code-bg: rgba(0, 0, 0, 0.05);
   --markdown-inline-code-border: rgba(0, 0, 0, 0.12);
@@ -672,7 +672,7 @@
 
   .copy-button:hover {
     background: rgba(15, 23, 42, 0.06);
-    color: #0969da;
+    color: #1D4ED8;
   }
 
   .copy-button.copy-success {

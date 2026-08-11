@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FlowTextItem, FlowToolItem, FlowUserSteeringItem, ModelRound, Session } from '../types/flow-chat';
+import type { FlowTextItem, FlowThinkingItem, FlowToolItem, FlowUserSteeringItem, ModelRound, Session } from '../types/flow-chat';
 
 vi.mock('./FlowChatStore', () => ({
   flowChatStore: {
@@ -33,6 +33,18 @@ function makeTextItem(id: string, content: string): FlowTextItem {
 
 function makeReadTool(id: string): FlowToolItem {
   return makeTool(id, 'Read');
+}
+
+function makeThinkingItem(id: string): FlowThinkingItem {
+  return {
+    id,
+    type: 'thinking',
+    content: 'brief reasoning',
+    isStreaming: false,
+    isCollapsed: true,
+    timestamp: 1001,
+    status: 'completed',
+  };
 }
 
 function makeTool(
@@ -126,6 +138,38 @@ describe('sessionToVirtualItems explore grouping', () => {
     const items = sessionToVirtualItems(session);
 
     expect(items.map(item => item.type)).toEqual(['user-message', 'explore-group']);
+  });
+
+  it('merges a settled pure-thinking round into the quiet aggregate before critical work', () => {
+    const session = makeSession({
+      sessionId: 'thinking-between-tools',
+      dialogTurns: [{
+        id: 'turn-1',
+        sessionId: 'thinking-between-tools',
+        userMessage: { id: 'user-1', content: 'Help', timestamp: 900 },
+        modelRounds: [
+          makeRound({ id: 'round-read', items: [makeReadTool('read-1')] }),
+          makeRound({ id: 'round-thinking', items: [makeThinkingItem('thinking-1')] }),
+          makeRound({ id: 'round-task', items: [makeTool('task-1', 'Task')] }),
+        ],
+        status: 'completed',
+        startTime: 900,
+      }],
+    });
+
+    const items = sessionToVirtualItems(session);
+
+    expect(items.map(item => item.type)).toEqual([
+      'user-message',
+      'explore-group',
+      'model-round',
+    ]);
+    expect(items[1]).toMatchObject({
+      type: 'explore-group',
+      data: {
+        rounds: [{ id: 'round-read' }, { id: 'round-thinking' }],
+      },
+    });
   });
 
   it('does not special-case ACP rounds without explicit render hints', () => {

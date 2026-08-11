@@ -1,4 +1,12 @@
 @mixin styles {
+  // Glass Air light projection: the scene viewport already owns the frosted
+  // material, so the conversation pane stays transparent and reads as part of
+  // the same glass panel instead of stacking a second opaque surface.
+  :root[data-theme='light'] .void-ui--minimal .modern-flowchat-container,
+  :root[data-theme-type='light'] .void-ui--minimal .modern-flowchat-container {
+    background: transparent;
+  }
+
   .void-ui--minimal :is(.modern-flowchat-container.flow-chat-typography, .btw-session-panel) {
     --flowchat-font-size-base: 13px;
     --flowchat-font-size-sm: 12px;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X } from 'lucide-react';
+import { Images, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import type {
@@ -131,22 +131,43 @@ export const WorkspaceMediaGalleryToolbar: React.FC<
       </div>
 
       <div className="workspace-media-gallery__controls-row">
-        <div className="workspace-media-gallery__views" aria-label="Media view">
+        <div
+          className="workspace-media-gallery__views"
+          aria-label={t('workspaceMedia.entry')}
+        >
           <button
             type="button"
             className={state.view === 'active' ? 'is-active' : ''}
             aria-pressed={state.view === 'active'}
+            aria-label={t('workspaceMedia.views.active')}
+            title={t('workspaceMedia.views.active')}
             onClick={() => actions.onViewChange('active')}
           >
-            {t('workspaceMedia.views.active')}
+            <Images
+              className="workspace-media-gallery__control-icon"
+              size={15}
+              aria-hidden="true"
+            />
+            <span className="workspace-media-gallery__control-label">
+              {t('workspaceMedia.views.active')}
+            </span>
           </button>
           <button
             type="button"
             className={state.view === 'deleted' ? 'is-active' : ''}
             aria-pressed={state.view === 'deleted'}
+            aria-label={t('workspaceMedia.views.deleted')}
+            title={t('workspaceMedia.views.deleted')}
             onClick={() => actions.onViewChange('deleted')}
           >
-            {t('workspaceMedia.views.deleted')}
+            <Trash2
+              className="workspace-media-gallery__control-icon"
+              size={15}
+              aria-hidden="true"
+            />
+            <span className="workspace-media-gallery__control-label">
+              {t('workspaceMedia.views.deleted')}
+            </span>
             {state.deletedCount > 0 && <small>{state.deletedCount}</small>}
           </button>
         </div>
@@ -158,9 +179,18 @@ export const WorkspaceMediaGalleryToolbar: React.FC<
             className="workspace-media-gallery__refinement-toggle"
             aria-expanded={isRefinementsOpen}
             aria-controls={refinementsId}
+            aria-label={t('workspaceMedia.filters.ariaLabel')}
+            title={t('workspaceMedia.filters.ariaLabel')}
             onClick={() => setIsRefinementsOpen(current => !current)}
           >
-            <span>{t('workspaceMedia.filters.ariaLabel')}</span>
+            <SlidersHorizontal
+              className="workspace-media-gallery__control-icon"
+              size={15}
+              aria-hidden="true"
+            />
+            <span className="workspace-media-gallery__control-label">
+              {t('workspaceMedia.filters.ariaLabel')}
+            </span>
             {appliedRefinementCount > 0 && (
               <small aria-label={`${appliedRefinementCount}`}>
                 {appliedRefinementCount}

@@ -106,7 +106,6 @@ const defaultDependencies: CustomizationTaskDispatchDependencies = {
     ]);
     appManager.updateLayout({
       leftPanelActiveTab: 'sessions',
-      leftPanelCollapsed: false,
     });
     useSceneStore.getState().openScene('session');
   },

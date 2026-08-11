@@ -108,7 +108,11 @@
   }
 
   .void-ui--minimal .workspace-media-gallery__refinement-toggle {
+    width: 28px;
     min-height: 24px;
+    justify-content: center;
+    gap: var(--workspace-space-1);
+    padding: 0;
     border-radius: var(--workspace-radius-control);
     color: var(--workspace-text-muted);
     font-family: var(--workspace-font-family);
@@ -129,6 +133,24 @@
   .void-ui--minimal .workspace-media-gallery__refinement-toggle small {
     background: var(--workspace-surface-active);
     color: var(--workspace-text-primary);
+  }
+
+  .void-ui--minimal .workspace-media-gallery__refinement-toggle > i {
+    display: none;
+  }
+
+  .void-ui--minimal .workspace-media-gallery__control-icon {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  .void-ui--minimal .workspace-media-gallery__control-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .void-ui--minimal .workspace-media-gallery__refinement-panel {
@@ -195,6 +217,12 @@
     background: transparent;
     color: var(--workspace-text-muted);
     font-weight: var(--workspace-font-weight-medium);
+  }
+
+  .void-ui--minimal .workspace-media-gallery__views button {
+    width: 28px;
+    justify-content: center;
+    padding-inline: 0;
   }
 
   .void-ui--minimal .workspace-media-gallery__filters button:hover,
@@ -277,9 +305,9 @@
 
   .void-ui--minimal .workspace-media-gallery__skeleton,
   .void-ui--minimal .workspace-media-gallery__masonry {
-    column-gap: var(--workspace-space-3);
-    padding: var(--workspace-space-3) var(--workspace-space-4)
-      var(--workspace-space-4);
+    column-gap: var(--workspace-space-2);
+    padding: var(--workspace-space-2) var(--workspace-space-2)
+      var(--workspace-space-3);
   }
 
   .void-ui--minimal .workspace-media-gallery__masonry--virtual {
@@ -288,14 +316,14 @@
   }
 
   .void-ui--minimal .workspace-media-gallery__skeleton span {
-    margin-bottom: var(--workspace-space-3);
+    margin-bottom: var(--workspace-space-2);
     border-radius: var(--workspace-radius-panel);
     background: var(--workspace-surface-active);
     animation: none;
   }
 
   .void-ui--minimal .workspace-media-gallery__masonry-item {
-    margin-bottom: var(--workspace-space-3);
+    margin-bottom: var(--workspace-space-2);
   }
 
   .void-ui--minimal .workspace-media-card {
@@ -403,29 +431,22 @@
     transform: none;
   }
 
-  .void-ui--minimal .workspace-media-card:not(.is-pending) .workspace-media-card__overlay small,
-  .void-ui--minimal .workspace-media-card:not(.is-pending) .workspace-media-card__meta {
-    max-height: 0;
-    overflow: hidden;
-    opacity: 0;
-    transform: translateY(2px);
-    transition:
-      opacity var(--workspace-motion-fast) var(--workspace-easing-standard),
-      transform var(--workspace-motion-fast) var(--workspace-easing-standard);
+  .void-ui--minimal
+    .workspace-media-card:not(.is-pending):not(.is-failed)
+    .workspace-media-card__overlay {
+    display: none;
   }
 
-  .void-ui--minimal .workspace-media-card:not(.is-pending):hover .workspace-media-card__overlay small,
-  .void-ui--minimal .workspace-media-card:not(.is-pending):hover .workspace-media-card__meta,
-  .void-ui--minimal .workspace-media-card:not(.is-pending):focus-visible .workspace-media-card__overlay small,
-  .void-ui--minimal .workspace-media-card:not(.is-pending):focus-visible .workspace-media-card__meta {
-    max-height: 32px;
-    opacity: 1;
-    transform: none;
+  .void-ui--minimal .workspace-media-card.is-failed .workspace-media-card__overlay > strong,
+  .void-ui--minimal .workspace-media-card.is-failed .workspace-media-card__overlay > small,
+  .void-ui--minimal .workspace-media-card.is-failed .workspace-media-card__meta,
+  .void-ui--minimal .workspace-media-card.is-pending .workspace-media-card__overlay > strong,
+  .void-ui--minimal .workspace-media-card.is-pending .workspace-media-card__overlay > small {
+    display: none;
   }
 
-  .void-ui--minimal .workspace-media-card__overlay strong {
-    font-size: var(--workspace-media-font-size-ui-label);
-    font-weight: var(--workspace-font-weight-medium);
+  .void-ui--minimal .workspace-media-card.is-failed .workspace-media-card__unavailable {
+    display: inline-flex;
   }
 
   .void-ui--minimal .workspace-media-card__overlay small,

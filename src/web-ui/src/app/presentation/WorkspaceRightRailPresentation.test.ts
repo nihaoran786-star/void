@@ -36,40 +36,53 @@ const teamWorkspaceSource = read(
 );
 
 describe('Porcelain Air right rail presentation contract', () => {
-  it('keeps the wide Team Workspace inset without changing its absolute third-column ownership', () => {
+  it('presents the Team Workspace as one floating 9:16 surface above the scene', () => {
     expect(sessionSource).toMatch(
-      /\.void-ui--minimal \.void-session-scene--has-team-workspace \{[\s\S]*?--team-workspace-column-width: clamp\(340px, 23vw, 400px\);[\s\S]*?padding-right: calc\([\s\S]*?var\(--team-workspace-column-width\) \+ var\(--workspace-space-2\)[\s\S]*?\);/,
+      /\.void-session-scene__team-workspace \{[\s\S]*?position: absolute;[\s\S]*?aspect-ratio: 9 \/ 16;[\s\S]*?border: 1px solid var\(--workspace-border-strong, var\(--border-medium\)\);[\s\S]*?border-radius: 16px;[\s\S]*?box-shadow: var\(--workspace-shadow-raised, var\(--shadow-xs\)\), var\(--shadow-lg\);/,
+    );
+    // 悬浮面板不再预留第三列,会话与画布保持完整场景宽度。
+    expect(sessionSource).not.toMatch(/--team-workspace-column-width/);
+    expect(sessionSource).not.toMatch(/padding-right:\s*clamp\(340px/);
+  });
+
+  it('quiets only the floating Team chrome on outside interaction', () => {
+    const dimmedBlock = extractScssBlock(
+      sessionSource,
+      "&[data-dimmed='true']",
+    );
+
+    expect(dimmedBlock).not.toContain('opacity:');
+    expect(dimmedBlock).toContain(
+      'border-color: var(--workspace-border-subtle, var(--border-subtle));',
     );
     expect(sessionSource).toMatch(
-      /\.void-ui--minimal \.void-session-scene__team-workspace \{[\s\S]*?top: var\(--workspace-space-2\);[\s\S]*?right: var\(--workspace-space-2\);[\s\S]*?bottom: var\(--workspace-space-2\);[\s\S]*?border-radius: var\(--workspace-radius-shell\);/,
+      /\[data-dimmed='true'\]\s*\{[\s\S]*?box-shadow: var\(--workspace-shadow-raised, var\(--shadow-xs\)\);/,
     );
   });
 
-  it('uses a compact three-column rail at high-DPI desktop CSS widths', () => {
-    expect(sessionSource).toMatch(
-      /@media \(min-width: 1024px\) and \(max-width: 1279px\)[\s\S]*?--team-workspace-column-width: clamp\(280px, 25vw, 320px\);[\s\S]*?padding-right: calc\([\s\S]*?var\(--team-workspace-column-width\) \+ var\(--workspace-space-2\)[\s\S]*?\);/,
+  it('uses the 36px top bar itself as the drag handle, with no separate grabber', () => {
+    expect(sessionSource).not.toMatch(/team-grabber/);
+    expect(teamWorkspaceSource).toMatch(
+      /&__map-topbar \{[\s\S]*?min-height: 36px;/,
     );
-    expect(sessionSource).toMatch(
-      /@media \(min-width: 1024px\) and \(max-width: 1279px\)[\s\S]*?\.void-session-scene__chat-pane \{[\s\S]*?min-width: 280px;[\s\S]*?max-width: 34%;/,
-    );
-    expect(sessionSource).toMatch(
-      /@media \(min-width: 1024px\) and \(max-width: 1279px\)[\s\S]*?\.void-session-scene__aux-pane:not\(\.void-session-scene__aux-pane--collapsed\) \{[\s\S]*?min-width: 240px;[\s\S]*?max-width: calc\(100% - 281px\);/,
+    expect(teamWorkspaceSource).toMatch(
+      /&__strip, &__map-topbar \{ cursor: grab; \}/,
     );
   });
 
-  it('gives the Canvas one inset shell and removes it only while maximized', () => {
+  it('flattens the Canvas into the single scene plane behind one hairline', () => {
     expect(auxPaneSource).toMatch(
       /\.void-ui--minimal \.void-aux-pane \{[\s\S]*?padding: var\(--workspace-space-2\);/,
     );
     expect(canvasSource).toMatch(
-      /\.void-ui--minimal \.canvas-content-canvas \{[\s\S]*?border: 1px solid var\(--workspace-border-subtle\);[\s\S]*?border-radius: var\(--workspace-radius-shell\);/,
+      /\.void-ui--minimal \.canvas-content-canvas \{[\s\S]*?border: 0;[\s\S]*?border-left: 1px solid var\(--workspace-border-subtle\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
     );
     expect(canvasSource).toMatch(
-      /&\.is-maximized \{[\s\S]*?border: 0;[\s\S]*?border-radius: 0;[\s\S]*?box-shadow: none;/,
+      /&\.is-maximized \{[\s\S]*?border-left: 0;/,
     );
   });
 
-  it('uses one compact height contract for Canvas and Team headers', () => {
+  it('uses one compact strip contract for Canvas and Team member conversation chrome', () => {
     const shortDramaTopbar = extractScssBlock(
       shortDramaSource,
       '.void-ui--minimal .short-drama-center__topbar',
@@ -82,23 +95,19 @@ describe('Porcelain Air right rail presentation contract', () => {
       teamWorkspaceSource,
       '.void-ui--minimal .team-workspace-panel',
     );
-    const classicConversationHeader = extractScssBlock(
+    const classicStrip = extractScssBlock(
       classicTeamWorkspace,
-      '&__conversation-header',
+      '&__strip',
     );
-    const minimalHeader = extractScssBlock(minimalTeamWorkspace, '&__header');
-    const minimalConversationHeader = extractScssBlock(
+    const minimalStrip = extractScssBlock(
       minimalTeamWorkspace,
-      '&__conversation-header',
+      '&__strip',
     );
 
     expect(shortDramaTopbar).toContain('height: var(--workspace-topbar-height);');
     expect(shortDramaTopbar).toContain('min-height: var(--workspace-topbar-height);');
-    expect(classicConversationHeader).toContain('min-height: 52px;');
-    expect(minimalHeader).toContain('height: 44px;');
-    expect(minimalHeader).toContain('min-height: 44px;');
-    expect(minimalConversationHeader).toContain('height: 44px;');
-    expect(minimalConversationHeader).toContain('min-height: 44px;');
+    expect(classicStrip).toContain('min-height: 36px;');
+    expect(minimalStrip).toContain('min-height: 36px;');
   });
 
   it('does not add presentation-only force overrides', () => {

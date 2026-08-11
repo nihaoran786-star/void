@@ -488,31 +488,36 @@ export async function persistSessionMetadata(
 ): Promise<void> {
   const { sessionAPI } = await import('@/infrastructure/api');
 
-  const session = context.flowChatStore.getState().sessions.get(sessionId);
-  if (!session) return;
-  if (isTransientSession(session)) return;
+  const sessionAtLoadStart = context.flowChatStore.getState().sessions.get(sessionId);
+  if (!sessionAtLoadStart) return;
+  if (isTransientSession(sessionAtLoadStart)) return;
 
-  const workspacePath = requireWorkspacePath(sessionId, session.workspacePath);
+  const workspacePath = requireWorkspacePath(sessionId, sessionAtLoadStart.workspacePath);
 
   let existingMetadata: any = null;
   try {
     existingMetadata = await sessionAPI.loadSessionMetadata(
       sessionId,
       workspacePath,
-      session.remoteConnectionId,
-      session.remoteSshHost
+      sessionAtLoadStart.remoteConnectionId,
+      sessionAtLoadStart.remoteSshHost
     );
   } catch {
     // Existing metadata is optional; saving the new authoritative projection is not.
   }
 
-  const metadata = buildSessionMetadata(session, existingMetadata);
+  const latestSession = context.flowChatStore.getState().sessions.get(sessionId);
+  if (!latestSession) return;
+  if (isTransientSession(latestSession)) return;
+
+  const latestWorkspacePath = requireWorkspacePath(sessionId, latestSession.workspacePath);
+  const metadata = buildSessionMetadata(latestSession, existingMetadata);
 
   await sessionAPI.saveSessionMetadata(
     metadata,
-    workspacePath,
-    session.remoteConnectionId,
-    session.remoteSshHost
+    latestWorkspacePath,
+    latestSession.remoteConnectionId,
+    latestSession.remoteSshHost
   );
 }
 

@@ -85,10 +85,9 @@ describe('Minimal presentation remains isolated from Classic', () => {
     const minimalWorkspace = teamWorkspace.slice(minimalStart);
 
     expect(minimalStart).toBeGreaterThan(0);
-    expect(classicWorkspace).toContain('min-height: 52px; padding: 4px 8px;');
+    expect(classicWorkspace).toContain('min-height: 36px; flex: 0 0 auto; padding: 12px 16px 9px;');
+    expect(classicWorkspace).toContain('border-bottom: 1px solid var(--border-subtle);');
     expect(classicWorkspace).not.toContain('border-radius: inherit;');
     expect(minimalWorkspace).toContain('border-radius: inherit;');
-    expect(minimalWorkspace).toContain('height: 44px;');
-    expect(minimalWorkspace).toContain('border-bottom-color: var(--workspace-border-subtle);');
   });
 });

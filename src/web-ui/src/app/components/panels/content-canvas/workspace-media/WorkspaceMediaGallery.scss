@@ -800,6 +800,10 @@
   font-size: var(--workspace-media-font-size-ui-meta);
 }
 
+.workspace-media-gallery__control-icon {
+  display: none;
+}
+
 .workspace-media-gallery__views button,
 .workspace-media-gallery__select-visible,
 .workspace-media-gallery__selection-bar button {

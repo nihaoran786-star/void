@@ -348,3 +348,37 @@
     }
   }
 }
+
+// ── Glass Air light projection ─────────────────────────────
+// Catalog scenes sit on the same frosted scene viewport, so the gallery body
+// stays transparent and the sticky page header keeps legibility with the
+// shared glass material instead of a second opaque strip. The one primary
+// catalog action uses the warm terracotta step rather than a severe near-black
+// treatment.
+:root[data-theme='light'] .void-ui--minimal .gallery-layout,
+:root[data-theme-type='light'] .void-ui--minimal .gallery-layout {
+  background: transparent;
+}
+
+:root[data-theme='light'] .void-ui--minimal .gallery-layout .gallery-page-header,
+:root[data-theme-type='light'] .void-ui--minimal .gallery-layout .gallery-page-header {
+  background: var(--workspace-glass-deep-bg);
+  backdrop-filter: var(--workspace-glass-blur);
+  -webkit-backdrop-filter: var(--workspace-glass-blur);
+}
+
+:root[data-theme='light'] .void-ui--minimal .gallery-layout .gallery-action-btn--primary,
+:root[data-theme-type='light'] .void-ui--minimal .gallery-layout .gallery-action-btn--primary {
+  color: var(--workspace-on-accent);
+  background: var(--color-accent-500);
+  border-color: var(--color-accent-500);
+}
+
+:root[data-theme='light'] .void-ui--minimal .gallery-layout .gallery-action-btn--primary:hover:not(:disabled),
+:root[data-theme-type='light'] .void-ui--minimal .gallery-layout .gallery-action-btn--primary:hover:not(:disabled),
+:root[data-theme='light'] .void-ui--minimal .gallery-layout .gallery-action-btn--primary:active:not(:disabled),
+:root[data-theme-type='light'] .void-ui--minimal .gallery-layout .gallery-action-btn--primary:active:not(:disabled) {
+  color: var(--workspace-on-accent);
+  background: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+}

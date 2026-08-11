@@ -61,120 +61,51 @@
   container-type: inline-size;
 }
 
+// ── Floating Team Workspace ─────────────────────────────
+// The Team panel is one floating portrait surface (9:16), not a third column.
+// It reserves no layout width: chat and Canvas keep the full scene while the
+// panel floats above them. Opening, closing, dimming, or dragging the panel is
+// presentation-only and never touches the durable Team binding or child
+// sessions. Interacting outside the panel only quiets its chrome; semantic
+// content keeps full opacity and cannot blend into the Canvas below it.
 .void-session-scene__team-workspace {
   position: absolute;
   z-index: $z-floating;
-  top: 12px;
-  right: 12px;
-  bottom: 12px;
-  width: min(368px, calc(100% - 24px));
-  min-width: 0;
+  top: 50%;
+  right: 16px;
+  height: min(78vh, calc(100% - 48px), calc((100vw - 32px) * 16 / 9));
+  aspect-ratio: 9 / 16;
+  max-width: calc(100% - 32px);
   overflow: hidden;
-  border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
-  border-radius: 14px;
+  border: 1px solid var(--workspace-border-strong, var(--border-medium));
+  border-radius: 16px;
   background: var(--workspace-surface-panel, var(--color-bg-secondary));
-  box-shadow: var(--workspace-shadow-raised, var(--shadow-lg));
-}
+  box-shadow: var(--workspace-shadow-raised, var(--shadow-xs)), var(--shadow-lg);
+  translate: 0 -50%;
+  transition: border-color var(--motion-fast) var(--easing-standard);
 
-// Minimal keeps the Team Workspace inside the same inset shell as the Canvas.
-// The overlay remains absolute, so closing it or crossing a breakpoint never
-// changes the durable Team binding or child-session state.
-.void-ui--minimal .void-session-scene__team-workspace {
-  top: var(--workspace-space-2);
-  right: var(--workspace-space-2);
-  bottom: var(--workspace-space-2);
-  width: min(368px, calc(100% - (2 * var(--workspace-space-2))));
-  border-color: var(--workspace-border-subtle);
-  border-radius: var(--workspace-radius-shell);
-  background: var(--workspace-surface-panel);
-  box-shadow: var(--workspace-shadow-raised);
-}
-
-@media (min-width: 1024px) and (max-width: 1279px) {
-  // A 1690px Per-Monitor-V2 window can be only ~1124 CSS px at 150% DPI.
-  // Keep that desktop in a compact three-column layout instead of covering
-  // the working Canvas with the medium overlay.
-  .void-ui--minimal .void-session-scene--has-team-workspace {
-    --team-workspace-column-width: clamp(280px, 25vw, 320px);
-
-    padding-right: calc(
-      var(--team-workspace-column-width) + var(--workspace-space-2)
-    );
-
-    .void-session-scene__chat-pane {
-      flex: 1 1 280px;
-      min-width: 280px;
-      max-width: 34%;
-    }
-
-    .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed) {
-      flex: 1 1 auto;
-      min-width: 240px;
-      max-width: calc(100% - 281px);
-    }
+  // 使用中:悬停或键盘聚焦时,描边染上一层 accent。
+  &:hover,
+  &:focus-within {
+    border-color: var(--color-accent-400);
   }
 
-  .void-ui--minimal .void-session-scene__team-workspace {
-    width: var(--team-workspace-column-width);
+  // 运行中只改变描边。状态动效由面板内唯一的呼吸点承担。
+  &:has(.team-workspace-panel[data-running]) {
+    border-color: var(--color-accent-500);
+  }
+
+  &[data-dimmed='true'] {
+    border-color: var(--workspace-border-subtle, var(--border-subtle));
+    box-shadow: var(--workspace-shadow-raised, var(--shadow-xs));
+  }
+
+  &[data-dragging='true'] {
+    cursor: grabbing;
   }
 }
 
-@media (min-width: 1280px) {
-  // A durable Team owns one real third column. The column is pinned to the
-  // scene's physical right edge and its width is reserved via padding, so
-  // transient chat/canvas width turbulence (poll-cadence state writes) can
-  // never push the panel beyond the scene's clipped window bounds — the panel
-  // stays put and any overflow is absorbed by the flexible panes instead.
-  .void-session-scene--has-team-workspace {
-    padding-right: clamp(340px, 23vw, 400px);
-
-    .void-session-scene__chat-pane {
-      flex: 1 1 400px;
-      min-width: 400px;
-      max-width: min(520px, 36%);
-    }
-
-    .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed) {
-      flex: 1 1 auto;
-      min-width: 300px;
-      max-width: calc(100% - 401px);
-    }
-  }
-
-  .void-session-scene__team-workspace {
-    position: absolute;
-    z-index: auto;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: clamp(340px, 23vw, 400px);
-    min-width: 340px;
-    border-width: 0 0 0 1px;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .void-ui--minimal .void-session-scene--has-team-workspace {
-    --team-workspace-column-width: clamp(340px, 23vw, 400px);
-
-    // The reserved column contains the Team panel plus one Canvas-side inset.
-    // AuxPane owns the visible 8px gap, avoiding a doubled 16px gutter.
-    padding-right: calc(
-      var(--team-workspace-column-width) + var(--workspace-space-2)
-    );
-  }
-
-  .void-ui--minimal .void-session-scene__team-workspace {
-    top: var(--workspace-space-2);
-    right: var(--workspace-space-2);
-    bottom: var(--workspace-space-2);
-    width: var(--team-workspace-column-width);
-    border: 1px solid var(--workspace-border-subtle);
-    border-radius: var(--workspace-radius-shell);
-    background: var(--workspace-surface-panel);
-    box-shadow: var(--workspace-shadow-raised);
-  }
-}
+// 顶栏([data-team-drag])即拖拽区:没有独立抓手,按住栏上空白即可移动面板。
 
 
 .void-session-scene__aux-pane {
@@ -437,5 +368,47 @@
     &:hover &__line,
     &--hovering &__line,
     &--dragging &__line { background: currentColor; outline: 2px solid currentColor; }
+  }
+}
+
+// ── Light projection ─────────────────────────────
+// The pane resizer keeps its quiet light-theme hairline treatment.
+:root[data-theme='light'] .void-ui--minimal .void-pane-resizer,
+:root[data-theme-type='light'] .void-ui--minimal .void-pane-resizer {
+  width: 8px;
+  background: transparent;
+
+  &::before {
+    left: -4px;
+    right: -4px;
+  }
+
+  .void-pane-resizer__line {
+    width: 3px;
+    height: 36px;
+    border-radius: 2px;
+    background: rgba(32, 35, 31, 0.12);
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  &:hover .void-pane-resizer__line,
+  &--hovering .void-pane-resizer__line,
+  &:focus .void-pane-resizer__line {
+    width: 3px;
+    height: 48px;
+    border-radius: 2px;
+    background: var(--color-accent-500);
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  &--dragging .void-pane-resizer__line {
+    width: 3px;
+    height: 56px;
+    border-radius: 2px;
+    background: var(--color-accent-600);
+    box-shadow: none;
+    opacity: 1;
   }
 }

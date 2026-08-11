@@ -92,16 +92,33 @@
   display: none !important;
 }
 
-/* E — action + content breathe; keep tool-identifier-icon steady */
-.compact-tool-card-wrapper--loading-shimmer .compact-card-action,
-.compact-tool-card-wrapper--loading-shimmer .compact-card-content {
-  animation: tool-card-text-fade 1.6s ease-in-out infinite;
+/* Running row: one quiet signal — 1px accent trace on the left edge. */
+.compact-tool-card-wrapper--loading-shimmer .compact-tool-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--color-accent-500, #60a5fa);
+  opacity: 0.7;
+  animation: tool-card-trace-breathe 1.8s ease-in-out infinite;
 }
 
-/* Legacy compact cards that still use status icon as left icon (no .tool-identifier-icon child):
-   fade the icon-marks too for the original shimmer effect. */
-.compact-tool-card-wrapper--loading-shimmer .tool-card-icon-marks:not(:has(.tool-identifier-icon)) {
-  animation: tool-card-text-fade 1.6s ease-in-out infinite;
+/* Running row: the summary text carries a single light sweep
+   (replaces the whole-row opacity breathing). */
+.compact-tool-card-wrapper--loading-shimmer .compact-card-content {
+  background: linear-gradient(
+    90deg,
+    var(--color-text-muted) 35%,
+    var(--color-text-primary) 50%,
+    var(--color-text-muted) 65%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: tool-card-content-sweep 1.7s linear infinite;
 }
 
 /* ========== Card body - transparent, no border ========== */
@@ -460,5 +477,28 @@
   }
   50% {
     opacity: 0.25;
+  }
+}
+
+@keyframes tool-card-trace-breathe {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes tool-card-content-sweep {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compact-tool-card-wrapper--loading-shimmer .compact-tool-card::before,
+  .compact-tool-card-wrapper--loading-shimmer .compact-card-content {
+    animation: none;
   }
 }

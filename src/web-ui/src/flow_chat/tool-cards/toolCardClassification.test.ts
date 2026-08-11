@@ -5,6 +5,7 @@ import {
   isCollapsibleItem,
   isCollapsibleItemWithContext,
   isCollapsibleTool,
+  isCollapsibleToolItem,
   READ_TOOL_NAMES,
   SEARCH_TOOL_NAMES,
 } from './toolCardClassification';
@@ -36,13 +37,43 @@ describe('toolCardClassification', () => {
     expect([...COMMAND_TOOL_NAMES]).toEqual(['Bash', 'Git']);
   });
 
-  it('only classifies explorer tools and thinking as collapsible', () => {
-    expect(isCollapsibleTool('Read')).toBe(true);
-    expect(isCollapsibleTool('Task')).toBe(false);
+  it('only classifies explicitly routine tools and thinking as collapsible', () => {
+    for (const toolName of ['GetToolSpec', 'CallDeferredTool', 'Read', 'Write', 'Grep', 'Bash']) {
+      expect(isCollapsibleTool(toolName)).toBe(true);
+    }
+    for (const toolName of ['UnknownFutureTool', 'Task', 'GenerateImage', 'mcp__canvas__open_panel']) {
+      expect(isCollapsibleTool(toolName)).toBe(false);
+    }
     expect(isCollapsibleItem(tool('Git'))).toBe(true);
-    expect(isCollapsibleItem(tool('Write'))).toBe(false);
+    expect(isCollapsibleItem(tool('Write'))).toBe(true);
     expect(isCollapsibleItem(narrative('thinking'))).toBe(true);
     expect(isCollapsibleItem(narrative('text'))).toBe(false);
+  });
+
+  it('only collapses settled successful tools without pending interaction', () => {
+    const failed = {
+      ...tool('GetToolSpec'),
+      status: 'error' as const,
+      toolResult: { result: null, success: false, error: 'failed' },
+    };
+    const awaitingApproval = {
+      ...tool('Bash'),
+      status: 'pending_confirmation' as const,
+      requiresConfirmation: true,
+    };
+    const cancelled = {
+      ...tool('Read'),
+      status: 'cancelled' as const,
+    };
+
+    expect(isCollapsibleToolItem(tool('GetToolSpec'))).toBe(true);
+    expect(isCollapsibleToolItem(failed)).toBe(false);
+    expect(isCollapsibleToolItem(awaitingApproval)).toBe(false);
+    expect(isCollapsibleToolItem(cancelled)).toBe(false);
+    expect(isCollapsibleToolItem(tool('Task'))).toBe(false);
+    expect(isCollapsibleToolItem(tool('GenerateVideo'))).toBe(false);
+    expect(isCollapsibleToolItem(tool('mcp__canvas__open_panel'))).toBe(false);
+    expect(isCollapsibleToolItem(tool('UnknownFutureTool'))).toBe(false);
   });
 
   it('keeps narrative visible at the tail and groups it before exploration', () => {

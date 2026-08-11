@@ -24,9 +24,13 @@ const FLOW_CHAT_LINK_COLORS = {
     default: '#60a5fa',
     hover: '#93c5fd',
   },
+  deepSpace: {
+    default: '#22D3EE',
+    hover: '#67E8F9',
+  },
   light: {
-    default: '#0969da',
-    hover: '#0550ae',
+    default: '#1D4ED8',
+    hover: '#1E40AF',
   },
 } as const;
 
@@ -387,7 +391,9 @@ export class ThemeService {
     root.style.setProperty('--color-primary-hover', primaryHover);
     root.style.setProperty('--color-accent', primaryAccent);
     root.style.setProperty('--color-accent-primary', primaryAccent);
-    const flowChatLinkColors = theme.type === 'light'
+    const flowChatLinkColors = theme.id === 'void-dark'
+      ? FLOW_CHAT_LINK_COLORS.deepSpace
+      : theme.type === 'light'
       ? FLOW_CHAT_LINK_COLORS.light
       : FLOW_CHAT_LINK_COLORS.dark;
     root.style.setProperty('--flowchat-link-color', flowChatLinkColors.default);

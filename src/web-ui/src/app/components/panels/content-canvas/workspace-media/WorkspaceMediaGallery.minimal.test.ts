@@ -9,6 +9,10 @@ const baseSource = readFileSync(
   new URL('./WorkspaceMediaGallery.scss', import.meta.url),
   'utf8',
 );
+const virtualMasonrySource = readFileSync(
+  new URL('./WorkspaceMediaVirtualMasonry.tsx', import.meta.url),
+  'utf8',
+);
 
 describe('WorkspaceMediaGallery minimal card presentation', () => {
   it('keeps the Classic type scale exact behind semantic feature tokens', () => {
@@ -107,22 +111,32 @@ describe('WorkspaceMediaGallery minimal card presentation', () => {
     expect(source).not.toMatch(/\brgba?\s*\(/i);
   });
 
-  it('keeps the filename visible while progressively disclosing secondary metadata', () => {
+  it('keeps ready-media filenames off the artwork while preserving explicit failure and generation status', () => {
     expect(source).toMatch(
-      /\.workspace-media-card:not\(\.is-pending\) \.workspace-media-card__overlay small,[\s\S]*?\.workspace-media-card:not\(\.is-pending\) \.workspace-media-card__meta \{[\s\S]*?max-height: 0;[\s\S]*?opacity: 0;/,
-    );
-    expect(source).toMatch(
-      /\.workspace-media-card:not\(\.is-pending\):hover \.workspace-media-card__overlay small,[\s\S]*?\.workspace-media-card:not\(\.is-pending\):focus-visible \.workspace-media-card__meta \{[\s\S]*?max-height: 32px;[\s\S]*?opacity: 1;/,
+      /\.workspace-media-card:not\(\.is-pending\):not\(\.is-failed\)\s+\.workspace-media-card__overlay \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /\.workspace-media-card__overlay strong \{[\s\S]*?font-size: var\(--workspace-media-font-size-ui-label\);/,
+      /\.workspace-media-card\.is-failed \.workspace-media-card__overlay > strong,[\s\S]*?\.workspace-media-card\.is-pending \.workspace-media-card__overlay > small \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /\.workspace-media-card:not\(\.is-pending\) \.workspace-media-card__overlay small,[\s\S]*?\.workspace-media-card:not\(\.is-pending\) \.workspace-media-card__meta \{[\s\S]*?transition:\s*opacity [^,;]+,\s*transform [^;]+;/,
+      /\.workspace-media-card\.is-failed \.workspace-media-card__unavailable \{[\s\S]*?display: inline-flex;/,
     );
-    expect(source).not.toMatch(
-      /transition\s*:[^;]*(?:height|max-height)/,
+  });
+
+  it('uses one tight eight-pixel masonry rhythm for regular and virtual collections', () => {
+    expect(source).toMatch(
+      /\.workspace-media-gallery__skeleton,\s+\.void-ui--minimal \.workspace-media-gallery__masonry \{[\s\S]*?column-gap: var\(--workspace-space-2\);[\s\S]*?padding: var\(--workspace-space-2\) var\(--workspace-space-2\)\s+var\(--workspace-space-3\);/,
     );
+    expect(source).toMatch(
+      /\.workspace-media-gallery__masonry-item \{[\s\S]*?margin-bottom: var\(--workspace-space-2\);/,
+    );
+    expect(virtualMasonrySource).toMatch(
+      /const CLASSIC_LAYOUT[\s\S]*?horizontalPadding: 14,[\s\S]*?verticalPaddingStart: 10,[\s\S]*?verticalPaddingEnd: 14,[\s\S]*?itemGap: 10,/,
+    );
+    expect(virtualMasonrySource).toMatch(
+      /const MINIMAL_LAYOUT[\s\S]*?horizontalPadding: 8,[\s\S]*?verticalPaddingStart: 8,[\s\S]*?verticalPaddingEnd: 12,[\s\S]*?itemGap: 8,/,
+    );
+    expect(virtualMasonrySource).toContain("closest('.void-app-layout')");
   });
 
   it('preserves keyboard focus treatment for card actions', () => {

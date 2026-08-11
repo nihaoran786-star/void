@@ -10,7 +10,7 @@ interface BuildModelRoundItemGroupsInput {
   items: FlowItem[];
   isStreaming: boolean;
   disableExploreGrouping: boolean;
-  isCollapsibleTool: (toolName: string) => boolean;
+  isCollapsibleToolItem: (item: FlowToolItem) => boolean;
   nowMs?: number;
 }
 
@@ -38,7 +38,7 @@ export function buildModelRoundItemGroups({
   items,
   isStreaming,
   disableExploreGrouping,
-  isCollapsibleTool,
+  isCollapsibleToolItem,
   nowMs = Date.now(),
 }: BuildModelRoundItemGroupsInput): ModelRoundItemGroup[] {
   const deferExploreGrouping = disableExploreGrouping || (isStreaming && hasActiveStreamingNarrative(items));
@@ -78,7 +78,21 @@ export function buildModelRoundItemGroups({
     const item = group.item;
     const isLastNormalItem = normalItemIndex === normalItems.length - 1;
 
-    if (item.type === 'text' || item.type === 'thinking') {
+    if (
+      item.type === 'thinking' &&
+      item.status === 'completed' &&
+      !deferExploreGrouping
+    ) {
+      if (pendingBuffer.length > 0) {
+        flushExploreBuffer(false);
+        flushPendingAsCritical();
+      }
+      exploreBuffer.push(item);
+
+      if (isLastNormalItem || isLastGroup) {
+        flushExploreBuffer(true);
+      }
+    } else if (item.type === 'text' || item.type === 'thinking') {
       pendingBuffer.push(item);
 
       if (isLastNormalItem) {
@@ -86,8 +100,7 @@ export function buildModelRoundItemGroups({
         flushPendingAsCritical();
       }
     } else if (item.type === 'tool') {
-      const toolName = (item as FlowToolItem).toolName;
-      const isExploreTool = isCollapsibleTool(toolName);
+      const isExploreTool = isCollapsibleToolItem(item as FlowToolItem);
 
       if (isExploreTool) {
         const keepTransientlyCritical =

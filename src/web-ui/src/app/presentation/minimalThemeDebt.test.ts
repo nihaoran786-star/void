@@ -7,8 +7,10 @@ const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const shadowDeclaration = /box-shadow\s*:\s*([^;]+);/g;
 const allowedShadowValues = [
   /^none(?:\s*!important)?$/,
-  /^var\(--workspace-shadow-[\w-]+\)(?:\s*!important)?$/,
+  /^var\(--workspace-(?:shadow|glass-shadow|composer-shadow)[\w-]*\)(?:\s*!important)?$/,
   /^inset 0 0 0 (?:1|2)px var\(--workspace-(?:focus-ring|border-subtle|border-strong|accent)\)(?:\s*!important)?$/,
+  // Glass Air shell: inset hairline ring plus one soft float-shadow layer.
+  /^inset 0 0 0 (?:1|2)px var\(--workspace-(?:focus-ring|border-subtle|border-strong|accent)\), var\(--workspace-glass-shadow\)(?:\s*!important)?$/,
 ];
 
 function collectMinimalStyles(directory: string): string[] {

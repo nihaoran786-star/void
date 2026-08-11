@@ -244,16 +244,18 @@ describe('TeamWorkspacePanel', () => {
     });
   }
 
-  it('以紧凑总览展示团队、成员和流程状态', async () => {
+  it('以紧凑作战地图展示团队成员和流程状态,不再渲染冗余说明文字', async () => {
     await render(readyState());
 
     expect(container.textContent).toContain('软件交付团队');
-    expect(container.textContent).toContain('完成用户需求');
+    expect(container.textContent).not.toContain('完成用户需求');
     expect(container.textContent).not.toContain('研发主理人');
     expect(container.textContent).toContain('开发工程师');
     expect(container.textContent).toContain('实现');
     expect(container.querySelector('[role="status"]')?.textContent).toContain('运行中');
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(container.querySelector('aside')?.hasAttribute('data-running')).toBe(true);
+    expect(container.querySelector('.team-workspace-panel__map-topbar')?.hasAttribute('data-team-drag')).toBe(true);
   });
 
   it('总管留在左侧主会话，右侧只展示并打开专业成员', async () => {
@@ -272,6 +274,29 @@ describe('TeamWorkspacePanel', () => {
     expect(conversation?.dataset.parentSessionId).toBe('parent-1');
     expect(conversation?.dataset.restoreMissingSessionAs).toBe('subagent');
     expect(conversation?.textContent).toBe('开发工程师');
+    expect(container.querySelector('.team-workspace-panel__strip')?.hasAttribute('data-team-drag')).toBe(true);
+  });
+
+  it('成员对话视图仍保留可见的关闭按钮', async () => {
+    const onClose = vi.fn();
+    await act(async () => {
+      root.render(
+        <TeamWorkspacePanel
+          state={readyState()}
+          selectedMemberId="developer"
+          workspacePath="D:/repo"
+          onClose={onClose}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    const closeButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="关闭团队工作区"]',
+    );
+    expect(closeButton).not.toBeNull();
+    act(() => closeButton?.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('成员尚无子会话时仍可点击打开明确的空对话', async () => {
@@ -452,5 +477,6 @@ describe('TeamWorkspacePanel', () => {
 
     expect(container.textContent).toContain('尚未进入会话');
     expect(container.querySelector('aside')?.getAttribute('aria-label')).toBe('团队工作区');
+    expect(container.querySelector('aside')?.hasAttribute('data-running')).toBe(false);
   });
 });

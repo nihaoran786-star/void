@@ -1,11 +1,11 @@
 {
   "name": "void",
   "version": "0.2.8",
-  "buildDate": "2026-07-22T04:41:34.425Z",
-  "buildTimestamp": 1784695294426,
+  "buildDate": "2026-08-11T07:39:31.740Z",
+  "buildTimestamp": 1786433971740,
   "buildEnv": "development",
   "isDev": true,
-  "gitCommit": "bf6c9b4",
-  "gitCommitFull": "bf6c9b419acf4424aeeb743599662e6fd7eca310",
+  "gitCommit": "3a2e9e6",
+  "gitCommitFull": "3a2e9e659c30799e1ddcb704bf6cc78c78e8ad92",
   "gitBranch": "codex/minimal-workspace-ui"
 }

@@ -94,4 +94,49 @@ describe('WorkspaceMediaVirtualMasonry', () => {
 
     expect(unrelatedRenderCalls).toBeLessThan(20);
   });
+
+  it('keeps the established Classic virtual geometry', async () => {
+    container.className = 'void-app-layout void-ui--classic';
+    const items = [{ id: 'item-1' }];
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaVirtualMasonry
+          items={items}
+          getItemKey={item => item.id}
+          estimateAspectRatio={() => 1}
+          renderItem={item => <span>{item.id}</span>}
+          resetKey="theme-isolation"
+        />,
+      );
+    });
+
+    const masonry = container.querySelector<HTMLElement>(
+      '[data-testid="workspace-media-virtual-masonry"]',
+    );
+    expect(masonry?.getAttribute('data-horizontal-padding')).toBe('14');
+    expect(masonry?.getAttribute('data-item-gap')).toBe('10');
+  });
+
+  it('projects the tighter Minimal virtual geometry', async () => {
+    container.className = 'void-app-layout void-ui--minimal';
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaVirtualMasonry
+          items={[{ id: 'item-1' }]}
+          getItemKey={item => item.id}
+          estimateAspectRatio={() => 1}
+          renderItem={item => <span>{item.id}</span>}
+          resetKey="minimal-density"
+        />,
+      );
+    });
+
+    const masonry = container.querySelector<HTMLElement>(
+      '[data-testid="workspace-media-virtual-masonry"]',
+    );
+    expect(masonry?.getAttribute('data-horizontal-padding')).toBe('8');
+    expect(masonry?.getAttribute('data-item-gap')).toBe('8');
+  });
 });

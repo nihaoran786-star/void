@@ -3,11 +3,28 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 const DEFAULT_VIEWPORT_WIDTH = 720;
 const DEFAULT_VIEWPORT_HEIGHT = 720;
-const HORIZONTAL_PADDING = 14;
-const VERTICAL_PADDING_START = 10;
-const VERTICAL_PADDING_END = 14;
-const ITEM_GAP = 10;
 const MIN_LANE_WIDTH = 160;
+
+interface MasonryLayout {
+  horizontalPadding: number;
+  verticalPaddingStart: number;
+  verticalPaddingEnd: number;
+  itemGap: number;
+}
+
+const CLASSIC_LAYOUT: MasonryLayout = {
+  horizontalPadding: 14,
+  verticalPaddingStart: 10,
+  verticalPaddingEnd: 14,
+  itemGap: 10,
+};
+
+const MINIMAL_LAYOUT: MasonryLayout = {
+  horizontalPadding: 8,
+  verticalPaddingStart: 8,
+  verticalPaddingEnd: 12,
+  itemGap: 8,
+};
 
 interface WorkspaceMediaVirtualMasonryProps<Item> {
   items: readonly Item[];
@@ -17,11 +34,24 @@ interface WorkspaceMediaVirtualMasonryProps<Item> {
   resetKey: string;
 }
 
-function laneCountForWidth(width: number): number {
-  const availableWidth = Math.max(1, width - HORIZONTAL_PADDING * 2);
+function layoutForElement(element: HTMLElement): MasonryLayout {
+  const appLayout = element.closest('.void-app-layout');
+  return appLayout?.classList.contains('void-ui--minimal')
+    || element.closest('.void-ui--minimal')
+    ? MINIMAL_LAYOUT
+    : CLASSIC_LAYOUT;
+}
+
+function laneCountForWidth(width: number, layout: MasonryLayout): number {
+  const availableWidth = Math.max(
+    1,
+    width - layout.horizontalPadding * 2,
+  );
   return Math.max(
     1,
-    Math.floor((availableWidth + ITEM_GAP) / (MIN_LANE_WIDTH + ITEM_GAP)),
+    Math.floor(
+      (availableWidth + layout.itemGap) / (MIN_LANE_WIDTH + layout.itemGap),
+    ),
   );
 }
 
@@ -36,14 +66,15 @@ export function WorkspaceMediaVirtualMasonry<Item>({
   const [viewportWidth, setViewportWidth] = React.useState(
     DEFAULT_VIEWPORT_WIDTH,
   );
-  const lanes = laneCountForWidth(viewportWidth);
+  const [layout, setLayout] = React.useState<MasonryLayout>(CLASSIC_LAYOUT);
+  const lanes = laneCountForWidth(viewportWidth, layout);
   const availableWidth = Math.max(
     1,
-    viewportWidth - HORIZONTAL_PADDING * 2,
+    viewportWidth - layout.horizontalPadding * 2,
   );
   const laneWidth = Math.max(
     1,
-    (availableWidth - ITEM_GAP * (lanes - 1)) / lanes,
+    (availableWidth - layout.itemGap * (lanes - 1)) / lanes,
   );
   const itemsRef = React.useRef(items);
   itemsRef.current = items;
@@ -71,18 +102,18 @@ export function WorkspaceMediaVirtualMasonry<Item>({
       }
     };
     updateWidth(element.clientWidth);
+    setLayout(layoutForElement(element));
 
-    const ResizeObserverConstructor = element.ownerDocument.defaultView
-      ?.ResizeObserver;
-    if (typeof ResizeObserverConstructor !== 'function') {
-      return;
-    }
-    const observer = new ResizeObserverConstructor(entries => {
-      const entry = entries[0];
-      updateWidth(entry?.contentRect.width ?? element.clientWidth);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
+    const ownerWindow = element.ownerDocument.defaultView;
+    const ResizeObserverConstructor = ownerWindow?.ResizeObserver;
+    const resizeObserver = typeof ResizeObserverConstructor === 'function'
+      ? new ResizeObserverConstructor(entries => {
+          const entry = entries[0];
+          updateWidth(entry?.contentRect.width ?? element.clientWidth);
+        })
+      : null;
+    resizeObserver?.observe(element);
+    return () => resizeObserver?.disconnect();
   }, []);
 
   const stableGetItemKey = React.useCallback(
@@ -103,9 +134,9 @@ export function WorkspaceMediaVirtualMasonry<Item>({
     estimateSize: stableEstimateSize,
     lanes,
     laneAssignmentMode: 'estimate',
-    gap: ITEM_GAP,
-    paddingStart: VERTICAL_PADDING_START,
-    paddingEnd: VERTICAL_PADDING_END,
+    gap: layout.itemGap,
+    paddingStart: layout.verticalPaddingStart,
+    paddingEnd: layout.verticalPaddingEnd,
     overscan: lanes * 2,
     initialRect: {
       width: DEFAULT_VIEWPORT_WIDTH,
@@ -115,7 +146,7 @@ export function WorkspaceMediaVirtualMasonry<Item>({
 
   React.useLayoutEffect(() => {
     virtualizer.measure();
-  }, [itemKeySignature, laneWidth, resetKey, virtualizer]);
+  }, [itemKeySignature, laneWidth, layout, resetKey, virtualizer]);
 
   React.useEffect(() => {
     virtualizer.scrollToOffset(0);
@@ -128,6 +159,8 @@ export function WorkspaceMediaVirtualMasonry<Item>({
       ref={scrollRef}
       className="workspace-media-gallery__masonry workspace-media-gallery__masonry--virtual"
       data-testid="workspace-media-virtual-masonry"
+      data-horizontal-padding={layout.horizontalPadding}
+      data-item-gap={layout.itemGap}
     >
       <div
         className="workspace-media-gallery__virtual-canvas"
@@ -145,8 +178,8 @@ export function WorkspaceMediaVirtualMasonry<Item>({
               style={{
                 width: `${laneWidth}px`,
                 transform: `translate3d(${
-                  HORIZONTAL_PADDING
-                  + virtualItem.lane * (laneWidth + ITEM_GAP)
+                  layout.horizontalPadding
+                  + virtualItem.lane * (laneWidth + layout.itemGap)
                 }px, ${virtualItem.start}px, 0)`,
               }}
             >

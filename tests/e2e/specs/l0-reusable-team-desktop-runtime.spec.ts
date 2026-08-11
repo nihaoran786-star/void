@@ -17,17 +17,15 @@ const artifactDirectory = path.resolve(
 
 type RuntimeFixture = {
   workspacePath: string;
-  parentSessionId: string;
+  parentSessionId?: string;
   teamAId: string;
   teamBId: string;
   teamAName: string;
   teamBName: string;
   teamSkillKey: string;
-  teamARevision: string;
   teamBRevision: string;
   teamAPath: string;
   teamBPath: string;
-  teamAInstanceId?: string;
   teamBInstanceId?: string;
 };
 
@@ -224,6 +222,107 @@ const selectReusableTeamFromComposer = async (teamName: string) => {
   });
 };
 
+const openNewTaskDraft = async (workspacePath: string) => {
+  const createAction = await $('.void-nav-panel__session-create-action');
+  await createAction.waitForClickable({ timeout: 20_000 });
+  await createAction.click();
+
+  const composer = await $('[data-testid="chat-input-container"]');
+  await composer.waitForDisplayed({ timeout: 20_000 });
+  const pickerTrigger = await $('.void-chat-input-workspace-strip__picker-trigger');
+  await pickerTrigger.waitForClickable({ timeout: 20_000 });
+  await pickerTrigger.click();
+
+  const workspaceName = path.basename(workspacePath);
+  let workspaceOption: WebdriverIO.Element | undefined;
+  await browser.waitUntil(async () => {
+    const candidates = await $$([
+      '.void-chat-input-workspace-strip__picker-options',
+      'button.void-chat-input-workspace-strip__picker-option[role="option"]',
+    ].join(' '));
+    for (const candidate of candidates) {
+      if ((await candidate.getText()).trim() === workspaceName) {
+        workspaceOption = candidate;
+        return true;
+      }
+    }
+    return false;
+  }, {
+    timeout: 20_000,
+    interval: 150,
+    timeoutMsg: `Isolated workspace did not appear in the draft picker: ${workspaceName}`,
+  });
+  if (!workspaceOption) {
+    throw new Error(`Workspace picker resolved without an option: ${workspaceName}`);
+  }
+  await workspaceOption.waitForClickable({ timeout: 20_000 });
+  await workspaceOption.click();
+  await browser.waitUntil(async () => (
+    (await pickerTrigger.getText()).includes(workspaceName)
+  ), {
+    timeout: 20_000,
+    interval: 150,
+    timeoutMsg: `New-task draft did not bind the isolated workspace: ${workspaceName}`,
+  });
+};
+
+const listWorkspaceSessionIds = (workspacePath: string) => browser.execute(
+  async (targetWorkspacePath) => {
+    // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+    const { sessionAPI } = await import('/src/infrastructure/api/service-api/SessionAPI.ts');
+    return (await sessionAPI.listSessions(targetWorkspacePath))
+      .map((session: { sessionId: string }) => session.sessionId);
+  },
+  workspacePath,
+);
+
+const sendDraftAndWaitForSession = async (
+  workspacePath: string,
+  knownSessionIds: string[],
+  message: string,
+) => {
+  await browser.execute((value) => {
+    const input = document.querySelector<HTMLElement>(
+      '[data-testid="chat-input-textarea"][contenteditable="true"]',
+    );
+    if (!input) throw new Error('New-task composer is unavailable');
+    input.focus();
+    input.textContent = value;
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      data: value,
+      inputType: 'insertText',
+    }));
+  }, message);
+
+  const sendButton = await $('[data-testid="chat-input-send-btn"]');
+  await browser.waitUntil(async () => sendButton.isEnabled(), {
+    timeout: 20_000,
+    interval: 100,
+    timeoutMsg: 'New-task send button remained disabled after Team selection',
+  });
+  await sendButton.click();
+
+  let createdSessionId: string | null = null;
+  await browser.waitUntil(async () => {
+    const currentSessionIds = await listWorkspaceSessionIds(workspacePath);
+    const createdSessionIds = currentSessionIds.filter(
+      (sessionId: string) => !knownSessionIds.includes(sessionId),
+    );
+    if (createdSessionIds.length !== 1) return false;
+    createdSessionId = createdSessionIds[0] ?? null;
+    return Boolean(createdSessionId);
+  }, {
+    timeout: 30_000,
+    interval: 250,
+    timeoutMsg: 'First send did not create exactly one isolated Team session',
+  });
+  if (!createdSessionId) {
+    throw new Error('SessionAPI diff resolved without a new parent session');
+  }
+  return createdSessionId;
+};
+
 const waitForBoundTeamEvidence = async (
   parentSessionId: string,
   workspacePath: string,
@@ -286,19 +385,9 @@ describe('L0 reusable Team real desktop runtime', () => {
       // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
       const { configAPI } = await import('/src/infrastructure/api/service-api/ConfigAPI.ts');
       // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
-      const { agentAPI } = await import('/src/infrastructure/api/service-api/AgentAPI.ts');
-      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
       const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
       // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
-      const { workspaceManager } = await import('/src/infrastructure/services/business/workspaceManager.ts');
-      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
       const { ExistingTeamCatalogAdapter } = await import('/src/shared/services/customization/adapters/ExistingTeamCatalogAdapter.ts');
-      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
-      const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
-      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
-      const { flowChatStore } = await import('/src/flow_chat/store/FlowChatStore.ts');
-      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
-      const { openMainSession } = await import('/src/flow_chat/services/openBtwSession.ts');
 
       type RuntimeSkill = {
         key: string;
@@ -438,72 +527,13 @@ describe('L0 reusable Team real desktop runtime', () => {
         throw new Error('Created Teams are not reusable parent personas');
       }
 
-      const activeWorkspace = await workspaceManager.openWorkspace(targetWorkspacePath);
-      const activeWorkspaceState = workspaceManager.getState().currentWorkspace;
-      if (
-        activeWorkspace.workspaceKind !== 'normal'
-        || activeWorkspaceState?.id !== activeWorkspace.id
-        || activeWorkspaceState.rootPath !== targetWorkspacePath
-      ) {
-        throw new Error(
-          `Code workspace activation did not settle: ${JSON.stringify({
-            activeWorkspace,
-            activeWorkspaceState,
-          })}`,
-        );
-      }
-      const parentSession = await agentAPI.createSession({
-        sessionName: `可复用团队桌面冒烟 ${idSuffix}`,
-        agentType: 'agentic',
-        workspacePath: targetWorkspacePath,
-        workspaceId: activeWorkspace.id,
-        sessionKind: 'standard',
-        config: {
-          modelName: 'auto',
-          enableTools: true,
-          safeMode: true,
-          autoCompact: true,
-          maxContextTokens: 128128,
-          enableContextCompression: true,
-        },
-      });
-      const parentSessionId = parentSession.sessionId;
-      flowChatStore.createSession(
-        parentSessionId,
-        {
-          workspacePath: targetWorkspacePath,
-          workspaceId: activeWorkspace.id,
-        },
-        undefined,
-        parentSession.sessionName,
-        128128,
-        'agentic',
-        targetWorkspacePath,
-      );
-      await flowChatManager.ensureBackendSession(parentSessionId);
-      await openMainSession(parentSessionId);
-      const backendSession = (await agentAPI.listSessions(targetWorkspacePath))
-        .find((session: { sessionId: string }) => session.sessionId === parentSessionId);
-      if (backendSession?.agentType !== 'agentic') {
-        throw new Error(
-          `Expected an agentic Code parent session, received ${JSON.stringify(backendSession)}`,
-        );
-      }
-      await flowChatManager.updateChatSessionPersona(parentSessionId, {
-        scenario: 'code',
-        executionPolicy: 'agentic',
-        activePersonaBinding: null,
-      });
-
       return {
         workspacePath: targetWorkspacePath,
-        parentSessionId,
         teamAId: teamA.definition.teamDefinitionId,
         teamBId: teamB.definition.teamDefinitionId,
         teamAName: teamA.definition.displayName,
         teamBName: teamB.definition.displayName,
         teamSkillKey: teamSkill.key,
-        teamARevision: teamA.revision,
         teamBRevision: teamB.revision,
         teamAPath: teamA.path,
         teamBPath: teamB.path,
@@ -528,75 +558,80 @@ describe('L0 reusable Team real desktop runtime', () => {
       );
     }
 
+    await openNewTaskDraft(fixture.workspacePath);
     await selectReusableTeamFromComposer(fixture.teamAName);
-    const evidenceA = await waitForBoundTeamEvidence(
-      fixture.parentSessionId,
-      fixture.workspacePath,
-      fixture.teamAId,
-      1,
-    );
-    fixture.teamAInstanceId = evidenceA.binding.teamInstanceId;
-    expect(evidenceA.binding.teamDefinitionId).toBe(fixture.teamAId);
-    expect(evidenceA.runtimeInstances).toEqual([expect.objectContaining({
-      teamDefinitionId: fixture.teamAId,
-      teamInstanceId: fixture.teamAInstanceId,
-      teamDefinitionRevision: fixture.teamARevision,
-      lifecycle: 'ready',
-    })]);
-    const projectedTeamA = evidenceA.projectedMemberSkills.find(
-      (team: ProjectedTeamSkillEvidence) => team.teamDefinitionId === fixture?.teamAId,
-    );
-    expect(projectedTeamA?.members.flatMap(
-      (member: ProjectedMemberSkillEvidence) => member.allowedSkillKeys,
-    ))
-      .toEqual([]);
-
     await selectReusableTeamFromComposer(fixture.teamBName);
+    const draftCapsule = await $('.void-chat-input__persona-capsule');
+    expect(await draftCapsule.getText()).toContain(fixture.teamBName);
+    expect(await draftCapsule.getAttribute('data-persona-locked')).toBeNull();
+
+    const sessionsBeforeSend = await listWorkspaceSessionIds(fixture.workspacePath);
+    const probe = `只实例化最后选中的 B 团队 ${Date.now().toString(36)}`;
+    fixture.parentSessionId = await sendDraftAndWaitForSession(
+      fixture.workspacePath,
+      sessionsBeforeSend,
+      probe,
+    );
+
     const evidenceB = await waitForBoundTeamEvidence(
       fixture.parentSessionId,
       fixture.workspacePath,
       fixture.teamBId,
-      2,
+      1,
     );
     fixture.teamBInstanceId = evidenceB.binding.teamInstanceId;
     expect(evidenceB.runtimeDiagnosticCodes).toEqual([]);
-    expect(evidenceB.runtimeInstances).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        teamDefinitionId: fixture.teamAId,
-        teamInstanceId: fixture.teamAInstanceId,
-        teamDefinitionRevision: fixture.teamARevision,
-        lifecycle: 'ready',
-      }),
+    expect(evidenceB.runtimeInstances).toEqual([
       expect.objectContaining({
         teamDefinitionId: fixture.teamBId,
         teamInstanceId: fixture.teamBInstanceId,
         teamDefinitionRevision: fixture.teamBRevision,
         lifecycle: 'ready',
       }),
-    ]));
+    ]);
+    expect(evidenceB.runtimeInstances.some(
+      (instance: RuntimeInstanceEvidence) => (
+        instance.teamDefinitionId === fixture?.teamAId
+      ),
+    )).toBe(false);
     expect(evidenceB.binding.teamDefinitionId).toBe(fixture.teamBId);
     expect(evidenceB.binding.teamInstanceId).toBe(fixture.teamBInstanceId);
     expect(evidenceB.projectionStatus).toBe('ready');
-    expect(evidenceB.projectedTeamIds).toEqual(
-      expect.arrayContaining([fixture.teamAId, fixture.teamBId]),
-    );
+    expect(evidenceB.projectedTeamIds).toEqual([fixture.teamBId]);
     expect(evidenceB.activeTeamId).toBe(fixture.teamBId);
     const projectedTeamB = evidenceB.projectedMemberSkills.find(
       (team: ProjectedTeamSkillEvidence) => team.teamDefinitionId === fixture?.teamBId,
     );
-    expect(projectedTeamB?.members.find(
+    expect(projectedTeamB?.members.some(
       (member: ProjectedMemberSkillEvidence) => member.role === 'lead',
-    )
-      ?.allowedSkillKeys).toEqual([]);
+    )).toBe(false);
     expect(projectedTeamB?.members.find(
       (member: ProjectedMemberSkillEvidence) => member.role === 'specialist',
     )
       ?.allowedSkillKeys).toEqual([fixture.teamSkillKey]);
     expect(evidenceB.issueCodes).toEqual([]);
+
+    const lockedCapsule = await $('.void-chat-input__persona-capsule');
+    await lockedCapsule.waitForDisplayed({ timeout: 20_000 });
+    expect(await lockedCapsule.getText()).toContain(fixture.teamBName);
+    expect(await lockedCapsule.getAttribute('data-persona-locked')).toBe('true');
+    expect(await lockedCapsule.$('.void-chat-input__agent-capsule-close').isExisting())
+      .toBe(false);
+
+    const addButton = await $('.void-chat-input__agent-boost-add');
+    await addButton.waitForClickable({ timeout: 20_000 });
+    await addButton.click();
+    const boostDropdown = await $('.void-chat-input__mode-dropdown--agent-boost');
+    await boostDropdown.waitForDisplayed({ timeout: 20_000 });
+    expect(await boostDropdown.$('.void-chat-input__persona-submenu-shell').isExisting())
+      .toBe(false);
+    await addButton.click();
   });
 
   it('restores the Team B binding after a real desktop refresh', async () => {
     if (!fixture) throw new Error('Reusable Team fixture was not created');
+    if (!fixture.parentSessionId) throw new Error('Reusable Team parent session was not created');
+    const parentSessionId = fixture.parentSessionId;
     await browser.refresh();
     await waitForMinimalPresentation();
     await openIsolatedWorkspace(fixture.workspacePath);
@@ -609,22 +644,27 @@ describe('L0 reusable Team real desktop runtime', () => {
       await openMainSession(sessionId);
     }, {
       workspacePath: fixture.workspacePath,
-      sessionId: fixture.parentSessionId,
+      sessionId: parentSessionId,
     });
 
     const evidence = await waitForBoundTeamEvidence(
-      fixture.parentSessionId,
+      parentSessionId,
       fixture.workspacePath,
       fixture.teamBId,
-      2,
+      1,
     );
     expect(evidence.binding.teamDefinitionId).toBe(fixture.teamBId);
     expect(evidence.binding.teamInstanceId).toBe(fixture.teamBInstanceId);
     expect(evidence.activeTeamId).toBe(fixture.teamBId);
-    expect(evidence.runtimeInstances.map(
-      (instance: RuntimeInstanceEvidence) => instance.teamDefinitionId,
-    ))
-      .toEqual(expect.arrayContaining([fixture.teamAId, fixture.teamBId]));
+    expect(evidence.runtimeInstances).toEqual([
+      expect.objectContaining({
+        teamDefinitionId: fixture.teamBId,
+        teamInstanceId: fixture.teamBInstanceId,
+        teamDefinitionRevision: fixture.teamBRevision,
+        lifecycle: 'ready',
+      }),
+    ]);
+    expect(evidence.projectedTeamIds).toEqual([fixture.teamBId]);
     const restoredTeamB = evidence.projectedMemberSkills.find(
       (team: ProjectedTeamSkillEvidence) => team.teamDefinitionId === fixture?.teamBId,
     );
@@ -638,7 +678,9 @@ describe('L0 reusable Team real desktop runtime', () => {
     expect(await teamToggle.getAttribute('aria-label')).toContain(
       fixture.teamBName,
     );
-    await teamToggle.click();
+    if ((await teamToggle.getAttribute('aria-expanded')) !== 'true') {
+      await teamToggle.click();
+    }
     const teamPanel = await $('[data-testid="session-team-workspace-panel"]');
     await teamPanel.waitForDisplayed({ timeout: 20_000 });
     expect(await teamPanel.getText()).toContain('B 开发工程师');
@@ -711,7 +753,9 @@ describe('L0 reusable Team real desktop runtime', () => {
           const { configAPI } = await import('/src/infrastructure/api/service-api/ConfigAPI.ts');
           // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
           const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
-          await flowChatManager.deleteChatSession(current.parentSessionId);
+          if (current.parentSessionId) {
+            await flowChatManager.deleteChatSession(current.parentSessionId);
+          }
           await configAPI.deleteTeamDefinition({
             teamDefinitionId: current.teamAId,
             level: 'project',

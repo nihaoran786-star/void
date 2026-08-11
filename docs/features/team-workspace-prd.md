@@ -44,15 +44,17 @@ Specialist members run as isolated child conversations and return role-owned
 results to the lead. This activation contract is defined by
 [Customization Center and active persona](customization-center-prd.md).
 
-The primary desktop composition remains:
+The primary desktop composition is a floating Team panel above the scene:
 
 ```text
-main conversation | working canvas | team workspace
+main conversation | working canvas          (full-width scene)
+                  + floating 9:16 Team panel (no reserved column)
 ```
 
-Canvas shows artifacts and tools. Team Workspace shows participants, progress,
-handoffs, and member conversations. Users must be able to inspect both at the
-same time.
+Canvas shows artifacts and tools. The floating Team panel shows participants,
+progress, handoffs, and member conversations. Users must be able to inspect
+both at the same time: the panel floats above the scene without pushing chat
+or Canvas aside, and dimming, dragging, or closing it is presentation-only.
 
 The right workspace uses stale-while-revalidate presentation semantics. A new
 Team binding may show an initial loading state, but background polling,
@@ -267,21 +269,35 @@ session binding, retry, or cancellation rules.
 Team Workspace is a dedicated coordination container beside Canvas. It is not
 an ordinary Canvas tab.
 
-Wide desktop:
+All desktop widths share one floating presentation:
 
 ```text
-main conversation | active Canvas surface | Team Workspace
+main conversation | active Canvas surface   (full-width scene)
+                  + floating 9:16 Team panel (no reserved column)
 ```
 
-The Team Workspace uses a compact 280–320 px column between 1024 and 1279 CSS
-pixels, and a 340–400 px column from 1280 CSS pixels upward. The compact range
-is what a 1690×900 physical window uses at 150% Windows scaling. It has three
-visual levels:
+The Team Workspace is one bordered portrait panel (9:16 aspect, a visible
+1px frame with a layered soft shadow) floating above the scene's right side. It reserves no column width at any breakpoint;
+chat and Canvas keep the full scene. Both views share one consistent 36px top bar, and that bar itself
+is the drag handle — press anywhere on its blank area to move the panel
+(there is no separate grabber line). Interacting outside the panel dims it to 50% opacity
+instead of hiding it; closing it remains presentation-only. While any member
+or run is active the panel root carries `data-running`, and the floating frame
+answers with a quiet accent-tinted border
+and one faint outer halo; hovering or focusing the panel tints the same
+border. It has two
+in-place views:
 
-1. a quiet team header with identity, workflow, and overall status;
-2. a compact member roster with role-owned status;
-3. the selected member conversation using the same complete composer
-   presentation contract as the main chat.
+1. an operations map in the onyx/frost language — the shared top bar
+   (member count with an accent live marker), the lead as one solid
+   dot with a slow conic thinking ring while running, specialist members as
+   8px status dots with name and role labels, and a hairline phase progress
+   line, free of prose (team identity and run status stay available to
+   assistive technology);
+2. the selected member conversation behind a text-tab strip — a plain
+   back-to-map arrow and member tabs whose active state is one 1px accent
+   underline, sharing the 36px chrome-height contract with the Canvas topbar,
+   and the same complete composer presentation contract as the main chat.
 
 The lead is not a member-workspace entry: it is the active AI in the left
 parent conversation. The right roster contains specialists and quality-gate
@@ -302,10 +318,10 @@ route shows an explicit not-started state instead of disabling the member. It
 does not replace the active Media, Short Drama, Terminal, Browser, or other
 Canvas surface.
 
-Medium desktop uses a bounded overlay on the right side of Canvas while keeping
-the Canvas mounted. Narrow layouts may temporarily promote Team Workspace to a
-single full surface, but that is a responsive fallback, not the primary desktop
-model.
+Medium and narrow layouts keep the same floating 9:16 panel; it scales down
+with the scene height and never covers the Canvas by default. Narrow layouts
+may temporarily promote Team Workspace to a single full surface, but that is a
+responsive fallback, not the primary desktop model.
 
 ### Member conversation
 

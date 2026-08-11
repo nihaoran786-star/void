@@ -496,7 +496,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
   React.useEffect(() => {
     const handleSwitchToFilesPanel = () => {
       switchLeftPanelTab('files');
-      if (state.layout.leftPanelCollapsed) toggleLeftPanel();
       if (state.layout.rightPanelCollapsed) {
         setTimeout(() => toggleRightPanel(), 100);
       }
@@ -504,7 +503,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
 
     window.addEventListener('switch-to-files-panel', handleSwitchToFilesPanel);
     return () => window.removeEventListener('switch-to-files-panel', handleSwitchToFilesPanel);
-  }, [state.layout.leftPanelCollapsed, state.layout.rightPanelCollapsed, switchLeftPanelTab, toggleLeftPanel, toggleRightPanel]);
+  }, [state.layout.rightPanelCollapsed, switchLeftPanelTab, toggleRightPanel]);
 
   // Toolbar send message
   React.useEffect(() => {

@@ -1184,7 +1184,8 @@
     "exploreCount_other": "执行了 {{count}} 次探索",
     "exploreCount": "执行了 {{count}} 次探索",
     "separator": "，",
-    "collapse": "收起探索过程"
+    "collapse": "收起探索过程",
+    "runningProgress": "运行中 {{running}}/{{total}}"
   },
   "terminalRegion": {
     "executedCommands_one": "执行了 {{count}} 个命令",
@@ -1440,7 +1441,12 @@
       "agent": "代理",
       "collapseDetails": "收起详情",
       "expandDetails": "展开详情",
-      "openInPanel": "在面板中打开详情"
+      "openInPanel": "在面板中打开详情",
+      "steps": {
+        "queued": "排队",
+        "launching": "启动",
+        "executing": "执行"
+      }
     },
     "taskDetailPanel": {
       "untitled": "未命名任务",

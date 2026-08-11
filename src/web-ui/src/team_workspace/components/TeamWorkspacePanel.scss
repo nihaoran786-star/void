@@ -15,21 +15,13 @@
   button { font: inherit; }
   button:focus-visible { outline: 2px solid var(--workspace-focus-ring); outline-offset: -2px; }
 
-  /* ── 瘦身 header:队名 + 运行状态 + 关闭 ── */
-  &__header { position: relative; z-index: 3; display: flex; align-items: center; gap: 8px; min-height: 44px; flex: 0 0 auto; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); }
-  &__identity { display: flex; align-items: center; flex: 1; min-width: 0; gap: 8px; }
-  &__identity > strong { overflow: hidden; font-size: var(--flowchat-font-size-sm); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-  &__status { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; max-width: 84px; color: var(--status-neutral-text); font-size: var(--flowchat-font-size-xs); line-height: 1.25; text-align: right; }
-  &__identity &__status { justify-content: flex-start; width: fit-content; max-width: none; }
-  &__status i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: currentColor; }
-  &__status[data-tone='info'] { color: var(--status-info-text); }
-  &__status[data-tone='success'] { color: var(--status-success-text); }
-  &__status[data-tone='warning'] { color: var(--status-warning-text); }
-  &__status[data-tone='error'] { color: var(--status-error-text); }
+  /* ── 悬浮关闭:始终可发现,悬停时只增强对比 ── */
   &__icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 8px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
   &__icon-button:hover { background: var(--element-bg-soft); color: var(--color-text-primary); }
   &__icon-button svg { width: 16px; }
-  &__icon-button--floating { position: absolute; z-index: 1; top: 10px; right: 10px; }
+  &__icon-button--floating { position: absolute; z-index: 3; top: 10px; right: 10px; width: 28px; height: 28px; flex-basis: 28px; border: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); opacity: .72; transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard); }
+  &:hover &__icon-button--floating,
+  &__icon-button--floating:focus-visible { opacity: 1; }
 
   /* ── 无限画布:拖拽平移 + 滚轮缩放 ── */
   &__map { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--color-bg-primary); cursor: grab; touch-action: none; }
@@ -40,59 +32,56 @@
   &__map-wires line { stroke: var(--border-base); stroke-width: 1; }
   &__map-wires line.is-hot { stroke: var(--color-accent-500); stroke-dasharray: 5 7; }
 
-  /* ── 主理人中军(仅展示,不可点击) ── */
-  &__map-lead { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 6px; width: 96px; margin: -27px 0 0 -48px; transform-origin: 50% 27px; }
-  &__map-lead-orb { display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; border: 1px solid var(--status-warning-border); border-radius: 50%; background: var(--status-warning-bg); color: var(--status-warning-text); }
-  &__map-lead-orb svg { width: 22px; }
-  &__map-lead-name { max-width: 96px; overflow: hidden; color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+  /* ── 顶栏:两个视图一致的 36px 细栏,本身即拖拽区 ── */
+  &__map-topbar { position: absolute; z-index: 2; top: 0; right: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; min-height: 36px; padding: 0 16px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .12em; white-space: nowrap; }
+  &__map-topbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  &__map-topbar-live { flex: 0 0 auto; color: var(--color-accent-500); }
+  &__map-topbar-live::before { content: "●"; margin-right: 5px; }
 
-  /* ── 成员星子:头像放大、职责弱化、状态点 ── */
-  &__map-member { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 5px; width: 92px; margin: -22px 0 0 -46px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; transform-origin: 50% 22px; }
-  &__map-member-orb { position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--border-medium); border-radius: 50%; background: var(--workspace-surface-panel); color: var(--color-text-primary); font-size: var(--flowchat-font-size-base); font-weight: 650; }
-  &__map-member:hover &__map-member-orb { border-color: var(--color-text-muted); }
-  &__map-member[data-tone='info'] &__map-member-orb { border-color: var(--color-accent-500); box-shadow: 0 0 0 3px var(--color-accent-200); }
-  &__map-member-ripples { position: absolute; inset: 0; pointer-events: none; }
-  &__map-member-ripples i { position: absolute; inset: 0; border: 1px solid var(--color-accent-500); border-radius: 50%; opacity: 0; }
-  &__map-member-dot { position: absolute; right: 0; bottom: 1px; width: 9px; height: 9px; border: 2px solid var(--workspace-surface-panel); border-radius: 50%; background: var(--color-text-muted); }
-  &__map-member[data-tone='info'] &__map-member-dot { background: var(--status-info-text); }
-  &__map-member[data-tone='success'] &__map-member-dot { background: var(--status-success-text); }
-  &__map-member[data-tone='warning'] &__map-member-dot { background: var(--status-warning-text); }
-  &__map-member[data-tone='error'] &__map-member-dot { background: var(--status-error-text); }
-  &__map-member-name { max-width: 92px; overflow: hidden; color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xxs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  &__map-member:hover &__map-member-name { color: var(--color-text-primary); }
-  &__map-member-role { max-width: 92px; margin-top: -3px; overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+  /* ── 主理人:一枚实心点,运行时只增加静态细描边 ── */
+  &__map-lead { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 8px; width: 96px; margin: -6px 0 0 -48px; transform-origin: 50% 6px; }
+  &__map-lead-point { position: relative; width: 11px; height: 11px; border-radius: 50%; background: var(--color-text-primary); }
+  &[data-running] &__map-lead-point { outline: 1px solid var(--color-accent-500); outline-offset: 5px; }
+  &__map-lead-name { max-width: 96px; overflow: hidden; color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── 成员:一枚状态点 + 名字 + 职责 ── */
+  &__map-member { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 7px; width: 92px; margin: -5px 0 0 -46px; padding: 6px 0; border: 0; background: transparent; color: inherit; cursor: pointer; transform-origin: 50% 5px; }
+  &__map-member-point { position: relative; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--color-text-muted); transition: outline-color var(--workspace-motion-fast) var(--workspace-easing-standard), background-color var(--workspace-motion-fast) var(--workspace-easing-standard); }
+  &__map-member:hover &__map-member-point { outline: 1px solid var(--border-medium); outline-offset: 3px; }
+  &__map-member[data-tone='info'] &__map-member-point { background: var(--color-accent-500); }
+  &__map-member[data-tone='success'] &__map-member-point { background: var(--status-success-text); }
+  &__map-member[data-tone='warning'] &__map-member-point { background: var(--status-warning-text); }
+  &__map-member[data-tone='error'] &__map-member-point { background: var(--status-error-text); }
+  &__map-member-ripples { display: none; }
+  &__map-member-ripples i { position: absolute; inset: -3px; border: 1px solid var(--color-accent-500); border-radius: 50%; opacity: 0; }
+  &__map-member-name { max-width: 92px; overflow: hidden; color: var(--color-text-primary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  &__map-member-role { max-width: 92px; margin-top: -4px; overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .14em; text-overflow: ellipsis; white-space: nowrap; }
   &__map-empty { position: absolute; top: 0; left: 0; margin: 0; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); white-space: nowrap; transform: translate(-50%, -50%); }
 
-  /* ── 浮动层:任务简报 / 缩放 HUD / 异常 ── */
-  &__map-mission { position: absolute; z-index: 2; top: 10px; left: 12px; display: flex; max-width: min(240px, 62%); flex-direction: column; gap: 3px; padding: 9px 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--workspace-surface-panel); }
-  &__map-mission small { color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); font-weight: 600; }
-  &__map-mission > strong { overflow: hidden; font-size: var(--flowchat-font-size-sm); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-  &__map-mission p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xs); line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  &__map-hud { position: absolute; z-index: 2; top: 10px; right: 12px; display: flex; align-items: center; gap: 6px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); }
-  &__map-hud button { min-height: 24px; padding: 2px 8px; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--workspace-surface-panel); color: var(--color-text-muted); cursor: pointer; font-size: var(--flowchat-font-size-xxs); }
+  /* ── 浮动层:缩放 HUD(悬停浮现) / 异常 ── */
+  &__map-hud { position: absolute; z-index: 3; top: 10px; right: 44px; display: flex; align-items: center; gap: 6px; opacity: 0; transition: opacity .18s ease; }
+  &:hover &__map-hud,
+  &__map-hud:focus-within { opacity: 1; }
+  &__map-hud button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--workspace-surface-panel); color: var(--color-text-muted); cursor: pointer; }
   &__map-hud button:hover { border-color: var(--border-medium); color: var(--color-text-primary); }
+  &__map-hud svg { width: 14px; }
 
-  /* ── 底部阶段条:一行进度 ── */
-  &__map-phases { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 12px; border-top: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); }
-  &__map-phases-cap { flex: 0 0 auto; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
-  &__map-segbar { display: flex; flex: 1; min-width: 0; gap: 3px; margin: 0; padding: 0; list-style: none; }
-  &__map-segbar li { flex: 1; height: 4px; border-radius: 3px; background: var(--element-bg-base); }
-  &__map-segbar li[data-tone='success'] { background: var(--color-accent-500); }
-  &__map-segbar li[data-tone='info'] { background: var(--color-accent-400); box-shadow: 0 0 0 1px var(--color-accent-300); }
-  &__map-segbar li[data-tone='warning'] { background: var(--status-warning-text); }
-  &__map-segbar li[data-tone='error'] { background: var(--status-error-text); }
+  /* ── 阶段:一根发丝进度线 ── */
+  &__map-phases { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 10px 20px 12px; border-top: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); }
+  &__map-phases-cap { flex: 0 0 auto; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .12em; white-space: nowrap; }
+  &__map-phases-track { position: relative; flex: 1; height: 1px; background: var(--border-base); }
+  &__map-phases-fill { position: absolute; top: -0.5px; left: 0; height: 2px; border-radius: 2px; background: var(--color-accent-500); transition: width .6s cubic-bezier(.22, 1, .36, 1); }
   &__map-phases-label { display: inline-flex; align-items: baseline; gap: 5px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
   &__map-phases-label strong { max-width: 120px; overflow: hidden; color: var(--color-text-secondary); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  &__map-updated { color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); opacity: .76; white-space: nowrap; }
 
   /* ── 异常提示(地图内浮动) ── */
   &__issue { display: flex; align-items: center; gap: 8px; padding: 9px 8px 9px 11px; border: 1px solid var(--status-warning-border); border-radius: 9px; background: var(--status-warning-bg); color: var(--status-warning-text); font-size: var(--flowchat-font-size-xs); }
   &__issue--map { position: absolute; z-index: 2; top: 10px; left: 50%; max-width: min(420px, 86%); transform: translateX(-50%); }
   &__issue > span { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; line-height: 1.4; }
   &__issue strong { color: var(--color-text-primary); }
-  &__issue button, &__retry, &__back { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
-  &__issue button:hover, &__back:hover { background: var(--element-bg-soft); }
-  &__issue svg, &__retry svg, &__back svg { width: 16px; }
+  &__issue button, &__retry { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
+  &__issue button:hover, &__retry:hover { background: var(--element-bg-soft); }
+  &__issue svg, &__retry svg { width: 16px; }
   &__muted { margin: 0; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); }
 
   /* ── 空态 / 对话分支(保持不变) ── */
@@ -104,8 +93,18 @@
   &__retry { background: var(--element-bg-medium); color: var(--color-text-primary); }
   &__spinner { animation: team-workspace-spin 900ms linear infinite; }
   &--conversation { background: var(--color-bg-flowchat); }
-  &__conversation-header { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 8px; border-bottom: 1px solid var(--border-base); background: var(--element-bg-subtle); }
-  &__conversation-header > span { overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── 成员对话条:返回 + 文字标签切换(与 Canvas 顶栏共享 36px 条高契约) ── */
+  &__strip { display: flex; align-items: baseline; gap: 16px; box-sizing: border-box; min-height: 36px; flex: 0 0 auto; padding: 12px 16px 9px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); }
+  &__strip-back { display: inline-flex; align-items: center; padding: 0; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; transition: color .18s ease, transform .25s cubic-bezier(.22, 1, .36, 1); }
+  &__strip-back:hover { color: var(--color-text-primary); transform: translateX(-2px); }
+  &__strip-back svg { width: 14px; }
+  &__strip-tabs { display: inline-flex; align-items: baseline; gap: 14px; min-width: 0; overflow: hidden; }
+  &__member-tab { position: relative; padding: 0 0 2px; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; font-size: var(--flowchat-font-size-xs); letter-spacing: .06em; white-space: nowrap; transition: color .18s ease; }
+  &__member-tab:hover { color: var(--color-text-secondary); }
+  &__member-tab[data-active] { color: var(--color-text-primary); font-weight: 600; }
+  &__member-tab[data-active]::after { content: ""; position: absolute; right: 0; bottom: -10px; left: 0; height: 1px; background: var(--color-accent-500); }
+  &__strip, &__map-topbar { cursor: grab; }
   &__conversation { flex: 1; min-height: 0; overflow: hidden; }
 }
 
@@ -113,46 +112,34 @@
   border-radius: inherit;
   background: var(--workspace-surface-panel);
 
-  &__header {
-    height: 44px;
-    min-height: 44px;
-    border-bottom-color: var(--workspace-border-subtle);
-    background: var(--workspace-surface-panel);
+  &__strip {
+    min-height: 36px;
+    padding: 12px 48px 9px 16px;
   }
+}
 
-  &__conversation-header {
-    height: 44px;
-    min-height: 44px;
-    padding: 0 8px;
-    border-bottom-color: var(--workspace-border-subtle);
-    background: var(--workspace-surface-panel);
-  }
+.void-session-scene__team-workspace[data-dragging='true'] .team-workspace-panel__strip,
+.void-session-scene__team-workspace[data-dragging='true'] .team-workspace-panel__map-topbar {
+  cursor: grabbing;
 }
 
 @keyframes team-workspace-spin { to { transform: rotate(360deg); } }
 
 @container (max-width: 300px) {
   .team-workspace-panel__map-member-role,
-  .team-workspace-panel__map-updated,
   .team-workspace-panel__map-phases-cap { display: none; }
-  .team-workspace-panel__map-mission { max-width: 56%; }
   .team-workspace-panel__issue { align-items: flex-start; flex-direction: column; }
+  .team-workspace-panel__map-topbar { padding: 0 12px; }
 }
 
 /* ── 轻微动效:全部尊重 prefers-reduced-motion ── */
 @media (prefers-reduced-motion: no-preference) {
-  @keyframes team-workspace-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
-  @keyframes team-workspace-sonar { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(2.2); } }
-  @keyframes team-workspace-march { to { stroke-dashoffset: -24; } }
+  @keyframes team-workspace-live { 50% { opacity: .3; } }
 
   .team-workspace-panel {
-    &__map-world, &__map-grid { transition: transform .3s cubic-bezier(.3, .7, .2, 1); }
+    &__map-world, &__map-grid { transition: transform var(--motion-base) var(--easing-standard); }
     &__map.is-dragging &__map-world, &__map.is-dragging &__map-grid { transition: none; }
-    &__identity &__status[data-tone='info'] i { animation: team-workspace-pulse 2.4s ease-in-out infinite; }
-    &__map-member-ripples i { animation: team-workspace-sonar 2.2s cubic-bezier(.2, .6, .3, 1) infinite; }
-    &__map-member-ripples i:nth-child(2) { animation-delay: 1.1s; }
-    &__map-wires line.is-hot { animation: team-workspace-march 1.2s linear infinite; }
-    &__map-member-orb, &__map-member-name { transition: border-color .14s ease, color .14s ease, box-shadow .18s ease; }
+    &__map-topbar-live::before { animation: team-workspace-live 2.2s ease-in-out infinite; }
   }
 }
 

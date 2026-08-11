@@ -70,3 +70,50 @@
     opacity: 1;
   }
 }
+
+// ── Quiet status dot (replaces the three-dot bounce) ─────────────────────
+.tcss-dot {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  border-radius: 50%;
+
+  // Queued: hollow hairline ring
+  &--queued {
+    box-shadow: inset 0 0 0 1px var(--color-text-muted);
+    opacity: 0.55;
+  }
+
+  // Active: accent dot + single ripple
+  &--active {
+    background: var(--color-accent-500, #60a5fa);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1px solid var(--color-accent-500, #60a5fa);
+      animation: tcss-dot-ripple 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+    }
+  }
+}
+
+@keyframes tcss-dot-ripple {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.7);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcss-dot--active::after {
+    animation: none;
+    opacity: 0;
+  }
+}

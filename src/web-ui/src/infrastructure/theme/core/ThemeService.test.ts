@@ -49,15 +49,15 @@ describe('ThemeService flow chat link tokens', () => {
     vi.clearAllMocks();
   });
 
-  it('keeps light theme Flow Chat markdown links browser-blue with the Porcelain Air cobalt accent', async () => {
+  it('keeps light theme Flow Chat markdown links on the Cool White pulse-blue accent', async () => {
     const service = new ThemeService();
 
     await service.applyTheme('void-light');
 
     const rootStyle = document.documentElement.style;
-    expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#4C86F7');
-    expect(rootStyle.getPropertyValue('--flowchat-link-color')).toBe('#0969da');
-    expect(rootStyle.getPropertyValue('--flowchat-link-hover-color')).toBe('#0550ae');
+    expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#2563EB');
+    expect(rootStyle.getPropertyValue('--flowchat-link-color')).toBe('#1D4ED8');
+    expect(rootStyle.getPropertyValue('--flowchat-link-hover-color')).toBe('#1E40AF');
   });
 
   it('keeps dark neutral-accent themes on an obvious blue link color', async () => {
@@ -69,6 +69,16 @@ describe('ThemeService flow chat link tokens', () => {
     expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#94a3b8');
     expect(rootStyle.getPropertyValue('--flowchat-link-color')).toBe('#60a5fa');
     expect(rootStyle.getPropertyValue('--flowchat-link-hover-color')).toBe('#93c5fd');
+  });
+  it('applies the deep-space electric-cyan link color for the void-dark theme', async () => {
+    const service = new ThemeService();
+
+    await service.applyTheme('void-dark');
+
+    const rootStyle = document.documentElement.style;
+    expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#22D3EE');
+    expect(rootStyle.getPropertyValue('--flowchat-link-color')).toBe('#22D3EE');
+    expect(rootStyle.getPropertyValue('--flowchat-link-hover-color')).toBe('#67E8F9');
   });
 
   it('tracks system light and dark appearance without changing the user selection', async () => {

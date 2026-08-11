@@ -1,7 +1,9 @@
 @mixin styles {
   .void-app-layout.void-ui--minimal {
     color: var(--workspace-text-primary);
-    background: var(--workspace-surface-canvas);
+    // Glass Air: the shell backdrop is a token so light themes can project the
+    // selected warm gradient while dark themes keep their solid canvas.
+    background: var(--workspace-shell-backdrop);
     font-family: var(--workspace-font-family);
     font-size: var(--workspace-font-size-control);
     font-weight: var(--workspace-font-weight-regular);
@@ -14,6 +16,55 @@
     :where(button, [role='button'], a, input, textarea, select):focus-visible {
       outline-color: var(--workspace-focus-ring);
     }
+  }
+
+  // Glass Air light projection: let the warm shell backdrop show through the
+  // workspace gutters, and present the scene surface as one frosted panel.
+  // Dark themes keep their established solid surfaces because these rules only
+  // apply to light-type themes.
+  //
+  // Frameless shell (light only): the workspace gutters, panel radii, inset
+  // rings, and floating shadows are removed so the navigation rail and the
+  // scene surface run flush to the physical window edges. Separation comes
+  // from the glass material and the existing hairlines, not from framing.
+  .void-ui--minimal .void-workspace-body {
+    padding: 0 0 0 var(--workspace-space-2);
+    gap: 0;
+  }
+
+  :root[data-theme='light'] .void-ui--minimal .void-workspace-body,
+  :root[data-theme-type='light'] .void-ui--minimal .void-workspace-body {
+    background: transparent;
+  }
+
+  // Frameless scene (every minimal theme): the viewport stops being a framed
+  // card. No border, radius, shadow, or second material; chat, Canvas, and
+  // the Team column share the single shell plane and separate through
+  // hairlines and floating handles only.
+  .void-ui--minimal .void-scene-viewport {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  :root[data-theme='light'] .void-ui--minimal .void-session-scene,
+  :root[data-theme-type='light'] .void-ui--minimal .void-session-scene {
+    background: transparent;
+  }
+
+  // The divider hover glow follows the terracotta accent in the frameless
+  // light shell instead of the dark-theme blue.
+  :root[data-theme='light'] .void-ui--minimal .void-scene-viewport__clip::after,
+  :root[data-theme-type='light'] .void-ui--minimal .void-scene-viewport__clip::after {
+    box-shadow: var(--workspace-shadow-divider-glow);
+  }
+
+  :root[data-theme='light'] body.void-is-resizing-nav .void-ui--minimal .void-scene-viewport__clip::after,
+  :root[data-theme-type='light'] body.void-is-resizing-nav .void-ui--minimal .void-scene-viewport__clip::after {
+    box-shadow: var(--workspace-shadow-divider-glow-active);
   }
 
   // App-level notices are siblings of AppLayout. Keep them aligned to the

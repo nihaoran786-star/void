@@ -7,12 +7,15 @@ Updated: 2026-08-09
 - Active customization integration branch: `codex/minimal-workspace-ui`.
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
-- Bound Teams use one presentation path: wide desktop renders
-  `main conversation | working Canvas | Team Workspace`; medium layouts use a
-  bounded right overlay. Team member conversations never become sibling Canvas
-  tabs, and closing the presentation must not delete or cancel child sessions.
-  Restored Canvas widths shrink within the three-column contract rather than
-  pushing the Team Workspace outside the physical desktop window.
+- Bound Teams use one floating presentation path: the Team Workspace is a
+  bordered 9:16 portrait panel floating above the full-width scene at every
+  desktop width. It reserves no column, drags by a thin hover grabber, and
+  dims to 50% opacity on outside interaction instead of hiding. Team member
+  conversations never become sibling Canvas tabs, and closing the presentation
+  must not delete or cancel child sessions. The panel switches in place
+  between the operations map and the selected member conversation; the member
+  conversation chrome is one slim strip with a back-to-map action and a member
+  switcher.
 - The right Team Workspace is reserved for durable Team members. Ordinary Task
   and `/btw` temporary child conversations keep their existing compatibility
   presentation and are not promoted into the formal Team member surface.
@@ -107,8 +110,9 @@ Updated: 2026-08-09
   orbit sizing, constant-screen-size member nodes, explicit selection, and the
   existing member-conversation projection. This is a presentation over the
   same typed Team snapshot; it does not create another runtime, roster, or
-  child-session path. Wide layouts pin the docked workspace to the physical
-  scene edge, while medium layouts retain the established bounded overlay.
+  child-session path. The map is free of prose (no header bar, mission
+  briefing, or zoom readout); team identity and run status remain available to
+  assistive technology. The panel floats at every layout width.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards

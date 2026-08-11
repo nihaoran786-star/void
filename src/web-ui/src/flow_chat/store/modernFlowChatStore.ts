@@ -9,7 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { immer } from 'zustand/middleware/immer';
 import type { Session, DialogTurn, ModelRound, FlowItem, FlowToolItem, FlowUserSteeringItem } from '../types/flow-chat';
 import {
-  isCollapsibleTool,
+  isCollapsibleToolItem,
   READ_TOOL_NAMES,
   SEARCH_TOOL_NAMES,
   COMMAND_TOOL_NAMES,
@@ -147,17 +147,21 @@ function isExploreOnlyRound(round: ModelRound, nowMs: number): boolean {
   }
   
   const hasCollapsibleTool = round.items.some(item => 
-    item.type === 'tool' && isCollapsibleTool((item as FlowToolItem).toolName)
+    item.type === 'tool' && isCollapsibleToolItem(item as FlowToolItem)
   );
   
   const hasAnyTool = round.items.some(item => item.type === 'tool');
-  if (!hasAnyTool) return false;
+  if (!hasAnyTool) {
+    return round.items.every(item => (
+      item.type === 'thinking' && item.status === 'completed'
+    ));
+  }
   
   if (!hasCollapsibleTool) return false;
   
   const allItemsCollapsible = round.items.every(item => {
     if (item.type === 'tool') {
-      return isCollapsibleTool((item as FlowToolItem).toolName);
+      return isCollapsibleToolItem(item as FlowToolItem);
     }
     return item.type === 'text' || item.type === 'thinking';
   });

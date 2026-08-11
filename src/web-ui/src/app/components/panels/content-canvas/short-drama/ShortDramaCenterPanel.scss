@@ -102,6 +102,10 @@
   cursor: pointer;
 }
 
+.short-drama-center__tab-icon {
+  display: none;
+}
+
 .short-drama-center__tab.is-active {
   color: var(--short-drama-ink);
 }

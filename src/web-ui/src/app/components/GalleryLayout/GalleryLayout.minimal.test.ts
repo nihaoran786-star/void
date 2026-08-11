@@ -120,10 +120,17 @@ describe('GalleryLayout Minimal presentation contract', () => {
     expect(source).not.toMatch(/\brgba?\s*\(|\bhsla?\s*\(/i);
     expect(source).not.toMatch(/(?:linear|radial|conic)-gradient/i);
     expect(source).not.toMatch(/var\(--workspace-[^)]+,/);
+    // Base rules keep blur off; the Glass Air light projection opts the sticky
+    // page header into the shared frosted material through the token.
     expect(
       [...source.matchAll(/(?:-webkit-)?backdrop-filter:\s*([^;]+);/gi)]
         .map((match) => match[1].trim()),
-    ).toEqual(['none', 'none']);
+    ).toEqual([
+      'none',
+      'none',
+      'var(--workspace-glass-blur)',
+      'var(--workspace-glass-blur)',
+    ]);
   });
 
   it('stops transitions, skeleton shimmer, spinner and item entrance for reduced motion', () => {

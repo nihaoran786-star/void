@@ -9,9 +9,6 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { FlowItem, FlowToolItem, FlowTextItem, FlowThinkingItem } from '../../types/flow-chat';
 import type { ExploreGroupData } from '../../store/modernFlowChatStore';
-import { createLogger } from '@/shared/utils/logger';
-
-const log = createLogger('ExploreGroupRenderer');
 import { FlowTextBlock } from '../FlowTextBlock';
 import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
@@ -49,7 +46,6 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     isLastGroupInTurn,
     wasCutByCritical,
   } = data;
-  const prevWasCutRef = useRef(wasCutByCritical);
   const {
     cardRootRef,
     applyExpandedState,
@@ -65,8 +61,9 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   
   const hasExplicitState = exploreGroupStates?.has(groupId) ?? false;
   const explicitExpanded = exploreGroupStates?.get(groupId) ?? false;
-  // Default: expanded while the group is still the tail; collapsed once cut.
-  const defaultExpanded = !wasCutByCritical;
+  // Tool detail is progressive disclosure: every aggregate starts quiet and
+  // expands only after an explicit user action, including the active tail.
+  const defaultExpanded = false;
   const isExpanded = hasExplicitState ? explicitExpanded : defaultExpanded;
   const isCollapsed = !isExpanded;
   // Header is always interactive so the user can collapse/expand at any time.
@@ -85,45 +82,6 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     });
   }, []);
 
-  // One-shot auto-collapse: fires exactly once when the group transitions from
-  // tail (wasCutByCritical=false) to cut (wasCutByCritical=true).
-  //
-  // IMPORTANT: do NOT use `isExpanded` to guard this effect. When wasCutByCritical
-  // flips to true, the same render also recomputes isExpanded = false (because
-  // defaultExpanded = !wasCutByCritical). So `justGotCut && isExpanded` would
-  // always be false and the collapse-intent would never fire.
-  //
-  // Instead, reason about the state *before* the cut:
-  //   - No explicit state → group was expanded by default (it was tail).
-  //   - Explicit state = true → user had it open.
-  // Both cases mean the group WAS visually expanded before this render; we need
-  // to dispatch the height-contract event so Virtuoso can anchor-lock.
-  useEffect(() => {
-    const justGotCut = wasCutByCritical && !prevWasCutRef.current;
-    prevWasCutRef.current = wasCutByCritical;
-
-    if (!isPresentationActive || !justGotCut) return;
-
-    const wasExpanded = !hasExplicitState || explicitExpanded;
-    log.debug('explore group cut by critical', { groupId, wasExpanded, hasExplicitState });
-
-    if (wasExpanded) {
-      applyExpandedState(true, false, () => {
-        onCollapseGroup?.(groupId);
-      }, {
-        reason: 'auto',
-      });
-    }
-  }, [
-    applyExpandedState,
-    explicitExpanded,
-    groupId,
-    hasExplicitState,
-    isPresentationActive,
-    wasCutByCritical,
-    onCollapseGroup,
-  ]);
-  
   // Auto-scroll to bottom while the group is still the tail and new items arrive.
   // Use double requestAnimationFrame to ensure the browser has completed
   // layout of newly added content before we measure scrollHeight.
@@ -190,12 +148,18 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     }
     
     if (parts.length === 0) {
-      return t('exploreRegion.exploreCount', { count: allItems.length });
+      const toolCount = allItems.filter(item => item.type === 'tool').length;
+      if (toolCount === 0 && allItems.some(item => item.type === 'thinking')) {
+        return t('toolCards.think.thinkingProcess');
+      }
+      return t('exploreRegion.exploreCount', {
+        count: toolCount,
+      });
     }
     
     return parts.join(t('exploreRegion.separator'));
-  }, [stats, allItems.length, t]);
-  
+  }, [allItems, stats, t]);
+
   const handleToggle = useCallback(() => {
     if (isCollapsed) {
       applyExpandedState(false, true, () => {
@@ -229,16 +193,21 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
       className={className}
     >
       {allowManualToggle && (
-        <div className="explore-region__header" onClick={handleToggle}>
-          <ChevronRight size={14} className="explore-region__icon" />
+        <button
+          type="button"
+          className="explore-region__header"
+          aria-expanded={isExpanded}
+          onClick={handleToggle}
+        >
+          <ChevronRight size={14} className="explore-region__icon" aria-hidden="true" />
           <span className="explore-region__summary">{displaySummary}</span>
-        </div>
+        </button>
       )}
       <SmoothHeightCollapse
         isOpen={isExpanded}
         className="explore-region__content-wrapper"
         innerClassName="explore-region__content-inner"
-        durationMs={320}
+        durationMs={220}
         disableAnimation={isGroupStreaming}
       >
         <div ref={containerRef} className="explore-region__content" onScroll={checkScrollState}>

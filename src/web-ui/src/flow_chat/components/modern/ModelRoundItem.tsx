@@ -14,12 +14,16 @@ import type { ModelRound, FlowItem, FlowTextItem, FlowToolItem, FlowThinkingItem
 import { FlowTextBlock } from '../FlowTextBlock';
 import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
-import { isCollapsibleTool } from '../../tool-cards/toolCardClassification';
+import {
+  isCollapsibleToolItem,
+  READ_TOOL_NAMES,
+  SEARCH_TOOL_NAMES,
+  COMMAND_TOOL_NAMES,
+} from '../../tool-cards/toolCardClassification';
 import { MediaGenerationToolGroupRenderer as FlowMediaToolGroupRenderer } from '../../tool-cards/MediaGenerationToolGroupRenderer';
 import {
   groupMediaToolsInModelRoundGroups,
   isMediaToolGroupRenderableItem,
-  type MediaRenderableItem,
 } from '../../tool-cards/mediaToolGrouping';
 import { useFlowChatContext } from './FlowChatContext';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
@@ -28,6 +32,7 @@ import { taskCollapseStateManager } from '../../store/TaskCollapseStateManager';
 import { ExportImageButton } from './ExportImageButton';
 import { ForkSessionButton } from './ForkSessionButton';
 import { buildModelRoundItemGroups, COMPLETED_TOOL_TRANSIENT_MS } from './modelRoundItemGrouping';
+import { ExploreGroupRenderer } from './ExploreGroupRenderer';
 import {
   MODEL_ROUND_GROUP_RENDER_CHUNK_DELAY_MS,
   getInitialModelRoundGroupRenderCount,
@@ -186,7 +191,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
         items: sortedItems,
         isStreaming: round.isStreaming,
         disableExploreGrouping: round.renderHints?.disableExploreGrouping === true,
-        isCollapsibleTool,
+        isCollapsibleToolItem,
         nowMs: transientNowMs,
       });
     }, [round.isStreaming, round.renderHints?.disableExploreGrouping, sortedItems, transientNowMs]);
@@ -398,16 +403,35 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
           const isLastGroup = absoluteGroupIndex === mediaGroupedItems.length - 1;
           const isLast = isLastRound && isLastGroup;
           switch (group.type) {
-            case 'explore':
-              return group.items.map((item, itemIdx) => (
-                <RenderableItemRenderer
-                  key={item.id}
-                  item={item}
-                  sessionId={sessionId}
+            case 'explore': {
+              const exploreItems = group.items.filter(
+                (item): item is FlowItem => !isMediaToolGroupRenderableItem(item),
+              );
+              const toolItems = group.items.filter(
+                (item): item is FlowToolItem => item.type === 'tool',
+              );
+              const groupId = `inline-explore-${round.id}-${group.items[0]?.id ?? absoluteGroupIndex}`;
+
+              return (
+                <ExploreGroupRenderer
+                  key={groupId}
+                  data={{
+                    groupId,
+                    rounds: [round],
+                    allItems: exploreItems,
+                    stats: {
+                      readCount: toolItems.filter(item => READ_TOOL_NAMES.has(item.toolName)).length,
+                      searchCount: toolItems.filter(item => SEARCH_TOOL_NAMES.has(item.toolName)).length,
+                      commandCount: toolItems.filter(item => COMMAND_TOOL_NAMES.has(item.toolName)).length,
+                    },
+                    isGroupStreaming: false,
+                    isLastGroupInTurn: isLast,
+                    wasCutByCritical: !isLast,
+                  }}
                   turnId={turnId}
-                  isLastItem={isLast && itemIdx === group.items.length - 1}
                 />
-              ));
+              );
+            }
 
             case 'critical': {
               if (isMediaToolGroupRenderableItem(group.item)) {
@@ -492,32 +516,6 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
 
 ModelRoundItem.displayName = 'ModelRoundItem';
 
-interface RenderableItemRendererProps {
-  item: MediaRenderableItem;
-  sessionId?: string;
-  turnId: string;
-  isLastItem?: boolean;
-}
-
-const RenderableItemRenderer: React.FC<RenderableItemRendererProps> = ({ item, sessionId, turnId, isLastItem }) => {
-  if (isMediaToolGroupRenderableItem(item)) {
-    return (
-      <FlowMediaToolGroupRenderer
-        group={item.group}
-        sessionId={sessionId}
-      />
-    );
-  }
-
-  return (
-    <FlowItemRenderer
-      item={item}
-      turnId={turnId}
-      isLastItem={isLastItem}
-    />
-  );
-};
-
 /**
  * FlowItem renderer (text or tool).
  */
@@ -553,7 +551,7 @@ const FlowItemRenderer: React.FC<FlowItemRendererProps> = ({ item, turnId, isLas
     case 'tool': {
       const toolItem = item as FlowToolItem;
       const isCompletedTool = toolItem.status === 'completed';
-      const isCollapsible = isCollapsibleTool(toolItem.toolName);
+      const isCollapsible = isCollapsibleToolItem(toolItem);
       const toolClassName = [
         'flowchat-flow-item',
         isCollapsible && isCompletedTool ? 'flowchat-flow-item--tool-transition' : null,

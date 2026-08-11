@@ -15,11 +15,11 @@ export type {
   ToolCardComponent,
 } from './toolCardRegistry';
 export {
-  COLLAPSIBLE_TOOL_NAMES,
   READ_TOOL_NAMES,
   SEARCH_TOOL_NAMES,
   COMMAND_TOOL_NAMES,
   isCollapsibleTool,
+  isCollapsibleToolItem,
   isCollapsibleItem,
   isCollapsibleItemWithContext,
 } from './toolCardClassification';

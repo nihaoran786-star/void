@@ -1,49 +1,49 @@
- 
 
 import { ThemeConfig } from '../types';
 import { BUILTIN_THEME_UI_FONT_FAMILY } from './typography';
 
 export const voidDarkTheme: ThemeConfig = {
-  
+
   id: 'void-dark',
   name: 'Dark',
   type: 'dark',
-  description: 'Default dark theme',
+  description: 'Deep Space dark theme - quiet graphite-black surfaces, one cyan signal',
   author: 'void Team',
-  version: '2.1.0',
-  
-  
+  version: '2.2.0',
+
+
   colors: {
     background: {
-      primary: '#0e0e10',
-      secondary: '#1c1c1f',
-      tertiary: '#0e0e10',
-      quaternary: '#252528',
-      elevated: '#1c1c1f',
-      workbench: '#0e0e10',
-      scene: '#1c1c1f',
-      tooltip: 'rgba(28, 28, 31, 0.96)',
+      primary: '#0A0C11',          // deep-space-900
+      secondary: '#10131B',        // deep-space-800
+      tertiary: '#0A0C11',
+      quaternary: '#161A24',
+      elevated: '#141824',
+      workbench: '#0A0C11',
+      scene: '#0D1017',
+      tooltip: 'rgba(19, 23, 32, 0.96)',
     },
-    
+
     text: {
-      primary: '#e8e8e8',
-      secondary: '#b0b0b0',
-      muted: '#858585',
-      disabled: '#555555',
+      primary: '#E9ECF2',
+      secondary: '#B7BCC8',
+      muted: '#7C8494',
+      disabled: '#4A5160',
     },
-    
+
+    // Cyan: the single "live" signal — focus, selection, running states.
     accent: {
-      50: 'rgba(96, 165, 250, 0.04)',
-      100: 'rgba(96, 165, 250, 0.08)',
-      200: 'rgba(96, 165, 250, 0.15)',
-      300: 'rgba(96, 165, 250, 0.25)',
-      400: 'rgba(96, 165, 250, 0.4)',
-      500: '#60a5fa',
-      600: '#3b82f6',
-      700: 'rgba(59, 130, 246, 0.8)',
-      800: 'rgba(59, 130, 246, 0.9)',
+      50: 'rgba(34, 211, 238, 0.04)',
+      100: 'rgba(34, 211, 238, 0.08)',
+      200: 'rgba(34, 211, 238, 0.15)',
+      300: 'rgba(34, 211, 238, 0.25)',
+      400: 'rgba(34, 211, 238, 0.4)',
+      500: '#22D3EE',
+      600: '#67E8F9',
+      700: 'rgba(103, 232, 249, 0.8)',
+      800: 'rgba(103, 232, 249, 0.9)',
     },
-    
+
     purple: {
       50: 'rgba(139, 92, 246, 0.04)',
       100: 'rgba(139, 92, 246, 0.08)',
@@ -55,37 +55,37 @@ export const voidDarkTheme: ThemeConfig = {
       700: 'rgba(124, 58, 237, 0.8)',
       800: 'rgba(124, 58, 237, 0.9)',
     },
-    
+
     semantic: {
       success: '#34d399',
       successBg: 'rgba(52, 211, 153, 0.1)',
       successBorder: 'rgba(52, 211, 153, 0.3)',
-      
+
       warning: '#f59e0b',
       warningBg: 'rgba(245, 158, 11, 0.1)',
       warningBorder: 'rgba(245, 158, 11, 0.3)',
-      
+
       error: '#ef4444',
       errorBg: 'rgba(239, 68, 68, 0.1)',
       errorBorder: 'rgba(239, 68, 68, 0.3)',
-      
+
       info: '#a1a1aa',
       infoBg: 'rgba(255, 255, 255, 0.08)',
       infoBorder: 'rgba(255, 255, 255, 0.22)',
-      
-      
+
+
       highlight: '#a8a8a8',
       highlightBg: 'rgba(255, 255, 255, 0.1)',
     },
-    
+
     border: {
-      subtle: 'rgba(255, 255, 255, 0.12)',
-      base: 'rgba(255, 255, 255, 0.18)',
-      medium: 'rgba(255, 255, 255, 0.24)',
-      strong: 'rgba(255, 255, 255, 0.32)',
-      prominent: 'rgba(255, 255, 255, 0.4)',
+      subtle: 'rgba(255, 255, 255, 0.08)',
+      base: 'rgba(255, 255, 255, 0.14)',
+      medium: 'rgba(255, 255, 255, 0.20)',
+      strong: 'rgba(255, 255, 255, 0.28)',
+      prominent: 'rgba(255, 255, 255, 0.36)',
     },
-    
+
     element: {
       subtle: 'rgba(255, 255, 255, 0.05)',
       soft: 'rgba(255, 255, 255, 0.07)',
@@ -94,10 +94,10 @@ export const voidDarkTheme: ThemeConfig = {
       strong: 'rgba(255, 255, 255, 0.155)',
       elevated: 'rgba(255, 255, 255, 0.19)',
     },
-    
+
     git: {
-      branch: '#a1a1aa',
-      branchBg: 'rgba(255, 255, 255, 0.06)',
+      branch: 'rgb(34, 211, 238)',
+      branchBg: 'rgba(34, 211, 238, 0.08)',
       changes: 'rgb(245, 158, 11)',
       changesBg: 'rgba(245, 158, 11, 0.1)',
       added: 'rgb(34, 197, 94)',
@@ -107,14 +107,14 @@ export const voidDarkTheme: ThemeConfig = {
       staged: 'rgb(34, 197, 94)',
       stagedBg: 'rgba(34, 197, 94, 0.1)',
     },
-    
+
     scrollbar: {
       thumb: 'rgba(255, 255, 255, 0.15)',
       thumbHover: 'rgba(255, 255, 255, 0.28)',
     },
   },
-  
-  
+
+
   effects: {
     shadow: {
       xs: '0 1px 2px rgba(0, 0, 0, 0.9)',
@@ -124,13 +124,13 @@ export const voidDarkTheme: ThemeConfig = {
       xl: '0 12px 24px rgba(0, 0, 0, 0.5)',
       '2xl': '0 16px 32px rgba(0, 0, 0, 0.4)',
     },
-    
+
     glow: {
-      blue: '0 12px 32px rgba(96, 165, 250, 0.2), 0 6px 16px rgba(96, 165, 250, 0.12), 0 3px 8px rgba(0, 0, 0, 0.12)',
+      blue: '0 12px 32px rgba(34, 211, 238, 0.20), 0 6px 16px rgba(34, 211, 238, 0.12), 0 3px 8px rgba(0, 0, 0, 0.12)',
       purple: '0 12px 32px rgba(139, 92, 246, 0.22), 0 6px 16px rgba(124, 58, 237, 0.14), 0 3px 8px rgba(0, 0, 0, 0.12)',
-      mixed: '0 12px 32px rgba(255, 255, 255, 0.06), 0 6px 16px rgba(139, 92, 246, 0.12), 0 3px 8px rgba(0, 0, 0, 0.12)',
+      mixed: '0 12px 32px rgba(34, 211, 238, 0.10), 0 6px 16px rgba(139, 92, 246, 0.12), 0 3px 8px rgba(0, 0, 0, 0.12)',
     },
-    
+
     blur: {
       subtle: 'blur(4px) saturate(1.05)',
       base: 'blur(8px) saturate(1.1)',
@@ -138,7 +138,7 @@ export const voidDarkTheme: ThemeConfig = {
       strong: 'blur(16px) saturate(1.3) brightness(1.1)',
       intense: 'blur(20px) saturate(1.4) brightness(1.15)',
     },
-    
+
     radius: {
       sm: '6px',
       base: '8px',
@@ -147,7 +147,7 @@ export const voidDarkTheme: ThemeConfig = {
       '2xl': '20px',
       full: '9999px',
     },
-    
+
     spacing: {
       1: '4px',
       2: '8px',
@@ -160,7 +160,7 @@ export const voidDarkTheme: ThemeConfig = {
       12: '48px',
       16: '64px',
     },
-    
+
     opacity: {
       disabled: 0.6,
       hover: 0.8,
@@ -168,8 +168,8 @@ export const voidDarkTheme: ThemeConfig = {
       overlay: 0.4,
     },
   },
-  
-  
+
+
   motion: {
     duration: {
       instant: '0.1s',
@@ -178,7 +178,7 @@ export const voidDarkTheme: ThemeConfig = {
       slow: '0.6s',
       lazy: '1s',
     },
-    
+
     easing: {
       standard: 'cubic-bezier(0.4, 0, 0.2, 1)',
       decelerate: 'cubic-bezier(0, 0, 0.2, 1)',
@@ -187,21 +187,21 @@ export const voidDarkTheme: ThemeConfig = {
       smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
     },
   },
-  
-  
+
+
   typography: {
     font: {
       sans: BUILTIN_THEME_UI_FONT_FAMILY,
       mono: "'JetBrains Mono', 'FiraCode', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', 'Cascadia Code', Consolas, 'Liberation Mono', 'Courier New', monospace",
     },
-    
+
     weight: {
       normal: 400,
       medium: 500,
       semibold: 600,
       bold: 700,
     },
-    
+
     size: {
       xs: '12px',
       sm: '13px',
@@ -213,17 +213,17 @@ export const voidDarkTheme: ThemeConfig = {
       '4xl': '26px',
       '5xl': '32px',
     },
-    
+
     lineHeight: {
       tight: 1.2,
       base: 1.5,
       relaxed: 1.6,
     },
   },
-  
-  
+
+
   components: {
-    
+
     windowControls: {
       minimize: {
         dot: 'rgba(255, 255, 255, 0.38)',
@@ -256,72 +256,73 @@ export const voidDarkTheme: ThemeConfig = {
         flowGradient: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05), transparent)',
       },
     },
-    
+
     button: {
-      
+
       default: {
         background: 'rgba(255, 255, 255, 0.08)',
-        color: '#9a9a9a',
+        color: '#B7BCC8',
         border: 'transparent',
         shadow: 'none',
       },
       hover: {
         background: 'rgba(255, 255, 255, 0.14)',
-        color: '#c8c8c8',
+        color: '#E9ECF2',
         border: 'transparent',
         shadow: 'none',
         transform: 'none',
       },
       active: {
         background: 'rgba(255, 255, 255, 0.10)',
-        color: '#c8c8c8',
+        color: '#E9ECF2',
         border: 'transparent',
         shadow: 'none',
         transform: 'none',
       },
-      
-      
+
+
+      // Tech-minimal primary: one quiet near-white action per region.
       primary: {
         default: {
-          background: 'rgba(255, 255, 255, 0.16)',
-          color: '#f4f4f5',
+          background: 'rgba(233, 236, 242, 0.92)',
+          color: '#0B0E14',
           border: 'transparent',
           shadow: 'none',
         },
         hover: {
-          background: 'rgba(255, 255, 255, 0.24)',
-          color: '#fafafa',
+          background: '#FFFFFF',
+          color: '#0B0E14',
           border: 'transparent',
           shadow: 'none',
           transform: 'none',
         },
         active: {
-          background: 'rgba(255, 255, 255, 0.2)',
-          color: '#fafafa',
+          background: 'rgba(233, 236, 242, 0.78)',
+          color: '#0B0E14',
           border: 'transparent',
           shadow: 'none',
           transform: 'none',
         },
       },
-      
-      
+
+
       ghost: {
         default: {
           background: 'transparent',
-          color: '#9a9a9a',
+          color: '#B7BCC8',
           border: 'transparent',
           shadow: 'none',
         },
         hover: {
           background: 'rgba(255, 255, 255, 0.10)',
-          color: '#c8c8c8',
+          color: '#E9ECF2',
           border: 'transparent',
           shadow: 'none',
           transform: 'none',
         },
         active: {
           background: 'rgba(255, 255, 255, 0.07)',
-          color: '#c8c8c8',
+          color: '#E9ECF2',
           border: 'transparent',
           shadow: 'none',
           transform: 'none',
@@ -329,25 +330,21 @@ export const voidDarkTheme: ThemeConfig = {
       },
     },
   },
-  
-  
-  
-  
+
+
+
+
+
   monaco: {
     base: 'vs-dark',
     inherit: true,
-    rules: [], 
+    rules: [],
     colors: {
-      background: '#121214',
-      foreground: '#e8e8e8',
-      lineHighlight: '#18181a',
-      selection: 'rgba(255, 255, 255, 0.12)',
-      cursor: '#c4c4c4',
+      background: '#0C0F16',
+      foreground: '#E9ECF2',
+      lineHighlight: '#12151E',
+      selection: 'rgba(34, 211, 238, 0.18)',
+      cursor: '#22D3EE',
     },
   },
 };
-
-
-
-
-

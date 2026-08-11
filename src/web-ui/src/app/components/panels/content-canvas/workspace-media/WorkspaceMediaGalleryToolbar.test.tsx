@@ -10,6 +10,7 @@ vi.mock('react-i18next', () => ({
       'workspaceMedia.refresh': 'Refresh',
       'workspaceMedia.views.active': 'Media',
       'workspaceMedia.views.deleted': 'Recently Deleted',
+      'workspaceMedia.entry': 'Media library',
       'workspaceMedia.actions.selectVisible': 'Select all',
       'workspaceMedia.actions.clearVisibleSelection': 'Clear selected',
       'workspaceMedia.actions.clearSearch': 'Clear search',
@@ -102,7 +103,7 @@ describe('WorkspaceMediaGalleryToolbar', () => {
     return actions;
   };
 
-  it('keeps only search, views, and one refinement entry persistently visible', () => {
+  it('keeps the persistent command bar icon-first with localized accessible names', () => {
     renderToolbar();
 
     const toggle = container.querySelector(
@@ -120,8 +121,14 @@ describe('WorkspaceMediaGalleryToolbar', () => {
     expect(container.querySelector(
       '.workspace-media-gallery__search-row',
     )?.classList.contains('has-query')).toBe(false);
-    expect(container.textContent).toContain('Media');
-    expect(container.textContent).toContain('Recently Deleted');
+    expect(container.querySelector('.workspace-media-gallery__views')
+      ?.getAttribute('aria-label')).toBe('Media library');
+    expect(container.querySelector('button[aria-label="Media"]')).toBeTruthy();
+    expect(container.querySelector('button[aria-label="Recently Deleted"]')).toBeTruthy();
+    expect(toggle.getAttribute('aria-label')).toBe('Media filters');
+    expect(container.querySelectorAll(
+      '.workspace-media-gallery__control-icon',
+    )).toHaveLength(3);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(panel.hidden).toBe(true);
     expect(panel.querySelectorAll('button')).toHaveLength(9);
@@ -211,7 +218,7 @@ describe('WorkspaceMediaGalleryToolbar', () => {
     const toggle = container.querySelector(
       '.workspace-media-gallery__refinement-toggle',
     ) as HTMLButtonElement;
-    expect(toggle.textContent).toContain('Media filters');
+    expect(toggle.getAttribute('aria-label')).toBe('Media filters');
     expect(toggle.textContent).toContain('3');
   });
 });

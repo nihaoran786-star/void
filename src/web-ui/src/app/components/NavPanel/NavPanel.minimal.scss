@@ -4,12 +4,15 @@
   // same inset workspace surface.  The parent owns clipping so NavBar and
   // NavPanel cannot leak square backgrounds through the shared radius.
   .void-ui--minimal .void-workspace-body__nav-area {
-    height: calc(100% - var(--workspace-space-2));
-    margin-top: var(--workspace-space-2);
+    height: calc(100% - (2 * var(--workspace-space-2)));
+    margin: var(--workspace-space-2) var(--workspace-space-2) var(--workspace-space-2) 0;
     overflow: hidden;
+    border: 1px solid var(--workspace-border-subtle);
     border-radius: var(--workspace-radius-shell);
-    background: var(--workspace-surface-panel);
-    box-shadow: inset 0 0 0 1px var(--workspace-border-subtle);
+    background: var(--workspace-glass-panel-bg);
+    backdrop-filter: var(--workspace-glass-blur);
+    -webkit-backdrop-filter: var(--workspace-glass-blur);
+    box-shadow: var(--workspace-glass-shadow);
   }
 
   .void-ui--minimal .void-workspace-body__nav-divider {
@@ -20,8 +23,11 @@
   .void-ui--minimal .void-nav-panel {
     --void-nav-status-unknown: var(--workspace-text-muted);
 
+    // The nav-area shell owns the Glass Air material (background + blur); the
+    // panel and its footer stay transparent so the frosted treatment reads as
+    // one continuous surface. Defaults keep dark themes visually identical.
     color: var(--workspace-text-secondary);
-    background: var(--workspace-surface-panel);
+    background: transparent;
     border-right-color: var(--workspace-border-subtle);
     box-shadow: none;
     font-family: var(--workspace-font-family);
@@ -314,7 +320,7 @@
     &__bottom-bar,
     &__footer {
       border-top-color: var(--workspace-border-subtle);
-      background: var(--workspace-surface-panel);
+      background: transparent;
       box-shadow: none;
     }
 
@@ -359,6 +365,16 @@
     :where(button, [role='button'], a):focus-visible {
       outline-color: var(--workspace-focus-ring);
     }
+  }
+
+  // Keep expanded content laid out at its final width while the outer shell
+  // reveals it. This prevents labels from reflowing through narrow widths
+  // during the 48px <-> expanded transition.
+  .void-ui--minimal
+    .void-workspace-body__nav-area:not(.is-collapsed)
+    .void-nav-panel {
+    width: var(--workspace-nav-effective-width);
+    min-width: var(--workspace-nav-effective-width);
   }
 
   // Collapsed Minimal navigation is a presentation projection of the same
@@ -569,4 +585,40 @@
     }
   }
 
+}
+
+// ── Glass Air light projection ─────────────────────────────
+// Inside the frosted navigation shell the search trigger reads as one quiet
+// raised field, and the selected row leans on the terracotta family so the
+// current location stays legible against the translucent backdrop.
+:root[data-theme='light'] .void-ui--minimal .void-nav-panel__session-search-slot,
+:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__session-search-slot {
+  height: 36px;
+  align-items: center;
+}
+
+:root[data-theme='light'] .void-ui--minimal .void-nav-panel__search-trigger,
+:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__search-trigger {
+  height: 28px;
+  min-height: 28px;
+  margin-inline: var(--workspace-space-2);
+  padding: 0 var(--workspace-space-2);
+  border: 1px solid var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-panel);
+  background: var(--workspace-glass-raised-bg);
+}
+
+:root[data-theme='light'] .void-ui--minimal .void-nav-panel__search-trigger:hover,
+:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__search-trigger:hover {
+  border-color: var(--workspace-border-strong);
+  background: var(--workspace-glass-raised-bg);
+}
+
+:root[data-theme='light'] .void-ui--minimal .void-nav-panel__inline-item.is-active,
+:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__inline-item.is-active,
+:root[data-theme='light'] .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card,
+:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card,
+:root[data-theme='light'] .void-ui--minimal .void-nav-panel__assistant-item.is-active .void-nav-panel__assistant-item-card,
+:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__assistant-item.is-active .void-nav-panel__assistant-item-card {
+  color: var(--color-accent-800);
 }

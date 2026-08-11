@@ -328,11 +328,10 @@
   display: none !important;
 }
 
-/* E — icon + text fade together */
-.base-tool-card-wrapper--loading-shimmer .tool-card-icon-marks,
-.base-tool-card-wrapper--loading-shimmer .tool-card-action,
-.base-tool-card-wrapper--loading-shimmer .tool-card-content {
-  animation: tool-card-text-fade 1.6s ease-in-out infinite;
+/* Loading: one shared quiet signal — steady accent edge
+   (whole-card opacity breathing removed). */
+.base-tool-card-wrapper--loading-shimmer {
+  border-color: color-mix(in srgb, var(--color-accent-500, #60a5fa) 45%, transparent);
 }
 
 @keyframes tool-card-text-fade {

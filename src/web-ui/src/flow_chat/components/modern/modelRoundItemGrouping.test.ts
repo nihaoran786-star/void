@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildModelRoundItemGroups } from './modelRoundItemGrouping';
-import type { FlowTextItem, FlowToolItem, FlowUserSteeringItem } from '../../types/flow-chat';
+import type { FlowTextItem, FlowThinkingItem, FlowToolItem, FlowUserSteeringItem } from '../../types/flow-chat';
 
 function makeTextItem(id: string): FlowTextItem {
   return {
@@ -41,6 +41,18 @@ function makeReadTool(
   };
 }
 
+function makeThinkingItem(id: string): FlowThinkingItem {
+  return {
+    id,
+    type: 'thinking',
+    content: 'brief reasoning',
+    isStreaming: false,
+    isCollapsed: true,
+    timestamp: 1000,
+    status: 'completed',
+  };
+}
+
 function makeSteeringItem(id: string): FlowUserSteeringItem {
   return {
     id,
@@ -61,7 +73,7 @@ describe('buildModelRoundItemGroups', () => {
       items: [steeringItem],
       isStreaming: true,
       disableExploreGrouping: false,
-      isCollapsibleTool: () => false,
+      isCollapsibleToolItem: () => false,
     });
 
     expect(groups).toEqual([
@@ -80,7 +92,7 @@ describe('buildModelRoundItemGroups', () => {
       items: [textItem, steeringItem],
       isStreaming: true,
       disableExploreGrouping: false,
-      isCollapsibleTool: () => false,
+      isCollapsibleToolItem: () => false,
     });
 
     expect(groups).toEqual([
@@ -103,7 +115,7 @@ describe('buildModelRoundItemGroups', () => {
       items: [textItem, toolItem],
       isStreaming: false,
       disableExploreGrouping: false,
-      isCollapsibleTool: toolName => toolName === 'Read',
+      isCollapsibleToolItem: item => item.toolName === 'Read',
     });
 
     expect(groups).toEqual([
@@ -115,6 +127,49 @@ describe('buildModelRoundItemGroups', () => {
     ]);
   });
 
+  it('keeps settled routine tools and adjacent thinking in one quiet group before a critical tool', () => {
+    const firstThinking = makeThinkingItem('thinking-1');
+    const routineTool = { ...makeReadTool('spec-1'), toolName: 'GetToolSpec' };
+    const secondThinking = makeThinkingItem('thinking-2');
+    const criticalTool = { ...makeReadTool('task-1'), toolName: 'Task' };
+
+    const groups = buildModelRoundItemGroups({
+      items: [firstThinking, routineTool, secondThinking, criticalTool],
+      isStreaming: false,
+      disableExploreGrouping: false,
+      isCollapsibleToolItem: item => item.toolName === 'GetToolSpec',
+    });
+
+    expect(groups).toEqual([
+      {
+        type: 'explore',
+        items: [firstThinking, routineTool, secondThinking],
+        isLast: false,
+      },
+      {
+        type: 'critical',
+        item: criticalTool,
+      },
+    ]);
+  });
+
+  it('keeps completed thinking quiet even when the next tool must stay visible', () => {
+    const thinking = makeThinkingItem('thinking-before-task');
+    const criticalTool = { ...makeReadTool('task-1'), toolName: 'Task' };
+
+    const groups = buildModelRoundItemGroups({
+      items: [thinking, criticalTool],
+      isStreaming: false,
+      disableExploreGrouping: false,
+      isCollapsibleToolItem: () => false,
+    });
+
+    expect(groups).toEqual([
+      { type: 'explore', items: [thinking], isLast: false },
+      { type: 'critical', item: criticalTool },
+    ]);
+  });
+
   it('keeps an active collapsible tool outside the preceding explore group', () => {
     const completedTool = makeReadTool('tool-1');
     const runningTool = makeReadTool('tool-2', 'running');
@@ -123,7 +178,9 @@ describe('buildModelRoundItemGroups', () => {
       items: [completedTool, runningTool],
       isStreaming: true,
       disableExploreGrouping: false,
-      isCollapsibleTool: toolName => toolName === 'Read',
+      // Defensive contract: grouping itself keeps active work visible even if
+      // a caller accidentally reports the running tool as routine/collapsible.
+      isCollapsibleToolItem: item => item.toolName === 'Read',
     });
 
     expect(groups).toEqual([
@@ -147,7 +204,7 @@ describe('buildModelRoundItemGroups', () => {
       items: [completedTool, justCompletedTool],
       isStreaming: true,
       disableExploreGrouping: false,
-      isCollapsibleTool: toolName => toolName === 'Read',
+      isCollapsibleToolItem: item => item.toolName === 'Read' && item.status === 'completed',
       nowMs: 10_200,
     });
 
@@ -172,7 +229,7 @@ describe('buildModelRoundItemGroups', () => {
       items: [completedTool, settledTool],
       isStreaming: true,
       disableExploreGrouping: false,
-      isCollapsibleTool: toolName => toolName === 'Read',
+      isCollapsibleToolItem: item => item.toolName === 'Read' && item.status === 'completed',
       nowMs: 11_001,
     });
 
@@ -193,7 +250,7 @@ describe('buildModelRoundItemGroups', () => {
       items: [completedTool, justCompletedTool],
       isStreaming: false,
       disableExploreGrouping: false,
-      isCollapsibleTool: toolName => toolName === 'Read',
+      isCollapsibleToolItem: item => item.toolName === 'Read' && item.status === 'completed',
       nowMs: 10_200,
     });
 

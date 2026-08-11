@@ -131,7 +131,6 @@ export async function openMainSession(
 ): Promise<void> {
   appManager.updateLayout({
     leftPanelActiveTab: 'sessions',
-    leftPanelCollapsed: false,
   });
 
   if (options?.workspaceId && options.activateWorkspace) {

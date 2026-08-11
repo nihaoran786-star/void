@@ -15,6 +15,31 @@ the original navigation/chat slice to the current shell, Welcome/new session,
 customization markets, Canvas chrome, and Team Workspace. The wider coverage
 does not authorize runtime or domain changes.
 
+Material amendment: 2026-08-09. After comparing three full-shell design demos
+against the reference image, the owner selected direction **B · Glass Air
+玻璃轻语** for the light theme: a warm gradient shell backdrop, frosted-glass
+navigation/composer/Canvas surfaces, soft floating shadows, and a quiet
+floating split handle. Section 6.5 owns this material. It applies only to
+light-type themes in the Minimal presentation; dark themes and Classic keep
+their established solid surfaces, and the Glass Air tokens must default to the
+exact solid Porcelain values so non-light rendering is unchanged.
+
+Palette pivot: 2026-08-10. Supersedes the warm palette and the light-only
+frameless rules above wherever they conflict. By owner direction the built-in
+themes now run **Cool White + Pulse Blue** (`void-light`: cold-white surfaces
+`#F4F6F9` family, accent `#2563EB/#1D4ED8`) and **Deep Space + Electric Cyan**
+(`void-dark`: deep-space surfaces `#0A0C11` family, accent `#22D3EE/#67E8F9`,
+matching Flow Chat link color). The Minimal shell layout also pivoted: the
+left navigation is one whole floating capsule (8px window gap on every side,
+16px `--workspace-radius-shell`, 1px subtle border, floating shadow, no inset
+ring) in BOTH light and dark, while the right scene — conversation, Canvas,
+and the durable Team Workspace column — is a single frameless plane with no
+card stacking, separated only by hairlines and floating handles. Sections
+that still describe terracotta, warm porcelain, or light-only frameless
+behavior are historical context; the token owners and the contract tests
+(`NavPanelLayout.test.ts`, `WorkspaceRightRailPresentation.test.ts`,
+`minimalThemeDebt.test.ts`) are authoritative for the current geometry.
+
 Visual target:
 `%USERPROFILE%\.codex\generated_images\019fa901-0899-7370-865d-e999eb59bcd7\exec-4b53f3a0-dd4d-4165-a1a0-ff4c4f11f053.png`
 
@@ -36,8 +61,8 @@ The memorable qualities are:
 
 - warm porcelain surfaces instead of pure white or cold blue-gray panels;
 - soft graphite text instead of pure black or washed-out gray;
-- small functional pastel accents for orientation, with calm blue reserved for
-  focus, selection, and the primary action;
+- small functional pastel accents for orientation, with warm terracotta
+  reserved for focus, selection, and the primary action;
 - hairline separators, gentle radii, compact type, exact alignment, and visible
   breathing room;
 - a continuous working transcript instead of a stack of chat bubbles;
@@ -120,12 +145,12 @@ Classic compatibility remain protected rollback paths.
 | `graphite-500` | `#70746E` | metadata and secondary text; AA-safe on porcelain surfaces |
 | `graphite-700` | `#4D514C` | secondary body text |
 | `graphite-900` | `#20231F` | primary text and icons |
-| `cobalt-50` | `#EEF5FF` | selected background |
-| `cobalt-100` | `#DCEAFF` | active hover background |
-| `cobalt-300` | `#8DB7FF` | decorative selection handles |
-| `cobalt-500` | `#4C86F7` | focus, selection, primary action |
-| `cobalt-600` | `#2F6FE4` | primary hover/active |
-| `cobalt-700` | `#2559B8` | high-contrast accent text |
+| `terracotta-50` | `#FBF0E6` | selected background |
+| `terracotta-100` | `#F5E2D0` | active hover background |
+| `terracotta-300` | `#DFA276` | decorative selection handles |
+| `terracotta-500` | `#C2703D` | focus, selection, primary action |
+| `terracotta-600` | `#A85A2C` | primary hover/active |
+| `terracotta-700` | `#8A4A22` | high-contrast accent text |
 | `sage-500` | `#479A73` | success, online, mint icon cue |
 | `amber-500` | `#C38A32` | warning, waiting, amber icon cue |
 | `lilac-500` | `#826AC2` | collaboration or creative icon cue |
@@ -139,15 +164,15 @@ Classic compatibility remain protected rollback paths.
 | `--workspace-surface-panel` | `porcelain-50` |
 | `--workspace-surface-raised` | `porcelain-0` |
 | `--workspace-surface-hover` | `porcelain-100` |
-| `--workspace-surface-active` | `cobalt-50` |
+| `--workspace-surface-active` | `terracotta-50` |
 | `--workspace-surface-scrim` | `rgba(32, 35, 31, 0.24)` |
 | `--workspace-text-primary` | `graphite-900` |
 | `--workspace-text-secondary` | `graphite-700` |
 | `--workspace-text-muted` | `graphite-500` |
 | `--workspace-text-disabled` | `#939DA6` |
-| `--workspace-accent` | `cobalt-500` |
-| `--workspace-accent-strong` | `cobalt-600` |
-| `--workspace-focus-ring` | `cobalt-500` |
+| `--workspace-accent` | `terracotta-500` |
+| `--workspace-accent-strong` | `terracotta-600` |
+| `--workspace-focus-ring` | `terracotta-500` |
 
 Disabled text is never used for meaningful explanatory copy. Status meaning
 must include an icon, label, or shape and may not rely on color alone.
@@ -160,7 +185,7 @@ small orientation cues, not large decorative surfaces:
 | Status | Text | Background | Border |
 | --- | --- | --- | --- |
 | success | `#287A57` | `#EDF8F2` | `#C3E6D2` |
-| info | `#2559B8` | `#EEF5FF` | `#C9DCFF` |
+| info | `#6E6252` | `#F5F1EA` | `#DCD2C2` |
 | warning | `#85591F` | `#FFF7EA` | `#EBD3AA` |
 | error | `#923F3F` | `#FFF2F1` | `#E9C2C0` |
 
@@ -225,8 +250,8 @@ compressed.
 | subtle divider | `1px solid #ECEAE6` |
 | base control | `1px solid #E2E0DC` |
 | strong/hover | `1px solid #D1CEC8` |
-| selected | `1px solid #4C86F7` |
-| focus | `2px solid #4C86F7`, 2px offset where possible |
+| selected | `1px solid #C2703D` |
+| focus | `2px solid #C2703D`, 2px offset where possible |
 
 - use spacing first, divider second, tinted surface third, border fourth;
 - do not border every row;
@@ -253,7 +278,65 @@ Normal buttons, filters, search, inputs, tabs, and cards are not pills.
 | floating toolbar/menu | `0 2px 10px rgba(32, 35, 31, 0.07)` |
 | modal/drawer | `0 12px 30px rgba(32, 35, 31, 0.11)` |
 
-No glow, glass, backdrop blur, inset highlight, or decorative elevation.
+No glow, glass, backdrop blur, inset highlight, or decorative elevation,
+except where Section 6.5 explicitly owns the Glass Air material.
+
+### 6.5 Glass Air material (light Minimal only)
+
+The owner-selected Glass Air direction owns the following material for
+light-type themes in the Minimal presentation. Everything is token-driven:
+each `--workspace-glass-*` and `--workspace-shell-backdrop` token defaults to
+the exact solid Porcelain value, so dark themes and Classic render unchanged.
+
+| Token | Light value | Use |
+| --- | --- | --- |
+| `--workspace-shell-backdrop` | warm porcelain gradient (`#F5F0E9 → #F2EFE9 → #EDEAE6` with soft radial warmth) | app shell behind the inset panels |
+| `--workspace-glass-panel-bg` | `rgba(255, 253, 252, 0.55)` | navigation shell, Team Workspace panel |
+| `--workspace-glass-deep-bg` | `rgba(255, 253, 252, 0.72)` | scene viewport, Canvas card |
+| `--workspace-glass-raised-bg` | `rgba(255, 253, 252, 0.82)` | floating composer |
+| `--workspace-glass-blur` | `blur(15px) saturate(1.15)` | frosted material on the surfaces above |
+| `--workspace-glass-shadow` | `0 8px 24px rgba(32, 35, 31, 0.06)` | soft lift for glass panels |
+| `--workspace-composer-shadow` | `0 10px 28px rgba(32, 35, 31, 0.09)` | floating composer |
+
+Rules:
+
+- the blur softens only what shows through the surface; text and control
+  contrast are unchanged because the surface color stays porcelain-based;
+- glass surfaces keep the existing hairline border and shell radius except
+  where the frameless shell projection (§6.6) removes them; no glow, no scale,
+  no additional decorative layers;
+- the chat/canvas split becomes one quiet floating handle (3px graphite pill,
+  terracotta on hover/drag) instead of a full-height hairline;
+- backdrop blur is a presentation material, not a layout mechanism; it must
+  not introduce stacking, clipping, or hit-testing changes, and it pauses
+  wherever an existing contract already disables it (for example drag states);
+- reduced-motion and high-contrast media rules keep their existing authority.
+
+### 6.6 Frameless shell (light Minimal only)
+
+The owner-directed frameless experiment removes the window chrome inside the
+light Minimal shell: workspace gutters (`padding`/`gap`), the navigation
+shell's inset margin, shell radii, inset rings, and floating panel shadows are
+all gone. The navigation rail, the scene surface, the Content Canvas, and the
+Team Workspace panel run flush to the physical window edges.
+
+What remains as separation:
+
+- the glass material itself (backdrop + blur differences read as regions);
+- single hairlines: navigation right edge, Canvas left edge, Team panel left
+  edge;
+- the quiet floating split handle between chat and Canvas.
+
+Rules:
+
+- the frameless projection is light-type Minimal only; dark themes keep the
+  established inset panels and Classic remains the untouched rollback path;
+- the macOS traffic-light gutter keeps its 72px reserve;
+- no raw colors in Minimal stylesheets: the divider hover/resize glow is
+  tokenized as `--workspace-shadow-divider-glow(-active)` (blue defaults for
+  dark, terracotta in the light projection);
+- removing the frame must not change hit-testing, resize behavior, stacking,
+  or the nav collapse/expand bridge animations.
 
 ### Motion
 
@@ -283,7 +366,7 @@ No glow, glass, backdrop blur, inset highlight, or decorative elevation.
 ### 8.1 Buttons
 
 - heights: 28px compact, 32px standard, 36px emphasized;
-- one calm blue primary action per region;
+- one warm terracotta primary action per region;
 - secondary button: raised surface + base border;
 - tertiary button: text/icon only;
 - destructive button remains neutral until confirmation context, then uses the
@@ -332,8 +415,8 @@ Card rules:
 - width 48px;
 - logo/brand at top, avatar/settings at bottom;
 - 16px icons in 32px targets;
-- active destination uses `cobalt-50`, a cobalt icon, and an optional 2px
-  leading rail;
+- active destination uses `terracotta-50`, a terracotta icon, and an optional
+  2px leading rail;
 - tooltips appear after a short delay and expose keyboard shortcuts;
 - current location is never communicated by color alone.
 
@@ -397,8 +480,8 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 - dotted or grid background is extremely subtle;
 - workflow node width is approximately 160–184px;
 - nodes use raised surface, 8px radius, and base border;
-- selected node uses cobalt border and handles without shadow;
-- connections use graphite/porcelain neutrals; active path alone uses cobalt;
+- selected node uses terracotta border and handles without shadow;
+- connections use graphite/porcelain neutrals; active path alone uses terracotta;
 - node toolbar appears on selection, not permanently;
 - pan/zoom controls are one compact toolbar;
 - minimap is optional and hidden when the graph fits.
@@ -406,8 +489,10 @@ media, and AI Short Drama remain independent pages under one Canvas shell.
 ## 12. Team Workspace
 
 - Team lead remains the left parent conversation;
-- the optional right panel is 280–320px in the compact desktop layout and
-  340–400px on wide CSS viewports;
+- the Team Workspace is one floating 9:16 portrait panel above the scene at
+  every desktop width, framed by a visible 1px border and layered soft
+  shadow; it reserves no column, drags by a thin hover grabber,
+  and dims to 50% opacity on outside interaction instead of hiding;
 - closed Team presentation does not detach the Team or stop members;
 - member list uses compact rows, avatar, role, and explicit status;
 - no member card gallery and no duplicate lead entry;

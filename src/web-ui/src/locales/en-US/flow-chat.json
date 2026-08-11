@@ -1184,7 +1184,8 @@
     "exploreCount_other": "{{count}} explorations",
     "exploreCount": "{{count}} exploration(s)",
     "separator": ", ",
-    "collapse": "Collapse exploration"
+    "collapse": "Collapse exploration",
+    "runningProgress": "Running {{running}}/{{total}}"
   },
   "terminalRegion": {
     "executedCommands_one": "Executed {{count}} command",
@@ -1440,7 +1441,12 @@
       "agent": "Agent",
       "collapseDetails": "Collapse details",
       "expandDetails": "Expand details",
-      "openInPanel": "Open details in panel"
+      "openInPanel": "Open details in panel",
+      "steps": {
+        "queued": "Queued",
+        "launching": "Launching",
+        "executing": "Running"
+      }
     },
     "taskDetailPanel": {
       "untitled": "Untitled Task",

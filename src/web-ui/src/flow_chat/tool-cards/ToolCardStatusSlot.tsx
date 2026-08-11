@@ -16,7 +16,6 @@
 
 import React, { ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
-import { ToolProcessingDots } from '@/component-library';
 import type { ToolProcessingDotsSize } from '@/component-library';
 import type { BaseToolCardProps } from './BaseToolCard';
 import './ToolCardStatusSlot.scss';
@@ -36,6 +35,7 @@ export interface ToolCardStatusSlotProps {
 }
 
 function StatusIcon({ status, size }: { status: ToolCardStatusSlotStatus; size: ToolProcessingDotsSize }) {
+  const dotSize = Math.max(6, Math.round(size / 2));
   switch (status) {
     case 'completed':
       return <Check size={size} className="tcss-check" />;
@@ -43,8 +43,26 @@ function StatusIcon({ status, size }: { status: ToolCardStatusSlotStatus; size: 
       return <X size={size} className="tcss-error" />;
     case 'cancelled':
       return <X size={size} className="tcss-cancelled" />;
+    case 'pending':
+    case 'pending_confirmation':
+    case 'confirmed':
+      // Queued: hollow hairline ring.
+      return (
+        <span
+          className="tcss-dot tcss-dot--queued"
+          style={{ width: dotSize, height: dotSize }}
+          aria-hidden
+        />
+      );
     default:
-      return <ToolProcessingDots size={size} />;
+      // Active: accent dot with a single quiet ripple.
+      return (
+        <span
+          className="tcss-dot tcss-dot--active"
+          style={{ width: dotSize, height: dotSize }}
+          aria-hidden
+        />
+      );
   }
 }
 

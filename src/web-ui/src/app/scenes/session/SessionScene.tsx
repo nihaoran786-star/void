@@ -153,6 +153,97 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     openTeamWorkspace,
   ]);
 
+  // Floating Team Workspace: grabber drag offset + outside-interaction dimming.
+  // Dimming and dragging are presentation-only; they never touch the binding.
+  const teamPanelEdgeInset = 8;
+  const teamPanelRef = useRef<HTMLDivElement>(null);
+  const teamDragRef = useRef<{
+    sx: number;
+    sy: number;
+    ox: number;
+    oy: number;
+    minDx: number;
+    maxDx: number;
+    minDy: number;
+    maxDy: number;
+  } | null>(null);
+  const teamDragCleanupRef = useRef<(() => void) | null>(null);
+  const [teamPanelOffset, setTeamPanelOffset] = useState({ x: 0, y: 0 });
+  const [teamPanelDimmed, setTeamPanelDimmed] = useState(false);
+  const [teamPanelDragging, setTeamPanelDragging] = useState(false);
+
+  const cleanupTeamPanelDrag = useCallback(() => {
+    const removeListeners = teamDragCleanupRef.current;
+    teamDragCleanupRef.current = null;
+    removeListeners?.();
+    teamDragRef.current = null;
+    setTeamPanelDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isTeamWorkspaceOpen) {
+      cleanupTeamPanelDrag();
+      setTeamPanelDimmed(false);
+      setTeamPanelOffset({ x: 0, y: 0 });
+      return undefined;
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      const panel = teamPanelRef.current;
+      if (!panel) return;
+      setTeamPanelDimmed(!panel.contains(event.target as Node));
+    };
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => {
+      cleanupTeamPanelDrag();
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+    };
+  }, [cleanupTeamPanelDrag, isTeamWorkspaceOpen]);
+
+  // Drag only from empty topbar space; interactive descendants keep their own pointer behavior.
+  const handleTeamPanelPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement;
+    if (!target.closest('[data-team-drag]')) return;
+    if (target.closest('button, a, input, textarea, select')) return;
+    event.preventDefault();
+    const panelRect = event.currentTarget.getBoundingClientRect();
+    const sceneRect = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!sceneRect) return;
+    cleanupTeamPanelDrag();
+    teamDragRef.current = {
+      sx: event.clientX,
+      sy: event.clientY,
+      ox: teamPanelOffset.x,
+      oy: teamPanelOffset.y,
+      minDx: sceneRect.left + teamPanelEdgeInset - panelRect.left,
+      maxDx: sceneRect.right - teamPanelEdgeInset - panelRect.right,
+      minDy: sceneRect.top + teamPanelEdgeInset - panelRect.top,
+      maxDy: sceneRect.bottom - teamPanelEdgeInset - panelRect.bottom,
+    };
+    setTeamPanelDragging(true);
+    const handleMove = (moveEvent: PointerEvent) => {
+      const drag = teamDragRef.current;
+      if (!drag) return;
+      const deltaX = moveEvent.clientX - drag.sx;
+      const deltaY = moveEvent.clientY - drag.sy;
+      setTeamPanelOffset({
+        x: drag.ox + Math.min(drag.maxDx, Math.max(drag.minDx, deltaX)),
+        y: drag.oy + Math.min(drag.maxDy, Math.max(drag.minDy, deltaY)),
+      });
+    };
+    const handleEnd = () => cleanupTeamPanelDrag();
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleEnd);
+    document.addEventListener('pointercancel', handleEnd);
+    window.addEventListener('blur', handleEnd);
+    teamDragCleanupRef.current = () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleEnd);
+      document.removeEventListener('pointercancel', handleEnd);
+      window.removeEventListener('blur', handleEnd);
+    };
+  }, [cleanupTeamPanelDrag, teamPanelOffset]);
+
   const preferredRightWidthRef = useRef(
     loadPanelWidth(
       STORAGE_KEYS.RIGHT_PANEL_LAST_WIDTH,
@@ -203,18 +294,14 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const calculateValidRightWidth = useCallback((newWidth: number): number => {
     if (!containerRef.current) return newWidth;
     const containerWidth = containerRef.current.offsetWidth;
-    // NavPanel (240px) is outside SessionScene — only account for resizer + min chat width
-    const isWideTeamLayout = typeof window.matchMedia === 'function'
-      ? window.matchMedia('(min-width: 1280px)').matches
-      : window.innerWidth >= 1280;
-    const teamWorkspaceWidth = isTeamWorkspaceOpen && isWideTeamLayout ? 368 : 0;
+    // NavPanel (240px) is outside SessionScene — only account for resizer + min chat width.
+    // The Team Workspace floats above the scene and reserves no column width.
     const reserved = PANEL_COMMON_CONFIG.RESIZER_WIDTH
-      + PANEL_COMMON_CONFIG.MIN_CENTER_WIDTH
-      + teamWorkspaceWidth;
+      + PANEL_COMMON_CONFIG.MIN_CENTER_WIDTH;
     const dynamicMax = containerWidth - reserved;
     const maxWidth = Math.min(RIGHT_PANEL_CONFIG.MAX_WIDTH, dynamicMax);
     return Math.min(maxWidth, Math.max(RIGHT_PANEL_CONFIG.COMPACT_WIDTH, newWidth));
-  }, [isTeamWorkspaceOpen]);
+  }, []);
 
   const saveAndUpdateRightWidth = useCallback((width: number) => {
     preferredRightWidthRef.current = width;
@@ -535,9 +622,18 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       </div>
       {activeTeamWorkspace.hasTeamBinding && isTeamWorkspaceOpen && (
         <div
+          ref={teamPanelRef}
           className="void-session-scene__team-workspace"
           id="void-team-workspace-panel"
           data-testid="session-team-workspace-panel"
+          data-dimmed={teamPanelDimmed || undefined}
+          data-dragging={teamPanelDragging || undefined}
+          onPointerDown={handleTeamPanelPointerDown}
+          style={{
+            transform: teamPanelOffset.x || teamPanelOffset.y
+              ? `translate(${teamPanelOffset.x}px, ${teamPanelOffset.y}px)`
+              : undefined,
+          }}
         >
           <TeamWorkspacePanel
             state={activeTeamWorkspace}

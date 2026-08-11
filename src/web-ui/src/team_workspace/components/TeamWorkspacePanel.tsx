@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   CircleUserRound,
-  Crown,
   LoaderCircle,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   UsersRound,
   X,
@@ -49,29 +49,6 @@ function statusTone(status: string) {
 
 const issueKey = (issue: TeamWorkspaceIssue) => `teamWorkspace.issues.${issue.code}`;
 
-function Status({
-  namespace,
-  value,
-  live = false,
-}: {
-  namespace: string;
-  value: string;
-  live?: boolean;
-}) {
-  const { t } = useTranslation('flow-chat');
-  return (
-    <span
-      className="team-workspace-panel__status"
-      data-tone={statusTone(value)}
-      role={live ? 'status' : undefined}
-      aria-live={live ? 'polite' : undefined}
-    >
-      <i aria-hidden="true" />
-      {t(`teamWorkspace.${namespace}.${value}`)}
-    </span>
-  );
-}
-
 function EmptyState({
   icon,
   title,
@@ -90,26 +67,6 @@ function EmptyState({
       <p>{description}</p>
       {action}
     </div>
-  );
-}
-
-function Header({ team, onClose }: { team: TeamWorkspaceTeamProjection; onClose?: () => void }) {
-  const { t } = useTranslation('flow-chat');
-  const runStatus = team.activeRun?.status;
-  return (
-    <header className="team-workspace-panel__header">
-      <span className="team-workspace-panel__identity">
-        <strong>{team.definition.displayName}</strong>
-        {runStatus
-          ? <Status namespace="runStatus" value={runStatus} live />
-          : <Status namespace="lifecycle" value={team.lifecycle} live />}
-      </span>
-      {onClose && (
-        <button type="button" className="team-workspace-panel__icon-button" onClick={onClose} aria-label={t('teamWorkspace.actions.close')}>
-          <X aria-hidden="true" />
-        </button>
-      )}
-    </header>
   );
 }
 
@@ -140,12 +97,13 @@ function memberPosition(index: number, count: number) {
   };
 }
 
-function PhaseSegBar({ phases, updated }: { phases: TeamWorkspacePhaseProjection[]; updated: string }) {
+function PhaseSegBar({ phases }: { phases: TeamWorkspacePhaseProjection[] }) {
   const { t } = useTranslation('flow-chat');
   const done = phases.filter(phase => SUCCESS.has(phase.state.status)).length;
   const current = phases.find(phase => INFO.has(phase.state.status))
     ?? [...phases].reverse().find(phase => SUCCESS.has(phase.state.status))
     ?? phases[0];
+  const progress = phases.length > 0 ? Math.round((done / phases.length) * 100) : 0;
   return (
     <section className="team-workspace-panel__map-phases" aria-labelledby="team-workspace-phases" data-map-static>
       <span className="team-workspace-panel__map-phases-cap" id="team-workspace-phases">
@@ -155,25 +113,20 @@ function PhaseSegBar({ phases, updated }: { phases: TeamWorkspacePhaseProjection
         <span className="team-workspace-panel__muted">{t('teamWorkspace.phases.empty')}</span>
       ) : (
         <>
-          <ol className="team-workspace-panel__map-segbar">
-            {phases.map(phase => {
-              const statusLabel = t(`teamWorkspace.phaseStatus.${phase.state.status}`);
-              return (
-                <li key={phase.definition.phaseId} data-tone={statusTone(phase.state.status)}>
-                  <span className="sr-only">{phase.definition.displayName} · {statusLabel}</span>
-                </li>
-              );
-            })}
-          </ol>
+          <span className="team-workspace-panel__map-phases-track" aria-hidden="true">
+            <span className="team-workspace-panel__map-phases-fill" style={{ width: `${progress}%` }} />
+          </span>
           <span className="team-workspace-panel__map-phases-label">
             <strong>{current?.definition.displayName}</strong>
             {done}/{phases.length}
+            <span className="sr-only">
+              {phases.map(phase => (
+                `${phase.definition.displayName} ${t(`teamWorkspace.phaseStatus.${phase.state.status}`)}`
+              )).join(' · ')}
+            </span>
           </span>
         </>
       )}
-      <span className="team-workspace-panel__map-updated">
-        {t('teamWorkspace.updatedAt', { value: updated })}
-      </span>
     </section>
   );
 }
@@ -182,6 +135,7 @@ function TeamMapView({
   team,
   members,
   issue,
+  running,
   reload,
   openMember,
   registerButton,
@@ -189,11 +143,12 @@ function TeamMapView({
   team: TeamWorkspaceTeamProjection;
   members: TeamWorkspaceMemberProjection[];
   issue?: TeamWorkspaceIssue | null;
+  running: boolean;
   reload: () => void;
   openMember: (member: TeamWorkspaceMemberProjection) => void;
   registerButton: (id: string, button: HTMLButtonElement | null) => void;
 }) {
-  const { t, i18n } = useTranslation('flow-chat');
+  const { t } = useTranslation('flow-chat');
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ sx: number; sy: number; cx: number; cy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -279,7 +234,6 @@ function TeamMapView({
   };
 
   const transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.k})`;
-  const updated = new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit' }).format(team.updatedAt);
 
   return (
     <div
@@ -291,6 +245,14 @@ function TeamMapView({
       onPointerCancel={endDrag}
     >
       <div className="team-workspace-panel__map-grid" style={{ transform }} aria-hidden="true" />
+      <div className="team-workspace-panel__map-topbar" data-map-static data-team-drag>
+        <span className="team-workspace-panel__map-topbar-title">
+          {t('teamWorkspace.members.title')} · {members.length + 1}
+        </span>
+        {running && (
+          <span className="team-workspace-panel__map-topbar-live">{t('teamWorkspace.runStatus.running')}</span>
+        )}
+      </div>
       <section
         className="team-workspace-panel__map-world"
         style={{ transform, '--map-camera-zoom': camera.k } as React.CSSProperties}
@@ -317,7 +279,7 @@ function TeamMapView({
           className="team-workspace-panel__map-lead"
           style={{ transform: 'scale(calc(1 / var(--map-camera-zoom, 1)))' }}
         >
-          <span className="team-workspace-panel__map-lead-orb" aria-hidden="true"><Crown /></span>
+          <span className="team-workspace-panel__map-lead-point" aria-hidden="true" />
           <span className="team-workspace-panel__map-lead-name">{t('teamWorkspace.roles.lead')}</span>
         </div>
         {members.length === 0 ? (
@@ -338,12 +300,10 @@ function TeamMapView({
               onClick={() => openMember(member)}
               aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
             >
-              <span className="team-workspace-panel__map-member-orb" aria-hidden="true">
+              <span className="team-workspace-panel__map-member-point" aria-hidden="true">
                 {tone === 'info' && (
                   <span className="team-workspace-panel__map-member-ripples"><i /><i /></span>
                 )}
-                {member.definition.displayName.slice(0, 1)}
-                <span className="team-workspace-panel__map-member-dot" />
               </span>
               <span className="team-workspace-panel__map-member-name">{member.definition.displayName}</span>
               <span className="team-workspace-panel__map-member-role">{member.definition.professionalRole}</span>
@@ -358,16 +318,12 @@ function TeamMapView({
           {issue.retryable && <button type="button" onClick={reload}><RefreshCw />{t('teamWorkspace.actions.retry')}</button>}
         </div>
       )}
-      <section className="team-workspace-panel__map-mission" aria-labelledby="team-workspace-overview" data-map-static>
-        <small id="team-workspace-overview">{t('teamWorkspace.overview.title')}</small>
-        <strong>{team.activeRun?.workflow?.displayName ?? t(team.activeRun ? 'teamWorkspace.overview.workflowUnavailable' : 'teamWorkspace.overview.waiting')}</strong>
-        <p>{team.activeRun?.run.objective || team.definition.description}</p>
-      </section>
       <div className="team-workspace-panel__map-hud" data-map-static>
-        <span>{Math.round(camera.k * 100)}%</span>
-        <button type="button" onClick={resetCamera}>{t('teamWorkspace.map.resetView')}</button>
+        <button type="button" onClick={resetCamera} aria-label={t('teamWorkspace.map.resetView')}>
+          <RotateCcw aria-hidden="true" />
+        </button>
       </div>
-      <PhaseSegBar phases={team.phases} updated={updated} />
+      <PhaseSegBar phases={team.phases} />
     </div>
   );
 }
@@ -401,6 +357,11 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
     () => members.find(member => member.definition.memberId === memberId) ?? null,
     [memberId, members],
   );
+  const isTeamRunning = useMemo(
+    () => INFO.has(team?.activeRun?.status ?? '')
+      || members.some(member => INFO.has(member.state.status)),
+    [members, team],
+  );
 
   useEffect(() => {
     if (memberId && !selectedMember) setMemberId(null);
@@ -425,12 +386,39 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
 
   if (selectedMember && team && state.snapshot) {
     return (
-      <aside className="team-workspace-panel team-workspace-panel--conversation" aria-label={t('teamWorkspace.ariaLabel')}>
-        <div className="team-workspace-panel__conversation-header">
-          <button type="button" className="team-workspace-panel__back" onClick={returnToTeam}>
-            <ArrowLeft aria-hidden="true" />{t('teamWorkspace.actions.backToTeam')}
+      <aside className="team-workspace-panel team-workspace-panel--conversation" aria-label={t('teamWorkspace.ariaLabel')} data-running={isTeamRunning || undefined}>
+        {onClose && (
+          <button type="button" className="team-workspace-panel__icon-button team-workspace-panel__icon-button--floating" onClick={onClose} aria-label={t('teamWorkspace.actions.close')}>
+            <X aria-hidden="true" />
           </button>
-          <span>{selectedMember.definition.displayName}</span>
+        )}
+        <div className="team-workspace-panel__strip" data-team-drag>
+          <button
+            type="button"
+            className="team-workspace-panel__strip-back"
+            onClick={returnToTeam}
+            aria-label={t('teamWorkspace.actions.backToTeam')}
+            title={t('teamWorkspace.actions.backToTeam')}
+          >
+            <ArrowLeft aria-hidden="true" />
+          </button>
+          <span className="team-workspace-panel__strip-tabs" role="group" aria-label={t('teamWorkspace.members.title')}>
+            {members.map(member => (
+              <button
+                key={member.definition.memberId}
+                type="button"
+                className="team-workspace-panel__member-tab"
+                data-active={member.definition.memberId === selectedMember.definition.memberId || undefined}
+                data-tone={statusTone(member.state.status)}
+                onClick={() => setMemberId(member.definition.memberId)}
+                aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
+                aria-current={member.definition.memberId === selectedMember.definition.memberId ? 'true' : undefined}
+                title={member.definition.displayName}
+              >
+                {member.definition.displayName.slice(0, 2)}
+              </button>
+            ))}
+          </span>
         </div>
         <div className="team-workspace-panel__conversation">
           {selectedMember.childSessionId ? (
@@ -478,13 +466,22 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
   }
   if (!team) return <aside className="team-workspace-panel" aria-label={t('teamWorkspace.ariaLabel')}>{closeButton}<EmptyState icon={<UsersRound />} title={t('teamWorkspace.states.emptyTitle')} description={t('teamWorkspace.states.emptyDescription')} /></aside>;
 
+  const teamStatusValue = team.activeRun?.status ?? team.lifecycle;
+  const teamStatusNamespace = team.activeRun?.status ? 'runStatus' : 'lifecycle';
   return (
-    <aside className="team-workspace-panel" aria-label={t('teamWorkspace.ariaLabel')}>
-      <Header team={team} onClose={onClose} />
+    <aside className="team-workspace-panel" aria-label={t('teamWorkspace.ariaLabel')} data-running={isTeamRunning || undefined}>
+      <span className="sr-only">{team.definition.displayName}</span>
+      <span className="sr-only" role="status">{t(`teamWorkspace.${teamStatusNamespace}.${teamStatusValue}`)}</span>
+      {onClose && (
+        <button type="button" className="team-workspace-panel__icon-button team-workspace-panel__icon-button--floating" onClick={onClose} aria-label={t('teamWorkspace.actions.close')}>
+          <X aria-hidden="true" />
+        </button>
+      )}
       <TeamMapView
         team={team}
         members={members}
         issue={issue}
+        running={isTeamRunning}
         reload={state.reload}
         openMember={member => setMemberId(member.definition.memberId)}
         registerButton={registerButton}
