@@ -89,6 +89,23 @@ function definitionRecord(
   };
 }
 
+function delegationDefinitionRecord(): TeamDefinitionRecord {
+  const record = definitionRecord();
+  record.definition.schemaVersion = 2;
+  record.definition.members[1]!.delegationPolicy = {
+    kind: 'bounded',
+    maxWorkerTasks: 8,
+    maxParallelWorkers: 3,
+  };
+  return record;
+}
+
+function disabledDelegationDefinitionRecord(): TeamDefinitionRecord {
+  const record = delegationDefinitionRecord();
+  record.definition.members[1]!.delegationPolicy = { kind: 'disabled' };
+  return record;
+}
+
 function runtimeRecord(
   overrides: Partial<TeamRuntimeRecord['snapshot']> = {},
 ): TeamRuntimeRecord {
@@ -203,6 +220,11 @@ function gateways(
     resume: vi.fn(),
     stop: vi.fn(),
     recover: vi.fn(),
+    listDelegatedTasks: vi.fn().mockResolvedValue({
+      status: 'ready',
+      tasks: [],
+      issues: [],
+    }),
   };
   const definitionGateway: TeamAuthoringGateway = {
     list: vi.fn().mockResolvedValue(definitions),
@@ -255,6 +277,124 @@ describe('TeamWorkspaceProjectionService', () => {
       { id: 'build', source: 'runtime', status: 'running' },
       { id: 'review', source: 'definition', status: 'not_started' },
     ]);
+  });
+
+  it('只把当前成员运行 attempt 的委派任务投影到成员子树', async () => {
+    const pair = gateways(
+      { records: [runtimeRecord()], diagnostics: [] },
+      { status: 'ready', records: [delegationDefinitionRecord()], diagnostics: [] },
+    );
+    vi.mocked(pair.runtimeGateway.listDelegatedTasks).mockResolvedValue({
+      status: 'ready',
+      tasks: [
+        {
+          taskId: 'worker-current',
+          parentSessionId: 'child-1',
+          teamInstanceId: 'instance-1',
+          memberId: 'developer',
+          memberRunId: 'member-run-1',
+          childSessionId: 'worker-child-1',
+          objective: '实现登录流程',
+          owner: '登录工程师',
+          status: 'running',
+          depth: 1,
+          createdAt: 4,
+          updatedAt: 5,
+        },
+        {
+          taskId: 'worker-old-attempt',
+          parentSessionId: 'old-child',
+          teamInstanceId: 'instance-1',
+          memberId: 'developer',
+          memberRunId: 'member-run-old',
+          objective: '旧尝试',
+          owner: '旧 Worker',
+          status: 'completed',
+          depth: 1,
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      issues: [],
+    });
+
+    const snapshot = await new TeamWorkspaceProjectionService(
+      pair.runtimeGateway,
+      pair.definitionGateway,
+    ).read({ parentSessionId: 'session-1', workspacePath: 'D:/repo' });
+
+    expect(pair.runtimeGateway.listDelegatedTasks).toHaveBeenCalledWith({
+      parentSessionId: 'session-1',
+      teamInstanceId: 'instance-1',
+    });
+    expect(snapshot.activeTeam?.members[0]?.delegation).toMatchObject({
+      status: 'ready',
+      tasks: [{ taskId: 'worker-current', memberRunId: 'member-run-1' }],
+    });
+  });
+
+  it('旧定义对非 Lead 使用默认委派策略，显式 disabled 则不读取 Worker', async () => {
+    const legacyPair = gateways(
+      { records: [runtimeRecord()], diagnostics: [] },
+      { status: 'ready', records: [definitionRecord()], diagnostics: [] },
+    );
+    await new TeamWorkspaceProjectionService(
+      legacyPair.runtimeGateway,
+      legacyPair.definitionGateway,
+    ).read({ parentSessionId: 'session-1', workspacePath: 'D:/repo' });
+    expect(legacyPair.runtimeGateway.listDelegatedTasks).toHaveBeenCalledTimes(1);
+
+    const disabledPair = gateways(
+      { records: [runtimeRecord()], diagnostics: [] },
+      { status: 'ready', records: [disabledDelegationDefinitionRecord()], diagnostics: [] },
+    );
+    await new TeamWorkspaceProjectionService(
+      disabledPair.runtimeGateway,
+      disabledPair.definitionGateway,
+    ).read({ parentSessionId: 'session-1', workspacePath: 'D:/repo' });
+    expect(disabledPair.runtimeGateway.listDelegatedTasks).not.toHaveBeenCalled();
+  });
+
+  it('显式投影委派任务的 partial 与 error 状态', async () => {
+    const partialPair = gateways(
+      { records: [runtimeRecord()], diagnostics: [] },
+      { status: 'ready', records: [delegationDefinitionRecord()], diagnostics: [] },
+    );
+    vi.mocked(partialPair.runtimeGateway.listDelegatedTasks).mockResolvedValue({
+      status: 'partial',
+      tasks: [],
+      issues: [{
+        parentSessionId: 'session-1',
+        teamInstanceId: 'instance-1',
+        memberId: 'developer',
+        code: 'task_read_failed',
+        message: 'worker store is temporarily unavailable',
+        retryable: true,
+      }],
+    });
+    const partial = await new TeamWorkspaceProjectionService(
+      partialPair.runtimeGateway,
+      partialPair.definitionGateway,
+    ).read({ parentSessionId: 'session-1', workspacePath: 'D:/repo' });
+    expect(partial.activeTeam?.members[0]?.delegation).toMatchObject({
+      status: 'partial',
+      error: { code: 'delegated_task_read_failed' },
+    });
+
+    const errorPair = gateways(
+      { records: [runtimeRecord()], diagnostics: [] },
+      { status: 'ready', records: [delegationDefinitionRecord()], diagnostics: [] },
+    );
+    vi.mocked(errorPair.runtimeGateway.listDelegatedTasks)
+      .mockRejectedValue(new Error('native task query failed'));
+    const failed = await new TeamWorkspaceProjectionService(
+      errorPair.runtimeGateway,
+      errorPair.definitionGateway,
+    ).read({ parentSessionId: 'session-1', workspacePath: 'D:/repo' });
+    expect(failed.activeTeam?.members[0]?.delegation).toMatchObject({
+      status: 'error',
+      error: { code: 'delegated_task_read_failed' },
+    });
   });
 
   it('没有运行时团队时返回明确的空 ready 快照且不读取定义', async () => {

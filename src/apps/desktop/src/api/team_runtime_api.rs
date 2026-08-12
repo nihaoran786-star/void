@@ -23,9 +23,12 @@ use void_core::agentic::team_definitions::{
     TeamDefinitionError, TeamDefinitionErrorCode, TeamDefinitionRecord, TeamMemberRole,
     TeamScenario,
 };
+use void_core::agentic::team_member_tool_runtime::{
+    TeamMemberToolInvocation, TEAM_MEMBER_TOOL_NAME,
+};
 use void_core::agentic::team_orchestrator::{
-    stable_operation_id, AttachCommand, MessageCommand, ObserveCommand, PauseCommand,
-    RecoverCommand, ResumeCommand, StartCommand, StopCommand, TeamCommandIdentity,
+    stable_operation_id, AttachCommand, CompleteMemberCommand, MessageCommand, ObserveCommand,
+    PauseCommand, RecoverCommand, ResumeCommand, StartCommand, StopCommand, TeamCommandIdentity,
     TeamOrchestrator, TeamOrchestratorError, TeamOrchestratorErrorCode, TeamOrchestratorOutcome,
 };
 use void_core::agentic::team_runtime::{
@@ -49,7 +52,7 @@ use void_core::service::remote_ssh::workspace_state::{
     workspace_session_identity, LOCAL_WORKSPACE_SSH_HOST,
 };
 use void_core::util::errors::{VoidError, VoidResult};
-use void_core_types::SubagentTaskRecord;
+use void_core_types::{SubagentLaunchAuthorityKind, SubagentTaskRecord, SubagentTaskStatus};
 
 #[derive(Clone)]
 pub struct TeamRuntimeApiState {
@@ -743,6 +746,96 @@ impl TeamToolExecutor for DesktopTeamToolExecutor {
             result_for_assistant,
         })
     }
+
+    async fn execute_team_member_tool(
+        &self,
+        invocation: TeamMemberToolInvocation,
+    ) -> VoidResult<TeamToolExecutionOutcome> {
+        invocation.validate()?;
+        let coordinator = self
+            .coordinator
+            .upgrade()
+            .ok_or_else(|| team_tool_failure("conversation coordinator is unavailable"))?;
+        let authority = coordinator
+            .get_session_manager()
+            .require_persisted_tool_call_authority(
+                &invocation.member_session_id,
+                &invocation.dialog_turn_id,
+                &invocation.tool_call_id,
+            )
+            .await
+            .map_err(|error| team_tool_failure(error.to_string()))?;
+        if authority.tool_name != TEAM_MEMBER_TOOL_NAME
+            || authority.round_id != invocation.round_id
+            || authority.input != invocation.exact_input
+        {
+            return Err(team_tool_failure(
+                "persisted TeamMember tool authority does not match the invocation",
+            ));
+        }
+
+        let root_session = coordinator
+            .get_session_manager()
+            .get_session(&invocation.root_parent_session_id)
+            .ok_or_else(|| team_tool_failure("root Team session is not restored"))?;
+        if root_session.kind != SessionKind::Standard {
+            return Err(team_tool_failure("root Team session must be Standard"));
+        }
+        let runtime = bound_runtime_for_session(&coordinator, &self.path_manager, &root_session)
+            .map_err(|error| team_tool_failure(format!("{}: {}", error.code, error.message)))?;
+        let operation_id = stable_operation_id(
+            &invocation.tool_call_id,
+            &invocation.root_parent_session_id,
+            &invocation.team_instance_id,
+            &[
+                "team-member-complete-v1",
+                &invocation.member_session_id,
+                &invocation.dialog_turn_id,
+                &invocation.round_id,
+                &invocation.member_run_id,
+            ],
+        );
+        let outcome = runtime
+            .service
+            .complete_member(CompleteMemberCommand {
+                identity: identity(
+                    operation_id,
+                    invocation.root_parent_session_id.clone(),
+                    invocation.team_instance_id.clone(),
+                ),
+                team_run_id: invocation.team_run_id.clone(),
+                member_run_id: invocation.member_run_id.clone(),
+                summary: invocation.request.summary.trim().to_string(),
+            })
+            .await;
+        let response = project_mutation(
+            &runtime.service,
+            &invocation.root_parent_session_id,
+            &invocation.team_instance_id,
+            outcome,
+        )
+        .await
+        .map_err(|error| team_tool_failure(format!("{}: {}", error.code, error.message)))?;
+        let result_for_assistant = if response.outcome.accepted {
+            Some("Team member completion accepted; the Team workflow may now advance.".to_string())
+        } else {
+            Some(format!(
+                "Team member completion was not accepted: {}",
+                response
+                    .outcome
+                    .error
+                    .as_ref()
+                    .map(|error| error.message.as_str())
+                    .unwrap_or("The Team runtime rejected the operation.")
+            ))
+        };
+        let data = serde_json::to_value(&response)
+            .map_err(|error| team_tool_failure(format!("cannot serialize outcome: {error}")))?;
+        Ok(TeamToolExecutionOutcome {
+            data,
+            result_for_assistant,
+        })
+    }
 }
 
 struct BoundTeamRuntime {
@@ -1049,6 +1142,53 @@ pub struct TeamRuntimeGetRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TeamRuntimeDelegatedTasksRequest {
+    pub parent_session_id: String,
+    pub team_instance_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeamDelegatedTaskProjection {
+    pub task_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_task_id: Option<String>,
+    pub parent_session_id: String,
+    pub team_instance_id: String,
+    pub member_id: String,
+    pub member_run_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub child_session_id: Option<String>,
+    pub objective: String,
+    pub owner: String,
+    pub status: SubagentTaskStatus,
+    pub depth: u8,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeamDelegatedTaskIssue {
+    pub parent_session_id: String,
+    pub team_instance_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub member_id: Option<String>,
+    pub code: &'static str,
+    pub message: String,
+    pub retryable: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeamDelegatedTaskList {
+    pub status: &'static str,
+    pub tasks: Vec<TeamDelegatedTaskProjection>,
+    pub issues: Vec<TeamDelegatedTaskIssue>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TeamRuntimeAttachRequest {
     pub operation_id: String,
     pub parent_session_id: String,
@@ -1158,6 +1298,97 @@ pub async fn team_runtime_get(
         .get_record(&request.parent_session_id, &request.team_instance_id)
         .await
         .map_err(TeamRuntimeApiError::from_orchestrator)
+}
+
+#[tauri::command]
+pub async fn team_runtime_list_delegated_tasks(
+    state: State<'_, TeamRuntimeApiState>,
+    request: TeamRuntimeDelegatedTasksRequest,
+) -> Result<TeamDelegatedTaskList, TeamRuntimeApiError> {
+    let runtime = state.bound_runtime(&request.parent_session_id).await?;
+    let record = runtime
+        .service
+        .get_record(&request.parent_session_id, &request.team_instance_id)
+        .await
+        .map_err(TeamRuntimeApiError::from_orchestrator)?
+        .ok_or_else(|| {
+            TeamRuntimeApiError::new(
+                "runtime_not_found",
+                "The requested Team runtime does not exist for this parent session",
+                false,
+                None,
+            )
+        })?;
+    let session_manager = state.coordinator.get_session_manager();
+    let mut tasks = Vec::new();
+    let mut issues = Vec::new();
+    for binding in &record.snapshot.instance.member_bindings {
+        let Some(member_session_id) = binding.child_session_id.as_deref() else {
+            continue;
+        };
+        let member_tasks = match session_manager.list_subagent_tasks(member_session_id).await {
+            Ok(tasks) => tasks,
+            Err(error) => {
+                issues.push(TeamDelegatedTaskIssue {
+                    parent_session_id: request.parent_session_id.clone(),
+                    team_instance_id: request.team_instance_id.clone(),
+                    member_id: Some(binding.member_id.clone()),
+                    code: "task_read_failed",
+                    message: error.to_string(),
+                    retryable: true,
+                });
+                continue;
+            }
+        };
+        for task in member_tasks {
+            let Some(authority) = task.launch_authority.as_ref() else {
+                continue;
+            };
+            let Some(lineage) = authority.team_lineage.as_ref() else {
+                continue;
+            };
+            if authority.kind != SubagentLaunchAuthorityKind::TeamWorker
+                || lineage.root_parent_session_id != request.parent_session_id
+                || lineage.team_instance_id != request.team_instance_id
+                || lineage.member_id != binding.member_id
+                || lineage.parent_member_session_id.as_deref() != Some(member_session_id)
+            {
+                continue;
+            }
+            tasks.push(TeamDelegatedTaskProjection {
+                task_id: task.task_id,
+                parent_task_id: binding.subagent_task_id.clone(),
+                parent_session_id: task.parent_session_id,
+                team_instance_id: lineage.team_instance_id.clone(),
+                member_id: lineage.member_id.clone(),
+                member_run_id: lineage.member_run_id.clone(),
+                child_session_id: task.child_session_id,
+                objective: task.objective,
+                owner: task.owner,
+                status: task.status,
+                depth: authority.nesting_depth,
+                created_at: task.created_at,
+                updated_at: task.updated_at,
+            });
+        }
+    }
+    tasks.sort_by(|left, right| {
+        left.created_at
+            .cmp(&right.created_at)
+            .then_with(|| left.task_id.cmp(&right.task_id))
+    });
+    let status = if issues.is_empty() {
+        "ready"
+    } else if tasks.is_empty() {
+        "error"
+    } else {
+        "partial"
+    };
+    Ok(TeamDelegatedTaskList {
+        status,
+        tasks,
+        issues,
+    })
 }
 
 #[tauri::command]

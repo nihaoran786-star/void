@@ -632,6 +632,7 @@ pub async fn run() {
             api::team_definition_api::delete_team_definition,
             api::team_runtime_api::team_runtime_list,
             api::team_runtime_api::team_runtime_get,
+            api::team_runtime_api::team_runtime_list_delegated_tasks,
             api::team_runtime_api::team_runtime_attach,
             api::team_runtime_api::team_runtime_observe,
             api::team_runtime_api::team_runtime_message,

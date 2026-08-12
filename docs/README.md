@@ -21,8 +21,8 @@ automatically the current source of truth.
   — current Desktop/Tauri persona and compatible reusable-Team runtime status,
   with deferred policy and platform boundaries
 - [Team Workspace product and architecture specification](features/team-workspace-prd.md)
-  — current reusable-Team definition/runtime status and staged expansion
-  contract
+  — current reusable-Team definition/runtime status, bounded member-to-worker
+  delegation, recursive conversation projection, and staged expansion contract
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
   responsive layout, accessibility, full-window evidence, and performance;

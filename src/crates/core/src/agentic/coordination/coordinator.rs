@@ -32,6 +32,7 @@ use crate::agentic::session::{
     PersistedToolCallAuthority, PreparedPersistedTurn, PreparedTurnDisposition, SessionManager,
 };
 use crate::agentic::side_question::build_btw_user_input;
+use crate::agentic::team_member_tool_runtime::{TeamMemberToolInvocation, TEAM_MEMBER_TOOL_NAME};
 use crate::agentic::team_tool_runtime::{
     TeamToolExecutionOutcome, TeamToolExecutor, TeamToolInvocation, TEAM_TOOL_NAME,
 };
@@ -58,15 +59,21 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::OnceLock;
-use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, RwLock, Semaphore};
+use tokio::sync::{mpsc, watch, Mutex, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::time::{sleep, Duration, Instant};
 use tokio_util::sync::CancellationToken;
 use void_core_types::{
-    SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec, SubagentTaskRecord,
+    SubagentLaunchAuthority, SubagentLaunchAuthorityKind, SubagentTaskContextMode,
+    SubagentTaskExecutionMode, SubagentTaskLaunchSpec, SubagentTaskRecord,
     SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
-    SubagentTaskStatus, TeamMemberSkillPolicySnapshot,
+    SubagentTaskStatus, TeamDelegationLineageSnapshot, TeamMemberSkillPolicySnapshot,
+    SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION, TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY,
+    TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY,
 };
-use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
+use void_runtime_ports::{
+    DelegationPolicy, DelegationTier, SubagentContextMode, TeamDelegationBudget,
+    TEAM_DELEGATION_MAX_PARALLEL_WORKERS_CONTEXT_KEY, TEAM_DELEGATION_MAX_WORKER_TASKS_CONTEXT_KEY,
+};
 
 const MANUAL_COMPACTION_COMMAND: &str = "/compact";
 const CONTEXT_COMPRESSION_TOOL_NAME: &str = "ContextCompression";
@@ -87,8 +94,13 @@ const DURABLE_SUBAGENT_CONTEXT_ALLOWLIST: &[&str] = &[
     "teamDefinitionRevision",
     "teamInstanceId",
     "teamRunId",
+    "memberRunId",
     "teamMemberId",
     "teamPhaseId",
+    TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY,
+    TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY,
+    TEAM_DELEGATION_MAX_WORKER_TASKS_CONTEXT_KEY,
+    TEAM_DELEGATION_MAX_PARALLEL_WORKERS_CONTEXT_KEY,
 ];
 const TEAM_MEMBER_RECOVERY_CONTEXT_KEYS: &[&str] = &[
     "teamDefinitionId",
@@ -307,6 +319,7 @@ fn background_subagent_launch_matches(
         && existing.context_mode == expected.context_mode
         && existing.delivery_replay_safety == expected.delivery_replay_safety
         && existing.launch_spec == expected.launch_spec
+        && existing.launch_authority == expected.launch_authority
 }
 
 fn format_persisted_background_subagent_delivery_text(
@@ -396,24 +409,181 @@ fn runtime_tool_restrictions_for_delegation_policy(
     delegation_policy: DelegationPolicy,
 ) -> ToolRuntimeRestrictions {
     let mut restrictions = ToolRuntimeRestrictions::default();
-    if !delegation_policy.allow_subagent_spawn {
-        for tool_name in ["Task", TEAM_TOOL_NAME] {
-            restrictions.denied_tool_names.insert(tool_name.to_string());
-            restrictions.denied_tool_messages.insert(
-                tool_name.to_string(),
-                "Child agents cannot delegate or orchestrate a Team. Complete the assigned specialist task directly."
-                    .to_string(),
-            );
-        }
+    if !delegation_policy.allows_task_spawn() {
+        restrictions.denied_tool_names.insert("Task".to_string());
+        restrictions.denied_tool_messages.insert(
+            "Task".to_string(),
+            "This agent has reached its delegated Task depth. Complete the assigned work directly."
+                .to_string(),
+        );
+    }
+    if !delegation_policy.allows_team_orchestration() {
+        restrictions
+            .denied_tool_names
+            .insert(TEAM_TOOL_NAME.to_string());
+        restrictions.denied_tool_messages.insert(
+            TEAM_TOOL_NAME.to_string(),
+            "Only the parent Team lead may orchestrate the Team runtime.".to_string(),
+        );
     }
     restrictions
 }
 
-fn delegation_policy_from_launch_spec(launch_spec: &SubagentTaskLaunchSpec) -> DelegationPolicy {
-    DelegationPolicy {
-        allow_subagent_spawn: launch_spec.allow_subagent_spawn,
-        nesting_depth: launch_spec.nesting_depth,
+fn resolve_child_delegation_policy(
+    requested: DelegationPolicy,
+    context: &mut HashMap<String, String>,
+    parent_info: &SubagentParentInfo,
+    has_typed_team_member_authority: bool,
+) -> DelegationPolicy {
+    match requested.tier() {
+        DelegationTier::TeamMember if !has_typed_team_member_authority => {
+            return DelegationPolicy::ordinary_child(requested.nesting_depth.max(1));
+        }
+        DelegationTier::TeamMember | DelegationTier::OrdinaryChild
+            if requested.nesting_depth == 1 && has_typed_team_member_authority =>
+        {
+            context
+                .entry(TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY.to_string())
+                .or_insert_with(|| parent_info.session_id.clone());
+            return DelegationPolicy::team_member();
+        }
+        _ => {}
     }
+    requested
+}
+
+fn team_lineage_from_context(
+    context: &HashMap<String, String>,
+) -> Option<TeamDelegationLineageSnapshot> {
+    let value = |key: &str| {
+        context
+            .get(key)
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    };
+    Some(TeamDelegationLineageSnapshot {
+        team_definition_id: value("teamDefinitionId")?,
+        team_definition_revision: value("teamDefinitionRevision")?,
+        team_instance_id: value("teamInstanceId")?,
+        team_run_id: value("teamRunId")?,
+        member_run_id: value("memberRunId")?,
+        member_id: value("teamMemberId")?,
+        root_parent_session_id: value(TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY)?,
+        parent_member_session_id: value(TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY),
+    })
+}
+
+fn launch_authority_for_request(
+    policy: DelegationPolicy,
+    context: &HashMap<String, String>,
+    parent_info: &SubagentParentInfo,
+    team_budget: Option<TeamDelegationBudget>,
+) -> VoidResult<SubagentLaunchAuthority> {
+    let (kind, max_nesting_depth, task_spawn_budget, max_parallel_workers, team_lineage) =
+        match policy.tier() {
+            DelegationTier::TeamMember => (
+                SubagentLaunchAuthorityKind::TeamMember,
+                2,
+                u16::from(team_budget.map_or(0, |budget| budget.max_worker_tasks)),
+                u16::from(team_budget.map_or(0, |budget| budget.max_parallel_workers)),
+                team_lineage_from_context(context),
+            ),
+            DelegationTier::TeamWorker => (
+                SubagentLaunchAuthorityKind::TeamWorker,
+                2,
+                0,
+                0,
+                team_lineage_from_context(context),
+            ),
+            DelegationTier::TopLevel | DelegationTier::OrdinaryChild => (
+                SubagentLaunchAuthorityKind::OrdinaryChild,
+                policy.nesting_depth.max(1),
+                0,
+                0,
+                None,
+            ),
+        };
+    let authority = SubagentLaunchAuthority {
+        schema_version: SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+        kind,
+        delegation_request_id: parent_info.tool_call_id.clone(),
+        nesting_depth: policy.nesting_depth,
+        max_nesting_depth,
+        task_spawn_budget,
+        max_parallel_workers,
+        team_lineage,
+    };
+    authority
+        .validate()
+        .map_err(|error| VoidError::Validation(error.to_string()))?;
+    match authority.kind {
+        SubagentLaunchAuthorityKind::TeamMember
+            if authority.team_lineage.as_ref().is_some_and(|lineage| {
+                lineage.root_parent_session_id != parent_info.session_id
+            }) =>
+        {
+            return Err(VoidError::Validation(
+                "Team member authority is bound to a different root session".to_string(),
+            ));
+        }
+        SubagentLaunchAuthorityKind::TeamWorker
+            if authority.team_lineage.as_ref().is_some_and(|lineage| {
+                lineage.parent_member_session_id.as_deref() != Some(parent_info.session_id.as_str())
+            }) =>
+        {
+            return Err(VoidError::Validation(
+                "Team worker authority is bound to a different member session".to_string(),
+            ));
+        }
+        _ => {}
+    }
+    Ok(authority)
+}
+
+fn delegation_policy_from_task(task: &SubagentTaskRecord) -> DelegationPolicy {
+    if let Some(authority) = task.launch_authority.as_ref() {
+        if authority.validate().is_err() {
+            return DelegationPolicy::ordinary_child(authority.nesting_depth.max(1));
+        }
+        return match authority.kind {
+            SubagentLaunchAuthorityKind::TeamMember => DelegationPolicy::team_member(),
+            SubagentLaunchAuthorityKind::TeamWorker => DelegationPolicy::team_worker(),
+            SubagentLaunchAuthorityKind::OrdinaryChild => {
+                DelegationPolicy::ordinary_child(authority.nesting_depth)
+            }
+        };
+    }
+    let launch_spec = task.launch_spec.as_ref();
+    DelegationPolicy {
+        allow_subagent_spawn: launch_spec.is_some_and(|launch| launch.allow_subagent_spawn),
+        nesting_depth: launch_spec.map_or(1, |launch| launch.nesting_depth),
+    }
+}
+
+fn team_member_authority_matches_worker(
+    candidate: &SubagentLaunchAuthority,
+    worker_lineage: &TeamDelegationLineageSnapshot,
+) -> bool {
+    candidate.kind == SubagentLaunchAuthorityKind::TeamMember
+        && candidate.validate().is_ok()
+        && candidate.team_lineage.as_ref().is_some_and(|member| {
+            member.team_definition_id == worker_lineage.team_definition_id
+                && member.team_definition_revision == worker_lineage.team_definition_revision
+                && member.team_instance_id == worker_lineage.team_instance_id
+                && member.team_run_id == worker_lineage.team_run_id
+                && member.member_run_id == worker_lineage.member_run_id
+                && member.member_id == worker_lineage.member_id
+                && member.root_parent_session_id == worker_lineage.root_parent_session_id
+        })
+}
+
+fn team_worker_authority_matches_lineage(
+    candidate: &SubagentLaunchAuthority,
+    expected: &TeamDelegationLineageSnapshot,
+) -> bool {
+    candidate.kind == SubagentLaunchAuthorityKind::TeamWorker
+        && candidate.team_lineage.as_ref() == Some(expected)
 }
 
 fn team_follow_up_child_is_busy(
@@ -914,6 +1084,23 @@ async fn execute_team_tool_after_checkpoint(
     executor.execute_team_tool(invocation).await
 }
 
+async fn execute_team_member_tool_after_checkpoint(
+    executor: &dyn TeamToolExecutor,
+    invocation: TeamMemberToolInvocation,
+    checkpoint: VoidResult<PersistedToolCallAuthority>,
+) -> VoidResult<TeamToolExecutionOutcome> {
+    let authority = checkpoint?;
+    if authority.tool_name != TEAM_MEMBER_TOOL_NAME
+        || authority.round_id != invocation.round_id
+        || authority.input != invocation.exact_input
+    {
+        return Err(VoidError::Validation(
+            "Persisted TeamMember tool authority does not match the current invocation".to_string(),
+        ));
+    }
+    executor.execute_team_member_tool(invocation).await
+}
+
 /// Conversation coordinator
 pub struct ConversationCoordinator {
     session_manager: Arc<SessionManager>,
@@ -927,6 +1114,8 @@ pub struct ConversationCoordinator {
     subagent_timeout_registry: Arc<RwLock<HashMap<String, Arc<SubagentTimeoutHandle>>>>,
     /// Active subagent executions keyed by subagent session id.
     active_subagent_executions: Arc<DashMap<String, ActiveSubagentExecution>>,
+    /// Serializes the small Team-member worker budget reservation boundary.
+    delegation_budget_guard: Arc<Mutex<()>>,
     /// Notifies DialogScheduler of turn outcomes; injected after construction
     scheduler_notify_tx: OnceLock<mpsc::Sender<(String, TurnOutcome)>>,
     /// Round-boundary yield (same source as scheduler's yield flags); injected after construction
@@ -1459,6 +1648,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             subagent_profile_concurrency_limiters: Arc::new(RwLock::new(HashMap::new())),
             subagent_timeout_registry: Arc::new(RwLock::new(HashMap::new())),
             active_subagent_executions: Arc::new(DashMap::new()),
+            delegation_budget_guard: Arc::new(Mutex::new(())),
             scheduler_notify_tx: OnceLock::new(),
             round_preempt_source: OnceLock::new(),
             round_injection_source: OnceLock::new(),
@@ -1536,6 +1726,31 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             )
             .await;
         execute_team_tool_after_checkpoint(executor.as_ref(), invocation, checkpoint).await
+    }
+
+    /// Execute an authoritative Team member completion after durably recording
+    /// the exact model-issued tool call in that member's child session.
+    pub async fn execute_team_member_tool(
+        &self,
+        invocation: TeamMemberToolInvocation,
+    ) -> VoidResult<TeamToolExecutionOutcome> {
+        invocation.validate()?;
+        let executor =
+            self.team_tool_executor.get().cloned().ok_or_else(|| {
+                VoidError::tool("Team runtime executor is not installed".to_string())
+            })?;
+        let checkpoint = self
+            .session_manager
+            .checkpoint_current_tool_call_before_execution(
+                &invocation.member_session_id,
+                &invocation.dialog_turn_id,
+                &invocation.round_id,
+                TEAM_MEMBER_TOOL_NAME,
+                &invocation.tool_call_id,
+                invocation.exact_input.clone(),
+            )
+            .await;
+        execute_team_member_tool_after_checkpoint(executor.as_ref(), invocation, checkpoint).await
     }
 
     /// Dynamically adjust a running subagent's timeout.
@@ -5325,9 +5540,19 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
     async fn resolve_hidden_subagent_execution_request(
         &self,
-        request: SubagentExecutionRequest,
+        mut request: SubagentExecutionRequest,
         inherited_session_config: Option<SessionConfig>,
+        team_member_skill_policy: Option<&TeamMemberSkillPolicySnapshot>,
     ) -> VoidResult<HiddenSubagentExecutionRequest> {
+        let authority_parent = request.subagent_parent_info.clone();
+        let has_typed_team_member_authority = team_member_skill_policy.is_some()
+            && TeamDelegationBudget::from_context(&request.context).is_some();
+        request.delegation_policy = resolve_child_delegation_policy(
+            request.delegation_policy,
+            &mut request.context,
+            &authority_parent,
+            has_typed_team_member_authority,
+        );
         let task_description = request.task_description.trim().to_string();
         if task_description.is_empty() {
             return Err(VoidError::Validation(
@@ -5453,6 +5678,73 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     /// DialogTurnStarted event not needed for now
     ///
     /// Returns SubagentResult with the final text response
+    async fn ensure_team_worker_budget_available(
+        &self,
+        parent_session_id: &str,
+        authority: &SubagentLaunchAuthority,
+    ) -> VoidResult<()> {
+        if authority.kind != SubagentLaunchAuthorityKind::TeamWorker {
+            return Ok(());
+        }
+        let lineage = authority.team_lineage.as_ref().ok_or_else(|| {
+            VoidError::Validation("Team worker launch is missing durable lineage".to_string())
+        })?;
+        let root_tasks = self
+            .session_manager
+            .list_subagent_tasks(&lineage.root_parent_session_id)
+            .await?;
+        let parent_authority = root_tasks
+            .iter()
+            .find(|task| {
+                task.child_session_id.as_deref() == Some(parent_session_id)
+                    && task.launch_authority.as_ref().is_some_and(|candidate| {
+                        team_member_authority_matches_worker(candidate, lineage)
+                    })
+            })
+            .and_then(|task| task.launch_authority.as_ref())
+            .ok_or_else(|| {
+                VoidError::Validation(
+                    "Team worker launch cannot resolve its parent member authority".to_string(),
+                )
+            })?;
+        parent_authority
+            .validate()
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        let budget = parent_authority.task_spawn_budget;
+        let max_parallel_workers = parent_authority.max_parallel_workers;
+        let existing = self
+            .session_manager
+            .list_subagent_tasks(parent_session_id)
+            .await?;
+        let request_ids = existing
+            .iter()
+            .filter_map(|task| task.launch_authority.as_ref())
+            .filter(|candidate| team_worker_authority_matches_lineage(candidate, lineage))
+            .map(|candidate| candidate.delegation_request_id.as_str())
+            .collect::<HashSet<_>>();
+        if request_ids.contains(authority.delegation_request_id.as_str()) {
+            return Ok(());
+        }
+        if request_ids.len() >= usize::from(budget) {
+            return Err(VoidError::Validation(format!(
+                "Team member worker Task budget exhausted ({budget})"
+            )));
+        }
+        let active_request_ids = existing
+            .iter()
+            .filter(|task| !task.status.is_terminal())
+            .filter_map(|task| task.launch_authority.as_ref())
+            .filter(|candidate| team_worker_authority_matches_lineage(candidate, lineage))
+            .map(|candidate| candidate.delegation_request_id.as_str())
+            .collect::<HashSet<_>>();
+        if active_request_ids.len() >= usize::from(max_parallel_workers) {
+            return Err(VoidError::Validation(format!(
+                "Team member parallel worker limit reached ({max_parallel_workers})"
+            )));
+        }
+        Ok(())
+    }
+
     pub(crate) async fn execute_subagent(
         &self,
         request: SubagentExecutionRequest,
@@ -5464,18 +5756,38 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             SubagentContextMode::Fork => SubagentTaskContextMode::Fork,
         };
         let mut request = self
-            .resolve_hidden_subagent_execution_request(request, None)
+            .resolve_hidden_subagent_execution_request(request, None, None)
+            .await?;
+        let launch_parent = request.subagent_parent_info.clone().ok_or_else(|| {
+            VoidError::Validation("subagent launch is missing parent identity".to_string())
+        })?;
+        let launch_authority = launch_authority_for_request(
+            request.delegation_policy,
+            &request.context,
+            &launch_parent,
+            TeamDelegationBudget::from_context(&request.context),
+        )?;
+        let _budget_guard = if launch_authority.kind == SubagentLaunchAuthorityKind::TeamWorker {
+            Some(self.delegation_budget_guard.lock().await)
+        } else {
+            None
+        };
+        self.ensure_team_worker_budget_available(&launch_parent.session_id, &launch_authority)
             .await?;
         let persistent_task =
             request
                 .subagent_parent_info
                 .as_ref()
                 .map(|parent| PersistentSubagentTaskContext {
-                    task_id: format!("subagent-{}", uuid::Uuid::new_v4()),
+                    task_id: if launch_authority.kind == SubagentLaunchAuthorityKind::TeamWorker {
+                        format!("team-worker-{}", parent.tool_call_id)
+                    } else {
+                        format!("subagent-{}", uuid::Uuid::new_v4())
+                    },
                     parent_session_id: parent.session_id.clone(),
                 });
         if let Some(task) = persistent_task.as_ref() {
-            let record = SubagentTaskRecord::new_typed(
+            let mut record = SubagentTaskRecord::new_typed(
                 task.task_id.clone(),
                 task.parent_session_id.clone(),
                 request.user_input_text.clone(),
@@ -5485,14 +5797,31 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 SubagentTaskReplaySafety::Idempotent,
                 now_ms(),
             );
+            record.launch_spec = Some(SubagentTaskLaunchSpec {
+                agent_type: request.agent_type.clone(),
+                parent_dialog_turn_id: launch_parent.dialog_turn_id.clone(),
+                parent_tool_call_id: launch_parent.tool_call_id.clone(),
+                context: durable_subagent_context(&request.context),
+                allow_subagent_spawn: false,
+                nesting_depth: request.delegation_policy.nesting_depth,
+                timeout_seconds,
+                team_member_skill_policy: request.team_member_skill_policy.clone(),
+            });
+            record.launch_authority = Some(launch_authority.clone());
             match self.session_manager.create_subagent_task(record).await {
                 Ok(_) => request.persistent_task = Some(task.clone()),
-                Err(error) => warn!(
-                    "Failed to persist synchronous subagent task; execution semantics are unchanged: parent_session_id={}, task_id={}, error={}",
-                    task.parent_session_id, task.task_id, error
-                ),
+                Err(error) if launch_authority.kind == SubagentLaunchAuthorityKind::TeamWorker => {
+                    return Err(error);
+                }
+                Err(error) => {
+                    warn!(
+                        "Failed to persist synchronous subagent task; execution semantics are unchanged: parent_session_id={}, task_id={}, error={}",
+                        task.parent_session_id, task.task_id, error
+                    );
+                }
             }
         }
+        drop(_budget_guard);
 
         let outcome = self
             .execute_hidden_subagent_internal(request, cancel_token, timeout_seconds)
@@ -5950,6 +6279,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             let parent_session_id = parent_session_id.to_string();
             let task_description = task.objective.clone();
             let launch_spec = launch_spec.clone();
+            let delegation_policy = delegation_policy_from_task(&task);
             let child_session_id = child_session_id.to_string();
             tokio::spawn(async move {
                 let request = HiddenSubagentExecutionRequest {
@@ -5967,15 +6297,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         dialog_turn_id: launch_spec.parent_dialog_turn_id.clone(),
                     }),
                     context: launch_spec.context.clone().into_iter().collect(),
-                    delegation_policy: DelegationPolicy {
-                        allow_subagent_spawn: launch_spec.allow_subagent_spawn,
-                        nesting_depth: launch_spec.nesting_depth,
-                    },
+                    delegation_policy,
                     runtime_tool_restrictions: runtime_tool_restrictions_for_delegation_policy(
-                        DelegationPolicy {
-                            allow_subagent_spawn: launch_spec.allow_subagent_spawn,
-                            nesting_depth: launch_spec.nesting_depth,
-                        },
+                        delegation_policy,
                     ),
                     prompt_cache_source_session_id: None,
                     persistent_task: Some(PersistentSubagentTaskContext {
@@ -6060,12 +6384,13 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         request: SubagentExecutionRequest,
         timeout_seconds: Option<u64>,
     ) -> VoidResult<BackgroundSubagentStartResult> {
-        self.ensure_background_subagent_with_task_id(
-            format!("bg-subagent-{}", uuid::Uuid::new_v4()),
-            request,
-            timeout_seconds,
-        )
-        .await
+        let background_task_id = if request.delegation_policy.tier() == DelegationTier::TeamWorker {
+            format!("team-worker-{}", request.subagent_parent_info.tool_call_id)
+        } else {
+            format!("bg-subagent-{}", uuid::Uuid::new_v4())
+        };
+        self.ensure_background_subagent_with_task_id(background_task_id, request, timeout_seconds)
+            .await
     }
 
     /// Idempotently create and start one background subagent task with a caller-owned,
@@ -6125,7 +6450,11 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             ));
         }
         let mut request = self
-            .resolve_hidden_subagent_execution_request(request, inherited_session_config)
+            .resolve_hidden_subagent_execution_request(
+                request,
+                inherited_session_config,
+                team_member_skill_policy.as_ref(),
+            )
             .await?;
         request.team_member_skill_policy = team_member_skill_policy;
         let agent_type = request.agent_type.clone();
@@ -6149,6 +6478,22 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         let background_task_id_for_delivery = background_task_id.clone();
         let task_description = request.user_input_text.clone();
         let request_context = request.context.clone();
+        let launch_authority = launch_authority_for_request(
+            request.delegation_policy,
+            &request_context,
+            &subagent_parent_info,
+            TeamDelegationBudget::from_context(&request_context),
+        )?;
+        let _budget_guard = if launch_authority.kind == SubagentLaunchAuthorityKind::TeamWorker {
+            Some(self.delegation_budget_guard.lock().await)
+        } else {
+            None
+        };
+        self.ensure_team_worker_budget_available(
+            &subagent_parent_info.session_id,
+            &launch_authority,
+        )
+        .await?;
         let mut task_record = SubagentTaskRecord::new_typed(
             background_task_id.clone(),
             subagent_parent_info.session_id.clone(),
@@ -6168,11 +6513,14 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             parent_dialog_turn_id: subagent_parent_info.dialog_turn_id.clone(),
             parent_tool_call_id: subagent_parent_info.tool_call_id.clone(),
             context: durable_subagent_context(&request_context),
-            allow_subagent_spawn: request.delegation_policy.allow_subagent_spawn,
+            // Keep the legacy field fail-closed. Typed authority below owns
+            // Team-member Task delegation and recovery.
+            allow_subagent_spawn: false,
             nesting_depth: request.delegation_policy.nesting_depth,
             timeout_seconds,
             team_member_skill_policy: request.team_member_skill_policy.clone(),
         });
+        task_record.launch_authority = Some(launch_authority);
         if let Some(existing) = self
             .session_manager
             .get_subagent_task(&subagent_parent_info.session_id, &background_task_id)
@@ -6215,6 +6563,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 });
             }
         }
+        drop(_budget_guard);
         request.persistent_task = Some(PersistentSubagentTaskContext {
             task_id: background_task_id.clone(),
             parent_session_id: subagent_parent_info.session_id.clone(),
@@ -6379,7 +6728,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             return Ok(PreparedTurnDisposition::Reused);
         }
 
-        let delegation_policy = delegation_policy_from_launch_spec(launch_spec);
+        let delegation_policy = delegation_policy_from_task(task);
         let request = HiddenSubagentExecutionRequest {
             session_name: latest_child.session_name.clone(),
             agent_type: launch_spec.agent_type.clone(),
@@ -6991,16 +7340,18 @@ pub fn get_global_coordinator() -> Option<Arc<ConversationCoordinator>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        background_subagent_launch_matches, delegation_policy_from_launch_spec,
+        background_subagent_launch_matches, delegation_policy_from_task,
         execute_team_tool_after_checkpoint, install_team_lead_persona_resolver,
         install_team_member_recovery_preflight, install_team_tool_executor,
         launch_requires_team_recovery_preflight, normalize_subagent_max_concurrency,
         recovery_ticket_matches_task, remove_active_subagent_execution_if_generation_matches,
-        resolve_agent_submission_turn_id, resolved_subagent_resume_storage_path,
-        runtime_tool_restrictions_for_delegation_policy, should_spawn_team_follow_up,
-        team_follow_up_child_is_busy, team_follow_up_dialog_turn_id, ActiveSubagentExecution,
-        ConversationCoordinator, TeamMemberRecoveryPreflight, TeamMemberRecoveryPreflightError,
-        TeamMemberRecoveryTicket,
+        resolve_agent_submission_turn_id, resolve_child_delegation_policy,
+        resolved_subagent_resume_storage_path, runtime_tool_restrictions_for_delegation_policy,
+        should_spawn_team_follow_up, team_follow_up_child_is_busy, team_follow_up_dialog_turn_id,
+        team_member_authority_matches_worker, team_worker_authority_matches_lineage,
+        ActiveSubagentExecution, ConversationCoordinator, SubagentParentInfo,
+        TeamMemberRecoveryPreflight, TeamMemberRecoveryPreflightError, TeamMemberRecoveryTicket,
+        TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY,
     };
     use crate::agentic::session::PersistedToolCallAuthority;
     use crate::agentic::session::PreparedTurnDisposition;
@@ -7875,8 +8226,9 @@ mod tests {
     fn background_subagent_launch_match_requires_identical_immutable_facts() {
         use std::collections::BTreeMap;
         use void_core_types::{
-            SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec,
-            SubagentTaskRecord, SubagentTaskReplaySafety,
+            SubagentLaunchAuthority, SubagentLaunchAuthorityKind, SubagentTaskContextMode,
+            SubagentTaskExecutionMode, SubagentTaskLaunchSpec, SubagentTaskRecord,
+            SubagentTaskReplaySafety,
         };
 
         let mut expected = SubagentTaskRecord::new_typed(
@@ -7899,36 +8251,182 @@ mod tests {
             timeout_seconds: Some(60),
             team_member_skill_policy: None,
         });
+        expected.launch_authority = Some(SubagentLaunchAuthority {
+            schema_version: void_core_types::SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+            kind: SubagentLaunchAuthorityKind::OrdinaryChild,
+            delegation_request_id: "tool".to_string(),
+            nesting_depth: 1,
+            max_nesting_depth: 1,
+            task_spawn_budget: 0,
+            max_parallel_workers: 0,
+            team_lineage: None,
+        });
         let mut matching = expected.clone();
         matching.owner = "different owner is not a launch fact".to_string();
         assert!(background_subagent_launch_matches(&matching, &expected));
 
         matching.objective = "different objective".to_string();
         assert!(!background_subagent_launch_matches(&matching, &expected));
+
+        matching = expected.clone();
+        matching
+            .launch_authority
+            .as_mut()
+            .unwrap()
+            .delegation_request_id = "different-tool".to_string();
+        assert!(!background_subagent_launch_matches(&matching, &expected));
     }
 
     #[test]
-    fn team_follow_up_launch_policy_keeps_delegation_tools_denied() {
-        use std::collections::BTreeMap;
-        use void_core_types::SubagentTaskLaunchSpec;
-
-        let launch = SubagentTaskLaunchSpec {
-            agent_type: "reviewer".to_string(),
-            parent_dialog_turn_id: "turn".to_string(),
-            parent_tool_call_id: "tool".to_string(),
-            context: BTreeMap::new(),
-            allow_subagent_spawn: false,
+    fn invalid_persisted_authority_fails_closed_to_ordinary_child() {
+        let mut task = SubagentTaskRecord::new(
+            "task".into(),
+            "parent".into(),
+            "objective".into(),
+            "owner".into(),
+            1,
+        );
+        task.launch_authority = Some(void_core_types::SubagentLaunchAuthority {
+            schema_version: void_core_types::SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+            kind: void_core_types::SubagentLaunchAuthorityKind::TeamMember,
+            delegation_request_id: "tool".into(),
             nesting_depth: 1,
-            timeout_seconds: Some(60),
-            team_member_skill_policy: None,
+            max_nesting_depth: 2,
+            task_spawn_budget: 8,
+            max_parallel_workers: 3,
+            team_lineage: None,
+        });
+
+        let policy = delegation_policy_from_task(&task);
+        assert!(!policy.allows_task_spawn());
+        assert!(!policy.allows_team_orchestration());
+    }
+
+    #[test]
+    fn worker_budget_parent_match_is_isolated_by_member_run_id() {
+        let member_lineage = void_core_types::TeamDelegationLineageSnapshot {
+            team_definition_id: "definition".into(),
+            team_definition_revision: "revision".into(),
+            team_instance_id: "instance".into(),
+            team_run_id: "team-run".into(),
+            member_run_id: "member-run-1".into(),
+            member_id: "writer".into(),
+            root_parent_session_id: "root".into(),
+            parent_member_session_id: None,
         };
-        let policy = delegation_policy_from_launch_spec(&launch);
+        let member = void_core_types::SubagentLaunchAuthority {
+            schema_version: void_core_types::SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+            kind: void_core_types::SubagentLaunchAuthorityKind::TeamMember,
+            delegation_request_id: "member-launch".into(),
+            nesting_depth: 1,
+            max_nesting_depth: 2,
+            task_spawn_budget: 8,
+            max_parallel_workers: 3,
+            team_lineage: Some(member_lineage.clone()),
+        };
+        let mut worker_lineage = member_lineage;
+        worker_lineage.parent_member_session_id = Some("member-session".into());
+        assert!(team_member_authority_matches_worker(
+            &member,
+            &worker_lineage
+        ));
+
+        worker_lineage.member_run_id = "member-run-2".into();
+        assert!(!team_member_authority_matches_worker(
+            &member,
+            &worker_lineage
+        ));
+    }
+
+    #[test]
+    fn worker_budget_scope_ignores_historical_member_runs() {
+        let current_lineage = void_core_types::TeamDelegationLineageSnapshot {
+            team_definition_id: "definition".into(),
+            team_definition_revision: "revision".into(),
+            team_instance_id: "instance".into(),
+            team_run_id: "team-run-2".into(),
+            member_run_id: "member-run-2".into(),
+            member_id: "writer".into(),
+            root_parent_session_id: "root".into(),
+            parent_member_session_id: Some("member-session".into()),
+        };
+        let mut worker = void_core_types::SubagentLaunchAuthority {
+            schema_version: void_core_types::SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+            kind: void_core_types::SubagentLaunchAuthorityKind::TeamWorker,
+            delegation_request_id: "worker-tool".into(),
+            nesting_depth: 2,
+            max_nesting_depth: 2,
+            task_spawn_budget: 0,
+            max_parallel_workers: 0,
+            team_lineage: Some(current_lineage.clone()),
+        };
+
+        assert!(team_worker_authority_matches_lineage(
+            &worker,
+            &current_lineage
+        ));
+
+        worker.task_spawn_budget = 1;
+        assert!(worker.validate().is_err());
+        assert!(team_worker_authority_matches_lineage(
+            &worker,
+            &current_lineage
+        ));
+
+        worker.task_spawn_budget = 0;
+        worker.team_lineage.as_mut().unwrap().member_run_id = "member-run-1".into();
+        assert!(!team_worker_authority_matches_lineage(
+            &worker,
+            &current_lineage
+        ));
+    }
+
+    #[test]
+    fn team_member_may_spawn_one_worker_level_without_team_authority() {
+        let policy = DelegationPolicy::team_member();
         let restrictions = runtime_tool_restrictions_for_delegation_policy(policy);
 
-        assert!(!policy.allow_subagent_spawn);
-        assert_eq!(policy.nesting_depth, 1);
-        assert!(restrictions.denied_tool_names.contains("Task"));
+        assert!(policy.allows_task_spawn());
+        assert!(!restrictions.denied_tool_names.contains("Task"));
         assert!(restrictions.denied_tool_names.contains("Team"));
+
+        let worker = policy.spawn_child();
+        let worker_restrictions = runtime_tool_restrictions_for_delegation_policy(worker);
+        assert_eq!(worker.nesting_depth, 2);
+        assert!(!worker.allows_task_spawn());
+        assert!(worker_restrictions.denied_tool_names.contains("Task"));
+        assert!(worker_restrictions.denied_tool_names.contains("Team"));
+    }
+
+    #[test]
+    fn team_member_policy_requires_typed_adapter_authority() {
+        let parent = SubagentParentInfo {
+            tool_call_id: "tool".into(),
+            session_id: "parent".into(),
+            dialog_turn_id: "turn".into(),
+        };
+        let mut context = HashMap::new();
+        let denied = resolve_child_delegation_policy(
+            DelegationPolicy::team_member(),
+            &mut context,
+            &parent,
+            false,
+        );
+        assert!(!denied.allows_task_spawn());
+
+        let granted = resolve_child_delegation_policy(
+            DelegationPolicy::ordinary_child(1),
+            &mut context,
+            &parent,
+            true,
+        );
+        assert!(granted.allows_task_spawn());
+        assert_eq!(
+            context
+                .get(TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY)
+                .map(String::as_str),
+            Some("parent")
+        );
     }
 
     #[test]

@@ -45,6 +45,9 @@ vi.mock('react-i18next', () => ({
         'teamWorkspace.memberStatus.running': '工作中',
         'teamWorkspace.phaseStatus.running': '进行中',
         'teamWorkspace.phaseKinds.serial': '依次进行',
+        'teamWorkspace.delegation.loading': '正在加载委派工作…',
+        'teamWorkspace.delegation.partial': '部分委派工作暂不可用',
+        'teamWorkspace.delegation.error': '委派工作不可用',
         'teamWorkspace.memberConversation.loadingTitle': '正在打开成员会话',
         'teamWorkspace.memberConversation.loadingDescription': '正在恢复这位成员的工作记录。',
         'teamWorkspace.memberConversation.notStartedTitle': '尚未开始对话',
@@ -53,6 +56,7 @@ vi.mock('react-i18next', () => ({
       if (key === 'teamWorkspace.members.count') return `${values?.count ?? 0} 人`;
       if (key === 'teamWorkspace.phases.count') return `${values?.count ?? 0} 个`;
       if (key === 'teamWorkspace.members.open') return `查看${values?.name ?? ''}的会话`;
+      if (key === 'teamWorkspace.delegation.open') return `打开${values?.name ?? ''}的 Worker 会话`;
       if (key === 'teamWorkspace.updatedAt') return `更新于 ${values?.value ?? ''}`;
       return translations[key] ?? key;
     },
@@ -189,11 +193,13 @@ function activeTeam(): TeamWorkspaceTeamProjection {
       {
         definition: definition.members[0]!,
         state: { source: 'definition', status: 'not_started' },
+        delegation: { status: 'ready', tasks: [] },
       },
       {
         definition: definition.members[1]!,
         state: { source: 'runtime', status: 'running', run: developerRun },
         childSessionId: 'child-1',
+        delegation: { status: 'ready', tasks: [] },
       },
     ],
     phases: [{
@@ -304,6 +310,7 @@ describe('TeamWorkspacePanel', () => {
     team.members[1] = {
       definition: team.definition.members[1]!,
       state: { source: 'definition', status: 'not_started' },
+      delegation: { status: 'ready', tasks: [] },
     };
     await render(readyState(team));
 
@@ -361,6 +368,7 @@ describe('TeamWorkspacePanel', () => {
       definition: reviewer,
       state: { source: 'definition', status: 'not_started' },
       childSessionId: 'child-2',
+      delegation: { status: 'ready', tasks: [] },
     });
     await act(async () => {
       root.render(
@@ -392,6 +400,76 @@ describe('TeamWorkspacePanel', () => {
     });
 
     expect(document.activeElement?.getAttribute('aria-label')).toBe('查看开发工程师的会话');
+  });
+
+  it('在成员下递归展示 Worker，并打开 Core 返回的真实子会话', async () => {
+    const team = activeTeam();
+    team.definition.schemaVersion = 2;
+    team.definition.members[1]!.delegationPolicy = {
+      kind: 'bounded',
+      maxWorkerTasks: 8,
+      maxParallelWorkers: 3,
+    };
+    team.members[1]!.delegation = {
+      status: 'ready',
+      tasks: [
+        {
+          taskId: 'worker-1',
+          parentSessionId: 'child-1',
+          teamInstanceId: 'instance-1',
+          memberId: 'developer',
+          memberRunId: 'member-run-1',
+          childSessionId: 'worker-child-1',
+          objective: '实现登录流程',
+          owner: '登录工程师',
+          status: 'running',
+          depth: 1,
+          createdAt: 4,
+          updatedAt: 5,
+        },
+        {
+          taskId: 'worker-2',
+          parentTaskId: 'worker-1',
+          parentSessionId: 'worker-child-1',
+          teamInstanceId: 'instance-1',
+          memberId: 'developer',
+          memberRunId: 'member-run-1',
+          childSessionId: 'worker-child-2',
+          objective: '补齐登录测试',
+          owner: '测试 Worker',
+          status: 'created',
+          depth: 2,
+          createdAt: 5,
+          updatedAt: 6,
+        },
+      ],
+    };
+    await render(readyState(team));
+
+    expect(container.querySelectorAll('.team-workspace-panel__map-worker')).toHaveLength(2);
+    expect(container.querySelector('.team-workspace-panel__map-worker[data-depth="2"]')).not.toBeNull();
+    const workerButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="打开测试 Worker的 Worker 会话"]',
+    );
+    await act(async () => {
+      workerButton?.click();
+      await Promise.resolve();
+    });
+
+    const conversation = container.querySelector<HTMLElement>('[data-testid="member-conversation"]');
+    expect(conversation?.dataset.childSessionId).toBe('worker-child-2');
+    expect(conversation?.dataset.parentSessionId).toBe('worker-child-1');
+    expect(conversation?.textContent).toBe('测试 Worker');
+  });
+
+  it('在成员节点旁明确展示委派加载状态', async () => {
+    const team = activeTeam();
+    team.members[1]!.delegation = { status: 'loading', tasks: [] };
+    await render(readyState(team));
+
+    const stateLabel = container.querySelector('.team-workspace-panel__map-delegation-state');
+    expect(stateLabel?.getAttribute('data-state')).toBe('loading');
+    expect(stateLabel?.textContent).toBe('正在加载委派工作…');
   });
 
   it('错误状态显示本地化恢复信息，重试走注入的 reload', async () => {

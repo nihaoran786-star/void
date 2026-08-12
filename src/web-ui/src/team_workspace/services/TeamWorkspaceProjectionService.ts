@@ -12,6 +12,7 @@ import {
 } from '@/shared/services/customization/adapters/DesktopTeamRuntimeAdapter';
 import type { TeamAuthoringGateway } from '@/shared/services/customization/TeamAuthoringGateway';
 import type {
+  TeamDelegatedTaskList,
   TeamRun,
   TeamRuntimeDiagnostic,
   TeamRuntimeGateway,
@@ -33,6 +34,11 @@ const TERMINAL_RUN_STATUSES = new Set<TeamRun['status']>([
   'interrupted',
   'cancelled',
 ]);
+
+function memberDelegationEnabled(member: TeamMemberDefinition): boolean {
+  if (member.role === 'lead') return false;
+  return member.delegationPolicy?.kind !== 'disabled';
+}
 
 type AttemptRecord = {
   attempt: number;
@@ -155,6 +161,7 @@ function projectMember(
       state: { source: 'definition', status: 'not_started' },
       childSessionId: binding?.childSessionId,
       subagentTaskId: binding?.subagentTaskId,
+      delegation: { status: 'ready', tasks: [] },
     };
   }
 
@@ -183,16 +190,115 @@ function projectMember(
       },
       childSessionId: binding?.childSessionId,
       subagentTaskId: binding?.subagentTaskId,
+      delegation: { status: 'ready', tasks: [] },
     };
   }
   const run = selection.record;
+  const childSessionId = run?.childSessionId ?? binding?.childSessionId;
+  const delegationEnabled = memberDelegationEnabled(member)
+    && Boolean(run?.memberRunId)
+    && Boolean(childSessionId);
   return {
     definition: member,
     state: run
       ? { source: 'runtime', status: run.status, run }
       : { source: 'definition', status: 'not_started' },
-    childSessionId: run?.childSessionId ?? binding?.childSessionId,
+    childSessionId,
     subagentTaskId: run?.subagentTaskId ?? binding?.subagentTaskId,
+    delegation: delegationEnabled
+      ? { status: 'loading', tasks: [] }
+      : { status: 'ready', tasks: [] },
+  };
+}
+
+async function hydrateTeamDelegation(
+  team: TeamWorkspaceTeamProjection,
+  parentSessionId: string,
+  runtimeGateway: TeamRuntimeGateway,
+): Promise<TeamWorkspaceTeamProjection> {
+  const delegatedMembers = team.members.filter(member => (
+    memberDelegationEnabled(member.definition)
+    && member.state.source === 'runtime'
+    && Boolean(member.childSessionId)
+  ));
+  if (delegatedMembers.length === 0) {
+    return {
+      ...team,
+      members: team.members.map(member => ({
+        ...member,
+        delegation: { status: 'ready', tasks: [] },
+      })),
+    };
+  }
+
+  let result: TeamDelegatedTaskList;
+  try {
+    result = await runtimeGateway.listDelegatedTasks({
+      parentSessionId,
+      teamInstanceId: team.teamInstanceId,
+    });
+  } catch (error) {
+    result = {
+      status: 'error' as const,
+      tasks: [] as [],
+      issues: [{
+        parentSessionId,
+        teamInstanceId: team.teamInstanceId,
+        memberId: undefined,
+        code: 'task_read_failed' as const,
+        message: errorMessage(error),
+        retryable: true,
+      }],
+    };
+  }
+  const delegationIssues = result.issues.map(item => createIssue({
+    code: 'delegated_task_read_failed',
+    source: 'runtime_gateway',
+    message: item.message,
+    retryable: item.retryable,
+    teamDefinitionId: team.teamDefinitionId,
+    teamInstanceId: team.teamInstanceId,
+    memberId: item.memberId,
+  }));
+  const members = team.members.map(member => {
+    const runtimeRun = member.state.source === 'runtime' ? member.state.run : null;
+    if (
+      !memberDelegationEnabled(member.definition)
+      || !runtimeRun
+      || !member.childSessionId
+    ) {
+      return {
+        ...member,
+        delegation: { status: 'ready', tasks: [] },
+      } satisfies TeamWorkspaceMemberProjection;
+    }
+    const tasks = result.tasks.filter(task => (
+      task.memberId === member.definition.memberId
+      && task.memberRunId === runtimeRun.memberRunId
+    ));
+    const error = delegationIssues.find(issue => issue.memberId === member.definition.memberId)
+      ?? delegationIssues.find(issue => !issue.memberId);
+    if (result.status === 'error' && error) {
+      return {
+        ...member,
+        delegation: { status: 'error', tasks: [], error },
+      } satisfies TeamWorkspaceMemberProjection;
+    }
+    if (result.status === 'partial' && error) {
+      return {
+        ...member,
+        delegation: { status: 'partial', tasks, error },
+      } satisfies TeamWorkspaceMemberProjection;
+    }
+    return {
+      ...member,
+      delegation: { status: 'ready', tasks },
+    } satisfies TeamWorkspaceMemberProjection;
+  });
+  return {
+    ...team,
+    members,
+    issues: [...team.issues, ...delegationIssues],
   };
 }
 
@@ -582,7 +688,13 @@ implements TeamWorkspaceProjectionReader {
         continue;
       }
       const definitionRecord = exactMatches[0];
-      if (definitionRecord) teams.push(projectTeam(runtimeRecord, definitionRecord));
+      if (definitionRecord) {
+        teams.push(await hydrateTeamDelegation(
+          projectTeam(runtimeRecord, definitionRecord),
+          input.parentSessionId,
+          this.runtimeGateway,
+        ));
+      }
     }
 
     teams.sort((left, right) => (

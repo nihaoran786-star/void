@@ -994,8 +994,65 @@ pub trait SessionTranscriptReader: Send + Sync {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct DelegationPolicy {
+    /// Legacy serialized Task authority. Keep this field for persisted/runtime
+    /// compatibility; callers should prefer the typed query methods below.
     pub allow_subagent_spawn: bool,
     pub nesting_depth: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DelegationTier {
+    TopLevel,
+    OrdinaryChild,
+    TeamMember,
+    TeamWorker,
+}
+
+pub const TEAM_DELEGATION_MAX_WORKER_TASKS_CONTEXT_KEY: &str = "teamDelegationMaxWorkerTasks";
+pub const TEAM_DELEGATION_MAX_PARALLEL_WORKERS_CONTEXT_KEY: &str =
+    "teamDelegationMaxParallelWorkers";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TeamDelegationBudget {
+    pub max_worker_tasks: u8,
+    pub max_parallel_workers: u8,
+}
+
+impl TeamDelegationBudget {
+    pub fn bounded(max_worker_tasks: u8, max_parallel_workers: u8) -> Option<Self> {
+        (max_worker_tasks > 0
+            && max_parallel_workers > 0
+            && max_parallel_workers <= max_worker_tasks)
+            .then_some(Self {
+                max_worker_tasks,
+                max_parallel_workers,
+            })
+    }
+
+    pub fn write_context(self, context: &mut std::collections::HashMap<String, String>) {
+        context.insert(
+            TEAM_DELEGATION_MAX_WORKER_TASKS_CONTEXT_KEY.to_string(),
+            self.max_worker_tasks.to_string(),
+        );
+        context.insert(
+            TEAM_DELEGATION_MAX_PARALLEL_WORKERS_CONTEXT_KEY.to_string(),
+            self.max_parallel_workers.to_string(),
+        );
+    }
+
+    pub fn from_context(context: &std::collections::HashMap<String, String>) -> Option<Self> {
+        let max_worker_tasks = context
+            .get(TEAM_DELEGATION_MAX_WORKER_TASKS_CONTEXT_KEY)?
+            .parse::<u8>()
+            .ok()?;
+        let max_parallel_workers = context
+            .get(TEAM_DELEGATION_MAX_PARALLEL_WORKERS_CONTEXT_KEY)?
+            .parse::<u8>()
+            .ok()?;
+        Self::bounded(max_worker_tasks, max_parallel_workers)
+    }
 }
 
 impl Default for DelegationPolicy {
@@ -1013,10 +1070,51 @@ impl DelegationPolicy {
     }
 
     pub fn spawn_child(self) -> Self {
+        match self.tier() {
+            DelegationTier::TeamMember => Self::team_worker(),
+            _ => Self::ordinary_child(self.nesting_depth.saturating_add(1)),
+        }
+    }
+
+    pub fn team_member() -> Self {
+        Self {
+            allow_subagent_spawn: true,
+            nesting_depth: 1,
+        }
+    }
+
+    pub fn team_worker() -> Self {
         Self {
             allow_subagent_spawn: false,
-            nesting_depth: self.nesting_depth.saturating_add(1),
+            nesting_depth: 2,
         }
+    }
+
+    pub fn ordinary_child(nesting_depth: u8) -> Self {
+        Self {
+            allow_subagent_spawn: false,
+            nesting_depth,
+        }
+    }
+
+    pub fn tier(self) -> DelegationTier {
+        match (self.allow_subagent_spawn, self.nesting_depth) {
+            (true, 0) => DelegationTier::TopLevel,
+            (true, 1) => DelegationTier::TeamMember,
+            (false, depth) if depth >= 2 => DelegationTier::TeamWorker,
+            _ => DelegationTier::OrdinaryChild,
+        }
+    }
+
+    pub fn allows_task_spawn(self) -> bool {
+        matches!(
+            self.tier(),
+            DelegationTier::TopLevel | DelegationTier::TeamMember
+        )
+    }
+
+    pub fn allows_team_orchestration(self) -> bool {
+        self.tier() == DelegationTier::TopLevel
     }
 }
 
@@ -1561,14 +1659,40 @@ mod tests {
     #[test]
     fn delegation_policy_child_blocks_recursive_spawn_without_losing_depth() {
         let top_level = DelegationPolicy::top_level();
-        assert!(top_level.allow_subagent_spawn);
+        assert!(top_level.allows_task_spawn());
+        assert!(top_level.allows_team_orchestration());
         assert_eq!(top_level.nesting_depth, 0);
 
         let child = top_level.spawn_child();
 
-        assert!(!child.allow_subagent_spawn);
+        assert!(!child.allows_task_spawn());
+        assert!(!child.allows_team_orchestration());
         assert_eq!(child.nesting_depth, 1);
         assert_eq!(child.spawn_child().nesting_depth, 2);
+    }
+
+    #[test]
+    fn team_member_can_spawn_exactly_one_worker_level_without_team_authority() {
+        let member = DelegationPolicy::team_member();
+        assert_eq!(member.tier(), DelegationTier::TeamMember);
+        assert!(member.allows_task_spawn());
+        assert!(!member.allows_team_orchestration());
+
+        let worker = member.spawn_child();
+        assert_eq!(worker.tier(), DelegationTier::TeamWorker);
+        assert_eq!(worker.nesting_depth, 2);
+        assert!(!worker.allows_task_spawn());
+        assert!(!worker.allows_team_orchestration());
+    }
+
+    #[test]
+    fn team_delegation_budget_round_trips_through_typed_context() {
+        let budget = TeamDelegationBudget::bounded(8, 3).expect("bounded budget");
+        let mut context = std::collections::HashMap::new();
+        budget.write_context(&mut context);
+
+        assert_eq!(TeamDelegationBudget::from_context(&context), Some(budget));
+        assert!(TeamDelegationBudget::bounded(2, 3).is_none());
     }
 
     #[test]

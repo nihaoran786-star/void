@@ -31,6 +31,7 @@
   &__map-wires { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
   &__map-wires line { stroke: var(--border-base); stroke-width: 1; }
   &__map-wires line.is-hot { stroke: var(--color-accent-500); stroke-dasharray: 5 7; }
+  &__map-wires line.is-worker { stroke-dasharray: 2 5; opacity: .72; }
 
   /* ── 顶栏:两个视图一致的 36px 细栏,本身即拖拽区 ── */
   &__map-topbar { position: absolute; z-index: 2; top: 0; right: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; min-height: 36px; padding: 0 16px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .12em; white-space: nowrap; }
@@ -56,6 +57,20 @@
   &__map-member-ripples i { position: absolute; inset: -3px; border: 1px solid var(--color-accent-500); border-radius: 50%; opacity: 0; }
   &__map-member-name { max-width: 92px; overflow: hidden; color: var(--color-text-primary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
   &__map-member-role { max-width: 92px; margin-top: -4px; overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .14em; text-overflow: ellipsis; white-space: nowrap; }
+  &__map-worker { position: absolute; top: 0; left: 0; display: flex; width: 78px; margin: -4px 0 0 -39px; padding: 4px 0; border: 0; align-items: center; flex-direction: column; gap: 5px; background: transparent; color: inherit; cursor: pointer; transform-origin: 50% 4px; }
+  &__map-worker:disabled { cursor: default; opacity: .58; }
+  &__map-worker-point { width: 6px; height: 6px; flex: 0 0 auto; border: 1px solid var(--color-bg-primary); border-radius: 50%; background: var(--color-text-muted); outline: 1px solid var(--border-medium); }
+  &__map-worker[data-tone='info'] &__map-worker-point { background: var(--color-accent-500); }
+  &__map-worker[data-tone='success'] &__map-worker-point { background: var(--status-success-text); }
+  &__map-worker[data-tone='warning'] &__map-worker-point { background: var(--status-warning-text); }
+  &__map-worker[data-tone='error'] &__map-worker-point { background: var(--status-error-text); }
+  &__map-worker-name,
+  &__map-worker-objective { max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__map-worker-name { color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xxs); font-weight: 600; }
+  &__map-worker-objective { color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); }
+  &__map-delegation-state { position: absolute; top: 0; left: 0; max-width: 96px; margin-left: -48px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); text-align: center; white-space: nowrap; transform-origin: 50% 0; }
+  &__map-delegation-state[data-state='partial'],
+  &__map-delegation-state[data-state='error'] { color: var(--status-warning-text); }
   &__map-empty { position: absolute; top: 0; left: 0; margin: 0; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); white-space: nowrap; transform: translate(-50%, -50%); }
 
   /* ── 浮动层:缩放 HUD(悬停浮现) / 异常 ── */
@@ -104,6 +119,7 @@
   &__member-tab:hover { color: var(--color-text-secondary); }
   &__member-tab[data-active] { color: var(--color-text-primary); font-weight: 600; }
   &__member-tab[data-active]::after { content: ""; position: absolute; right: 0; bottom: -10px; left: 0; height: 1px; background: var(--color-accent-500); }
+  &__member-tab--worker { padding-left: 10px; border-left: 1px solid var(--border-subtle); }
   &__strip, &__map-topbar { cursor: grab; }
   &__conversation { flex: 1; min-height: 0; overflow: hidden; }
 }

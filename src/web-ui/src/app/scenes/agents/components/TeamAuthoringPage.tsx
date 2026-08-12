@@ -28,6 +28,7 @@ import type {
   TeamDefinitionLevel,
   TeamDefinitionRecord,
   TeamDefinitionScenario,
+  TeamMemberDelegationPolicy,
   TeamMemberDraft,
   TeamWorkflowDraft,
   TeamWorkflowPhaseDraft,
@@ -38,6 +39,7 @@ import {
   customizationRuntimeCapabilityService,
   ExistingAgentCatalogAdapter,
   createTeamDraftFromRoster,
+  DEFAULT_TEAM_MEMBER_DELEGATION_POLICY,
   existingTeamDefinitionAdapter,
   localizeCatalogPresentation,
   organizeTeamDraft,
@@ -101,6 +103,7 @@ function definitionToDraft(definition: TeamDefinition): TeamDefinitionDraft {
       allowedSkillKeys: [...member.allowedSkillKeys],
       allowedToolNames: [...member.allowedToolNames],
       isReadonly: member.isReadonly,
+      delegationPolicy: member.delegationPolicy ?? { kind: 'disabled' },
     })),
     workflows: definition.workflows.map(workflow => ({
       clientKey: workflow.workflowId,
@@ -124,7 +127,10 @@ function draftToExistingDefinition(
   existing: TeamDefinition,
 ): TeamDefinition {
   return {
-    schemaVersion: existing.schemaVersion,
+    schemaVersion: existing.schemaVersion === 2
+      || draft.members.some(member => member.delegationPolicy?.kind === 'bounded')
+      ? 2
+      : 1,
     teamDefinitionId: existing.teamDefinitionId,
     displayName: draft.displayName,
     description: draft.description,
@@ -146,6 +152,7 @@ function draftToExistingDefinition(
       allowedToolNames: member.allowedToolNames,
       permissionPolicy: 'inherit_parent_intersection',
       isReadonly: member.isReadonly,
+      delegationPolicy: member.delegationPolicy,
     })),
     workflows: draft.workflows.map(workflow => ({
       workflowId: workflow.clientKey,
@@ -198,6 +205,7 @@ function nextMember(
     allowedSkillKeys: [],
     allowedToolNames: [],
     isReadonly: false,
+    delegationPolicy: { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY },
   };
 }
 
@@ -287,6 +295,9 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
   const [rosterSearch, setRosterSearch] = useState('');
   const [selectedRosterAgentIds, setSelectedRosterAgentIds] = useState<string[]>([]);
   const [rosterLeadAgentId, setRosterLeadAgentId] = useState('');
+  const [rosterDelegationPolicies, setRosterDelegationPolicies] = useState<
+    Record<string, TeamMemberDelegationPolicy>
+  >({});
 
   useEffect(() => {
     if (managementCapability.status === 'unsupported') return;
@@ -458,12 +469,14 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
       description: agent.description,
       scenarioEligibility: agent.scenarios,
       isReadonly: agent.isReadonly,
+      delegationPolicy: rosterDelegationPolicies[agent.id],
     })),
     template,
   }), [
     draft.description,
     draft.displayName,
     rosterLeadAgentId,
+    rosterDelegationPolicies,
     selectedRosterAgents,
     template,
   ]);
@@ -475,6 +488,11 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
         if (rosterLeadAgentId === agentId) {
           setRosterLeadAgentId(next[0] ?? '');
         }
+        setRosterDelegationPolicies(current => {
+          const nextPolicies = { ...current };
+          delete nextPolicies[agentId];
+          return nextPolicies;
+        });
         return next;
       }
       if (current.length >= 12) return current;
@@ -482,6 +500,13 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
         setLevel('project');
       }
       if (current.length === 0) setRosterLeadAgentId(agentId);
+      const agent = rosterAgentOptions.find(candidate => candidate.id === agentId);
+      setRosterDelegationPolicies(policies => ({
+        ...policies,
+        [agentId]: agent?.isReadonly
+          ? { kind: 'disabled' }
+          : { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY },
+      }));
       return [...current, agentId];
     });
     clearDiagnostic('members');
@@ -649,6 +674,14 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
     setDraft(result.draft);
     setDraftPrepared(true);
     notification.success(t('teamAuthoring.messages.prepared'));
+  };
+
+  const updateRosterDelegation = (
+    agentId: string,
+    policy: TeamMemberDelegationPolicy,
+  ) => {
+    setRosterDelegationPolicies(current => ({ ...current, [agentId]: policy }));
+    clearDiagnostic('members');
   };
 
   const handleRosterSubmit = async () => {
@@ -1038,6 +1071,79 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
               )}
             </section>
 
+            <details
+              className="team-roster__advanced"
+              data-testid="team-roster-delegation-settings"
+            >
+              <summary>{t('teamAuthoring.delegation.title')}</summary>
+              <p>{t('teamAuthoring.delegation.hint')}</p>
+              <div className="team-roster__delegation-list">
+                {selectedRosterAgents.map(agent => {
+                  const policy = rosterDelegationPolicies[agent.id]
+                    ?? (agent.isReadonly
+                      ? { kind: 'disabled' as const }
+                      : { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY });
+                  const bounded = policy.kind === 'bounded';
+                  return (
+                    <div key={agent.id} className="team-roster__delegation-member">
+                      <label className="team-roster__delegation-toggle">
+                        <input
+                          type="checkbox"
+                          data-testid={`team-roster-delegation-toggle-${agent.id}`}
+                          checked={bounded}
+                          disabled={agent.isReadonly}
+                          onChange={event => updateRosterDelegation(
+                            agent.id,
+                            event.target.checked
+                              ? { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY }
+                              : { kind: 'disabled' },
+                          )}
+                        />
+                        <span>{agent.displayName}</span>
+                      </label>
+                      {bounded ? (
+                        <div className="team-roster__delegation-limits">
+                          <label>
+                            <span>{t('teamAuthoring.delegation.maxWorkerTasks')}</span>
+                            <input
+                              type="number"
+                              data-testid={`team-roster-delegation-max-tasks-${agent.id}`}
+                              min={1}
+                              max={32}
+                              value={policy.maxWorkerTasks}
+                              onChange={event => updateRosterDelegation(agent.id, {
+                                ...policy,
+                                maxWorkerTasks: Number(event.target.value),
+                              })}
+                            />
+                          </label>
+                          <label>
+                            <span>{t('teamAuthoring.delegation.maxParallelWorkers')}</span>
+                            <input
+                              type="number"
+                              data-testid={`team-roster-delegation-max-parallel-${agent.id}`}
+                              min={1}
+                              max={8}
+                              value={policy.maxParallelWorkers}
+                              onChange={event => updateRosterDelegation(agent.id, {
+                                ...policy,
+                                maxParallelWorkers: Number(event.target.value),
+                              })}
+                            />
+                          </label>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              {firstDiagnostic('members')?.code.startsWith('member_delegation_') ? (
+                <p className="team-roster__error" role="alert">
+                  {diagnosticMessage(firstDiagnostic('members')!)}
+                </p>
+              ) : null}
+            </details>
+
             <footer className="team-roster__footer">
               <div className="team-roster__scope" aria-label={t('teamAuthoring.scope.title')}>
                 {(['user', 'project'] as TeamDefinitionLevel[]).map(nextLevel => (
@@ -1368,6 +1474,58 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
                       </select>
                     </label>
                   ) : null}
+                  <div className="team-authoring__delegation">
+                    <label className="team-authoring__delegation-toggle">
+                      <input
+                        type="checkbox"
+                        data-testid={`team-member-delegation-toggle-${member.clientKey}`}
+                        checked={member.delegationPolicy?.kind === 'bounded'}
+                        disabled={member.isReadonly}
+                        onChange={event => updateMember(member.clientKey, {
+                          delegationPolicy: event.target.checked
+                            ? { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY }
+                            : { kind: 'disabled' },
+                        })}
+                      />
+                      <span>{t('teamAuthoring.delegation.memberToggle')}</span>
+                    </label>
+                    {member.delegationPolicy?.kind === 'bounded' ? (
+                      <div className="team-authoring__grid team-authoring__grid--two">
+                        <label>
+                          <span>{t('teamAuthoring.delegation.maxWorkerTasks')}</span>
+                          <input
+                            type="number"
+                            data-testid={`team-member-delegation-max-tasks-${member.clientKey}`}
+                            min={1}
+                            max={32}
+                            value={member.delegationPolicy.maxWorkerTasks}
+                            onChange={event => updateMember(member.clientKey, {
+                              delegationPolicy: {
+                                ...member.delegationPolicy as Extract<TeamMemberDelegationPolicy, { kind: 'bounded' }>,
+                                maxWorkerTasks: Number(event.target.value),
+                              },
+                            })}
+                          />
+                        </label>
+                        <label>
+                          <span>{t('teamAuthoring.delegation.maxParallelWorkers')}</span>
+                          <input
+                            type="number"
+                            data-testid={`team-member-delegation-max-parallel-${member.clientKey}`}
+                            min={1}
+                            max={8}
+                            value={member.delegationPolicy.maxParallelWorkers}
+                            onChange={event => updateMember(member.clientKey, {
+                              delegationPolicy: {
+                                ...member.delegationPolicy as Extract<TeamMemberDelegationPolicy, { kind: 'bounded' }>,
+                                maxParallelWorkers: Number(event.target.value),
+                              },
+                            })}
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
                 </article>
               ))}
             </div>
@@ -1649,6 +1807,7 @@ const TeamAuthoringPage: React.FC<TeamAuthoringPageProps> = ({
             <Button
               variant="primary"
               size="small"
+              data-testid="team-authoring-submit"
               onClick={() => void handleSubmit()}
               disabled={submitting}
             >

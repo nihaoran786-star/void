@@ -383,6 +383,25 @@
     color: var(--color-danger);
     font-size: var(--font-size-xs);
   }
+
+  &__delegation {
+    display: flex;
+    flex-direction: column;
+    gap: $size-gap-2;
+    padding: $size-gap-3;
+    border: 1px solid var(--border-subtle);
+    border-radius: $size-radius-base;
+    background: var(--color-bg-secondary);
+  }
+
+  &__delegation-toggle {
+    display: flex !important;
+    align-items: center;
+    flex-direction: row !important;
+    gap: $size-gap-2 !important;
+
+    input { margin: 0; }
+  }
 }
 
 @media (max-width: 760px) {
@@ -407,6 +426,7 @@
       flex-direction: column;
     }
   }
+
 }
 
 .team-authoring--roster {
@@ -787,6 +807,68 @@
     &.is-error {
       color: var(--color-danger);
     }
+  }
+
+  &__advanced {
+    padding: $size-gap-3 $size-gap-4;
+    border: 1px solid var(--border-subtle);
+    border-radius: $size-radius-lg;
+    background: var(--color-bg-secondary);
+
+    summary {
+      color: var(--color-text-primary);
+      font-size: var(--font-size-sm);
+      font-weight: $font-weight-semibold;
+      cursor: pointer;
+    }
+
+    > p {
+      margin-top: $size-gap-2;
+      color: var(--color-text-muted);
+      font-size: var(--font-size-xs);
+    }
+  }
+
+  &__delegation-list {
+    display: flex;
+    margin-top: $size-gap-3;
+    flex-direction: column;
+    gap: $size-gap-2;
+  }
+
+  &__delegation-member {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $size-gap-3;
+    padding: $size-gap-2 $size-gap-3;
+    border-radius: $size-radius-base;
+    background: var(--color-bg-primary);
+  }
+
+  &__delegation-toggle {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: $size-gap-2;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+  }
+
+  &__delegation-limits {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+    gap: $size-gap-2;
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: $size-gap-2;
+      color: var(--color-text-muted);
+      font-size: var(--font-size-2xs);
+    }
+
+    input { width: 58px; }
   }
 
   &__footer {

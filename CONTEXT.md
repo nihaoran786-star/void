@@ -88,13 +88,22 @@ Updated: 2026-08-09
   be detached from that conversation. The Canvas remains artifact-only and
   member chat uses the canonical right Team Workspace. Existing child sessions
   and project data are preserved during this presentation cleanup.
-- Prompt-orchestrated Team execution keeps orchestration authority on the
-  parent lead: every child runtime denies both `Task` and `Team`, and every
-  durable member request carries a concise positive workflow-phase assignment
-  rather than copying a lead-style command or repeating natural-language
-  authority warnings. The member Agent's own persona defines its professional
-  identity; the phase assignment defines the current deliverable; typed runtime
-  restrictions, not prompt obedience, enforce the no-delegation boundary.
+- Prompt-orchestrated Team execution keeps Team orchestration authority on the
+  parent lead while allowing bounded member delegation through the shared Task
+  runtime. Every non-lead member has an explicit `disabled` or `bounded`
+  delegation policy; new and legacy definitions resolve to a default of eight
+  workers with at most three active in parallel unless the member is explicitly
+  disabled. A member may create only one worker level, and those workers deny
+  both `Task` and `Team`. Durable launch authority records the exact Team,
+  Team run, member run, direct parent, root parent, depth, and budget facts, so
+  recovery never widens an older launch. Member and worker permissions remain
+  intersections of the scenario, workspace, user, Agent, Skill, and Team
+  policies. Every durable member request still carries a concise positive
+  workflow-phase assignment rather than copying a lead-style command or
+  repeating natural-language authority warnings. The member Agent's own persona
+  defines its professional identity; the phase assignment defines the current
+  deliverable; typed runtime restrictions, not prompt obedience, enforce the
+  delegation boundary.
   Reconciliation closes
   cancelled or interrupted runs, releases the active-run lock, and
   automatically dispatches dependency-ready successor phases. A successful

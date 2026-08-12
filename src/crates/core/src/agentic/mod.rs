@@ -45,6 +45,7 @@ pub(crate) mod init_agents_md;
 pub mod persona_skill_runtime;
 pub mod system;
 pub mod team_definitions;
+pub mod team_member_tool_runtime;
 pub mod team_orchestrator;
 pub mod team_runtime;
 pub mod team_runtime_adapter;

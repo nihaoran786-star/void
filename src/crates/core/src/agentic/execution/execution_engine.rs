@@ -27,6 +27,7 @@ use crate::agentic::round_preempt::RoundInjectionKind;
 use crate::agentic::session::{
     CompressionMode, ContextCompressor, SessionManager, SystemPromptCacheIdentity,
 };
+use crate::agentic::team_member_tool_runtime::enable_team_member_tool;
 use crate::agentic::team_tool_runtime::trusted_team_tool_context_vars;
 use crate::agentic::tools::implementations::{GetToolSpecTool, SkillTool, TaskTool};
 use crate::agentic::tools::{resolve_tool_manifest, tool_context_runtime, ResolvedToolManifest};
@@ -1455,7 +1456,12 @@ impl ExecutionEngine {
                 )
                 .await
         };
-        let allowed_tools = tool_policy.allowed_tools.clone();
+        let mut allowed_tools = tool_policy.allowed_tools.clone();
+        enable_team_member_tool(
+            &mut allowed_tools,
+            &context.context,
+            context.delegation_policy,
+        );
         let enable_tools = context
             .context
             .get("enable_tools")
@@ -2309,7 +2315,12 @@ impl ExecutionEngine {
                 )
                 .await
         };
-        let allowed_tools = tool_policy.allowed_tools.clone();
+        let mut allowed_tools = tool_policy.allowed_tools.clone();
+        enable_team_member_tool(
+            &mut allowed_tools,
+            &context.context,
+            context.delegation_policy,
+        );
         let enable_tools = context
             .context
             .get("enable_tools")

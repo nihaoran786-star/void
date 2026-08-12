@@ -5,12 +5,13 @@
 //! member task from being launched.
 
 use super::team_definitions::{
-    team_definition_revision, validate_team_definition, TeamDefinitionRecord,
+    effective_member_delegation_policy, team_definition_revision, validate_team_definition,
+    TeamDefinitionRecord,
 };
 use super::team_orchestrator::{
-    stable_operation_id, AttachCommand, MessageCommand, ObserveCommand, PauseCommand,
-    RecoverCommand, ResumeCommand, RuntimeReceipt, RuntimeRequest, RuntimeTaskState, StartCommand,
-    StopCommand, TeamOrchestrator, TeamOrchestratorError, TeamOrchestratorErrorCode,
+    stable_operation_id, AttachCommand, CompleteMemberCommand, MessageCommand, ObserveCommand,
+    PauseCommand, RecoverCommand, ResumeCommand, RuntimeReceipt, RuntimeRequest, RuntimeTaskState,
+    StartCommand, StopCommand, TeamOrchestrator, TeamOrchestratorError, TeamOrchestratorErrorCode,
     TeamOrchestratorOutcome, TeamRuntimeAdapter,
 };
 use super::team_runtime::{
@@ -342,6 +343,7 @@ impl TeamRuntimeService {
             parent_tool_call_id: None,
             team_run_id: None,
             member_id: None,
+            member_run_id: None,
             child_session_id: None,
             subagent_task_id: None,
             phase_id: None,
@@ -350,6 +352,7 @@ impl TeamRuntimeService {
             timeout_seconds: None,
             message: None,
             team_member_skill_policy: None,
+            team_member_delegation_policy: None,
         }
     }
 
@@ -368,6 +371,7 @@ impl TeamRuntimeService {
             || receipt.parent_tool_call_id != request.parent_tool_call_id
             || receipt.team_run_id != request.team_run_id
             || receipt.member_id != request.member_id
+            || receipt.member_run_id != request.member_run_id
             || receipt.phase_id != request.phase_id
             || receipt.agent_id != request.agent_id
         {
@@ -528,6 +532,7 @@ impl TeamRuntimeService {
         request.parent_tool_call_id = Some(run.parent_tool_call_id.clone());
         request.team_run_id = Some(run.team_run_id.clone());
         request.member_id = Some(member.member_id.clone());
+        request.member_run_id = Some(member.member_run_id.clone());
         request.child_session_id = member.child_session_id.clone();
         request.subagent_task_id = member.subagent_task_id.clone();
         request.phase_id = member.phase_id.clone();
@@ -608,8 +613,8 @@ impl TeamRuntimeService {
         ));
         request.team_member_skill_policy = Some(
             TeamMemberSkillPolicySnapshot::new(
-                definition_record.definition.team_definition_id,
-                definition_record.revision,
+                definition_record.definition.team_definition_id.clone(),
+                definition_record.revision.clone(),
                 record.snapshot.instance.team_instance_id.clone(),
                 definition_member.member_id.clone(),
                 definition_agent_id.to_string(),
@@ -623,6 +628,10 @@ impl TeamRuntimeService {
                 )
             })?,
         );
+        request.team_member_delegation_policy = Some(effective_member_delegation_policy(
+            &definition_record.definition,
+            definition_member,
+        ));
         Ok(request)
     }
 
@@ -743,7 +752,7 @@ impl TeamRuntimeService {
             team_instance_id,
             &[team_run_id, phase_id, member_id, &task.task_id],
         );
-        let request = self
+        let mut request = self
             .member_request(
                 &record,
                 team_run_id,
@@ -752,6 +761,13 @@ impl TeamRuntimeService {
                 None,
             )
             .await?;
+        let persisted_allows_delegation = task.launch_authority.as_ref().is_some_and(|authority| {
+            authority.kind == void_core_types::SubagentLaunchAuthorityKind::TeamMember
+        });
+        if !persisted_allows_delegation {
+            request.team_member_delegation_policy =
+                Some(super::team_definitions::TeamMemberDelegationPolicy::Disabled);
+        }
         Self::require_complete_member_reference(&request)?;
         if request.child_session_id != task.child_session_id
             || request.subagent_task_id.as_deref() != Some(task.task_id.as_str())
@@ -1002,7 +1018,12 @@ impl TeamRuntimeService {
                     .map_err(Self::map_contract_error)?;
             }
             if !matches!(effect, ReceiptEffect::Stop) {
-                Self::sync_member_task_state(member, receipt.task_state, updated_at)?;
+                Self::sync_member_task_state(
+                    member,
+                    receipt.task_state,
+                    receipt.worker_summary.as_ref(),
+                    updated_at,
+                )?;
             }
             if !matches!(effect, ReceiptEffect::Reconcile) {
                 member
@@ -1029,6 +1050,7 @@ impl TeamRuntimeService {
     fn sync_member_task_state(
         member: &mut TeamMemberRun,
         task_state: RuntimeTaskState,
+        worker_summary: Option<&super::team_orchestrator::MemberWorkerSummary>,
         updated_at: u64,
     ) -> Result<(), TeamOrchestratorError> {
         if member.status.is_terminal() {
@@ -1062,10 +1084,16 @@ impl TeamRuntimeService {
             RuntimeTaskState::Completed => {
                 if member.status == TeamMemberRunStatus::Queued {
                     transition(member, TeamMemberRunStatus::Running)?;
-                } else if member.status == TeamMemberRunStatus::Waiting {
+                } else if member.status == TeamMemberRunStatus::Waiting
+                    && worker_summary.is_none_or(|summary| summary.total == 0)
+                {
                     transition(member, TeamMemberRunStatus::Running)?;
                 }
-                if member.status == TeamMemberRunStatus::Running {
+                if worker_summary.is_some_and(|summary| summary.total > 0) {
+                    if member.status == TeamMemberRunStatus::Running {
+                        transition(member, TeamMemberRunStatus::Waiting)?;
+                    }
+                } else if member.status == TeamMemberRunStatus::Running {
                     transition(member, TeamMemberRunStatus::Completed)?;
                 }
             }
@@ -2767,6 +2795,200 @@ impl TeamOrchestrator for TeamRuntimeService {
         }
     }
 
+    async fn complete_member(&self, command: CompleteMemberCommand) -> TeamOrchestratorOutcome {
+        if let Err(error) = Self::validate_identity(&command.identity).and_then(|_| {
+            Self::validate_required(&[
+                ("teamRunId", &command.team_run_id),
+                ("memberRunId", &command.member_run_id),
+                ("summary", &command.summary),
+            ])
+        }) {
+            return Self::rejected(&command.identity.operation_id, error);
+        }
+        for _ in 0..MAX_CAS_ATTEMPTS {
+            let record = match self.load_scoped(&command.identity).await {
+                Ok(record) => record,
+                Err(error) => return Self::rejected(&command.identity.operation_id, error),
+            };
+            let Some(member) = record.snapshot.member_runs.iter().find(|member| {
+                member.team_run_id == command.team_run_id
+                    && member.member_run_id == command.member_run_id
+            }) else {
+                return Self::rejected(
+                    &command.identity.operation_id,
+                    Self::error(
+                        TeamOrchestratorErrorCode::RuntimeNotFound,
+                        "member run was not found",
+                        false,
+                    ),
+                );
+            };
+            if member.status == TeamMemberRunStatus::Completed {
+                if member.completion_summary.as_deref() != Some(command.summary.trim()) {
+                    return Self::rejected(
+                        &command.identity.operation_id,
+                        Self::error(
+                            TeamOrchestratorErrorCode::RuntimeConflict,
+                            "completed member retry summary does not match the persisted result",
+                            false,
+                        ),
+                    );
+                }
+                return TeamOrchestratorOutcome::accepted(command.identity.operation_id, vec![]);
+            }
+            if member.status != TeamMemberRunStatus::Waiting {
+                return Self::rejected(
+                    &command.identity.operation_id,
+                    Self::error(
+                        TeamOrchestratorErrorCode::RuntimeConflict,
+                        "only a waiting member with delegated workers may be completed",
+                        true,
+                    ),
+                );
+            }
+            let operation_id = stable_operation_id(
+                &command.identity.operation_id,
+                &command.identity.parent_session_id,
+                &command.identity.team_instance_id,
+                &[
+                    &command.team_run_id,
+                    &command.member_run_id,
+                    "complete-member",
+                ],
+            );
+            let request = match self
+                .member_request(
+                    &record,
+                    &command.team_run_id,
+                    &command.member_run_id,
+                    operation_id,
+                    None,
+                )
+                .await
+            {
+                Ok(request) => request,
+                Err(error) => return Self::rejected(&command.identity.operation_id, error),
+            };
+            let adapter = match self
+                .adapters
+                .resolve(&record.snapshot.instance.execution_profile)
+                .await
+            {
+                Ok(adapter) => adapter,
+                Err(error) => return Self::rejected(&command.identity.operation_id, error),
+            };
+            let receipt = match adapter.inspect_member_task(request.clone()).await {
+                Ok(receipt) => receipt,
+                Err(error) => return Self::rejected(&command.identity.operation_id, error),
+            };
+            if let Err(error) =
+                Self::validate_receipt_scope(&receipt, &request, ReceiptEffect::Reconcile)
+            {
+                return Self::rejected(&command.identity.operation_id, error);
+            }
+            let Some(workers) = receipt.worker_summary else {
+                return Self::rejected(
+                    &command.identity.operation_id,
+                    Self::error(
+                        TeamOrchestratorErrorCode::RuntimeConflict,
+                        "member completion requires a worker summary",
+                        true,
+                    ),
+                );
+            };
+            if workers.total == 0 || workers.active > 0 {
+                return Self::rejected(
+                    &command.identity.operation_id,
+                    Self::error(
+                        TeamOrchestratorErrorCode::RuntimeConflict,
+                        "delegated workers must all be terminal before member completion",
+                        true,
+                    ),
+                );
+            }
+            let definition = match self
+                .definition(
+                    &record.snapshot.instance.team_definition_id,
+                    &record.snapshot.instance.team_definition_revision,
+                )
+                .await
+            {
+                Ok(definition) => definition,
+                Err(error) => return Self::rejected(&command.identity.operation_id, error),
+            };
+            let mut candidate = record.snapshot.clone();
+            let member = candidate
+                .member_runs
+                .iter_mut()
+                .find(|member| member.member_run_id == command.member_run_id)
+                .expect("member run selected from the same snapshot");
+            let now = self.clock.now();
+            member.completion_summary = Some(command.summary.trim().to_string());
+            if let Err(error) = member
+                .transition(TeamMemberRunStatus::Running, None, now)
+                .and_then(|_| member.transition(TeamMemberRunStatus::Completed, None, now))
+                .map_err(Self::map_contract_error)
+                .and_then(|_| {
+                    Self::sync_completed_scopes(
+                        &mut candidate,
+                        &definition,
+                        &command.team_run_id,
+                        now,
+                    )
+                })
+                .and_then(|_| {
+                    Self::reserve_dependency_ready_phases(
+                        &mut candidate,
+                        &definition,
+                        &command.team_run_id,
+                        &command.identity.parent_session_id,
+                        now,
+                    )
+                })
+            {
+                return Self::rejected(&command.identity.operation_id, error);
+            }
+            match self
+                .store
+                .save(
+                    &command.identity.parent_session_id,
+                    &command.identity.team_instance_id,
+                    candidate,
+                    Some(record.revision),
+                )
+                .await
+            {
+                Ok(saved) => {
+                    if let Err(error) = self
+                        .dispatch_reserved_members(&command.identity, &command.team_run_id, saved)
+                        .await
+                    {
+                        return Self::rejected(&command.identity.operation_id, error);
+                    }
+                    return TeamOrchestratorOutcome::accepted(
+                        command.identity.operation_id,
+                        vec![request.operation_id],
+                    );
+                }
+                Err(error) if error.code == TeamRuntimeStoreErrorCode::RevisionConflict => continue,
+                Err(error) => {
+                    return Self::rejected(
+                        &command.identity.operation_id,
+                        Self::map_store_error(error),
+                    )
+                }
+            }
+        }
+        Self::rejected(
+            command.identity.operation_id,
+            Self::error(
+                TeamOrchestratorErrorCode::RuntimeConflict,
+                "member completion exceeded the bounded CAS retry limit",
+                true,
+            ),
+        )
+    }
+
     async fn recover(&self, command: RecoverCommand) -> TeamOrchestratorOutcome {
         if let Err(error) = Self::validate_identity(&command.identity) {
             return Self::rejected(&command.identity.operation_id, error);
@@ -2946,6 +3168,7 @@ mod tests {
             allowed_tool_names: vec![],
             permission_policy: TeamPermissionPolicy::InheritParentIntersection,
             is_readonly: false,
+            delegation_policy: Default::default(),
         }
     }
 
@@ -3145,6 +3368,8 @@ mod tests {
         malformed_ensure_receipt: Mutex<bool>,
         message_disposition: Mutex<RuntimeDisposition>,
         inspect_task_state: Mutex<RuntimeTaskState>,
+        inspect_worker_summary:
+            Mutex<Option<crate::agentic::team_orchestrator::MemberWorkerSummary>>,
     }
 
     impl TestAdapter {
@@ -3169,10 +3394,12 @@ mod tests {
                 parent_tool_call_id: request.parent_tool_call_id.clone(),
                 team_run_id: request.team_run_id.clone(),
                 member_id: request.member_id.clone(),
+                member_run_id: request.member_run_id.clone(),
                 phase_id: request.phase_id.clone(),
                 agent_id: request.agent_id.clone(),
                 child_session_id,
                 subagent_task_id,
+                worker_summary: None,
             }
         }
 
@@ -3242,7 +3469,7 @@ mod tests {
         ) -> Result<RuntimeReceipt, TeamOrchestratorError> {
             self.events.lock().unwrap().push("inspect".into());
             self.inspect_requests.lock().unwrap().push(request.clone());
-            Ok(Self::receipt(
+            let mut receipt = Self::receipt(
                 &request,
                 RuntimeDisposition::Inspected,
                 *self.inspect_task_state.lock().unwrap(),
@@ -3251,7 +3478,9 @@ mod tests {
                     .clone()
                     .or_else(|| Some("child-session".into())),
                 request.subagent_task_id.clone(),
-            ))
+            );
+            receipt.worker_summary = *self.inspect_worker_summary.lock().unwrap();
+            Ok(receipt)
         }
 
         async fn message_member(
@@ -3355,6 +3584,7 @@ mod tests {
             malformed_ensure_receipt: Mutex::new(false),
             message_disposition: Mutex::new(RuntimeDisposition::MessageAccepted),
             inspect_task_state: Mutex::new(RuntimeTaskState::Running),
+            inspect_worker_summary: Mutex::new(None),
         });
         let service = TeamRuntimeService::new(
             Arc::new(TestDefinitions(definition.clone())),
@@ -3515,6 +3745,69 @@ mod tests {
                 .as_deref(),
             Some("child-session")
         );
+    }
+
+    #[tokio::test]
+    async fn delegated_member_requires_terminal_workers_and_explicit_summary_to_complete() {
+        let (service, _store, adapter, definition, identity) = harness();
+        attach_ready(&service, &definition, &identity).await;
+        let started = service.start(start_command(&definition, &identity)).await;
+        assert!(started.accepted, "{started:?}");
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Completed;
+        *adapter.inspect_worker_summary.lock().unwrap() =
+            Some(crate::agentic::team_orchestrator::MemberWorkerSummary {
+                total: 2,
+                active: 0,
+                failed: 0,
+            });
+        let reconciled = service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("delegated member should reconcile to waiting");
+        let member = &reconciled.records[0].snapshot.member_runs[0];
+        assert_eq!(member.status, TeamMemberRunStatus::Waiting);
+        let member_run_id = member.member_run_id.clone();
+        let team_run_id = member.team_run_id.clone();
+
+        let empty = service
+            .complete_member(CompleteMemberCommand {
+                identity: identity.clone(),
+                team_run_id: team_run_id.clone(),
+                member_run_id: member_run_id.clone(),
+                summary: "  ".into(),
+            })
+            .await;
+        assert!(!empty.accepted);
+
+        let command = CompleteMemberCommand {
+            identity: identity.clone(),
+            team_run_id,
+            member_run_id,
+            summary: "已汇总两名 worker 的结果并提交正式产物。".into(),
+        };
+        let completed = service.complete_member(command.clone()).await;
+        assert!(completed.accepted, "{completed:?}");
+        let retry = service.complete_member(command.clone()).await;
+        assert!(retry.accepted, "{retry:?}");
+        let record = service
+            .get_record(&identity.parent_session_id, &identity.team_instance_id)
+            .await
+            .unwrap()
+            .unwrap();
+        let member = &record.snapshot.member_runs[0];
+        assert_eq!(member.status, TeamMemberRunStatus::Completed);
+        assert_eq!(
+            member.completion_summary.as_deref(),
+            Some(command.summary.as_str())
+        );
+
+        let mismatch = service
+            .complete_member(CompleteMemberCommand {
+                summary: "另一份摘要".into(),
+                ..command
+            })
+            .await;
+        assert!(!mismatch.accepted);
     }
 
     #[tokio::test]
@@ -3907,6 +4200,7 @@ mod tests {
             malformed_ensure_receipt: Mutex::new(false),
             message_disposition: Mutex::new(RuntimeDisposition::MessageAccepted),
             inspect_task_state: Mutex::new(RuntimeTaskState::Running),
+            inspect_worker_summary: Mutex::new(None),
         });
         let service = TeamRuntimeService::new(
             Arc::new(TestDefinitions(definition.clone())),
@@ -4095,6 +4389,10 @@ mod tests {
                     request.member_id.clone().expect("member id"),
                 ),
                 (
+                    "memberRunId".into(),
+                    request.member_run_id.clone().expect("member run id"),
+                ),
+                (
                     "teamPhaseId".into(),
                     request.phase_id.clone().expect("phase id"),
                 ),
@@ -4143,6 +4441,7 @@ mod tests {
         assert_eq!(rebuilt.team_run_id, original_request.team_run_id);
         assert_eq!(rebuilt.phase_id, original_request.phase_id);
         assert_eq!(rebuilt.member_id, original_request.member_id);
+        assert_eq!(rebuilt.member_run_id, original_request.member_run_id);
         assert_eq!(rebuilt.subagent_task_id, original_request.subagent_task_id);
         assert_eq!(rebuilt.child_session_id, task.child_session_id);
         assert_eq!(rebuilt.agent_id, original_request.agent_id);
@@ -4587,6 +4886,7 @@ mod tests {
             malformed_ensure_receipt: Mutex::new(false),
             message_disposition: Mutex::new(RuntimeDisposition::MessageAccepted),
             inspect_task_state: Mutex::new(RuntimeTaskState::Running),
+            inspect_worker_summary: Mutex::new(None),
         });
         let service = TeamRuntimeService::new(
             Arc::new(TestDefinitions(definition)),

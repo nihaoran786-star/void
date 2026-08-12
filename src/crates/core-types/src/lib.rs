@@ -19,12 +19,15 @@ pub use external_config_sources::{
 };
 pub use session::SessionKind;
 pub use subagent_task::{
-    SubagentTaskCheckpointRef, SubagentTaskContextMode, SubagentTaskDeliveryLease,
-    SubagentTaskDeliveryReceipt, SubagentTaskDeliveryState, SubagentTaskExecutionMode,
-    SubagentTaskLaunchSpec, SubagentTaskRecord, SubagentTaskRecoveryBlock,
-    SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
-    SubagentTaskStatus, SubagentTaskTransitionError, TeamMemberSkillPolicyKind,
-    TeamMemberSkillPolicySnapshot, SUBAGENT_TASK_SCHEMA_VERSION,
+    SubagentLaunchAuthority, SubagentLaunchAuthorityKind, SubagentTaskCheckpointRef,
+    SubagentTaskContextMode, SubagentTaskDeliveryLease, SubagentTaskDeliveryReceipt,
+    SubagentTaskDeliveryState, SubagentTaskExecutionMode, SubagentTaskLaunchSpec,
+    SubagentTaskRecord, SubagentTaskRecoveryBlock, SubagentTaskRecoveryBlockCode,
+    SubagentTaskRecoveryState, SubagentTaskReplaySafety, SubagentTaskStatus,
+    SubagentTaskTransitionError, TeamDelegationLineageSnapshot, TeamMemberSkillPolicyKind,
+    TeamMemberSkillPolicySnapshot, SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+    SUBAGENT_TASK_SCHEMA_VERSION, TEAM_DELEGATION_CONTEXT_KEYS,
+    TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY, TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY,
     TEAM_MEMBER_SKILL_POLICY_SCHEMA_VERSION,
 };
 pub use subscription_auth::SubscriptionProvider;

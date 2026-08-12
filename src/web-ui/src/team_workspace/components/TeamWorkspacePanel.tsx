@@ -10,6 +10,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
+import type { TeamDelegatedTask } from '@/shared/services/customization/TeamRuntimeGateway';
 import type {
   ActiveTeamWorkspaceState,
   TeamWorkspaceIssue,
@@ -97,6 +98,55 @@ function memberPosition(index: number, count: number) {
   };
 }
 
+interface DelegatedTaskNode {
+  member: TeamWorkspaceMemberProjection;
+  task: TeamDelegatedTask;
+  x: number;
+  y: number;
+  parentX: number;
+  parentY: number;
+}
+
+function delegatedTaskLayout(
+  members: TeamWorkspaceMemberProjection[],
+  positions: Array<{ x: number; y: number }>,
+): DelegatedTaskNode[] {
+  const nodes: DelegatedTaskNode[] = [];
+  members.forEach((member, memberIndex) => {
+    const memberPositionValue = positions[memberIndex] ?? { x: 0, y: 0 };
+    const length = Math.hypot(memberPositionValue.x, memberPositionValue.y) || 1;
+    const outward = { x: memberPositionValue.x / length, y: memberPositionValue.y / length };
+    const tangent = { x: -outward.y, y: outward.x };
+    const memberTasks = [...member.delegation.tasks].sort((left, right) => (
+      left.depth - right.depth
+      || left.createdAt - right.createdAt
+      || left.taskId.localeCompare(right.taskId)
+    ));
+    const positioned = new Map<string, DelegatedTaskNode>();
+    memberTasks.forEach(task => {
+      const parent = task.parentTaskId ? positioned.get(task.parentTaskId) : undefined;
+      const siblings = memberTasks.filter(candidate => candidate.parentTaskId === task.parentTaskId);
+      const siblingIndex = siblings.findIndex(candidate => candidate.taskId === task.taskId);
+      const siblingOffset = (siblingIndex - (siblings.length - 1) / 2) * 38;
+      const anchor = parent ?? {
+        x: memberPositionValue.x,
+        y: memberPositionValue.y,
+      };
+      const node: DelegatedTaskNode = {
+        member,
+        task,
+        parentX: anchor.x,
+        parentY: anchor.y,
+        x: Math.round(anchor.x + outward.x * 70 + tangent.x * siblingOffset),
+        y: Math.round(anchor.y + outward.y * 70 + tangent.y * siblingOffset),
+      };
+      positioned.set(task.taskId, node);
+      nodes.push(node);
+    });
+  });
+  return nodes;
+}
+
 function PhaseSegBar({ phases }: { phases: TeamWorkspacePhaseProjection[] }) {
   const { t } = useTranslation('flow-chat');
   const done = phases.filter(phase => SUCCESS.has(phase.state.status)).length;
@@ -138,6 +188,7 @@ function TeamMapView({
   running,
   reload,
   openMember,
+  openWorker,
   registerButton,
 }: {
   team: TeamWorkspaceTeamProjection;
@@ -146,6 +197,7 @@ function TeamMapView({
   running: boolean;
   reload: () => void;
   openMember: (member: TeamWorkspaceMemberProjection) => void;
+  openWorker: (member: TeamWorkspaceMemberProjection, task: TeamDelegatedTask) => void;
   registerButton: (id: string, button: HTMLButtonElement | null) => void;
 }) {
   const { t } = useTranslation('flow-chat');
@@ -157,6 +209,10 @@ function TeamMapView({
   const positions = useMemo(
     () => members.map((_, index) => memberPosition(index, members.length)),
     [members],
+  );
+  const delegatedNodes = useMemo(
+    () => delegatedTaskLayout(members, positions),
+    [members, positions],
   );
 
   const fitCamera = useCallback((): MapCamera => {
@@ -247,7 +303,7 @@ function TeamMapView({
       <div className="team-workspace-panel__map-grid" style={{ transform }} aria-hidden="true" />
       <div className="team-workspace-panel__map-topbar" data-map-static data-team-drag>
         <span className="team-workspace-panel__map-topbar-title">
-          {t('teamWorkspace.members.title')} · {members.length + 1}
+          {t('teamWorkspace.members.title')} · {members.length + delegatedNodes.length + 1}
         </span>
         {running && (
           <span className="team-workspace-panel__map-topbar-live">{t('teamWorkspace.runStatus.running')}</span>
@@ -274,6 +330,17 @@ function TeamMapView({
               />
             );
           })}
+          {delegatedNodes.map(node => (
+            <line
+              key={`${node.member.definition.memberId}:${node.task.taskId}`}
+              x1={node.parentX}
+              y1={node.parentY}
+              x2={node.x}
+              y2={node.y}
+              className={`is-worker${INFO.has(node.task.status) ? ' is-hot' : ''}`}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
         </svg>
         <div
           className="team-workspace-panel__map-lead"
@@ -311,6 +378,47 @@ function TeamMapView({
             </button>
           );
         })}
+        {delegatedNodes.map(node => {
+          const tone = statusTone(node.task.status);
+          const canOpen = Boolean(node.task.childSessionId);
+          return (
+            <button
+              key={`${node.member.definition.memberId}:${node.task.taskId}`}
+              ref={button => registerButton(`task:${node.task.taskId}`, button)}
+              type="button"
+              className="team-workspace-panel__map-worker"
+              data-tone={tone}
+              data-depth={node.task.depth}
+              disabled={!canOpen}
+              style={{
+                transform: `translate(${node.x}px, ${node.y}px) scale(calc(1 / var(--map-camera-zoom, 1)))`,
+              }}
+              onClick={() => openWorker(node.member, node.task)}
+              aria-label={t('teamWorkspace.delegation.open', { name: node.task.owner })}
+              title={node.task.objective}
+            >
+              <span className="team-workspace-panel__map-worker-point" aria-hidden="true" />
+              <span className="team-workspace-panel__map-worker-name">{node.task.owner}</span>
+              <span className="team-workspace-panel__map-worker-objective">{node.task.objective}</span>
+              <span className="sr-only">{t(`teamWorkspace.delegation.status.${node.task.status}`)}</span>
+            </button>
+          );
+        })}
+        {members.map((member, index) => {
+          if (member.delegation.status === 'ready') return null;
+          const position = positions[index] ?? { x: 0, y: 0 };
+          return (
+            <span
+              key={`${member.definition.memberId}:delegation-state`}
+              className="team-workspace-panel__map-delegation-state"
+              data-state={member.delegation.status}
+              style={{ transform: `translate(${position.x}px, ${position.y + 42}px) scale(calc(1 / var(--map-camera-zoom, 1)))` }}
+              role={member.delegation.status === 'error' ? 'alert' : 'status'}
+            >
+              {t(`teamWorkspace.delegation.${member.delegation.status}`)}
+            </span>
+          );
+        })}
       </section>
       {issue && (
         <div className="team-workspace-panel__issue team-workspace-panel__issue--map" role="alert" title={issue.message || undefined} data-map-static>
@@ -338,6 +446,7 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
 }) => {
   const { t } = useTranslation('flow-chat');
   const [internalMemberId, setInternalMemberId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const memberId = selectedMemberId === undefined
     ? internalMemberId
     : selectedMemberId;
@@ -357,6 +466,10 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
     () => members.find(member => member.definition.memberId === memberId) ?? null,
     [memberId, members],
   );
+  const selectedTask = useMemo(
+    () => selectedMember?.delegation.tasks.find(task => task.taskId === selectedTaskId) ?? null,
+    [selectedMember, selectedTaskId],
+  );
   const isTeamRunning = useMemo(
     () => INFO.has(team?.activeRun?.status ?? '')
       || members.some(member => INFO.has(member.state.status)),
@@ -366,6 +479,10 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
   useEffect(() => {
     if (memberId && !selectedMember) setMemberId(null);
   }, [memberId, selectedMember, setMemberId]);
+
+  useEffect(() => {
+    if (selectedTaskId && !selectedTask) setSelectedTaskId(null);
+  }, [selectedTask, selectedTaskId]);
 
   useEffect(() => {
     if (memberId || !pendingFocusMemberId.current) return;
@@ -380,8 +497,23 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
   }, []);
 
   const returnToTeam = () => {
-    pendingFocusMemberId.current = memberId;
+    pendingFocusMemberId.current = selectedTaskId ? `task:${selectedTaskId}` : memberId;
+    setSelectedTaskId(null);
     setMemberId(null);
+  };
+
+  const openMember = (member: TeamWorkspaceMemberProjection) => {
+    setSelectedTaskId(null);
+    setMemberId(member.definition.memberId);
+  };
+
+  const openWorker = (
+    member: TeamWorkspaceMemberProjection,
+    task: TeamDelegatedTask,
+  ) => {
+    if (!task.childSessionId) return;
+    setMemberId(member.definition.memberId);
+    setSelectedTaskId(task.taskId);
   };
 
   if (selectedMember && team && state.snapshot) {
@@ -410,7 +542,7 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
                 className="team-workspace-panel__member-tab"
                 data-active={member.definition.memberId === selectedMember.definition.memberId || undefined}
                 data-tone={statusTone(member.state.status)}
-                onClick={() => setMemberId(member.definition.memberId)}
+                onClick={() => openMember(member)}
                 aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
                 aria-current={member.definition.memberId === selectedMember.definition.memberId ? 'true' : undefined}
                 title={member.definition.displayName}
@@ -418,17 +550,32 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
                 {member.definition.displayName.slice(0, 2)}
               </button>
             ))}
+            {selectedMember.delegation.tasks.filter(task => task.childSessionId).map(task => (
+              <button
+                key={task.taskId}
+                type="button"
+                className="team-workspace-panel__member-tab team-workspace-panel__member-tab--worker"
+                data-active={task.taskId === selectedTask?.taskId || undefined}
+                data-tone={statusTone(task.status)}
+                onClick={() => openWorker(selectedMember, task)}
+                aria-label={t('teamWorkspace.delegation.open', { name: task.owner })}
+                aria-current={task.taskId === selectedTask?.taskId ? 'true' : undefined}
+                title={task.objective}
+              >
+                {task.owner.slice(0, 2)}
+              </button>
+            ))}
           </span>
         </div>
         <div className="team-workspace-panel__conversation">
-          {selectedMember.childSessionId ? (
+          {(selectedTask?.childSessionId ?? selectedMember.childSessionId) ? (
             <Suspense fallback={<EmptyState icon={<LoaderCircle className="team-workspace-panel__spinner" />} title={t('teamWorkspace.memberConversation.loadingTitle')} description={t('teamWorkspace.memberConversation.loadingDescription')} />}>
               <BtwSessionPanel
-                childSessionId={selectedMember.childSessionId}
-                parentSessionId={state.snapshot.parentSessionId}
+                childSessionId={selectedTask?.childSessionId ?? selectedMember.childSessionId!}
+                parentSessionId={selectedTask?.parentSessionId ?? state.snapshot.parentSessionId}
                 workspacePath={workspacePath}
                 isActive={isActive}
-                presentationTitle={selectedMember.definition.displayName}
+                presentationTitle={selectedTask?.owner ?? selectedMember.definition.displayName}
                 showKindBadge={false}
                 showHeader={false}
                 restoreMissingSessionAs="subagent"
@@ -483,7 +630,8 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
         issue={issue}
         running={isTeamRunning}
         reload={state.reload}
-        openMember={member => setMemberId(member.definition.memberId)}
+        openMember={openMember}
+        openWorker={openWorker}
         registerButton={registerButton}
       />
     </aside>

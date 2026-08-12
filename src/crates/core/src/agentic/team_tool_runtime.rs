@@ -4,6 +4,7 @@
 //! identity are injected by the host after persona validation and are never
 //! accepted from prompt-controlled context.
 
+use super::team_member_tool_runtime::TeamMemberToolInvocation;
 use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -374,6 +375,15 @@ pub trait TeamToolExecutor: Send + Sync {
         &self,
         invocation: TeamToolInvocation,
     ) -> VoidResult<TeamToolExecutionOutcome>;
+
+    async fn execute_team_member_tool(
+        &self,
+        _invocation: TeamMemberToolInvocation,
+    ) -> VoidResult<TeamToolExecutionOutcome> {
+        Err(VoidError::tool(
+            "TeamMember runtime executor is not installed".to_string(),
+        ))
+    }
 }
 
 #[cfg(test)]

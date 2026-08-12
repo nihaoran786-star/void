@@ -240,6 +240,13 @@
       "specialist": "专业成员",
       "quality_gate": "质检成员"
     },
+    "delegation": {
+      "title": "高级成员委派",
+      "hint": "允许选中的成员把工作拆给 Worker 会话。委派深度固定为两级。",
+      "memberToggle": "允许该成员继续委派",
+      "maxWorkerTasks": "Worker 任务数",
+      "maxParallelWorkers": "并行 Worker 数"
+    },
     "workflows": {
       "title": "协作流程",
       "hint": "明确谁先做、谁后做，以及哪些阶段可以并行。",
@@ -346,6 +353,9 @@
       "lead_member_not_found": "主理人不在成员列表中",
       "lead_member_must_have_lead_role": "主理人必须使用主理人角色",
       "lead_member_must_appear_once": "团队必须且只能有一位主理人",
+      "member_delegation_max_worker_tasks_out_of_range": "Worker 任务数必须是 1 到 32 的整数",
+      "member_delegation_max_parallel_workers_out_of_range": "并行 Worker 数必须是 1 到 8 的整数",
+      "member_delegation_parallel_exceeds_total": "并行 Worker 数不能超过 Worker 任务总数",
       "workflow_count_out_of_range": "团队需要 1 到 8 套流程",
       "workflow_key_required": "流程缺少内部标识",
       "duplicate_workflow_key": "流程内部标识重复",

@@ -3,8 +3,23 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fmt;
 
-pub const SUBAGENT_TASK_SCHEMA_VERSION: u32 = 3;
+pub const SUBAGENT_TASK_SCHEMA_VERSION: u32 = 4;
 pub const TEAM_MEMBER_SKILL_POLICY_SCHEMA_VERSION: u32 = 1;
+pub const SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION: u32 = 1;
+pub const TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY: &str = "teamDelegationRootSessionId";
+pub const TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY: &str =
+    "teamDelegationParentMemberSessionId";
+pub const TEAM_DELEGATION_CONTEXT_KEYS: &[&str] = &[
+    "teamDefinitionId",
+    "teamDefinitionRevision",
+    "teamInstanceId",
+    "teamRunId",
+    "memberRunId",
+    "teamMemberId",
+    "teamPhaseId",
+    TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY,
+    TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY,
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -268,6 +283,139 @@ impl TeamMemberSkillPolicySnapshot {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SubagentLaunchAuthorityKind {
+    OrdinaryChild,
+    TeamMember,
+    TeamWorker,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TeamDelegationLineageSnapshot {
+    pub team_definition_id: String,
+    pub team_definition_revision: String,
+    pub team_instance_id: String,
+    pub team_run_id: String,
+    pub member_run_id: String,
+    pub member_id: String,
+    pub root_parent_session_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_member_session_id: Option<String>,
+}
+
+impl TeamDelegationLineageSnapshot {
+    pub fn validate(&self) -> Result<(), SubagentTaskTransitionError> {
+        if [
+            self.team_definition_id.as_str(),
+            self.team_definition_revision.as_str(),
+            self.team_instance_id.as_str(),
+            self.team_run_id.as_str(),
+            self.member_run_id.as_str(),
+            self.member_id.as_str(),
+            self.root_parent_session_id.as_str(),
+        ]
+        .into_iter()
+        .any(|value| value.trim().is_empty())
+            || self
+                .parent_member_session_id
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+        {
+            return Err(SubagentTaskTransitionError::new(
+                "Team delegation lineage is incomplete",
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Durable authority for the child session created by one Task call.
+///
+/// `delegation_request_id` is the exact parent tool-call identity. It gives
+/// retry and budget accounting a stable key without depending on task titles
+/// or prompt text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubagentLaunchAuthority {
+    pub schema_version: u32,
+    pub kind: SubagentLaunchAuthorityKind,
+    pub delegation_request_id: String,
+    pub nesting_depth: u8,
+    pub max_nesting_depth: u8,
+    pub task_spawn_budget: u16,
+    pub max_parallel_workers: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team_lineage: Option<TeamDelegationLineageSnapshot>,
+}
+
+impl SubagentLaunchAuthority {
+    pub fn validate(&self) -> Result<(), SubagentTaskTransitionError> {
+        if self.schema_version != SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION {
+            return Err(SubagentTaskTransitionError::new(format!(
+                "unsupported subagent launch authority schema version: {}",
+                self.schema_version
+            )));
+        }
+        if self.delegation_request_id.trim().is_empty()
+            || self.nesting_depth > self.max_nesting_depth
+        {
+            return Err(SubagentTaskTransitionError::new(
+                "subagent launch authority has invalid request or depth facts",
+            ));
+        }
+        match self.kind {
+            SubagentLaunchAuthorityKind::OrdinaryChild => {
+                if self.team_lineage.is_some()
+                    || self.task_spawn_budget != 0
+                    || self.max_parallel_workers != 0
+                    || self.nesting_depth == 0
+                    || self.nesting_depth != self.max_nesting_depth
+                {
+                    return Err(SubagentTaskTransitionError::new(
+                        "ordinary child authority cannot carry Team delegation facts",
+                    ));
+                }
+            }
+            SubagentLaunchAuthorityKind::TeamMember => {
+                if self.team_lineage.is_none()
+                    || self.task_spawn_budget == 0
+                    || self.max_parallel_workers == 0
+                    || self.max_parallel_workers > self.task_spawn_budget
+                    || self.nesting_depth != 1
+                    || self.max_nesting_depth != 2
+                    || self
+                        .team_lineage
+                        .as_ref()
+                        .is_some_and(|lineage| lineage.parent_member_session_id.is_some())
+                {
+                    return Err(SubagentTaskTransitionError::new(
+                        "Team member authority requires lineage and a worker budget",
+                    ));
+                }
+            }
+            SubagentLaunchAuthorityKind::TeamWorker => {
+                if self.team_lineage.is_none()
+                    || self.task_spawn_budget != 0
+                    || self.max_parallel_workers != 0
+                    || self.nesting_depth != 2
+                    || self.max_nesting_depth != 2
+                    || self.team_lineage.as_ref().is_some_and(|lineage| {
+                        lineage.parent_member_session_id.as_deref().is_none()
+                    })
+                {
+                    return Err(SubagentTaskTransitionError::new(
+                        "Team worker authority must stop at its delegated depth",
+                    ));
+                }
+            }
+        }
+        if let Some(lineage) = self.team_lineage.as_ref() {
+            lineage.validate()?;
+        }
+        Ok(())
+    }
+}
+
 /// Durable inputs required to resume an interrupted background subagent in its
 /// existing child session. Session configuration and transcript remain owned by
 /// session persistence; this record only keeps launch facts that cannot be
@@ -388,6 +536,8 @@ pub struct SubagentTaskRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub launch_spec: Option<SubagentTaskLaunchSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_authority: Option<SubagentLaunchAuthority>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery_block: Option<SubagentTaskRecoveryBlock>,
     pub created_at: u64,
     pub updated_at: u64,
@@ -456,6 +606,7 @@ impl SubagentTaskRecord {
             recovery_reason: None,
             durable_checkpoint: None,
             launch_spec: None,
+            launch_authority: None,
             recovery_block: None,
             created_at,
             updated_at: created_at,
@@ -1096,6 +1247,72 @@ mod tests {
         let restored: SubagentTaskLaunchSpec = serde_json::from_value(legacy).unwrap();
         assert!(restored.team_member_skill_policy.is_none());
         restored.validate().unwrap();
+    }
+
+    #[test]
+    fn launch_authority_persists_team_lineage_and_exact_request_identity() {
+        let authority = SubagentLaunchAuthority {
+            schema_version: SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+            kind: SubagentLaunchAuthorityKind::TeamMember,
+            delegation_request_id: "tool-call-1".into(),
+            nesting_depth: 1,
+            max_nesting_depth: 2,
+            task_spawn_budget: 8,
+            max_parallel_workers: 3,
+            team_lineage: Some(TeamDelegationLineageSnapshot {
+                team_definition_id: "definition".into(),
+                team_definition_revision: "revision".into(),
+                team_instance_id: "instance".into(),
+                team_run_id: "run".into(),
+                member_run_id: "member-run".into(),
+                member_id: "member".into(),
+                root_parent_session_id: "parent".into(),
+                parent_member_session_id: None,
+            }),
+        };
+        authority.validate().unwrap();
+
+        let restored: SubagentLaunchAuthority =
+            serde_json::from_value(serde_json::to_value(&authority).unwrap()).unwrap();
+        assert_eq!(restored, authority);
+
+        let mut missing_member_run = authority.clone();
+        missing_member_run
+            .team_lineage
+            .as_mut()
+            .unwrap()
+            .member_run_id
+            .clear();
+        assert!(missing_member_run.validate().is_err());
+
+        let mut worker = authority;
+        worker.kind = SubagentLaunchAuthorityKind::TeamWorker;
+        worker.nesting_depth = 2;
+        worker.task_spawn_budget = 0;
+        worker.max_parallel_workers = 0;
+        worker
+            .team_lineage
+            .as_mut()
+            .unwrap()
+            .parent_member_session_id = Some("member-session".into());
+        worker.validate().unwrap();
+    }
+
+    #[test]
+    fn legacy_task_record_defaults_launch_authority_to_none() {
+        let mut task = SubagentTaskRecord::new(
+            "task".into(),
+            "parent".into(),
+            "objective".into(),
+            "owner".into(),
+            1,
+        );
+        task.launch_authority = None;
+        let mut value = serde_json::to_value(task).unwrap();
+        value.as_object_mut().unwrap().remove("launch_authority");
+
+        let restored: SubagentTaskRecord = serde_json::from_value(value).unwrap();
+        assert!(restored.launch_authority.is_none());
     }
 
     #[test]

@@ -215,6 +215,57 @@ export interface TeamRuntimeMutationResponse {
   record: TeamRuntimeRecord | null;
 }
 
+export type TeamDelegatedTaskStatus =
+  | 'created'
+  | 'running'
+  | 'blocked'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted';
+
+export interface TeamDelegatedTask {
+  taskId: string;
+  parentTaskId?: string;
+  parentSessionId: string;
+  teamInstanceId: string;
+  memberId: string;
+  memberRunId: string;
+  childSessionId?: string;
+  objective: string;
+  owner: string;
+  status: TeamDelegatedTaskStatus;
+  depth: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TeamDelegatedTaskIssue {
+  parentSessionId: string;
+  teamInstanceId: string;
+  memberId?: string;
+  code: 'task_read_failed';
+  message: string;
+  retryable: boolean;
+}
+
+export interface ListTeamDelegatedTasksInput {
+  parentSessionId: string;
+  teamInstanceId: string;
+}
+
+export type TeamDelegatedTaskList =
+  | {
+      status: 'ready' | 'partial';
+      tasks: TeamDelegatedTask[];
+      issues: TeamDelegatedTaskIssue[];
+    }
+  | {
+      status: 'error';
+      tasks: [];
+      issues: [TeamDelegatedTaskIssue, ...TeamDelegatedTaskIssue[]];
+    };
+
 export interface TeamRuntimeApiError {
   code: string;
   message: string;
@@ -267,4 +318,5 @@ export interface TeamRuntimeGateway {
   resume(input: ResumeTeamRuntimeInput): Promise<TeamRuntimeMutationResponse>;
   stop(input: StopTeamRuntimeInput): Promise<TeamRuntimeMutationResponse>;
   recover(input: RecoverTeamRuntimeInput): Promise<TeamRuntimeMutationResponse>;
+  listDelegatedTasks(input: ListTeamDelegatedTasksInput): Promise<TeamDelegatedTaskList>;
 }

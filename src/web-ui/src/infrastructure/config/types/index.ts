@@ -325,6 +325,14 @@ export type TeamWorkflowPhaseKind =
   | 'decision'
   | 'review';
 
+export type TeamMemberDelegationPolicy =
+  | { kind: 'disabled' }
+  | {
+      kind: 'bounded';
+      maxWorkerTasks: number;
+      maxParallelWorkers: number;
+    };
+
 export interface TeamDefinitionCommandError {
   code: string;
   message: string;
@@ -350,6 +358,8 @@ export interface TeamMemberDefinition {
   allowedToolNames: string[];
   permissionPolicy: 'inherit_parent_intersection';
   isReadonly: boolean;
+  /** Absent on schema v1 definitions; non-lead members then use the runtime default. */
+  delegationPolicy?: TeamMemberDelegationPolicy;
 }
 
 export interface TeamWorkflowPhaseDefinition {
@@ -380,6 +390,7 @@ export interface TeamMemberDraft {
   allowedSkillKeys: string[];
   allowedToolNames: string[];
   isReadonly: boolean;
+  delegationPolicy?: TeamMemberDelegationPolicy;
 }
 
 export interface TeamWorkflowPhaseDraft {
@@ -413,7 +424,7 @@ export interface TeamDefinitionDraft {
 }
 
 export interface TeamDefinition {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   /** Immutable runtime identity generated independently from displayName. */
   teamDefinitionId: string;
   displayName: string;

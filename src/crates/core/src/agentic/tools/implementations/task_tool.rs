@@ -75,7 +75,7 @@ impl TaskTool {
 
     fn ensure_delegation_allowed(context: &ToolUseContext) -> VoidResult<()> {
         let delegation_policy = context.delegation_policy();
-        if delegation_policy.allow_subagent_spawn {
+        if delegation_policy.allows_task_spawn() {
             return Ok(());
         }
 
@@ -1257,9 +1257,9 @@ impl Tool for TaskTool {
             prompt = Self::prompt_with_deep_review_retry_scope(&prompt, retry_scope_files);
         }
 
-        let subagent_context = deep_review_subagent_role.map(|role| {
-            let mut values = HashMap::new();
-            values.insert(
+        let mut subagent_context = HashMap::new();
+        if let Some(role) = deep_review_subagent_role {
+            subagent_context.insert(
                 "deep_review_subagent_role".to_string(),
                 match role {
                     DeepReviewSubagentRole::Reviewer => "reviewer",
@@ -1268,13 +1268,29 @@ impl Tool for TaskTool {
                 .to_string(),
             );
             if let Some(subagent_type) = subagent_type.as_ref() {
-                values.insert(
+                subagent_context.insert(
                     "deep_review_subagent_type".to_string(),
                     subagent_type.clone(),
                 );
             }
-            values
-        });
+        }
+        for key in void_core_types::TEAM_DELEGATION_CONTEXT_KEYS {
+            if let Some(value) = context
+                .custom_data
+                .get(*key)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            {
+                subagent_context.insert((*key).to_string(), value.to_string());
+            }
+        }
+        if context.delegation_policy().tier() == void_runtime_ports::DelegationTier::TeamMember {
+            subagent_context.insert(
+                void_core_types::TEAM_DELEGATION_PARENT_MEMBER_SESSION_CONTEXT_KEY.to_string(),
+                session_id.clone(),
+            );
+        }
         let prepared_prompt = prompt;
         if run_in_background {
             let parent_info = SubagentParentInfo {
@@ -1291,7 +1307,7 @@ impl Tool for TaskTool {
                         workspace_path: effective_workspace_path.clone(),
                         model_id: model_id.clone(),
                         subagent_parent_info: parent_info,
-                        context: subagent_context.clone().unwrap_or_default(),
+                        context: subagent_context.clone(),
                         delegation_policy: context.delegation_policy().spawn_child(),
                     },
                     timeout_seconds,
@@ -1342,7 +1358,7 @@ impl Tool for TaskTool {
                         workspace_path: effective_workspace_path.clone(),
                         model_id: model_id.clone(),
                         subagent_parent_info: parent_info,
-                        context: subagent_context.clone().unwrap_or_default(),
+                        context: subagent_context.clone(),
                         delegation_policy: context.delegation_policy().spawn_child(),
                     },
                     context.cancellation_token.as_ref(),

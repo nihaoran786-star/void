@@ -324,6 +324,16 @@ fn build_tool_context_custom_data(context: &ToolExecutionContext) -> HashMap<Str
         "delegation_nesting_depth".to_string(),
         serde_json::json!(context.delegation_policy.nesting_depth),
     );
+    map.insert(
+        "delegation_allow_team_orchestration".to_string(),
+        serde_json::json!(context.delegation_policy.allows_team_orchestration()),
+    );
+
+    for key in void_core_types::TEAM_DELEGATION_CONTEXT_KEYS {
+        if let Some(value) = context.context_vars.get(*key) {
+            map.insert((*key).to_string(), serde_json::json!(value));
+        }
+    }
 
     if let Some(turn_index) = context.context_vars.get("turn_index") {
         if let Ok(n) = turn_index.parse::<u64>() {

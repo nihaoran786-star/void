@@ -13,6 +13,7 @@ import type {
   TeamRun,
   TeamRunStatus,
   TeamRuntimeError,
+  TeamDelegatedTask,
 } from '@/shared/services/customization/TeamRuntimeGateway';
 
 export type TeamWorkspaceIssueSource =
@@ -45,7 +46,8 @@ export type TeamWorkspaceIssueCode =
   | 'active_team_binding_incomplete'
   | 'bound_team_runtime_missing'
   | 'bound_team_definition_mismatch'
-  | 'bound_team_projection_missing';
+  | 'bound_team_projection_missing'
+  | 'delegated_task_read_failed';
 
 export interface TeamWorkspaceIssue {
   code: TeamWorkspaceIssueCode;
@@ -96,6 +98,11 @@ export interface TeamWorkspaceMemberProjection {
   state: TeamWorkspaceMemberState;
   childSessionId?: string;
   subagentTaskId?: string;
+  delegation:
+    | { status: 'loading'; tasks: [] }
+    | { status: 'ready'; tasks: TeamDelegatedTask[] }
+    | { status: 'partial'; tasks: TeamDelegatedTask[]; error: TeamWorkspaceIssue }
+    | { status: 'error'; tasks: []; error: TeamWorkspaceIssue };
 }
 
 export interface TeamWorkspacePhaseProjection {

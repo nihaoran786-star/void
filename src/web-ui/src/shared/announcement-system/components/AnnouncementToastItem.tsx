@@ -83,6 +83,7 @@ const AnnouncementToastItem: React.FC<Props> = ({ card }) => {
             <button
               type="button"
               className="announcement-toast__close"
+              data-testid="announcement-toast-dismiss"
               onClick={handleDismiss}
               aria-label={t('announcements.common.close')}
             >

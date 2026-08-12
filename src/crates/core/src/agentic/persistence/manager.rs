@@ -3681,7 +3681,7 @@ mod tests {
     use void_core_types::{
         SubagentTaskDeliveryState, SubagentTaskLaunchSpec, SubagentTaskRecord,
         SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
-        SubagentTaskStatus, TeamMemberSkillPolicySnapshot,
+        SubagentTaskStatus, TeamMemberSkillPolicySnapshot, SUBAGENT_TASK_SCHEMA_VERSION,
     };
 
     struct TestWorkspace {
@@ -4032,7 +4032,8 @@ mod tests {
             migrated
         );
 
-        let current_schema = legacy_team_recovery_task("current-team", 3);
+        let current_schema =
+            legacy_team_recovery_task("current-team", SUBAGENT_TASK_SCHEMA_VERSION);
         let current_path = manager
             .subagent_task_path(workspace.path(), "parent-1", "current-team")
             .expect("task path");

@@ -1,6 +1,7 @@
 import type {
   TeamDefinitionDraft,
   TeamDefinitionScenario,
+  TeamMemberDelegationPolicy,
   TeamMemberDraft,
   TeamWorkflowDraft,
   TeamWorkflowPhaseDraft,
@@ -52,7 +53,10 @@ export type TeamAuthoringDiagnosticCode =
   | 'phase_self_dependency'
   | 'workflow_cycle'
   | 'phase_output_required'
-  | 'phase_completion_rule_required';
+  | 'phase_completion_rule_required'
+  | 'member_delegation_max_worker_tasks_out_of_range'
+  | 'member_delegation_max_parallel_workers_out_of_range'
+  | 'member_delegation_parallel_exceeds_total';
 
 export interface TeamAuthoringDiagnostic {
   code: TeamAuthoringDiagnosticCode;
@@ -114,6 +118,7 @@ export interface TeamRosterAgentInput {
   description: string;
   scenarioEligibility: TeamDefinitionScenario[];
   isReadonly: boolean;
+  delegationPolicy?: TeamMemberDelegationPolicy;
 }
 
 export interface TeamRosterDraftInput {
@@ -139,6 +144,11 @@ const MIN_MEMBERS = 2;
 const MAX_MEMBERS = 12;
 const MAX_WORKFLOWS = 8;
 const MAX_PHASES_PER_WORKFLOW = 20;
+export const DEFAULT_TEAM_MEMBER_DELEGATION_POLICY: TeamMemberDelegationPolicy = {
+  kind: 'bounded',
+  maxWorkerTasks: 8,
+  maxParallelWorkers: 3,
+};
 
 const DEFAULT_TEMPLATE: TeamAuthoringTemplate = {
   defaultCategory: 'General team',
@@ -241,6 +251,7 @@ function generatedMembers(
       allowedSkillKeys: [],
       allowedToolNames: [],
       isReadonly: false,
+      delegationPolicy: { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY },
     },
     {
       clientKey: 'specialist',
@@ -257,6 +268,7 @@ function generatedMembers(
       allowedSkillKeys: [],
       allowedToolNames: [],
       isReadonly: false,
+      delegationPolicy: { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY },
     },
   ];
 }
@@ -336,6 +348,9 @@ export function createTeamDraftFromRoster(
       allowedSkillKeys: [],
       allowedToolNames: [],
       isReadonly: agent.isReadonly,
+      delegationPolicy: agent.isReadonly
+        ? { kind: 'disabled' }
+        : agent.delegationPolicy ?? { ...DEFAULT_TEAM_MEMBER_DELEGATION_POLICY },
     };
   });
   const leadMemberKey = members.find(member => member.role === 'lead')?.clientKey ?? '';
@@ -396,6 +411,24 @@ function normalizeMember(member: TeamMemberDraft): TeamMemberDraft {
     allowedSkillKeys: normalizeStrings(member.allowedSkillKeys),
     allowedToolNames: normalizeStrings(member.allowedToolNames),
     isReadonly: member.isReadonly,
+    delegationPolicy: normalizeMemberDelegationPolicy(
+      member.delegationPolicy,
+      member.isReadonly,
+    ),
+  };
+}
+
+function normalizeMemberDelegationPolicy(
+  policy: TeamMemberDelegationPolicy | undefined,
+  isReadonly: boolean,
+): TeamMemberDelegationPolicy {
+  if (isReadonly || !policy || policy.kind === 'disabled') {
+    return { kind: 'disabled' };
+  }
+  return {
+    kind: 'bounded',
+    maxWorkerTasks: policy.maxWorkerTasks,
+    maxParallelWorkers: policy.maxParallelWorkers,
   };
 }
 
@@ -492,6 +525,45 @@ function validateMembers(
         'members',
         `${path}.agentId`,
       );
+    }
+    const delegation = member.delegationPolicy;
+    if (delegation?.kind === 'bounded') {
+      if (
+        !Number.isInteger(delegation.maxWorkerTasks)
+        || delegation.maxWorkerTasks < 1
+        || delegation.maxWorkerTasks > 32
+      ) {
+        addDiagnostic(
+          diagnostics,
+          'member_delegation_max_worker_tasks_out_of_range',
+          'members',
+          `${path}.delegationPolicy.maxWorkerTasks`,
+        );
+      }
+      if (
+        !Number.isInteger(delegation.maxParallelWorkers)
+        || delegation.maxParallelWorkers < 1
+        || delegation.maxParallelWorkers > 8
+      ) {
+        addDiagnostic(
+          diagnostics,
+          'member_delegation_max_parallel_workers_out_of_range',
+          'members',
+          `${path}.delegationPolicy.maxParallelWorkers`,
+        );
+      }
+      if (
+        Number.isInteger(delegation.maxWorkerTasks)
+        && Number.isInteger(delegation.maxParallelWorkers)
+        && delegation.maxParallelWorkers > delegation.maxWorkerTasks
+      ) {
+        addDiagnostic(
+          diagnostics,
+          'member_delegation_parallel_exceeds_total',
+          'members',
+          `${path}.delegationPolicy.maxParallelWorkers`,
+        );
+      }
     }
   }
 

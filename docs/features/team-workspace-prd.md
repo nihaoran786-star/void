@@ -33,9 +33,12 @@ acceptance rule, Team objective, and lead handoff target as a concise positive
 assignment. It must not repeatedly inject natural-language warnings as a
 substitute for authorization. Whether the child may invoke `Task`, `Team`, or
 another privileged tool is enforced by typed runtime restrictions and the
-effective scenario/workspace/user permission intersection. Ordinary Team
-members fail closed for both `Task` and `Team`; any future nested delegation
-requires an explicit policy and runtime contract rather than prompt wording.
+effective scenario/workspace/user permission intersection. Team members always
+fail closed for `Team`. Their `Task` authority is defined by an explicit member
+delegation policy and durable launch snapshot rather than prompt wording. A
+bounded member can create one level of temporary workers; workers fail closed
+for both `Task` and `Team`. A disabled member and every legacy in-flight launch
+keep the previous no-delegation behavior.
 
 When a user selects a team in a compatible scenario, the team lead becomes the
 parent conversation's active persona. The scenario workspace, execution policy,
@@ -560,13 +563,20 @@ The Desktop/Tauri reusable-Team slice implements:
 - Team-side recovery preflight before the coordinator's generic child-recovery
   path, strict identity/hash validation, and compare-and-swap migration of only
   eligible legacy empty-policy launches to explicit `no_policy`;
-- runtime-enforced lead/member separation: child sessions cannot call `Task`
-  or `Team`, member launches receive a concise positive phase assignment with
-  the expected output, completion rule, and Team goal, while the member Agent
-  definition remains the sole owner of its professional persona. Completed
-  prerequisites automatically dispatch successor phases, and cancelled or
-  interrupted members terminalize the current run so a new run can start
-  instead of remaining falsely active;
+- runtime-enforced lead/member/worker separation: the lead retains Team
+  orchestration; a member with typed bounded delegation may call `Task` but not
+  `Team`; its depth-two workers can call neither. New non-lead members default
+  to eight total workers and three parallel workers, with validated per-member
+  overrides. Launch authority persists Team instance, Team run, member run,
+  direct/root session lineage, depth, and budgets. A member that delegated work
+  remains waiting until every worker is terminal and the member explicitly
+  completes its synthesis; worker failure is visible but does not independently
+  advance or fail the workflow. Member launches still receive a concise positive
+  phase assignment with the expected output, completion rule, and Team goal,
+  while the member Agent definition remains the sole owner of its professional
+  persona. Completed prerequisites automatically dispatch successor phases,
+  and cancelled or interrupted members terminalize the current run so a new run
+  can start instead of remaining falsely active;
 - Web composer activation for otherwise-compatible ordinary Teams with member
   Skill allowlists;
 - one right-side Team Workspace presentation for all durable Team members,

@@ -44,7 +44,7 @@ describe('DesktopTeamRuntimeAdapter', () => {
     apiInvokeMock.mockResolvedValue(rejectedOutcome);
   });
 
-  it('逐字段映射九个公开 Team runtime 命令到 Tauri request DTO', async () => {
+  it('逐字段映射公开 Team runtime 命令到 Tauri request DTO', async () => {
     const adapter = new DesktopTeamRuntimeAdapter();
 
     await adapter.list({ parentSessionId: 'parent-1' });
@@ -77,6 +77,10 @@ describe('DesktopTeamRuntimeAdapter', () => {
     await adapter.stop(runInput);
     await adapter.recover({
       operationId: 'operation-recover',
+      parentSessionId: 'parent-1',
+      teamInstanceId: 'team-instance-1',
+    });
+    await adapter.listDelegatedTasks({
       parentSessionId: 'parent-1',
       teamInstanceId: 'team-instance-1',
     });
@@ -115,6 +119,12 @@ describe('DesktopTeamRuntimeAdapter', () => {
       ['team_runtime_recover', {
         request: {
           operationId: 'operation-recover',
+          parentSessionId: 'parent-1',
+          teamInstanceId: 'team-instance-1',
+        },
+      }],
+      ['team_runtime_list_delegated_tasks', {
+        request: {
           parentSessionId: 'parent-1',
           teamInstanceId: 'team-instance-1',
         },

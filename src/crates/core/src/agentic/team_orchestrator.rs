@@ -2,7 +2,9 @@
 //!
 //! Plans do not create sessions or tasks. Runtime adapters are the only I/O boundary.
 
-use super::team_definitions::{validate_team_definition, TeamDefinitionRecord, TeamScenario};
+use super::team_definitions::{
+    validate_team_definition, TeamDefinitionRecord, TeamMemberDelegationPolicy, TeamScenario,
+};
 use super::team_runtime::{
     TeamExecutionProfile, TeamInstanceCreationSource, TeamLeadBinding, TeamMemberBinding,
     TeamWorkspaceIdentity,
@@ -59,6 +61,15 @@ pub struct ObserveCommand {
 run_command!(PauseCommand);
 run_command!(ResumeCommand);
 run_command!(StopCommand);
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteMemberCommand {
+    pub identity: TeamCommandIdentity,
+    pub team_run_id: String,
+    pub member_run_id: String,
+    pub summary: String,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecoverCommand {
@@ -139,6 +150,7 @@ pub trait TeamOrchestrator: Send + Sync {
     async fn resume(&self, command: ResumeCommand) -> TeamOrchestratorOutcome;
     async fn stop(&self, command: StopCommand) -> TeamOrchestratorOutcome;
     async fn recover(&self, command: RecoverCommand) -> TeamOrchestratorOutcome;
+    async fn complete_member(&self, command: CompleteMemberCommand) -> TeamOrchestratorOutcome;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -159,6 +171,8 @@ pub struct RuntimeRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub member_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub member_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub child_session_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subagent_task_id: Option<String>,
@@ -175,6 +189,9 @@ pub struct RuntimeRequest {
     /// Trusted Team-service projection. UI/context strings are never Skill authority.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub team_member_skill_policy: Option<TeamMemberSkillPolicySnapshot>,
+    /// Trusted policy from the exact Team definition revision pinned by the instance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team_member_delegation_policy: Option<TeamMemberDelegationPolicy>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -222,6 +239,8 @@ pub struct RuntimeReceipt {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub member_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub member_run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
@@ -229,6 +248,16 @@ pub struct RuntimeReceipt {
     pub child_session_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subagent_task_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_summary: Option<MemberWorkerSummary>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MemberWorkerSummary {
+    pub total: u32,
+    pub active: u32,
+    pub failed: u32,
 }
 /// Narrow runtime boundary; only `ensure_member_task` may create a member task.
 ///
@@ -595,6 +624,7 @@ mod tests {
             allowed_tool_names: vec![],
             permission_policy: TeamPermissionPolicy::InheritParentIntersection,
             is_readonly: false,
+            delegation_policy: Default::default(),
         }
     }
     fn phase(
@@ -793,6 +823,7 @@ mod tests {
             parent_tool_call_id: Some("parent-tool".into()),
             team_run_id: Some("run".into()),
             member_id: Some("member".into()),
+            member_run_id: Some("member-run".into()),
             child_session_id: Some("child".into()),
             subagent_task_id: Some("task".into()),
             phase_id: Some("phase".into()),
@@ -801,6 +832,7 @@ mod tests {
             timeout_seconds: Some(30),
             message: Some("message".into()),
             team_member_skill_policy: None,
+            team_member_delegation_policy: None,
         };
         let json = serde_json::to_string(&request).unwrap();
         assert_eq!(

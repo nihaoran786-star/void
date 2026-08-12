@@ -91,7 +91,12 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
           ) : null}
           {team.managementSupport === 'authorable' ? (
             <>
-              <Button variant="secondary" size="small" onClick={() => onEdit(team)}>
+              <Button
+                variant="secondary"
+                size="small"
+                data-testid="team-catalog-edit-definition"
+                onClick={() => onEdit(team)}
+              >
                 {t('catalog.detail.editDefinition')}
               </Button>
               <Button

@@ -4,10 +4,12 @@ import type {
   ControlTeamRuntimeRunInput,
   GetTeamRuntimeInput,
   ListTeamRuntimeInput,
+  ListTeamDelegatedTasksInput,
   MessageTeamRuntimeInput,
   ObserveTeamRuntimeInput,
   RecoverTeamRuntimeInput,
   TeamRuntimeGateway,
+  TeamDelegatedTaskList,
   TeamRuntimeList,
   TeamRuntimeMutationResponse,
   TeamRuntimeRecord,
@@ -102,6 +104,17 @@ export class DesktopTeamRuntimeAdapter implements TeamRuntimeGateway {
     return api.invoke<TeamRuntimeMutationResponse>('team_runtime_recover', {
       request: {
         operationId: input.operationId,
+        parentSessionId: input.parentSessionId,
+        teamInstanceId: input.teamInstanceId,
+      },
+    });
+  }
+
+  async listDelegatedTasks(
+    input: ListTeamDelegatedTasksInput,
+  ): Promise<TeamDelegatedTaskList> {
+    return api.invoke<TeamDelegatedTaskList>('team_runtime_list_delegated_tasks', {
+      request: {
         parentSessionId: input.parentSessionId,
         teamInstanceId: input.teamInstanceId,
       },

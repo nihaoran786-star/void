@@ -768,6 +768,8 @@ pub struct TeamMemberRun {
     pub status: TeamMemberRunStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<TeamRuntimeError>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completion_summary: Option<String>,
     pub created_at: u64,
     pub updated_at: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -804,6 +806,7 @@ impl TeamMemberRun {
             attempt,
             status: TeamMemberRunStatus::Idle,
             error: None,
+            completion_summary: None,
             created_at,
             updated_at: created_at,
             started_at: None,
@@ -825,6 +828,16 @@ impl TeamMemberRun {
         validate_optional_identifier("agentId", self.agent_id.as_deref())?;
         validate_optional_identifier("childSessionId", self.child_session_id.as_deref())?;
         validate_optional_identifier("subagentTaskId", self.subagent_task_id.as_deref())?;
+        if self
+            .completion_summary
+            .as_ref()
+            .is_some_and(|summary| summary.trim().is_empty() || summary.chars().count() > 4000)
+        {
+            return Err(TeamRuntimeContractError::RuntimeBindingInconsistent {
+                message: "member completion summary must contain 1 to 4000 printable characters"
+                    .to_string(),
+            });
+        }
         let mut applied_operation_ids = HashSet::new();
         for operation_id in &self.applied_operation_ids {
             validate_identifier("appliedOperationId", operation_id)?;

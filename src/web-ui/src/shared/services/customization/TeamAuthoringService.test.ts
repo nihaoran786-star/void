@@ -108,6 +108,11 @@ describe('TeamAuthoringService', () => {
     ]);
     expect(result.draft.members.filter(member => member.role === 'lead'))
       .toEqual([expect.objectContaining({ agentId: 'user::void::producer' })]);
+    expect(result.draft.members.map(member => member.delegationPolicy)).toEqual([
+      { kind: 'bounded', maxWorkerTasks: 8, maxParallelWorkers: 3 },
+      { kind: 'bounded', maxWorkerTasks: 8, maxParallelWorkers: 3 },
+      { kind: 'disabled' },
+    ]);
     expect(result.draft.workflows[0]?.phases).toEqual([
       expect.objectContaining({
         kind: 'parallel',
@@ -318,5 +323,50 @@ describe('TeamAuthoringService', () => {
     expect(codes).toContain('member_count_out_of_range');
     expect(codes).toContain('workflow_count_out_of_range');
     expect(codes).toContain('phase_count_out_of_range');
+  });
+
+  it('拒绝超出 8/3 硬上限的成员委派配置', () => {
+    const members = validMembers();
+    members[1]!.delegationPolicy = {
+      kind: 'bounded',
+      maxWorkerTasks: 33,
+      maxParallelWorkers: 9,
+    };
+    const result = createManualTeamDraft({
+      displayName: '委派测试团队',
+      description: '验证成员委派上限。',
+      category: '测试',
+      scenarioEligibility: ['code'],
+      leadMemberKey: 'lead',
+      members,
+      workflows: [validWorkflow()],
+    });
+
+    expect(result.diagnostics.map(item => item.code)).toEqual(expect.arrayContaining([
+      'member_delegation_max_worker_tasks_out_of_range',
+      'member_delegation_max_parallel_workers_out_of_range',
+    ]));
+  });
+
+  it('拒绝并行 Worker 数超过 Worker 任务总数', () => {
+    const members = validMembers();
+    members[1]!.delegationPolicy = {
+      kind: 'bounded',
+      maxWorkerTasks: 2,
+      maxParallelWorkers: 3,
+    };
+    const result = createManualTeamDraft({
+      displayName: '委派并行约束团队',
+      description: '验证并行 Worker 不能超过任务总数。',
+      category: '测试',
+      capabilityTags: ['委派'],
+      scenarioEligibility: ['code'],
+      members,
+      workflows: [validWorkflow()],
+    });
+
+    expect(result.diagnostics.map(item => item.code)).toContain(
+      'member_delegation_parallel_exceeds_total',
+    );
   });
 });

@@ -745,6 +745,129 @@ describe('L0 reusable Team real desktop runtime', () => {
     expect(capture.metadata.capture_bounds.height).toBeGreaterThan(0);
   });
 
+  it('edits bounded member delegation through the real Team authoring UI', async () => {
+    if (!fixture) throw new Error('Reusable Team fixture was not created');
+
+    const specialistMemberId = await browser.execute(async current => {
+      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+      const { configAPI } = await import('/src/infrastructure/api/service-api/ConfigAPI.ts');
+      const record = await configAPI.getTeamDefinition({
+        teamDefinitionId: current.teamBId,
+        level: 'project',
+        workspacePath: current.workspacePath,
+      });
+      const specialist = record.definition.members.find(
+        (member: { role: string }) => member.role === 'specialist',
+      );
+      if (!specialist) throw new Error('Team B specialist is unavailable');
+      return specialist.memberId as string;
+    }, fixture);
+
+    const extensionsToggle = await $('.void-nav-panel__top-action-btn--expand');
+    await extensionsToggle.waitForClickable({ timeout: 20_000 });
+    if ((await extensionsToggle.getAttribute('aria-expanded')) !== 'true') {
+      await extensionsToggle.click();
+    }
+    const agentsNavigation = await $('[data-testid="nav-agents"]');
+    await agentsNavigation.waitForClickable({ timeout: 20_000 });
+    await agentsNavigation.click();
+    await $('.void-agents-shell').waitForDisplayed({ timeout: 20_000 });
+
+    const teamsTab = await $('.agents-catalog-tabs button[role="tab"]:nth-child(2)');
+    await teamsTab.waitForClickable({ timeout: 20_000 });
+    await teamsTab.click();
+
+    let teamCard: WebdriverIO.Element | undefined;
+    await browser.waitUntil(async () => {
+      const cards = await $$('.agent-team-card[role="button"]');
+      for (const card of cards) {
+        if ((await card.getAttribute('aria-label')) === fixture?.teamBName) {
+          teamCard = card;
+          return true;
+        }
+      }
+      return false;
+    }, {
+      timeout: 20_000,
+      interval: 150,
+      timeoutMsg: `Team B did not appear in the Team catalog: ${fixture.teamBName}`,
+    });
+    if (!teamCard) throw new Error('Team B card resolved without an element');
+    await teamCard.waitForClickable({ timeout: 20_000 });
+    await teamCard.click();
+
+    const editButton = await $('[data-testid="team-catalog-edit-definition"]');
+    await editButton.waitForClickable({ timeout: 20_000 });
+    await editButton.click();
+
+    const delegationToggle = await $(`[data-testid="team-member-delegation-toggle-${specialistMemberId}"]`);
+    const maxTasks = () => $(`[data-testid="team-member-delegation-max-tasks-${specialistMemberId}"]`);
+    const maxParallel = () => $(`[data-testid="team-member-delegation-max-parallel-${specialistMemberId}"]`);
+    await delegationToggle.waitForClickable({ timeout: 20_000 });
+    expect(await delegationToggle.isSelected()).toBe(true);
+    expect(await maxTasks().getValue()).toBe('8');
+    expect(await maxParallel().getValue()).toBe('3');
+
+    await delegationToggle.click();
+    expect(await maxTasks().isExisting()).toBe(false);
+    expect(await maxParallel().isExisting()).toBe(false);
+    await delegationToggle.click();
+    await maxTasks().waitForDisplayed({ timeout: 20_000 });
+    expect(await maxTasks().getValue()).toBe('8');
+    expect(await maxParallel().getValue()).toBe('3');
+
+    const announcementDismiss = await $('[data-testid="announcement-toast-dismiss"]');
+    if (await announcementDismiss.isExisting() && await announcementDismiss.isDisplayed()) {
+      await announcementDismiss.click();
+      await announcementDismiss.waitForDisplayed({ reverse: true, timeout: 5_000 });
+    }
+
+    const authoringCapture = await capturePhysicalVoidWindow(
+      'team-bounded-delegation-authoring',
+      { directory: artifactDirectory },
+    );
+    expect(authoringCapture.metadata.dpi_awareness).toContain('PerMonitorV2');
+
+    await maxTasks().setValue('2');
+    await maxParallel().setValue('3');
+    const submit = await $('[data-testid="team-authoring-submit"]');
+    await submit.waitForClickable({ timeout: 20_000 });
+    await submit.click();
+    const validationError = await $('.team-authoring__error');
+    await validationError.waitForDisplayed({ timeout: 20_000 });
+
+    await maxTasks().setValue('12');
+    await maxParallel().setValue('4');
+    await submit.click();
+    await browser.waitUntil(async () => !(await submit.isExisting()), {
+      timeout: 20_000,
+      interval: 150,
+      timeoutMsg: 'Team authoring did not close after saving valid delegation limits',
+    });
+
+    const savedPolicy = await browser.execute(async current => {
+      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+      const { configAPI } = await import('/src/infrastructure/api/service-api/ConfigAPI.ts');
+      const record = await configAPI.getTeamDefinition({
+        teamDefinitionId: current.teamBId,
+        level: 'project',
+        workspacePath: current.workspacePath,
+      });
+      return record.definition.members.find(
+        (member: { memberId: string }) => member.memberId === current.memberId,
+      )?.delegationPolicy ?? null;
+    }, {
+      workspacePath: fixture.workspacePath,
+      teamBId: fixture.teamBId,
+      memberId: specialistMemberId,
+    });
+    expect(savedPolicy).toEqual({
+      kind: 'bounded',
+      maxWorkerTasks: 12,
+      maxParallelWorkers: 4,
+    });
+  });
+
   after(async () => {
     if (fixture) {
       try {

@@ -108,6 +108,7 @@ fn materialize_tool(tool_name: &str) -> Arc<dyn Tool> {
         "Delete" => Arc::new(DeleteFileTool::new()),
         "Bash" => Arc::new(BashTool::new()),
         "Task" => Arc::new(TaskTool::new()),
+        "TeamMember" => Arc::new(TeamMemberTool::new()),
         "Team" => Arc::new(TeamTool::new()),
         "Skill" => Arc::new(SkillTool::new()),
         "AskUserQuestion" => Arc::new(AskUserQuestionTool::new()),

@@ -9,7 +9,10 @@ use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-pub const TEAM_DEFINITION_SCHEMA_VERSION: u32 = 1;
+pub const TEAM_DEFINITION_SCHEMA_VERSION: u32 = 2;
+const LEGACY_TEAM_DEFINITION_SCHEMA_VERSION: u32 = 1;
+pub const DEFAULT_TEAM_MEMBER_MAX_CHILD_TASKS: u8 = 8;
+pub const DEFAULT_TEAM_MEMBER_MAX_PARALLEL_TASKS: u8 = 3;
 const MAX_MEMBERS: usize = 12;
 const MAX_WORKFLOWS: usize = 8;
 const MAX_PHASES_PER_WORKFLOW: usize = 20;
@@ -75,6 +78,42 @@ pub enum TeamPermissionPolicy {
     InheritParentIntersection,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TeamMemberDelegationPolicy {
+    #[default]
+    Disabled,
+    Bounded {
+        #[serde(rename = "maxWorkerTasks")]
+        max_worker_tasks: u8,
+        #[serde(rename = "maxParallelWorkers")]
+        max_parallel_workers: u8,
+    },
+}
+
+impl TeamMemberDelegationPolicy {
+    pub const fn bounded_default() -> Self {
+        Self::Bounded {
+            max_worker_tasks: DEFAULT_TEAM_MEMBER_MAX_CHILD_TASKS,
+            max_parallel_workers: DEFAULT_TEAM_MEMBER_MAX_PARALLEL_TASKS,
+        }
+    }
+}
+
+pub fn effective_member_delegation_policy(
+    definition: &TeamDefinition,
+    member: &TeamMemberDefinition,
+) -> TeamMemberDelegationPolicy {
+    if definition.schema_version == LEGACY_TEAM_DEFINITION_SCHEMA_VERSION
+        && member.role != TeamMemberRole::Lead
+        && member.delegation_policy == TeamMemberDelegationPolicy::Disabled
+    {
+        TeamMemberDelegationPolicy::bounded_default()
+    } else {
+        member.delegation_policy
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamMemberDefinition {
@@ -93,6 +132,8 @@ pub struct TeamMemberDefinition {
     pub permission_policy: TeamPermissionPolicy,
     #[serde(default)]
     pub is_readonly: bool,
+    #[serde(default)]
+    pub delegation_policy: TeamMemberDelegationPolicy,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -158,6 +199,8 @@ pub struct TeamMemberDraft {
     pub allowed_tool_names: Vec<String>,
     #[serde(default)]
     pub is_readonly: bool,
+    #[serde(default)]
+    pub delegation_policy: Option<TeamMemberDelegationPolicy>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -300,6 +343,13 @@ pub fn materialize_team_definition(
             allowed_tool_names: normalize_sequence(member.allowed_tool_names),
             permission_policy: TeamPermissionPolicy::InheritParentIntersection,
             is_readonly: member.is_readonly,
+            delegation_policy: member.delegation_policy.unwrap_or_else(|| {
+                if member.role == TeamMemberRole::Lead {
+                    TeamMemberDelegationPolicy::Disabled
+                } else {
+                    TeamMemberDelegationPolicy::bounded_default()
+                }
+            }),
         })
         .collect::<Vec<_>>();
 
@@ -430,7 +480,10 @@ fn has_generated_id_shape(value: &str, prefix: &str) -> bool {
 }
 
 pub fn validate_team_definition(definition: &TeamDefinition) -> Result<(), TeamDefinitionError> {
-    if definition.schema_version != TEAM_DEFINITION_SCHEMA_VERSION {
+    if !matches!(
+        definition.schema_version,
+        LEGACY_TEAM_DEFINITION_SCHEMA_VERSION | TEAM_DEFINITION_SCHEMA_VERSION
+    ) {
         return Err(TeamDefinitionError::validation(format!(
             "Unsupported Team definition schema version {}",
             definition.schema_version
@@ -462,6 +515,36 @@ pub fn validate_team_definition(definition: &TeamDefinition) -> Result<(), TeamD
         return Err(TeamDefinitionError::validation(format!(
             "Team must contain 2 to {MAX_MEMBERS} members including the lead"
         )));
+    }
+    for member in &definition.members {
+        match member.delegation_policy {
+            TeamMemberDelegationPolicy::Disabled => {}
+            TeamMemberDelegationPolicy::Bounded {
+                max_worker_tasks,
+                max_parallel_workers,
+            } => {
+                if definition.schema_version == LEGACY_TEAM_DEFINITION_SCHEMA_VERSION {
+                    return Err(TeamDefinitionError::validation(
+                        "Legacy Team definitions cannot grant member delegation",
+                    ));
+                }
+                if !(1..=32).contains(&max_worker_tasks) {
+                    return Err(TeamDefinitionError::validation(
+                        "Team member max child tasks must be between 1 and 32",
+                    ));
+                }
+                if !(1..=8).contains(&max_parallel_workers) {
+                    return Err(TeamDefinitionError::validation(
+                        "Team member max parallel tasks must be between 1 and 8",
+                    ));
+                }
+                if max_parallel_workers > max_worker_tasks {
+                    return Err(TeamDefinitionError::validation(
+                        "Team member max parallel tasks cannot exceed max child tasks",
+                    ));
+                }
+            }
+        }
     }
     if definition.workflows.is_empty() || definition.workflows.len() > MAX_WORKFLOWS {
         return Err(TeamDefinitionError::validation(format!(
@@ -654,6 +737,7 @@ mod tests {
                     allowed_skill_keys: Vec::new(),
                     allowed_tool_names: Vec::new(),
                     is_readonly: false,
+                    delegation_policy: None,
                 },
                 TeamMemberDraft {
                     client_key: "developer".to_string(),
@@ -666,6 +750,7 @@ mod tests {
                     allowed_skill_keys: Vec::new(),
                     allowed_tool_names: Vec::new(),
                     is_readonly: false,
+                    delegation_policy: None,
                 },
             ],
             workflows: vec![TeamWorkflowDraft {
@@ -708,7 +793,54 @@ mod tests {
                 .count(),
             1
         );
+        assert_eq!(
+            definition.members[0].delegation_policy,
+            TeamMemberDelegationPolicy::Disabled
+        );
+        assert_eq!(
+            definition.members[1].delegation_policy,
+            TeamMemberDelegationPolicy::bounded_default()
+        );
         validate_team_definition(&definition).expect("materialized definition remains valid");
+    }
+
+    #[test]
+    fn validates_bounded_member_delegation_limits() {
+        let mut definition = materialize_team_definition(valid_draft(), TeamDefinitionLevel::User)
+            .expect("valid definition");
+        definition.members[1].delegation_policy = TeamMemberDelegationPolicy::Bounded {
+            max_worker_tasks: 32,
+            max_parallel_workers: 8,
+        };
+        validate_team_definition(&definition).expect("upper bounds remain valid");
+
+        definition.members[1].delegation_policy = TeamMemberDelegationPolicy::Bounded {
+            max_worker_tasks: 0,
+            max_parallel_workers: 1,
+        };
+        assert!(validate_team_definition(&definition).is_err());
+        definition.members[1].delegation_policy = TeamMemberDelegationPolicy::Bounded {
+            max_worker_tasks: 4,
+            max_parallel_workers: 5,
+        };
+        assert!(validate_team_definition(&definition).is_err());
+    }
+
+    #[test]
+    fn legacy_definition_defaults_non_lead_runtime_delegation_without_mutating_definition() {
+        let mut definition = materialize_team_definition(valid_draft(), TeamDefinitionLevel::User)
+            .expect("valid definition");
+        definition.schema_version = LEGACY_TEAM_DEFINITION_SCHEMA_VERSION;
+        definition.members[1].delegation_policy = TeamMemberDelegationPolicy::Disabled;
+        validate_team_definition(&definition).expect("legacy disabled policy remains loadable");
+        assert_eq!(
+            effective_member_delegation_policy(&definition, &definition.members[1]),
+            TeamMemberDelegationPolicy::bounded_default()
+        );
+        assert_eq!(
+            definition.members[1].delegation_policy,
+            TeamMemberDelegationPolicy::Disabled
+        );
     }
 
     #[test]

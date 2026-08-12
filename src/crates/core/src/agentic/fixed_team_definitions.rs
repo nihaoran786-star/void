@@ -6,8 +6,9 @@
 
 use super::team_definitions::{
     TeamCollaborationPolicy, TeamDefinition, TeamDefinitionOrigin, TeamMemberDefinition,
-    TeamMemberRole, TeamPermissionPolicy, TeamScenario, TeamWorkflowDefinition,
-    TeamWorkflowPhaseDefinition, TeamWorkflowPhaseKind, TEAM_DEFINITION_SCHEMA_VERSION,
+    TeamMemberDelegationPolicy, TeamMemberRole, TeamPermissionPolicy, TeamScenario,
+    TeamWorkflowDefinition, TeamWorkflowPhaseDefinition, TeamWorkflowPhaseKind,
+    TEAM_DEFINITION_SCHEMA_VERSION,
 };
 
 pub const AI_SHORT_DRAMA_TEAM_DEFINITION_ID: &str = "custom-00000000000000000000000000000001";
@@ -43,6 +44,11 @@ fn member(
         allowed_tool_names: Vec::new(),
         permission_policy: TeamPermissionPolicy::InheritParentIntersection,
         is_readonly: false,
+        delegation_policy: if role == TeamMemberRole::Lead {
+            TeamMemberDelegationPolicy::Disabled
+        } else {
+            TeamMemberDelegationPolicy::bounded_default()
+        },
     }
 }
 
@@ -220,6 +226,14 @@ mod tests {
             .iter()
             .find(|member| member.member_id == definition.lead_member_id)
             .expect("fixed Team lead");
+        assert_eq!(lead.delegation_policy, TeamMemberDelegationPolicy::Disabled);
+        assert!(definition
+            .members
+            .iter()
+            .filter(|member| member.role != TeamMemberRole::Lead)
+            .all(
+                |member| member.delegation_policy == TeamMemberDelegationPolicy::bounded_default()
+            ));
         assert!(lead.instructions.contains("必须立即启动剧本工作流"));
         assert!(lead.instructions.contains("不得用 Task 工具"));
         assert!(lead.instructions.contains("画布由宿主自动打开"));

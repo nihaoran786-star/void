@@ -2298,10 +2298,18 @@
       "active_team_binding_incomplete": "This conversation's team binding is incomplete. Choose the team again.",
       "bound_team_runtime_missing": "The team runtime bound to this conversation is missing. Retry or choose the team again.",
       "bound_team_definition_mismatch": "The current team does not match this conversation's binding. Choose the team again before continuing.",
-      "bound_team_projection_missing": "The current team's full state could not be restored. Try again."
+      "bound_team_projection_missing": "The current team's full state could not be restored. Try again.",
+      "delegated_task_read_failed": "Some delegated worker tasks could not be restored."
     },
     "overview": { "title": "Current work", "workflowUnavailable": "Workflow details unavailable", "waiting": "Summoned and waiting for a task" },
     "members": { "title": "Team members", "count": "{{count}} people", "empty": "No members", "open": "Open {{name}}'s conversation" },
+    "delegation": {
+      "open": "Open {{name}}'s worker conversation",
+      "loading": "Loading delegated work…",
+      "partial": "Some delegated work is unavailable",
+      "error": "Delegated work unavailable",
+      "status": { "created": "Created", "running": "Working", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "cancelled": "Cancelled", "interrupted": "Interrupted" }
+    },
     "map": { "resetView": "Reset view" },
     "phases": { "title": "Workflow phases", "count": "{{count}} phases", "empty": "No workflow phases for this task" },
     "roles": { "lead": "Lead", "specialist": "Specialist", "quality_gate": "Quality gate" },

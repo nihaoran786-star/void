@@ -240,6 +240,13 @@
       "specialist": "Specialist",
       "quality_gate": "Quality gate"
     },
+    "delegation": {
+      "title": "Advanced member delegation",
+      "hint": "Allow selected members to split work into worker sessions. Delegation depth is fixed at two levels.",
+      "memberToggle": "Allow this member to delegate",
+      "maxWorkerTasks": "Worker tasks",
+      "maxParallelWorkers": "Parallel workers"
+    },
     "workflows": {
       "title": "Collaboration workflows",
       "hint": "Make sequence, parallel work, and dependencies explicit.",
@@ -346,6 +353,9 @@
       "lead_member_not_found": "The selected lead is not in the member list",
       "lead_member_must_have_lead_role": "The selected lead must have the lead role",
       "lead_member_must_appear_once": "A team must contain exactly one lead",
+      "member_delegation_max_worker_tasks_out_of_range": "Worker tasks must be an integer from 1 to 32",
+      "member_delegation_max_parallel_workers_out_of_range": "Parallel workers must be an integer from 1 to 8",
+      "member_delegation_parallel_exceeds_total": "Parallel workers cannot exceed the total worker task limit",
       "workflow_count_out_of_range": "A team needs 1 to 8 workflows",
       "workflow_key_required": "A workflow is missing its internal key",
       "duplicate_workflow_key": "Workflow internal keys must be unique",

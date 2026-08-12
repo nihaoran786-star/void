@@ -2298,10 +2298,18 @@
       "active_team_binding_incomplete": "当前会话的团队绑定信息不完整，请重新选择该团队。",
       "bound_team_runtime_missing": "当前会话绑定的团队运行记录不存在，请重试或重新选择团队。",
       "bound_team_definition_mismatch": "当前团队与会话绑定不一致，请重新选择团队后再继续。",
-      "bound_team_projection_missing": "当前团队暂时无法恢复完整状态，请重试。"
+      "bound_team_projection_missing": "当前团队暂时无法恢复完整状态，请重试。",
+      "delegated_task_read_failed": "部分委派的 Worker 任务无法恢复。"
     },
     "overview": { "title": "当前工作", "workflowUnavailable": "流程资料不可用", "waiting": "已召唤，等待任务" },
     "members": { "title": "团队成员", "count": "{{count}} 人", "empty": "暂无成员", "open": "查看{{name}}的会话" },
+    "delegation": {
+      "open": "打开{{name}}的 Worker 会话",
+      "loading": "正在加载委派工作…",
+      "partial": "部分委派工作暂不可用",
+      "error": "委派工作不可用",
+      "status": { "created": "已创建", "running": "工作中", "blocked": "受阻", "completed": "已完成", "failed": "失败", "cancelled": "已取消", "interrupted": "已中断" }
+    },
     "map": { "resetView": "复位视图" },
     "phases": { "title": "工作阶段", "count": "{{count}} 个", "empty": "当前没有阶段任务" },
     "roles": { "lead": "主理人", "specialist": "专业成员", "quality_gate": "质量把关" },

@@ -95,7 +95,7 @@ describe('TeamRuntimeGateway contract', () => {
     expect(record.snapshot.phaseRuns[0]?.status).toBe('running');
   });
 
-  it('公开九个强类型运行时操作', () => {
+  it('公开强类型运行时操作与委派任务读取', () => {
     expectTypeOf<TeamRuntimeGateway>().toHaveProperty('list');
     expectTypeOf<TeamRuntimeGateway>().toHaveProperty('get');
     expectTypeOf<TeamRuntimeGateway>().toHaveProperty('attach');
@@ -105,6 +105,7 @@ describe('TeamRuntimeGateway contract', () => {
     expectTypeOf<TeamRuntimeGateway>().toHaveProperty('resume');
     expectTypeOf<TeamRuntimeGateway>().toHaveProperty('stop');
     expectTypeOf<TeamRuntimeGateway>().toHaveProperty('recover');
+    expectTypeOf<TeamRuntimeGateway>().toHaveProperty('listDelegatedTasks');
   });
 
   it('attach 输入不拥有宿主推导的权限和工作区字段', () => {

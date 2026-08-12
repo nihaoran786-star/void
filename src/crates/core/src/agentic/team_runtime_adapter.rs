@@ -6,6 +6,7 @@
 use super::coordination::{ConversationCoordinator, SubagentExecutionRequest};
 use super::core::{Session, SessionConfig, SessionKind};
 use super::session::PreparedTurnDisposition;
+use super::team_definitions::TeamMemberDelegationPolicy;
 use super::team_orchestrator::{
     RuntimeDisposition, RuntimeReceipt, RuntimeRequest, RuntimeTaskState, TeamOrchestratorError,
     TeamOrchestratorErrorCode, TeamRuntimeAdapter,
@@ -15,10 +16,11 @@ use super::tools::pipeline::SubagentParentInfo;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use void_core_types::{
-    SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec, SubagentTaskRecord,
-    SubagentTaskStatus, TeamMemberSkillPolicyKind, TeamMemberSkillPolicySnapshot,
+    SubagentLaunchAuthorityKind, SubagentTaskContextMode, SubagentTaskExecutionMode,
+    SubagentTaskLaunchSpec, SubagentTaskRecord, SubagentTaskStatus, TeamMemberSkillPolicyKind,
+    TeamMemberSkillPolicySnapshot, TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY,
 };
-use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
+use void_runtime_ports::{DelegationPolicy, SubagentContextMode, TeamDelegationBudget};
 
 const ADAPTER_ID: &str = "prompt-team-subagent-runtime";
 
@@ -151,6 +153,10 @@ impl PromptTeamRuntimeAdapter {
                 request.team_definition_id.clone(),
             ),
             (
+                TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY.to_string(),
+                request.parent_session_id.clone(),
+            ),
+            (
                 "teamDefinitionRevision".to_string(),
                 request.team_definition_revision.clone(),
             ),
@@ -162,13 +168,35 @@ impl PromptTeamRuntimeAdapter {
         for (key, value) in [
             ("teamRunId", request.team_run_id.as_deref()),
             ("teamMemberId", request.member_id.as_deref()),
+            ("memberRunId", request.member_run_id.as_deref()),
             ("teamPhaseId", request.phase_id.as_deref()),
         ] {
             if let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) {
                 context.insert(key.to_string(), value.to_string());
             }
         }
+        if let Some(TeamMemberDelegationPolicy::Bounded {
+            max_worker_tasks,
+            max_parallel_workers,
+        }) = request.team_member_delegation_policy
+        {
+            TeamDelegationBudget::bounded(max_worker_tasks, max_parallel_workers)
+                .expect("validated Team definition has a bounded delegation budget")
+                .write_context(&mut context);
+        }
         context
+    }
+
+    fn member_delegation_policy(
+        request: &RuntimeRequest,
+    ) -> Result<DelegationPolicy, TeamOrchestratorError> {
+        match request
+            .team_member_delegation_policy
+            .unwrap_or(TeamMemberDelegationPolicy::Disabled)
+        {
+            TeamMemberDelegationPolicy::Disabled => Ok(DelegationPolicy::ordinary_child(1)),
+            TeamMemberDelegationPolicy::Bounded { .. } => Ok(DelegationPolicy::team_member()),
+        }
     }
 
     fn task_state(status: SubagentTaskStatus) -> RuntimeTaskState {
@@ -226,10 +254,12 @@ impl PromptTeamRuntimeAdapter {
             parent_tool_call_id: request.parent_tool_call_id.clone(),
             team_run_id: request.team_run_id.clone(),
             member_id: request.member_id.clone(),
+            member_run_id: request.member_run_id.clone(),
             phase_id: request.phase_id.clone(),
             agent_id: request.agent_id.clone(),
             child_session_id,
             subagent_task_id,
+            worker_summary: None,
         }
     }
 
@@ -308,9 +338,16 @@ impl PromptTeamRuntimeAdapter {
                 "requested agent id does not match the durable member launch",
             ));
         }
-        if launch.allow_subagent_spawn {
+        let requested_delegation = Self::member_delegation_policy(request)?;
+        let persisted_is_member = task
+            .launch_authority
+            .as_ref()
+            .is_some_and(|authority| authority.kind == SubagentLaunchAuthorityKind::TeamMember);
+        if launch.allow_subagent_spawn != requested_delegation.allow_subagent_spawn
+            || persisted_is_member != requested_delegation.allow_subagent_spawn
+        {
             return Err(Self::rejected(
-                "Team member launch policy cannot allow recursive subagent delegation",
+                "requested Team member delegation policy does not match the durable launch",
             ));
         }
         let requested_policy = Self::validated_member_skill_policy(request)?;
@@ -322,7 +359,10 @@ impl PromptTeamRuntimeAdapter {
                 ))
             }
         }
-        let expected_context = Self::durable_team_context(request);
+        let mut expected_context = Self::durable_team_context(request);
+        if task.launch_authority.is_none() {
+            expected_context.remove(TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY);
+        }
         if launch.context != expected_context.into_iter().collect()
             || launch.parent_dialog_turn_id
                 != request.parent_dialog_turn_id.clone().unwrap_or_default()
@@ -522,7 +562,7 @@ impl TeamRuntimeAdapter for PromptTeamRuntimeAdapter {
                         dialog_turn_id: launch.parent_dialog_turn_id,
                     },
                     context: Self::durable_team_context(&request),
-                    delegation_policy: DelegationPolicy::top_level().spawn_child(),
+                    delegation_policy: Self::member_delegation_policy(&request)?,
                 },
                 parent_config,
                 request.timeout_seconds,
@@ -559,14 +599,45 @@ impl TeamRuntimeAdapter for PromptTeamRuntimeAdapter {
         request: RuntimeRequest,
     ) -> Result<RuntimeReceipt, TeamOrchestratorError> {
         let task = self.linked_task(&request).await?;
-        Ok(Self::receipt(
+        let mut receipt = Self::receipt(
             &request,
             true,
             RuntimeDisposition::Inspected,
             Self::task_state(task.status),
             task.child_session_id.clone(),
             Some(task.task_id),
-        ))
+        );
+        if let Some(child_session_id) = task.child_session_id.as_deref() {
+            let workers = self
+                .coordinator
+                .get_session_manager()
+                .list_subagent_tasks(child_session_id)
+                .await
+                .map_err(Self::map_runtime_error)?;
+            let mut summary = super::team_orchestrator::MemberWorkerSummary::default();
+            for worker in workers.into_iter().filter(|worker| {
+                worker.launch_authority.as_ref().is_some_and(|authority| {
+                    authority.kind == SubagentLaunchAuthorityKind::TeamWorker
+                        && authority.team_lineage.as_ref().is_some_and(|lineage| {
+                            lineage.team_instance_id == request.team_instance_id
+                                && request.team_run_id.as_deref() == Some(&lineage.team_run_id)
+                                && request.member_id.as_deref() == Some(&lineage.member_id)
+                                && request.member_run_id.as_deref() == Some(&lineage.member_run_id)
+                        })
+                })
+            }) {
+                summary.total += 1;
+                if worker.status.is_terminal() {
+                    if worker.status == SubagentTaskStatus::Failed {
+                        summary.failed += 1;
+                    }
+                } else {
+                    summary.active += 1;
+                }
+            }
+            receipt.worker_summary = Some(summary);
+        }
+        Ok(receipt)
     }
 
     async fn message_member(
@@ -610,6 +681,45 @@ impl TeamRuntimeAdapter for PromptTeamRuntimeAdapter {
         request: RuntimeRequest,
     ) -> Result<RuntimeReceipt, TeamOrchestratorError> {
         let task = self.linked_task(&request).await?;
+        let mut stopped_worker = false;
+        if let Some(member_session_id) = task.child_session_id.as_deref() {
+            let workers = self
+                .coordinator
+                .get_session_manager()
+                .list_subagent_tasks(member_session_id)
+                .await
+                .map_err(Self::map_runtime_error)?;
+            for worker in workers.into_iter().filter(|worker| {
+                !worker.status.is_terminal()
+                    && worker.launch_authority.as_ref().is_some_and(|authority| {
+                        authority.kind == SubagentLaunchAuthorityKind::TeamWorker
+                            && authority.team_lineage.as_ref().is_some_and(|lineage| {
+                                lineage.team_instance_id == request.team_instance_id
+                                    && request.team_run_id.as_deref() == Some(&lineage.team_run_id)
+                                    && request.member_id.as_deref() == Some(&lineage.member_id)
+                                    && request.member_run_id.as_deref()
+                                        == Some(&lineage.member_run_id)
+                            })
+                    })
+            }) {
+                let launch = worker.launch_spec.as_ref().ok_or_else(|| {
+                    Self::rejected("active Team worker has no durable launch specification")
+                })?;
+                let worker_session_id = worker
+                    .child_session_id
+                    .as_deref()
+                    .ok_or_else(|| Self::rejected("active Team worker has no child session"))?;
+                stopped_worker |= self
+                    .coordinator
+                    .stop_active_background_subagent_session(
+                        member_session_id,
+                        &launch.parent_dialog_turn_id,
+                        worker_session_id,
+                    )
+                    .await
+                    .map_err(Self::map_runtime_error)?;
+            }
+        }
         match Self::persisted_stop_disposition(task.status) {
             PersistedStopDisposition::Reused => {
                 return Ok(Self::receipt(
@@ -622,6 +732,16 @@ impl TeamRuntimeAdapter for PromptTeamRuntimeAdapter {
                 ));
             }
             PersistedStopDisposition::RejectTerminal => {
+                if stopped_worker {
+                    return Ok(Self::receipt(
+                        &request,
+                        true,
+                        RuntimeDisposition::Stopped,
+                        Self::task_state(task.status),
+                        task.child_session_id.clone(),
+                        Some(task.task_id),
+                    ));
+                }
                 return Err(Self::rejected(
                     "a completed or failed member task cannot be reported as stopped",
                 ));
@@ -682,8 +802,10 @@ impl TeamRuntimeAdapter for PromptTeamRuntimeAdapter {
 mod tests {
     use super::*;
     use crate::agentic::team_runtime::TeamWorkspaceIdentity;
-    use std::collections::BTreeMap;
-    use void_core_types::{SubagentTaskLaunchSpec, SubagentTaskReplaySafety};
+    use void_core_types::{
+        SubagentLaunchAuthority, SubagentTaskLaunchSpec, SubagentTaskReplaySafety,
+        TeamDelegationLineageSnapshot, SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+    };
 
     fn request() -> RuntimeRequest {
         RuntimeRequest {
@@ -703,6 +825,7 @@ mod tests {
             parent_tool_call_id: Some("tool".into()),
             team_run_id: Some("run".into()),
             member_id: Some("member".into()),
+            member_run_id: Some("member-run".into()),
             child_session_id: None,
             subagent_task_id: Some("task".into()),
             phase_id: Some("phase".into()),
@@ -721,10 +844,14 @@ mod tests {
                 )
                 .unwrap(),
             ),
+            team_member_delegation_policy: Some(
+                crate::agentic::team_definitions::TeamMemberDelegationPolicy::bounded_default(),
+            ),
         }
     }
 
     fn task() -> SubagentTaskRecord {
+        let request = request();
         let mut task = SubagentTaskRecord::new_typed(
             "task".into(),
             "parent".into(),
@@ -739,15 +866,10 @@ mod tests {
             agent_type: "agent".into(),
             parent_dialog_turn_id: "turn".into(),
             parent_tool_call_id: "tool".into(),
-            context: BTreeMap::from([
-                ("teamDefinitionId".into(), "definition".into()),
-                ("teamDefinitionRevision".into(), "revision".into()),
-                ("teamInstanceId".into(), "instance".into()),
-                ("teamMemberId".into(), "member".into()),
-                ("teamPhaseId".into(), "phase".into()),
-                ("teamRunId".into(), "run".into()),
-            ]),
-            allow_subagent_spawn: false,
+            context: PromptTeamRuntimeAdapter::durable_team_context(&request)
+                .into_iter()
+                .collect(),
+            allow_subagent_spawn: true,
             nesting_depth: 1,
             timeout_seconds: Some(30),
             team_member_skill_policy: Some(
@@ -762,13 +884,54 @@ mod tests {
                 .unwrap(),
             ),
         });
+        task.launch_authority = Some(SubagentLaunchAuthority {
+            schema_version: SUBAGENT_LAUNCH_AUTHORITY_SCHEMA_VERSION,
+            kind: SubagentLaunchAuthorityKind::TeamMember,
+            delegation_request_id: "tool".into(),
+            nesting_depth: 1,
+            max_nesting_depth: 2,
+            task_spawn_budget: 8,
+            max_parallel_workers: 3,
+            team_lineage: Some(TeamDelegationLineageSnapshot {
+                team_definition_id: "definition".into(),
+                team_definition_revision: "revision".into(),
+                team_instance_id: "instance".into(),
+                team_run_id: "run".into(),
+                member_run_id: "member-run".into(),
+                member_id: "member".into(),
+                root_parent_session_id: "parent".into(),
+                parent_member_session_id: None,
+            }),
+        });
         task
     }
 
     #[test]
     fn durable_context_is_only_stable_team_scope() {
         let context = PromptTeamRuntimeAdapter::durable_team_context(&request());
-        assert_eq!(context.len(), 6);
+        assert_eq!(context.len(), 10);
+        assert_eq!(
+            context.get("memberRunId").map(String::as_str),
+            Some("member-run")
+        );
+        assert_eq!(
+            context
+                .get(TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY)
+                .map(String::as_str),
+            Some("parent")
+        );
+        assert_eq!(
+            context
+                .get(void_runtime_ports::TEAM_DELEGATION_MAX_WORKER_TASKS_CONTEXT_KEY)
+                .map(String::as_str),
+            Some("8")
+        );
+        assert_eq!(
+            context
+                .get(void_runtime_ports::TEAM_DELEGATION_MAX_PARALLEL_WORKERS_CONTEXT_KEY)
+                .map(String::as_str),
+            Some("3")
+        );
         assert!(!context.contains_key("objective"));
         assert!(!context.contains_key("message"));
     }
@@ -806,7 +969,7 @@ mod tests {
     }
 
     #[test]
-    fn linked_task_requires_agent_identity_and_non_recursive_policy() {
+    fn linked_task_requires_agent_identity_and_exact_typed_delegation_policy() {
         let mut value = request();
         let mut linked = task();
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_ok());
@@ -815,19 +978,24 @@ mod tests {
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
 
         value.agent_id = Some("agent".into());
-        linked.launch_spec.as_mut().unwrap().allow_subagent_spawn = true;
+        linked.launch_spec.as_mut().unwrap().allow_subagent_spawn = false;
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
     }
 
     #[test]
     fn legacy_no_policy_is_only_accepted_by_recovery_migration_precheck() {
         let mut legacy = task();
-        legacy
-            .launch_spec
-            .as_mut()
-            .unwrap()
-            .team_member_skill_policy = None;
-        let no_policy = request();
+        let mut no_policy = request();
+        no_policy.team_member_delegation_policy =
+            Some(crate::agentic::team_definitions::TeamMemberDelegationPolicy::Disabled);
+        legacy.launch_authority = None;
+        let legacy_launch = legacy.launch_spec.as_mut().unwrap();
+        legacy_launch.team_member_skill_policy = None;
+        legacy_launch.allow_subagent_spawn = false;
+        legacy_launch.context = PromptTeamRuntimeAdapter::durable_team_context(&no_policy)
+            .into_iter()
+            .filter(|(key, _)| key != TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY)
+            .collect();
         assert!(
             PromptTeamRuntimeAdapter::validate_linked_task(&no_policy, "task", &legacy).is_err()
         );
