@@ -14,23 +14,6 @@ const readSource = (relativePath: string): string =>
 const sha256 = (relativePath: string): string =>
   sha256SourceText(pathFor(relativePath));
 
-const extractScssBlock = (source: string, marker: string): string => {
-  const markerIndex = source.indexOf(marker);
-  if (markerIndex < 0) throw new Error(`Missing SCSS marker: ${marker}`);
-
-  const openBraceIndex = source.indexOf('{', markerIndex);
-  if (openBraceIndex < 0) throw new Error(`Missing opening brace after: ${marker}`);
-
-  let depth = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
-    if (source[index] === '{') depth += 1;
-    if (source[index] === '}') depth -= 1;
-    if (depth === 0) return source.slice(markerIndex, index + 1);
-  }
-
-  throw new Error(`Unbalanced SCSS block after: ${marker}`);
-};
-
 describe('Agents scene Minimal presentation contract', () => {
   const source = readSource('./AgentsScene.minimal.scss');
   const marketContract = readSource('../../../component-library/styles/customization-market.scss');
@@ -53,16 +36,13 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      'd37a703707b5e992cca9842f19a7bf744e7d4c172efe51e19ba19ec99b48ffc8',
+      'a82d5c5d18bd6b2e837e1cc854e8d29f5eb570d49ec7779ee1b1f60d16af25a1',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      '026b2577a8e54593b0450e64e905488a2b12ec5d06021f4fe158c0ec811d1299',
+      'ec1651b4e03a78efdc7fb11dccf4084c5316428dc5d098ca2906ed81105569c3',
     );
     expect(sha256('./components/AgentCard.tsx')).toBe(
-      '14e1dfbcff4f3a9ffa11843aa7862608839cb488549be1b13d97c03272888165',
-    );
-    expect(sha256('./components/AgentTeamCard.tsx')).toBe(
-      '394e7bb949918797a01e0ee8708f954e2439ee84a837a8436d21d4cf6b8d3167',
+      'bca29dcbf2e31fbcac1432809f599233f882e9fc69f3c4de2e456ee4a3a99908',
     );
   });
 
@@ -120,38 +100,40 @@ describe('Agents scene Minimal presentation contract', () => {
       /\.agent-market-toolbar \.search__input \{[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
     );
     expect(source).toMatch(
-      /\.gallery-cat-chip \{[\s\S]*?height: var\(--workspace-control-height\);[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
+      /\.gallery-cat-chip \{[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
     );
     expect(source).toMatch(
       /\.gallery-filter-count \{[\s\S]*?font-size: var\(--workspace-font-size-meta\);[\s\S]*?font-variant-numeric: tabular-nums;/,
     );
   });
 
-  it('compresses list cards without removing their details behavior', () => {
-    expect(source).toMatch(/\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?@include market\.card;/);
-    expect(marketContract).toContain('$card-height: 160px;');
-    expect(source).toContain('--gallery-grid-min: 280px;');
-    expect(source.match(/@include market\.grid;/g)).toHaveLength(2);
-    expect(marketContract).toContain('grid-template-columns: repeat($desktop-grid-columns, minmax(0, 1fr));');
+  it('presents the directory as quiet hairline rows instead of card grids', () => {
+    expect(source).not.toContain('@include market.card;');
+    expect(source).not.toContain('@include market.grid;');
+    expect(source).not.toContain('market.two-column-grid');
+    expect(source).not.toContain('market.one-column-grid');
     expect(source).toMatch(
-      /@media \(max-width: 1080px\)[\s\S]*?@include market\.two-column-grid;/,
+      /\.core-agents-grid \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 560px\)[\s\S]*?@include market\.one-column-grid;/,
+      /\.gallery-grid \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/,
+    );
+    expect(source).toMatch(
+      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?flex-direction: row;[\s\S]*?border-top: 1px solid var\(--workspace-border-subtle\);/,
+    );
+    expect(source).toMatch(
+      /\.gallery-zone__header \{[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);/,
     );
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(
-      /\.agent-card__desc,[\s\S]*?white-space: normal;[\s\S]*?-webkit-line-clamp: 2;/,
+      /\.agent-card__desc,[\s\S]*?white-space: nowrap;[\s\S]*?text-overflow: ellipsis;/,
     );
     expect(source).toMatch(
       /\.agent-card__name,[\s\S]*?font-size: var\(--workspace-font-size-control\);[\s\S]*?font-weight: var\(--workspace-font-weight-strong\);/,
     );
     expect(source).toMatch(
-      /\.core-agent-card__role,[\s\S]*?font-size: var\(--workspace-font-size-meta\);[\s\S]*?font-weight: var\(--workspace-font-weight-regular\);/,
-    );
-    expect(source).toMatch(
-      /\.agent-card__desc,[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?line-height: 1\.5;/,
+      /\.core-agent-card__role,[\s\S]*?font-family: var\(--font-family-mono\);[\s\S]*?font-size: var\(--workspace-font-size-meta\);/,
     );
     expect(readSource('./AgentsScene.tsx')).toContain('<GalleryGrid minCardWidth={280}>');
     expect(readSource('./AgentsScene.tsx')).not.toContain(
@@ -161,16 +143,82 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(readSource('./AgentsScene.tsx')).toContain('visibleAgents.slice(');
   });
 
-  it('uses one real portrait slot for both core and specialist employees', () => {
-    const portraitSlots = extractScssBlock(
-      source,
-      '.agent-avatar--card,\n    .agent-team-card__avatar',
+  it('collects row actions into hover and keeps capability meta as plain monospace text', () => {
+    expect(source).toMatch(
+      /\.agent-card__dispatch,[\s\S]*?\.agent-team-card__dispatch \{[\s\S]*?opacity: 0;/,
     );
+    expect(source).toMatch(
+      /\.agent-card:hover \.agent-card__dispatch,[\s\S]*?opacity: 1;/,
+    );
+    expect(source).toMatch(
+      /\.agent-card__cap-chip,[\s\S]*?\.core-agent-card__cap-chip,[\s\S]*?\.agent-team-card__tag-chip \{[\s\S]*?font-family: var\(--font-family-mono\);[\s\S]*?border: 0;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-cat-chip--active::before \{[\s\S]*?background: var\(--workspace-accent\);/,
+    );
+    expect(source).not.toContain('font-family: ui-monospace');
+  });
 
-    expect(portraitSlots).toContain('width: 44px;');
-    expect(portraitSlots).toContain('height: 44px;');
-    expect(readSource('./components/AgentAvatar.tsx')).toContain('<img');
-    expect(readSource('./components/AgentAvatar.tsx')).toContain('onError={() => setImageFailed(true)}');
+  it('keeps dispatch actions visible while keyboard focus moves inside a row', () => {
+    expect(source).toContain('.agent-card:focus-within .agent-card__dispatch');
+    expect(source).toContain('.agent-team-card:focus-within .agent-team-card__dispatch');
+    expect(source).toContain('.core-agent-card:focus-within .core-agent-card__dispatch');
+    expect(source).toMatch(
+      /@media \(hover: none\)[\s\S]*?\.agent-card__dispatch,[\s\S]*?\.core-agent-card__dispatch,[\s\S]*?opacity: 1;/,
+    );
+  });
+
+  it('uses orb avatars with a deterministic motion form instead of human portraits', () => {
+    const avatar = readSource('./components/AgentAvatar.tsx');
+    const avatarStyles = readSource('./components/AgentAvatar.scss');
+    const engine = readSource('./components/orbAvatarEngine.ts');
+
+    expect(avatar).toContain('<canvas');
+    expect(avatar).toContain('attachOrb');
+    expect(avatar).toContain('resolveOrbType');
+    expect(avatar).not.toContain('<img');
+    expect(avatar).toContain("state === 'active' || state === 'running'");
+    expect(avatar).toContain('}, [orbType, state]);');
+    for (const orbType of [
+      'breathing',
+      'searching',
+      'working',
+      'solving',
+      'listening',
+      'connecting',
+      'weaving',
+      'composing',
+      'shaping',
+    ]) {
+      expect(engine).toContain(orbType);
+    }
+    expect(engine).toContain('prefers-reduced-motion: reduce');
+    expect(avatarStyles).toContain(
+      'transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);',
+    );
+    expect(avatarStyles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(avatarStyles).not.toContain('&__image');
+    expect(avatarStyles).not.toContain('&__fallback-icon');
+    expect(source).toMatch(
+      /\.agent-avatar--card,[\s\S]*?\.agent-team-card__avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/,
+    );
+    expect(source).toMatch(
+      /\.core-agent-card \.agent-avatar--card \{[\s\S]*?width: 30px;[\s\S]*?height: 30px;/,
+    );
+  });
+
+  it('animates the orb only for selected or running rows', () => {
+    const scene = readSource('./AgentsScene.tsx');
+    const agentCard = readSource('./components/AgentCard.tsx');
+    const coreCard = readSource('./components/CoreAgentCard.tsx');
+
+    expect(scene.match(/active=\{selectedAgentKey === agent\.key\}/g)).toHaveLength(2);
+    expect(scene).toContain('state="active"');
+    for (const cardSource of [agentCard, coreCard]) {
+      expect(cardSource).toContain("dispatching ? 'running' : active ? 'active' : 'idle'");
+      expect(cardSource).toContain('state={avatarState}');
+    }
+    expect(readSource('./components/AgentTeamCard.tsx')).not.toContain('TAG_COLORS');
   });
 
   it('uses tokenized feedback without gradients, shadows, lift, or stagger', () => {
@@ -206,15 +254,12 @@ describe('Agents scene Minimal presentation contract', () => {
     );
   });
 
-  it('keeps employee identity and descriptions readable on narrow views', () => {
+  it('keeps employee rows readable on narrow views', () => {
     expect(source).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*?\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: auto;[\s\S]*?min-height: 150px;/,
+      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__cap-chips > :nth-child\(n \+ 2\),[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__body,[\s\S]*?\.core-agent-card__body,[\s\S]*?\.agent-team-card__body \{[\s\S]*?display: block;/,
-    );
-    expect(source).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__meta > :nth-child\(n \+ 2\),[\s\S]*?\.core-agent-card__meta > :nth-child\(n \+ 2\) \{[\s\S]*?display: none;/,
+      /@media \(max-width: 560px\)[\s\S]*?\.agent-card__body,[\s\S]*?\.core-agent-card__body,[\s\S]*?\.agent-team-card__body \{[\s\S]*?display: none;/,
     );
   });
 

@@ -6,10 +6,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
   border-radius: $size-radius-full;
-  background: var(--element-bg-soft);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 
   &--card {
     width: 54px;
@@ -21,15 +19,24 @@
     height: 54px;
   }
 
-  &__image {
+  &--orb {
+    transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+  }
+
+  &--orb[data-state='off'] {
+    opacity: 0.3;
+  }
+
+  &__canvas {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
   }
 
-  &__fallback-icon {
-    width: 46%;
-    height: 46%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar--orb {
+    transition: none;
   }
 }

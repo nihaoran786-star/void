@@ -49,8 +49,10 @@ describe('Minimal presentation remains isolated from Classic', () => {
     expect(skillsMinimal).toContain(
       ".void-ui--minimal .void-skills-scene[data-customization-market='skills']",
     );
-    expect(skillsMinimal).toContain('@container skills-market (max-width: 720px)');
-    expect(skillsMinimal).toContain('@container skills-market (max-width: 520px)');
+    expect(skillsMinimal).toContain('@container skills-market (max-width: 900px)');
+    expect(skillsMinimal).toContain('@container skills-market (max-width: 560px)');
+    expect(skillsMinimal).not.toContain('@include market.grid;');
+    expect(skillsMinimal).toContain('flex-direction: column;');
     expect(skillsMinimal).toMatch(
       /\.skills-discover__grid \.skill-card__badges \{\s*display: none;/,
     );

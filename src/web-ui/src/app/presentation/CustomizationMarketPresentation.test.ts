@@ -42,7 +42,7 @@ describe('customization market presentation contract', () => {
     expect(sharedMarket).toContain('gap: var(--workspace-space-3);');
   });
 
-  it('keeps Minimal agent and team cards compact without rewriting Classic cards', () => {
+  it('presents Minimal agent and team cards as quiet rows without rewriting Classic cards', () => {
     const minimalCards = extractScssBlock(
       agentsMinimal,
       '.agent-card,\n    .core-agent-card,\n    .agent-team-card',
@@ -58,10 +58,12 @@ describe('customization market presentation contract', () => {
     const classicAgent = extractScssBlock(agentCard, '.agent-card');
     const classicTeamIcon = extractScssBlock(teamCard, '&__icon');
 
-    expect(minimalCards).toContain('@include market.card;');
+    expect(minimalCards).toContain('flex-direction: row;');
+    expect(minimalCards).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(minimalCards).not.toContain('@include market.card;');
     expect(sharedMarket).toContain('height: var(--customization-market-card-height, #{$card-height});');
-    expect(minimalAvatars).toContain('width: 44px;');
-    expect(minimalAvatars).toContain('height: 44px;');
+    expect(minimalAvatars).toContain('width: 20px;');
+    expect(minimalAvatars).toContain('height: 20px;');
     expect(minimalDescriptions).toContain('font-size: var(--workspace-font-size-label);');
     expect(minimalDescriptions).toContain('line-height: 1.5;');
 
@@ -86,37 +88,28 @@ describe('customization market presentation contract', () => {
       '&--dispatchable &__header',
     );
 
-    expect(minimalDispatchHeaders).toContain(
-      'padding-right: calc(var(--workspace-control-height) + var(--workspace-space-3));',
-    );
+    expect(minimalDispatchHeaders).toContain('padding-right: 0;');
+    expect(agentsMinimal).toContain('position: static;');
     expect(agentsMinimal).toContain('.void-ui--minimal .void-agents-scene');
     expect(classicAgentDispatchHeader).toContain('padding-right: 104px;');
     expect(classicTeamDispatchHeader).toContain('padding-right: 104px;');
   });
 
-  it('keeps four skill columns until the actual content container is narrow', () => {
+  it('presents the Minimal skill catalog as rows while Classic keeps compact cards', () => {
     const minimalMarket = extractScssBlock(
       skillsMinimal,
       ".void-ui--minimal .void-skills-scene[data-customization-market='skills']",
-    );
-    const minimalTwoColumns = extractScssBlock(
-      skillsMinimal,
-      '@container skills-market (max-width: 720px)',
-    );
-    const minimalOneColumn = extractScssBlock(
-      skillsMinimal,
-      '@container skills-market (max-width: 520px)',
     );
     const classicProjection = extractScssBlock(
       skillsScene,
       '.void-skills-scene,\n.void-ui--minimal .void-skills-scene',
     );
 
-    expect(minimalMarket).toContain('@include market.grid;');
-    expect(minimalMarket).toContain('width: 44px;');
-    expect(minimalMarket).toContain('height: 44px;');
-    expect(minimalTwoColumns).toContain('@include market.two-column-grid;');
-    expect(minimalOneColumn).toContain('@include market.one-column-grid;');
+    expect(minimalMarket).not.toContain('@include market.grid;');
+    expect(minimalMarket).toContain('flex-direction: column;');
+    expect(minimalMarket).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(minimalMarket).toContain('width: 20px;');
+    expect(minimalMarket).toContain('height: 20px;');
 
     expect(classicProjection).toContain('height: 116px;');
     expect(classicProjection).toContain('width: 36px;');

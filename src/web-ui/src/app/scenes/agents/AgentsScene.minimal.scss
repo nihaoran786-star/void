@@ -1,5 +1,9 @@
 @use '../../../component-library/styles/customization-market' as market;
 
+// Agents directory — quiet row language (approved orb design demo):
+// hairline section heads, orb avatars, monospace meta, borderless rows,
+// hover-collected actions, one loud action (new agent) only.
+
 @mixin styles {
   .void-ui--minimal .agents-catalog-tabs {
     @include market.tab-strip;
@@ -55,6 +59,7 @@
       font-size: var(--workspace-font-size-meta);
     }
 
+    /* Quiet search: underline only, no filled box */
     .agent-market-toolbar .search {
       flex: 0 1 280px;
       width: min(280px, 34vw);
@@ -67,14 +72,14 @@
       min-height: var(--workspace-control-height);
       height: var(--workspace-control-height);
       gap: var(--workspace-space-1);
-      padding: 0 var(--workspace-space-3);
+      padding: 0 var(--workspace-space-1);
       color: var(--workspace-text-muted);
-      background: var(--workspace-surface-panel);
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--workspace-border-subtle);
+      border-radius: 0;
       box-shadow: none;
       transition:
-        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
         border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
         color var(--workspace-motion-fast) var(--workspace-easing-standard);
     }
@@ -89,8 +94,8 @@
     }
 
     .agent-market-toolbar .search:focus-within .search__wrapper {
-      background: var(--workspace-surface-panel);
-      border-color: var(--workspace-focus-ring-subtle);
+      background: transparent;
+      border-bottom-color: var(--workspace-focus-ring-subtle);
     }
 
     .agent-market-toolbar .search__clear {
@@ -108,36 +113,56 @@
     }
 
     .gallery-zone {
-      gap: var(--workspace-space-2);
+      gap: var(--workspace-space-1);
       content-visibility: auto;
       contain-intrinsic-size: auto 220px;
     }
 
+    /* Hairline section head: small label — rule — mono count */
     .gallery-zone__header {
       min-height: 28px;
       gap: var(--workspace-space-2);
+      padding-bottom: var(--workspace-space-2);
+      border-bottom: 1px solid var(--workspace-border-subtle);
+    }
+
+    .gallery-zone__title {
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-strong);
+      letter-spacing: 0.12em;
     }
 
     .gallery-zone__subtitle {
       display: none;
     }
 
+    .gallery-zone-count {
+      font-family: var(--font-family-mono);
+      font-size: var(--workspace-font-size-meta);
+      letter-spacing: 0.1em;
+      color: var(--workspace-text-muted);
+    }
+
     .gallery-zone__tools {
       flex: 1 1 560px;
       flex-wrap: wrap;
       justify-content: flex-end;
+      align-items: center;
       min-width: 0;
-      gap: var(--workspace-space-1);
+      gap: var(--workspace-space-2);
     }
 
+    /* Directory rows replace card grids */
     .core-agents-grid {
-      @include market.grid;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
     }
 
     .gallery-grid {
-      @include market.grid;
-
-      --gallery-grid-min: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
     }
 
     .team-catalog-skeleton {
@@ -148,12 +173,20 @@
     .agent-card,
     .core-agent-card,
     .agent-team-card {
-      @include market.card;
-
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: var(--workspace-space-3);
       width: 100%;
       min-width: 0;
-      height: var(--customization-market-card-height, 160px);
-      min-height: var(--customization-market-card-height, 160px);
+      height: auto;
+      min-height: 0;
+      padding: var(--workspace-space-2) var(--workspace-space-1);
+      background: transparent;
+      border: 0;
+      border-top: 1px solid var(--workspace-border-subtle);
+      border-radius: 0;
+      box-shadow: none;
       contain: layout paint style;
       animation: none;
 
@@ -162,14 +195,14 @@
       }
 
       &:hover {
-        background: var(--workspace-surface-hover);
-        border-color: var(--workspace-border-strong);
+        background: transparent;
+        border-top-color: var(--workspace-border-subtle);
         box-shadow: none;
         transform: none;
       }
 
       &:active {
-        background: var(--workspace-surface-active);
+        background: transparent;
         box-shadow: none;
         transform: none;
       }
@@ -181,15 +214,23 @@
       }
     }
 
+    /* Dispatch action is collected into hover; visible while running */
     .agent-card__dispatch,
     .agent-team-card__dispatch {
-      top: var(--workspace-space-2);
-      right: var(--workspace-space-2);
+      position: static;
+      order: 6;
+      flex: 0 0 auto;
       justify-content: center;
       gap: 0;
       width: var(--workspace-control-height);
       min-height: var(--workspace-control-height);
       padding: 0;
+      color: var(--workspace-accent);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      opacity: 0;
+      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
 
       span {
         position: absolute;
@@ -201,38 +242,60 @@
       }
     }
 
+    .agent-card:hover .agent-card__dispatch,
+    .agent-card:focus-within .agent-card__dispatch,
+    .agent-team-card:hover .agent-team-card__dispatch,
+    .agent-team-card:focus-within .agent-team-card__dispatch,
+    .agent-card__dispatch:disabled,
+    .agent-team-card__dispatch:disabled {
+      opacity: 1;
+    }
+
+    .core-agent-card__dispatch {
+      position: static;
+      order: 6;
+      flex: 0 0 auto;
+      margin-left: auto;
+      color: var(--workspace-accent);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      opacity: 0;
+      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .core-agent-card:hover .core-agent-card__dispatch,
+    .core-agent-card:focus-within .core-agent-card__dispatch,
+    .core-agent-card__dispatch:disabled {
+      opacity: 1;
+    }
+
     .agent-card__header,
     .core-agent-card__top,
     .agent-team-card__header {
+      flex: 0 0 auto;
+      align-items: center;
       gap: var(--workspace-space-2);
-      padding: var(--workspace-space-2) var(--workspace-space-3) 0;
+      padding: 0;
     }
 
     .agent-card.agent-card--dispatchable .agent-card__header,
     .agent-team-card.agent-team-card--dispatchable .agent-team-card__header {
-      padding-right: calc(var(--workspace-control-height) + var(--workspace-space-3));
+      padding-right: 0;
     }
 
-    .agent-card__icon-area,
     .agent-team-card__icon {
       width: 28px;
       height: 28px;
       color: var(--workspace-accent);
-      background:
-        color-mix(in srgb, var(--workspace-accent) 9%, transparent);
-      border: 1px solid
-        color-mix(
-          in srgb,
-          var(--workspace-accent) 20%,
-          var(--workspace-border-subtle)
-        );
-      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      border: 0;
+      border-radius: 0;
       box-shadow: none;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
 
-    .agent-card__icon-area svg,
     .agent-team-card__icon svg {
       width: 16px;
       height: 16px;
@@ -242,15 +305,22 @@
     .core-agent-card__top-info,
     .agent-team-card__header-copy {
       gap: 0;
+      min-width: 0;
     }
 
+    /* Orb slots: no portrait frame, ink comes from text color */
     .agent-avatar--card,
     .agent-team-card__avatar {
-      width: 44px;
-      height: 44px;
-      border-color: var(--workspace-border-subtle);
-      background: var(--workspace-surface-panel);
+      width: 20px;
+      height: 20px;
+      border-color: transparent;
+      background: transparent;
       box-shadow: none;
+    }
+
+    .core-agent-card .agent-avatar--card {
+      width: 30px;
+      height: 30px;
     }
 
     .agent-card__name,
@@ -260,15 +330,18 @@
       font-size: var(--workspace-font-size-control);
       font-weight: var(--workspace-font-weight-strong);
       line-height: var(--workspace-line-height-control);
+      white-space: nowrap;
     }
 
     .core-agent-card__role,
     .agent-card__role,
     .agent-team-card__role {
-      color: var(--workspace-text-muted) !important;
+      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-meta);
       font-weight: var(--workspace-font-weight-regular);
+      letter-spacing: 0.1em;
       line-height: var(--workspace-line-height-meta);
+      color: var(--workspace-text-muted) !important;
     }
 
     .agent-card__badges {
@@ -291,8 +364,9 @@
     .agent-card__body,
     .core-agent-card__body,
     .agent-team-card__body {
-      min-height: 0;
-      padding: var(--workspace-space-2) var(--workspace-space-3) var(--workspace-space-1);
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 0;
     }
 
     .agent-card__desc,
@@ -302,15 +376,18 @@
       font-size: var(--workspace-font-size-label);
       font-weight: var(--workspace-font-weight-regular);
       line-height: 1.5;
-      white-space: normal;
-      -webkit-line-clamp: 2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      -webkit-line-clamp: unset;
     }
 
     .agent-card__footer,
     .core-agent-card__footer,
     .agent-team-card__footer {
-      min-height: 28px;
-      padding: 0 var(--workspace-space-3) var(--workspace-space-2);
+      flex: 0 0 auto;
+      min-height: 0;
+      padding: 0;
       background: transparent;
       border-top: 0;
       border-radius: 0;
@@ -326,7 +403,7 @@
     .core-agent-card__meta,
     .core-agent-card__cap-chips {
       flex-wrap: nowrap;
-      gap: var(--workspace-space-1);
+      gap: var(--workspace-space-2);
       min-width: 0;
     }
 
@@ -341,24 +418,36 @@
       display: none;
     }
 
+    /* Capability chips become plain monospace meta text */
     .agent-card__cap-chip,
     .core-agent-card__cap-chip,
     .agent-team-card__tag-chip {
-      min-height: 18px;
-      padding-inline: var(--workspace-space-2);
+      min-height: 0;
+      padding-inline: 0;
+      font-family: var(--font-family-mono);
+      font-size: var(--workspace-font-size-meta);
+      letter-spacing: 0.08em;
       color: var(--workspace-text-muted) !important;
       background: transparent;
-      border-color: var(--workspace-border-subtle) !important;
-      border-radius: var(--workspace-radius-control);
-      font-size: var(--workspace-font-size-meta);
+      border: 0;
+      border-radius: 0;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .agent-card__view,
     .core-agent-card__view {
-      color: var(--workspace-text-muted);
+      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-meta);
+      letter-spacing: 0.08em;
+      color: var(--workspace-text-muted);
+      opacity: 0;
+      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .agent-card:hover .agent-card__view,
+    .core-agent-card:hover .core-agent-card__view {
+      opacity: 1;
     }
 
     .agent-card__meta,
@@ -371,9 +460,11 @@
       line-height: var(--workspace-line-height-meta);
     }
 
+    /* Mono filter chips: no pill, active = accent dot + strong text */
     .void-agents-scene__agent-filters {
       flex: 1 1 520px;
       flex-wrap: wrap;
+      align-items: center;
       gap: var(--workspace-space-2);
       min-width: 0;
       max-width: 100%;
@@ -383,48 +474,94 @@
     .void-agents-scene__agent-filter-group {
       flex: 0 1 auto;
       flex-wrap: wrap;
+      align-items: center;
       min-width: 0;
-      gap: var(--workspace-space-1);
+      gap: var(--workspace-space-2);
     }
 
     .void-agents-scene__agent-filter-label {
-      color: var(--workspace-text-muted);
+      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-meta);
       font-weight: var(--workspace-font-weight-medium);
+      letter-spacing: 0.14em;
+      color: var(--workspace-text-muted);
     }
 
     .gallery-cat-chip {
+      position: relative;
       min-width: 0;
-      min-height: var(--workspace-control-height);
-      height: var(--workspace-control-height);
-      padding-inline: var(--workspace-space-2);
+      min-height: 0;
+      height: auto;
+      padding: 2px 0;
+      gap: var(--workspace-space-1);
       font-size: var(--workspace-font-size-label);
       font-weight: var(--workspace-font-weight-medium);
+      color: var(--workspace-text-muted);
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .gallery-cat-chip:hover {
+      color: var(--workspace-text-primary);
+      background: transparent;
+    }
+
+    .gallery-cat-chip--active,
+    .gallery-cat-chip--active:hover {
+      padding-left: 9px;
+      font-weight: var(--workspace-font-weight-strong);
+      color: var(--workspace-text-primary);
+      background: transparent;
+    }
+
+    .gallery-cat-chip--active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--workspace-accent);
+      transform: none;
+      margin-top: -2px;
     }
 
     .gallery-filter-count {
-      height: 16px;
-      padding-inline: var(--workspace-space-1);
+      height: auto;
+      padding-inline: 0;
+      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-meta);
       font-variant-numeric: tabular-nums;
+      color: var(--workspace-text-muted);
+      background: transparent;
     }
 
+    /* One loud action only: new agent stays a quiet text button */
     .gallery-action-btn {
       flex: 0 0 auto;
       min-height: var(--workspace-control-height);
       height: var(--workspace-control-height);
-      padding-inline: var(--workspace-space-2);
+      padding-inline: var(--workspace-space-1);
       font-size: var(--workspace-font-size-label);
-      font-weight: var(--workspace-font-weight-medium);
+      font-weight: var(--workspace-font-weight-strong);
+      color: var(--workspace-text-primary);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
     }
-  }
 
-  @media (max-width: 1080px) {
-    .void-ui--minimal .void-agents-scene {
-      .core-agents-grid,
-      .gallery-grid {
-        @include market.two-column-grid;
-      }
+    .gallery-action-btn svg {
+      color: var(--workspace-accent);
+    }
+
+    .gallery-action-btn:hover {
+      color: var(--workspace-accent);
+      background: transparent;
     }
   }
 
@@ -469,17 +606,9 @@
         overflow-x: visible;
       }
 
-      .agent-card,
-      .core-agent-card,
-      .agent-team-card {
-        height: auto;
-        min-height: 150px;
-      }
-
-      .agent-card__body,
-      .core-agent-card__body,
-      .agent-team-card__body {
-        display: block;
+      .agent-card__cap-chips > :nth-child(n + 2),
+      .core-agent-card__cap-chips > :nth-child(n + 2) {
+        display: none;
       }
 
       .agent-card__meta > :nth-child(n + 2),
@@ -512,16 +641,22 @@
         scrollbar-width: none;
       }
 
-      .core-agents-grid,
-      .gallery-grid {
-        @include market.one-column-grid;
+      .agent-card__body,
+      .core-agent-card__body,
+      .agent-team-card__body {
+        display: none;
       }
+    }
+  }
 
-      .agent-card,
-      .core-agent-card,
-      .agent-team-card {
-        height: auto;
-        min-height: 150px;
+  @media (hover: none) {
+    .void-ui--minimal .void-agents-scene {
+      .agent-card__dispatch,
+      .core-agent-card__dispatch,
+      .agent-team-card__dispatch,
+      .agent-card__view,
+      .core-agent-card__view {
+        opacity: 1;
       }
     }
   }
@@ -534,7 +669,12 @@
       .agent-market-toolbar .search__clear,
       .agent-card,
       .core-agent-card,
-      .agent-team-card {
+      .agent-team-card,
+      .agent-card__dispatch,
+      .agent-team-card__dispatch,
+      .core-agent-card__dispatch,
+      .agent-card__view,
+      .core-agent-card__view {
         animation: none;
         transition: none;
       }

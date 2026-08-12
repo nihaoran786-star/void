@@ -16,6 +16,8 @@ interface AgentCardProps {
   onOpenDetails: (agent: AgentWithCapabilities) => void;
   onDispatch?: (agent: AgentWithCapabilities) => void;
   dispatching?: boolean;
+  /** Selected in the directory — its orb avatar animates. */
+  active?: boolean;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
@@ -24,8 +26,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onOpenDetails,
   onDispatch,
   dispatching = false,
+  active = false,
 }) => {
   const { t } = useTranslation('scenes/agents');
+  const avatarState = dispatching ? 'running' : active ? 'active' : 'idle';
   const sourceLabel = agent.subagentSource === 'user'
     ? t('filters.user')
     : agent.subagentSource === 'project'
@@ -75,6 +79,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         <AgentAvatar
           identity={agent.key || agent.id || agent.name}
           name={agent.displayName}
+          state={avatarState}
         />
         <div className="agent-card__header-info">
           <span className="agent-card__name">{agent.displayName}</span>

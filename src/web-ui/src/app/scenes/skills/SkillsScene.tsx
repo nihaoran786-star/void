@@ -28,12 +28,10 @@ import { workspaceManager } from '@/infrastructure/services/business/workspaceMa
 import { useNotification } from '@/shared/notification-system';
 import { isRemoteWorkspace } from '@/shared/types';
 import { createLogger } from '@/shared/utils/logger';
-import { getCardGradient } from '@/shared/utils/cardGradients';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
 import { useSkillMarket } from './hooks/useSkillMarket';
 import SkillCard from './components/SkillCard';
 import SkillCatalogAvatar from './components/SkillCatalogAvatar';
-import { resolveSkillCatalogIcon } from './components/skillCatalogIcons';
 import SkillAuthoringPage from './components/SkillAuthoringPage';
 import SkillsSuiteView from './components/SkillsSuiteView';
 import './SkillsScene.scss';
@@ -185,12 +183,6 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
   const selectedSkillName = selectedInstalledPresentation?.displayName
     ?? selectedMarketPresentation?.displayName
     ?? '';
-  const SelectedSkillIcon = resolveSkillCatalogIcon(
-    selectedSkillIdentity,
-    selectedSkillName,
-    selectedMarketSkill ? 'market' : 'skill',
-  );
-
   const installedFiltered = useMemo(() => {
     const list = hideDuplicates
       ? installed.filteredSkills.filter((s) => !s.isShadowed)
@@ -717,13 +709,11 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
       <GalleryDetailModal
         isOpen={Boolean(selectedDetail)}
         onClose={() => setSelectedDetail(null)}
-        icon={<SelectedSkillIcon size={24} strokeWidth={1.6} />}
-        iconGradient={getCardGradient(
-          selectedInstalledSkill?.name
-          ?? selectedMarketSkill?.installId
-          ?? selectedMarketSkill?.name
-          ?? 'skill'
-        )}
+        icon={<SkillCatalogAvatar
+          identity={selectedSkillIdentity}
+          name={selectedSkillName}
+          size="detail"
+        />}
         title={selectedInstalledPresentation?.displayName ?? selectedMarketPresentation?.displayName ?? ''}
         badges={selectedInstalledSkill ? (
           <>

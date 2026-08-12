@@ -18,12 +18,6 @@ interface AgentTeamCardProps {
   dispatching?: boolean;
 }
 
-const TAG_COLORS = [
-  { color: '#f59e0b', border: '#f59e0b44' },
-  { color: '#14b8a6', border: '#14b8a644' },
-  { color: '#6366f1', border: '#6366f144' },
-];
-
 const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
   index = 0,
   title,
@@ -78,6 +72,7 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
         <AgentAvatar
           identity={avatarIdentity}
           name={avatarName}
+          state={dispatching ? 'running' : 'idle'}
           className="agent-team-card__avatar"
         />
         <div className="agent-team-card__header-copy">
@@ -97,14 +92,10 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
 
       <div className="agent-team-card__footer">
         <div className="agent-team-card__tags">
-          {tagNames.slice(0, 3).map((name, i) => (
+          {tagNames.slice(0, 3).map((name) => (
             <span
               key={name}
               className="agent-team-card__tag-chip"
-              style={{
-                color: TAG_COLORS[i % TAG_COLORS.length].color,
-                borderColor: TAG_COLORS[i % TAG_COLORS.length].border,
-              }}
             >
               {name}
             </span>

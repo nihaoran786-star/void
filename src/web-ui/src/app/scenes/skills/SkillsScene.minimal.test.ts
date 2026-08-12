@@ -30,14 +30,48 @@ describe('Skills market presentation contract', () => {
     expect(scene).toContain('Math.min(p, Math.max(0, installedTotalPages - 1))');
   });
 
-  it('uses a four, two, one column responsive market grid', () => {
+  it('presents the catalog as quiet hairline rows instead of card grids', () => {
     expect(minimalStyles).toContain("[data-customization-market='skills']");
-    expect(minimalStyles).toContain('@include market.grid;');
+    expect(minimalStyles).not.toContain('@include market.grid;');
+    expect(minimalStyles).not.toContain('@include market.card;');
+    expect(minimalStyles).not.toContain('market.two-column-grid');
+    expect(minimalStyles).not.toContain('market.one-column-grid');
     expect(minimalStyles).toContain('@container skills-market (max-width: 900px)');
-    expect(minimalStyles).toContain('@include market.two-column-grid;');
     expect(minimalStyles).toContain('@container skills-market (max-width: 560px)');
-    expect(minimalStyles).toContain('@include market.one-column-grid;');
+    expect(minimalStyles).toMatch(
+      /\.skills-main__grid,[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/,
+    );
+    expect(minimalStyles).toMatch(
+      /\.skills-card,[\s\S]*?\.skill-card \{[\s\S]*?flex-direction: row;[\s\S]*?border-top: 1px solid var\(--workspace-border-subtle\);/,
+    );
     expect(marketContract).toContain('$desktop-grid-columns: 4;');
+  });
+
+  it('uses deterministic static sigil runes instead of keyword-mapped icons', () => {
+    const sceneSource = readSource('./SkillsScene.tsx');
+    const avatar = readSource('./components/SkillCatalogAvatar.tsx');
+    const avatarStyles = readSource('./components/SkillCatalogAvatar.scss');
+    const sigil = readSource('./components/skillSigil.ts');
+
+    expect(avatar).toContain('resolveSigilCells');
+    expect(avatar).toContain('<svg');
+    expect(avatar).toContain('fill="currentColor"');
+    expect(avatar).not.toContain('CatalogIconAvatar');
+    expect(avatar).not.toContain('resolveSkillCatalogIcon');
+    expect(sigil).toContain('SIGIL_GRID_SIZE = 4');
+    expect(sigil).toContain('sigil:');
+    expect(avatarStyles).toContain(
+      'transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);',
+    );
+    expect(avatarStyles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(avatarStyles).toContain('.gallery-detail-modal__icon:has(.skill-sigil)');
+    expect(sceneSource).not.toContain('resolveSkillCatalogIcon');
+    expect(sceneSource).not.toContain('getCardGradient');
+    expect(sceneSource).toContain('icon={<SkillCatalogAvatar');
+    expect(minimalStyles).toMatch(
+      /\.skills-card__avatar,[\s\S]*?\.skill-card__avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/,
+    );
+    expect(minimalStyles).toContain('opacity: 0.28;');
   });
 
   it('searches both localized presentation and stable raw skill identity', () => {
@@ -78,17 +112,32 @@ describe('Skills market presentation contract', () => {
     expect(marketCard).not.toContain('onClick={openDetails}');
   });
 
-  it('uses compact icon-forward cards without a heavy market footer rail', () => {
-    expect(minimalStyles).toContain('@include market.card;');
+  it('collects row actions into hover and keeps meta as plain monospace text', () => {
     expect(marketContract).toContain('$card-height: 160px;');
     expect(minimalStyles).toContain('.skills-card__avatar,');
     expect(minimalStyles).toContain('.skill-card__avatar');
-    expect(minimalStyles).toContain('width: 52px;');
+    expect(minimalStyles).toMatch(
+      /\.skills-card__actions \{[\s\S]*?opacity: 0;/,
+    );
+    expect(minimalStyles).toMatch(
+      /\.skills-card:hover \.skills-card__actions,[\s\S]*?opacity: 1;/,
+    );
+    expect(minimalStyles).toMatch(
+      /\.skills-filter-bar__item \{[\s\S]*?background: transparent;[\s\S]*?border: 0;/,
+    );
+    expect(minimalStyles).toMatch(
+      /&\.is-active::before \{[\s\S]*?background: var\(--workspace-accent\);/,
+    );
     expect(styles).toContain('-webkit-line-clamp: 2;');
     expect(styles).toContain('.skill-card__footer');
     expect(styles).toContain('border-top: 0;');
     expect(styles).toContain('.skill-card__action-btn');
     expect(styles).toContain('flex: 0 0 28px;');
+    expect(minimalStyles).toContain('font-family: var(--font-family-mono);');
+    expect(minimalStyles).not.toContain('font-family: ui-monospace');
+    expect(minimalStyles).toMatch(
+      /@media \(hover: none\)[\s\S]*?\.skills-card__actions,[\s\S]*?\.skill-card__actions \{[\s\S]*?opacity: 1;/,
+    );
   });
 
   it('honors the existing reduced-motion and token contracts', () => {

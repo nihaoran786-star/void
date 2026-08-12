@@ -1,22 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import {
-  Clapperboard,
-  LayoutGrid,
-  Network,
-  Package,
-  Table2,
-} from 'lucide-react';
-import { resolveSkillCatalogIcon } from './skillCatalogIcons';
+import { resolveSigilCells } from './skillSigil';
 
-describe('resolveSkillCatalogIcon', () => {
-  it('uses the immutable skill identity to select a meaningful icon', () => {
-    expect(resolveSkillCatalogIcon('user::home.codex::arrange')).toBe(LayoutGrid);
-    expect(resolveSkillCatalogIcon('user::home.codex::agent-app-architecture')).toBe(Network);
-    expect(resolveSkillCatalogIcon('builtin::xlsx')).toBe(Table2);
-    expect(resolveSkillCatalogIcon('builtin::short-drama-character-board')).toBe(Clapperboard);
+describe('resolveSigilCells', () => {
+  it('uses immutable skill identity to produce a stable rune', () => {
+    expect(resolveSigilCells('user::home.codex::arrange'))
+      .toEqual(resolveSigilCells('user::home.codex::arrange'));
+    expect(resolveSigilCells('user::home.codex::arrange'))
+      .not.toEqual(resolveSigilCells('user::home.codex::agent-app-architecture'));
   });
 
-  it('keeps an explicit marketplace fallback for unknown packages', () => {
-    expect(resolveSkillCatalogIcon('market::unknown-package', '未知能力', 'market')).toBe(Package);
+  it('never returns an empty or solid rune', () => {
+    for (const identity of ['', 'market::unknown-package', 'builtin::xlsx']) {
+      const filled = resolveSigilCells(identity).filter(Boolean).length;
+      expect(filled).toBeGreaterThan(0);
+      expect(filled).toBeLessThan(8);
+    }
   });
 });

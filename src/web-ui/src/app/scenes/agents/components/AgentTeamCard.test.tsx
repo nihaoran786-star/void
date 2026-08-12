@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import AgentTeamCard from './AgentTeamCard';
-import { resolveEmployeeAvatarUrl } from './employeeAvatar';
 
 function readAgentTeamCardStylesheet(): string {
   const stylesheet = readFileSync(
@@ -51,7 +50,7 @@ describe('AgentTeamCard', () => {
     expect(markup).not.toContain('Judge');
   });
 
-  it('uses the stable team identity to render a reusable employee portrait', () => {
+  it('uses the stable team identity to render a deterministic orb avatar', () => {
     const avatarIdentity = 'team:fixed-team:default-review-team';
     const markup = renderToStaticMarkup(
       <AgentTeamCard
@@ -65,8 +64,11 @@ describe('AgentTeamCard', () => {
       />,
     );
 
-    expect(markup).toContain(`src="${resolveEmployeeAvatarUrl(avatarIdentity)}"`);
     expect(markup).toContain('agent-team-card__avatar');
+    expect(markup).toContain('agent-avatar--orb');
+    expect(markup).toContain('<canvas class="agent-avatar__canvas"');
+    expect(markup).toContain('data-orb="');
+    expect(markup).not.toContain('<img');
   });
 
   it('renders the optional quick-dispatch action without changing the card entry action', () => {
@@ -92,6 +94,25 @@ describe('AgentTeamCard', () => {
     expect(markup).toContain('派发任务');
     expect(source).toContain('event.stopPropagation();');
     expect(source).toContain('onKeyDown={event => event.stopPropagation()}');
+  });
+
+  it('animates the team orb while quick dispatch is running', () => {
+    const markup = renderToStaticMarkup(
+      <AgentTeamCard
+        title="Review team"
+        subtitle="Reviews the current change"
+        roleName="Team"
+        tagNames={[]}
+        avatarIdentity="team:review"
+        avatarName="Review team"
+        onOpen={() => undefined}
+        onDispatch={() => undefined}
+        dispatchLabel="Dispatch"
+        dispatching
+      />,
+    );
+
+    expect(markup).toContain('data-state="running"');
   });
 
   it('keeps card, lead, and member portrait identities deterministic', () => {

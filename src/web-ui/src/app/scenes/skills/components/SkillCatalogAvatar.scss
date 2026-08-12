@@ -1,0 +1,38 @@
+.skill-sigil {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+  &--card {
+    width: 20px;
+    height: 20px;
+  }
+
+  &--detail {
+    width: 30px;
+    height: 30px;
+  }
+
+  &__mark {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.gallery-detail-modal__icon:has(.skill-sigil) {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skill-sigil {
+    transition: none;
+  }
+}

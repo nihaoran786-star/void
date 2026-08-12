@@ -743,6 +743,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
                       : undefined
                   }
                   dispatching={dispatchingAgentKey === agent.key}
+                  active={selectedAgentKey === agent.key}
                 />
               ))}
             </div>
@@ -830,6 +831,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
                         : undefined
                     }
                     dispatching={dispatchingAgentKey === agent.key}
+                    active={selectedAgentKey === agent.key}
                   />
                 ))}
               </GalleryGrid>
@@ -851,6 +853,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
             identity={selectedAgent.key || selectedAgent.id || selectedAgent.name}
             name={selectedAgent.displayName}
             size="detail"
+            state="active"
           />
         ) : <Bot size={24} />}
         title={selectedAgent?.displayName ?? ''}

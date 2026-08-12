@@ -21,6 +21,8 @@ interface CoreAgentCardProps {
   onOpenDetails: (agent: AgentWithCapabilities) => void;
   onDispatch?: (agent: AgentWithCapabilities) => void;
   dispatching?: boolean;
+  /** Selected in the directory — its orb avatar animates. */
+  active?: boolean;
 }
 
 const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
@@ -30,8 +32,10 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
   onOpenDetails,
   onDispatch,
   dispatching = false,
+  active = false,
 }) => {
   const { t } = useTranslation('scenes/agents');
+  const avatarState = dispatching ? 'running' : active ? 'active' : 'idle';
   const openDetails = () => onOpenDetails(agent);
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -75,6 +79,7 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
         <AgentAvatar
           identity={agent.key || agent.id || agent.name}
           name={agent.displayName}
+          state={avatarState}
         />
         <div className="core-agent-card__top-info">
           <span className="core-agent-card__name">{agent.displayName}</span>
