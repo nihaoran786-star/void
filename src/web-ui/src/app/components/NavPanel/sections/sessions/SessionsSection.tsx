@@ -720,13 +720,16 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
               {showSessionModeIcon ? (
                 <span className="void-nav-panel__inline-item-icon-slot">
                   {isRunning ? (
-                    <Loader2
-                      size={14}
-                      className={[
-                        'void-nav-panel__inline-item-icon',
-                        'is-running',
-                      ].join(' ')}
-                    />
+                    <>
+                      <Loader2
+                        size={14}
+                        className="void-nav-panel__inline-item-icon void-nav-panel__inline-item-running-classic is-running"
+                      />
+                      <span
+                        className="void-nav-panel__inline-item-status-dot void-nav-panel__inline-item-running-minimal is-running"
+                        aria-hidden="true"
+                      />
+                    </>
                   ) : (
                     <SessionIcon
                       size={14}
@@ -845,6 +848,9 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                       <MoreHorizontal size={13} />
                     </button>
                   </div>
+                  {isRunning ? (
+                    <span className="void-nav-panel__inline-item-track void-nav-panel__inline-item-running-minimal" aria-hidden="true"><i /></span>
+                  ) : null}
                   {openMenuSessionId === session.sessionId && sessionMenuPosition && createPortal(
                     <div
                       ref={sessionMenuPopoverRef}

@@ -164,6 +164,7 @@
         background: var(--element-bg-soft);
       }
     }
+
   }
 
   &__inline-item-activation {
@@ -243,7 +244,62 @@
     }
   }
 
-  // 「助理会话」区块：行前导图标悬停微微放大（与顶部 __top-action-icon-slot 的 1.07 一致；运行中 Loader 仅用旋转动画）
+  &__inline-item-running-minimal {
+    display: none;
+  }
+
+  // Running status dot — accent point with a single quiet ripple
+  &__inline-item-status-dot {
+    position: relative;
+    width: 6px;
+    height: 6px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--color-accent-500);
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1px solid var(--color-accent-500);
+      animation: void-nav-status-ripple 1.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+    }
+  }
+
+  // Hairline progress under a running row (indeterminate)
+  &__inline-item-track {
+    position: absolute;
+    left: 27px;
+    right: 4px;
+    bottom: 1px;
+    height: 1px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--border-subtle) 80%, transparent);
+
+    i {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 38%;
+      height: 100%;
+      background: var(--color-accent-500);
+      transform: translateX(-100%);
+      animation: void-nav-track-slide 1.6s $easing-standard infinite;
+    }
+  }
+
+  @keyframes void-nav-status-ripple {
+    0% { opacity: 0.7; transform: scale(0.7); }
+    100% { opacity: 0; transform: scale(2.2); }
+  }
+
+  @keyframes void-nav-track-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(360%); }
+  }
+
+  // 「助理会话」区块：行前导图标悬停微微放大（与顶部 __top-action-icon-slot 的 1.07 一致；运行中行改为状态点涟漪）
   &__items--session-blocks &__inline-item:hover &__inline-item-icon:not(.is-running) {
     transform: scale(1.07);
   }
@@ -716,6 +772,11 @@
   }
 
   .void-nav-panel__inline-item-review-badge svg {
+    animation: none;
+  }
+
+  .void-nav-panel__inline-item-status-dot::after,
+  .void-nav-panel__inline-item-track i {
     animation: none;
   }
 

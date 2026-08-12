@@ -3,7 +3,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 interface SectionHeaderProps {
   label: string;
@@ -13,6 +13,8 @@ interface SectionHeaderProps {
   onToggle?: () => void;
   onSceneOpen?: () => void;
   actions?: React.ReactNode;
+  /** Optional mono count shown after the hairline (e.g. "02"). */
+  meta?: string;
 }
 
 const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -23,6 +25,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   onToggle,
   onSceneOpen,
   actions,
+  meta,
 }) => {
   const isInteractive = collapsible || !!onSceneOpen;
   const isSceneEntry = !collapsible && !!onSceneOpen;
@@ -38,9 +41,21 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   const content = (
     <>
       <span className="void-nav-panel__section-label">{label}</span>
+      <span className="void-nav-panel__section-hline" aria-hidden="true" />
+      {meta ? (
+        <span className="void-nav-panel__section-meta">{meta}</span>
+      ) : null}
       {onSceneOpen ? (
         <span className="void-nav-panel__section-indicator" aria-hidden="true">
           <ChevronRight size={14} />
+        </span>
+      ) : null}
+      {collapsible ? (
+        <span
+          className={`void-nav-panel__section-chev${isOpen ? '' : ' is-closed'}`}
+          aria-hidden="true"
+        >
+          <ChevronDown size={11} />
         </span>
       ) : null}
     </>

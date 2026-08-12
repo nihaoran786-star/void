@@ -249,6 +249,21 @@ describe('NavPanel layout styles', () => {
     expect(settingsHiddenRuleIndex).toBeGreaterThan(iconButtonRuleIndex);
   });
 
+  it('keeps the customization disclosure reachable without expanding the Minimal rail', () => {
+    const stylesheet = readMinimalNavPanelStylesheet();
+    const source = readMainNavSource();
+
+    expect(source).toContain('aria-expanded={isExtensionsOpen}');
+    expect(source).toContain('aria-controls="void-nav-panel-extensions"');
+    expect(stylesheet).toContain(
+      '.void-workspace-body__nav-area.is-collapsed .void-nav-panel',
+    );
+    expect(stylesheet).toContain('&__top-action-expand {\n      display: flex;');
+    expect(stylesheet).toContain('&__top-action-expand.is-open');
+    expect(stylesheet).toContain('&__top-action-sublist.is-open');
+    expect(stylesheet).toContain('&__top-action-btn--sub');
+  });
+
   it('allows navigation list wrappers to shrink instead of inheriting long item widths', () => {
     const stylesheet = readNavPanelStylesheet();
     const rootBlock = extractBlock(stylesheet, '.void-nav-panel');
@@ -528,6 +543,37 @@ describe('NavPanel layout styles', () => {
       '.void-nav-panel__inline-item-icon.is-running {\n    color: var(--workspace-text-secondary);\n    opacity: 1;',
     );
     expect(stylesheet).not.toContain('transition: all');
+  });
+
+  it('scopes the technical navigation chrome to Minimal while preserving Classic', () => {
+    const source = readMainNavSource();
+    const baseStylesheet = readNavPanelStylesheet();
+    const minimalStylesheet = readMinimalNavPanelStylesheet();
+    const sessionsSource = readFileSync(
+      fileURLToPath(new URL('./sections/sessions/SessionsSection.tsx', import.meta.url)),
+      'utf8',
+    ).replace(/\r\n/g, '\n');
+    const sessionsStylesheet = readFileSync(
+      fileURLToPath(new URL('./sections/sessions/SessionsSection.scss', import.meta.url)),
+      'utf8',
+    ).replace(/\r\n/g, '\n');
+
+    expect(source).toContain("workspacePresentation === 'minimal' ? (");
+    expect(source).toContain('<NavTechAssistantIcon size={15} />');
+    expect(source).toContain('<User size={15} />');
+    expect(source).toContain('<NavTechAutomationIcon size={15} />');
+    expect(source).toContain('<CalendarClock size={15} />');
+    expect(baseStylesheet).toMatch(/&__section-hline\s*\{[\s\S]*?display:\s*none;/);
+    expect(baseStylesheet).toMatch(/&__section-meta\s*\{[\s\S]*?display:\s*none;/);
+    expect(baseStylesheet).toMatch(/&__section-chev\s*\{[\s\S]*?display:\s*none;/);
+    expect(minimalStylesheet).toMatch(/&__section-hline\s*\{[\s\S]*?display:\s*block;/);
+    expect(minimalStylesheet).toMatch(/&__section-meta\s*\{[\s\S]*?display:\s*inline;/);
+    expect(minimalStylesheet).toMatch(/&__section-chev\s*\{[\s\S]*?display:\s*inline-flex;/);
+    expect(sessionsSource).toContain('void-nav-panel__inline-item-running-classic');
+    expect(sessionsSource).toContain('void-nav-panel__inline-item-running-minimal');
+    expect(sessionsStylesheet).toMatch(/&__inline-item-running-minimal\s*\{[\s\S]*?display:\s*none;/);
+    expect(minimalStylesheet).toContain('.void-nav-panel__inline-item-running-classic');
+    expect(minimalStylesheet).toContain('.void-nav-panel__inline-item-running-minimal');
   });
 
   it('progressively discloses low-frequency footer actions only in Minimal', () => {

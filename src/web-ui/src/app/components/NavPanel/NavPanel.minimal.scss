@@ -63,7 +63,7 @@
     &__search-trigger__kbd {
       margin-left: auto;
       color: var(--workspace-text-muted);
-      font-family: inherit;
+      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-micro);
       opacity: .7;
     }
@@ -101,7 +101,6 @@
     &__footer-btn:hover,
     &__session-create-action:hover {
       color: var(--workspace-text-primary);
-      background: var(--workspace-surface-hover);
       box-shadow: none;
       transform: none;
     }
@@ -119,14 +118,25 @@
 
     &__inline-item.is-active {
       color: var(--workspace-text-primary);
-      background: var(--workspace-surface-active);
       box-shadow: none;
+    }
+
+    &__inline-item.is-active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 5px;
+      bottom: 5px;
+      width: 2px;
+      border-radius: 2px;
+      background: var(--color-accent-500);
     }
 
     &__top-action-btn.is-active {
       color: var(--workspace-text-primary);
       background: transparent;
       box-shadow: none;
+      font-weight: 600;
     }
 
     &__top-action-btn.is-active::before {
@@ -235,9 +245,13 @@
         background-color var(--workspace-motion-fast) var(--workspace-easing-standard);
     }
 
+    &__session-create-tech-icon {
+      color: var(--color-accent-500);
+    }
+
     &__session-create-action-kbd {
       color: inherit;
-      font-family: inherit;
+      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-micro);
       font-weight: var(--workspace-font-weight-regular);
       opacity: .62;
@@ -290,6 +304,62 @@
     &__section-header {
       height: 22px;
       margin-inline: var(--workspace-space-1);
+
+      &:hover,
+      &:active {
+        background: transparent;
+      }
+    }
+
+    &__section-label {
+      flex: 0 1 auto;
+    }
+
+    &__section-hline {
+      display: block;
+    }
+
+    &__section-meta {
+      display: inline;
+    }
+
+    &__section-chev {
+      display: inline-flex;
+    }
+
+    &__assistant-entry:hover,
+    &__assistant-entry.is-active,
+    &__miniapp-entry:hover,
+    &__miniapp-entry:active,
+    &__miniapp-entry.is-active,
+    &__item:hover,
+    &__item:active,
+    &__item.is-active {
+      background: transparent;
+      box-shadow: none;
+    }
+
+    &__assistant-entry.is-active,
+    &__item.is-active {
+      font-weight: 600;
+    }
+
+    &__assistant-entry.is-active::before,
+    &__miniapp-entry.is-active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 9px;
+      bottom: 9px;
+      width: 2px;
+      height: auto;
+      border-radius: 2px;
+      background: var(--color-accent-500);
+      transform: none;
+    }
+
+    &__item.is-active::before {
+      background: var(--color-accent-500);
     }
 
     &__workspace-item-card,
@@ -348,18 +418,6 @@
 
     &__inline-item {
       background: transparent;
-
-      &:hover {
-        background: color-mix(
-          in srgb,
-          var(--workspace-surface-hover) 58%,
-          transparent
-        );
-      }
-
-      &.is-active {
-        background: var(--workspace-surface-active);
-      }
     }
 
     :where(button, [role='button'], a):focus-visible {
@@ -450,13 +508,45 @@
     &__top-action-btn > span:not(.void-nav-panel__top-action-icon-slot),
     [class~='void-nav-panel__brand-header'],
     &__session-search-slot,
-    &__top-action-expand,
     &__sections,
     &__bottom-bar,
     &__footer-more-wrap,
     &__footer-quick-action,
     &__footer-right {
       display: none;
+    }
+
+    &__top-action-expand {
+      display: flex;
+      align-items: center;
+      width: 40px;
+      margin: 0;
+      padding: 0;
+      border-bottom: 0;
+    }
+
+    &__top-action-expand.is-open {
+      gap: var(--workspace-space-1, 4px);
+    }
+
+    &__top-action-expand-icons {
+      display: none;
+    }
+
+    &__top-action-sublist {
+      align-items: center;
+      width: 40px;
+      margin: 0;
+      padding: 0;
+      border-left: 0;
+    }
+
+    &__top-action-sublist.is-open {
+      max-height: 128px;
+    }
+
+    &__top-action-btn--sub {
+      padding: 0;
     }
 
     &__top-action-btn.is-active {
@@ -494,7 +584,6 @@
   .void-ui--minimal .void-nav-panel__workspace-item:hover .void-nav-panel__workspace-item-card,
   .void-ui--minimal .void-nav-panel__assistant-item:hover .void-nav-panel__assistant-item-card {
     color: var(--workspace-text-primary);
-    background: var(--workspace-surface-hover);
     box-shadow: none;
     transform: none;
   }
@@ -502,8 +591,19 @@
   .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card,
   .void-ui--minimal .void-nav-panel__assistant-item.is-active .void-nav-panel__assistant-item-card {
     color: var(--workspace-text-primary);
-    background: var(--workspace-surface-active);
     box-shadow: none;
+  }
+
+  .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card::before,
+  .void-ui--minimal .void-nav-panel__assistant-item.is-active .void-nav-panel__assistant-item-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 5px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--color-accent-500);
   }
 
   .void-ui--minimal .void-nav-panel__top-action-btn:hover .void-nav-panel__top-action-icon-circle,
@@ -538,6 +638,27 @@
     .void-nav-panel__inline-item-icon.is-running {
     color: var(--workspace-text-secondary);
     opacity: 1;
+  }
+
+  .void-ui--minimal .void-nav-panel__inline-item {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .void-ui--minimal .void-nav-panel__inline-item.is-active {
+    box-shadow: inset 2px 0 0 var(--color-accent-500);
+  }
+
+  .void-ui--minimal .void-nav-panel__inline-item.is-active .void-nav-panel__inline-item-label {
+    font-weight: 600;
+  }
+
+  .void-ui--minimal .void-nav-panel__inline-item-running-classic {
+    display: none;
+  }
+
+  .void-ui--minimal .void-nav-panel__inline-item-running-minimal {
+    display: inline-flex;
   }
 
   .void-ui--minimal .void-nav-panel__workspace-menu {

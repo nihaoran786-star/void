@@ -15,6 +15,11 @@ import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Cable, Blocks, ChevronDown, Search, CalendarClock } from 'lucide-react';
 import { Tooltip } from '@/component-library';
+import {
+  NavTechAssistantIcon,
+  NavTechAutomationIcon,
+  NavTechExtensionsIcon,
+} from './components/NavTechIcons';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
 import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
@@ -89,6 +94,7 @@ const MainNav: React.FC<MainNavProps> = ({
     recentWorkspaces,
     openedWorkspacesList,
     assistantWorkspacesList,
+    normalWorkspacesList,
     switchWorkspace,
     setActiveWorkspace,
   } = useWorkspaceContext();
@@ -623,7 +629,9 @@ const MainNav: React.FC<MainNavProps> = ({
             aria-pressed={isAssistantActive}
           >
             <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-              <User size={15} />
+              {workspacePresentation === 'minimal'
+                ? <NavTechAssistantIcon size={15} />
+                : <User size={15} />}
             </span>
             <span>{t('nav.items.persona')}</span>
           </button>
@@ -638,13 +646,17 @@ const MainNav: React.FC<MainNavProps> = ({
             aria-pressed={isAutomationActive}
           >
             <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-              <CalendarClock size={15} />
+              {workspacePresentation === 'minimal'
+                ? <NavTechAutomationIcon size={15} />
+                : <CalendarClock size={15} />}
             </span>
             <span>{t('nav.items.automation')}</span>
           </button>
         </Tooltip>
 
-        <div className="void-nav-panel__top-action-expand">
+        <div
+          className={`void-nav-panel__top-action-expand${isExtensionsOpen ? ' is-open' : ''}`}
+        >
           <Tooltip content={extensionsLabel} placement="right" followCursor>
             <button
               type="button"
@@ -660,7 +672,7 @@ const MainNav: React.FC<MainNavProps> = ({
             >
               {workspacePresentation === 'minimal' ? (
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  <Blocks size={15} />
+                  <NavTechExtensionsIcon size={15} />
                 </span>
               ) : (
                 <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
@@ -710,7 +722,9 @@ const MainNav: React.FC<MainNavProps> = ({
                 tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  <Users size={15} />
+                  {workspacePresentation === 'minimal'
+                    ? <span className="void-nav-panel__top-action-sub-dot" />
+                    : <Users size={15} />}
                 </span>
                 <span>{t('nav.items.agents')}</span>
               </button>
@@ -732,7 +746,9 @@ const MainNav: React.FC<MainNavProps> = ({
                 tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  <Puzzle size={15} />
+                  {workspacePresentation === 'minimal'
+                    ? <span className="void-nav-panel__top-action-sub-dot" />
+                    : <Puzzle size={15} />}
                 </span>
                 <span>{t('nav.items.skills')}</span>
               </button>
@@ -754,7 +770,9 @@ const MainNav: React.FC<MainNavProps> = ({
                 tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  <Cable size={15} />
+                  {workspacePresentation === 'minimal'
+                    ? <span className="void-nav-panel__top-action-sub-dot" />
+                    : <Cable size={15} />}
                 </span>
                 <span>{t('nav.items.connectors')}</span>
               </button>
@@ -813,6 +831,7 @@ const MainNav: React.FC<MainNavProps> = ({
             isOpen={expandedSections.has('workspace')}
             controlsId="void-nav-panel-workspaces"
             onToggle={() => toggleSection('workspace')}
+            meta={String(normalWorkspacesList.length).padStart(2, '0')}
             actions={
               <div className="void-nav-panel__workspace-action-wrap">
                 <Tooltip content={addWorkspaceTooltip} placement="right" followCursor disabled={workspaceMenuOpen}>

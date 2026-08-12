@@ -4,10 +4,10 @@ import {
   ClipboardList,
   Code2,
   Images,
-  Plus,
   type LucideIcon,
 } from 'lucide-react';
 import { Tooltip } from '@/component-library';
+import { NavTechPlusIcon } from './NavTechIcons';
 import type { WorkspacePresentation } from '@/app/presentation/workspacePresentation';
 
 export type SessionLauncherMode = 'code' | 'cowork' | 'media';
@@ -107,7 +107,7 @@ export const SessionCreateLauncher: React.FC<SessionCreateLauncherProps> = ({
             onClick={onCreate}
             aria-label={groupLabel}
           >
-            <Plus size={14} strokeWidth={1.5} aria-hidden="true" />
+            <NavTechPlusIcon size={14} className="void-nav-panel__session-create-tech-icon" />
             <span className="void-nav-panel__session-create-action-text">
               {groupLabel}
             </span>

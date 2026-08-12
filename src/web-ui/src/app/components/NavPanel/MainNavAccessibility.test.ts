@@ -28,7 +28,7 @@ describe('MainNav workspace menu accessibility contract', () => {
     expect(source).toContain('aria-controls="void-nav-panel-extensions"');
     expect(source).toContain('aria-label={extensionsLabel}');
     expect(source).toContain(
-      "{workspacePresentation === 'minimal' ? (\n                <span className=\"void-nav-panel__top-action-icon-slot\" aria-hidden=\"true\">\n                  <Blocks size={15} />",
+      "{workspacePresentation === 'minimal' ? (\n                <span className=\"void-nav-panel__top-action-icon-slot\" aria-hidden=\"true\">\n                  <NavTechExtensionsIcon size={15} />",
     );
     expect(source).toContain(
       ') : (\n                <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">\n                  <Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />',
@@ -99,7 +99,7 @@ describe('MainNav workspace menu accessibility contract', () => {
     expect(source).toContain("activeTabId === 'connectors'");
     expect(source).not.toContain("setSettingsActiveTab('mcp-tools');");
     expect(source).toContain("t('nav.items.connectors')");
-    expect(source).toContain('<Cable size={15} />');
+    expect(source).toContain('void-nav-panel__top-action-sub-dot');
     expect(config).toContain('agents / skills / connectors');
     expect(config).toContain('each item opens its own workspace scene');
     expect(baseStyles).toContain('max-height: 104px;');
