@@ -150,6 +150,7 @@ try {
 }
 
 const describeWithJsdom = JSDOMCtor ? describe : describe.skip;
+const TEST_EXECUTION_POLICIES = ['agentic'] as const;
 
 describeWithJsdom('useAgentsList catalog refresh', () => {
   let dom: { window: Window & typeof globalThis };
@@ -186,7 +187,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
 
   it('reloads on a refresh revision and ignores the older in-flight response', async () => {
     type SubagentList = Awaited<ReturnType<
-      typeof import('@/infrastructure/api/service-api/SubagentAPI').SubagentAPI.listSubagents
+      typeof import('@/infrastructure/api/service-api/SubagentAPI').SubagentAPI.listManageableSubagents
     >>;
     let resolveFirst: (value: SubagentList) => void = () => undefined;
     const firstResponse = new Promise<SubagentList>((resolve) => {
@@ -205,7 +206,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
       effectiveEnabled: true,
       subagentSource: 'user' as const,
     });
-    hookApi.listSubagents
+    hookApi.listManageableSubagents
       .mockReset()
       .mockResolvedValue([])
       .mockImplementationOnce(() => firstResponse)
@@ -219,6 +220,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
         searchQuery: '',
         filterLevel: 'all',
         filterType: 'all',
+        executionPolicies: TEST_EXECUTION_POLICIES,
         t: translate,
       });
       latestIds = result.allAgents.map((agent) => agent.id);
@@ -229,14 +231,18 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
       root.render(React.createElement(Probe));
       await Promise.resolve();
     });
-    expect(hookApi.listSubagents).toHaveBeenCalledTimes(1);
+    expect(hookApi.listManageableSubagents).toHaveBeenCalledTimes(1);
+    expect(hookApi.listManageableSubagents).toHaveBeenLastCalledWith({
+      parentAgentType: 'agentic',
+      workspacePath: 'D:/workspace/catalog-refresh',
+    });
 
     await act(async () => {
       useAgentsStore.getState().requestCatalogRefresh();
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(hookApi.listSubagents).toHaveBeenCalledTimes(2);
+    expect(hookApi.listManageableSubagents).toHaveBeenCalledTimes(2);
 
     for (let index = 0; index < 10 && !latestIds.includes('newer-agent'); index += 1) {
       await act(async () => {
@@ -267,7 +273,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
       effectiveEnabled: true,
       subagentSource: source,
     });
-    hookApi.listSubagents
+    hookApi.listManageableSubagents
       .mockReset()
       .mockResolvedValue([
         shared('user::void::shared-agent', 'user'),
@@ -282,6 +288,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
         searchQuery: '',
         filterLevel: 'all',
         filterType: 'all',
+        executionPolicies: TEST_EXECUTION_POLICIES,
         t: translate,
       });
       identities = result.allAgents.map((agent) => agent.key);
@@ -336,6 +343,7 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
         searchQuery: '',
         filterLevel: 'all',
         filterType: 'all',
+        executionPolicies: TEST_EXECUTION_POLICIES,
         t: translate,
       });
       setSubagentEnabled = result.handleSetSubagentEnabled;
@@ -358,5 +366,58 @@ describeWithJsdom('useAgentsList catalog refresh', () => {
       enabled: false,
       workspacePath: 'D:/workspace/catalog-refresh',
     });
+  });
+});
+
+describe('mergeContextualSubagents', () => {
+  it('保留同场景中真正可用的执行策略，供派遣选择正确运行时', async () => {
+    const { mergeContextualSubagents } = await import('./hooks/useAgentsList');
+    const base = {
+      key: 'user::void::planner',
+      id: 'planner',
+      name: 'Planner',
+      description: 'Plan-only Agent',
+      isReadonly: false,
+      isReview: false,
+      toolCount: 0,
+      defaultTools: [],
+      defaultEnabled: true,
+      subagentSource: 'user' as const,
+      promptCacheScopeKey: 'plan-scope',
+      visibility: {
+        exposure: 'restricted' as const,
+        allowedParentAgentIds: ['agentic', 'Plan'],
+        deniedParentAgentIds: [],
+        showInGlobalRegistry: true,
+      },
+    };
+
+    const merged = mergeContextualSubagents([
+      {
+        executionPolicy: 'agentic',
+        subagents: [{
+          ...base,
+          effectiveEnabled: false,
+          stateReason: 'disabled_by_user_override' as const,
+        }],
+      },
+      {
+        executionPolicy: 'Plan',
+        subagents: [{
+          ...base,
+          effectiveEnabled: true,
+          stateReason: 'custom_default_enabled' as const,
+        }],
+      },
+    ]);
+
+    expect(merged).toEqual([
+      expect.objectContaining({
+        effectiveEnabled: true,
+        visibility: expect.objectContaining({
+          allowedParentAgentIds: ['Plan', 'agentic'],
+        }),
+      }),
+    ]);
   });
 });

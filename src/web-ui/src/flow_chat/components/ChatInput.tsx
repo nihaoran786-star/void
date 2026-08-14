@@ -4,6 +4,7 @@
  */
 
 import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } from 'react';
+import '../BeautifulUIFlowBindings.scss';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
 import { Bot, Image, Loader2, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
@@ -3522,7 +3523,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     insertText: insertVoiceTranscript,
     focusInputSoon: focusRichTextInputSoon,
   });
-
   // Space-to-focus: when no editable element is focused, Space key focuses the input.
   useEffect(() => {
     if (!isPrimaryComposer) {
@@ -3717,6 +3717,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <div 
           ref={containerRef}
           className={`void-chat-input ${isMultiLine ? 'void-chat-input--multi-line' : 'void-chat-input--capsule'} ${derivedState?.isProcessing ? 'void-chat-input--processing' : ''} ${className}`}
+          data-beautiful-components="chat-composer prompt-bar"
           data-testid="chat-input-container"
           data-composer-session-id={effectiveTargetSessionId || undefined}
           data-composer-kind={isIndependentChildComposer ? 'child' : 'main'}

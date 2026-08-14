@@ -35,7 +35,7 @@ const entry = mapSubagentToCatalogEntry({
   effectiveEnabled: true,
   subagentSource: 'user',
   promptCacheScopeKey: 'writer-v1',
-} as SubagentInfo & { promptCacheScopeKey: string });
+});
 
 const teamEntry: TeamCatalogEntry = {
   kind: 'team',

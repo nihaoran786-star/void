@@ -33,6 +33,11 @@ automatically the current source of truth.
   the token architecture, permits scoped semantic-color correction, and now
   covers the shell, navigation, chat, tool calls, composer, customization
   markets, Canvas, Team Workspace, and Welcome/new-session presentation
+- [Quiet Directory design system](design/quiet-directory-design-system.md)
+  — current entity-glyph (Agent orb / Skill sigil / Connector link) and
+  hairline directory-row language for the Minimal presentation; covers the
+  Agents, Skills, and Connectors catalogs plus the Automation chrome and list
+  view, with the Automation calendar structure preserved
 - [Porcelain Air navigation/chat execution prompt](handoffs/porcelain-graphite-nav-chat-prompt.md)
   — self-contained prompt for a fresh AI to implement only the approved first
   slice without relying on this conversation

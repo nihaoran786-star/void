@@ -179,37 +179,78 @@
     }
 
     &__view-switcher {
-      gap: 0;
+      gap: var(--workspace-space-3);
       padding: 0;
       border-color: transparent;
       border-radius: var(--workspace-radius-control);
       background: transparent;
     }
 
+    /* Mono text chips: no pill, active = accent dot + strong text */
     &__view-btn {
+      position: relative;
       height: 28px;
-      padding-inline: var(--workspace-space-2);
-      border-radius: var(--workspace-radius-control);
+      padding-inline: 0;
+      border-radius: 0;
+      color: var(--workspace-text-muted);
+      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
-      &--active {
+      &:hover {
         color: var(--workspace-text-primary);
-        background: var(--workspace-surface-active);
+        background: transparent;
+      }
+
+      &--active,
+      &--active:hover {
+        padding-left: 9px;
+        color: var(--workspace-text-primary);
+        background: transparent;
         box-shadow: none;
+        font-weight: var(--workspace-font-weight-strong);
+      }
+
+      &--active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 4px;
+        height: 4px;
+        margin-top: -2px;
+        border-radius: 50%;
+        background: var(--workspace-accent);
+        transform: none;
       }
     }
 
+    /* One loud action only: create stays a quiet text button */
     &__create-btn {
       height: 28px;
       gap: var(--workspace-space-1);
-      color: var(--workspace-surface-canvas);
-      background: var(--workspace-text-primary);
+      padding-inline: 0;
+      border: 0;
+      border-radius: 0;
+      color: var(--workspace-text-primary);
+      background: transparent;
+      box-shadow: none;
+      font-weight: var(--workspace-font-weight-strong);
+
+      svg {
+        color: var(--workspace-accent);
+      }
 
       &:hover {
-        background: color-mix(
-          in srgb,
-          var(--workspace-text-primary) 86%,
-          var(--workspace-surface-canvas)
-        );
+        color: var(--workspace-accent);
+        background: transparent;
+      }
+    }
+
+    &__today-btn {
+      color: var(--workspace-text-muted);
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: transparent;
       }
     }
   }
@@ -320,6 +361,15 @@
       }
     }
 
+    /* Calendar numerals stay monospace so the grid reads like a timetable */
+    .week-view__date-num,
+    .month-view__day-num,
+    .week-view__hour-label,
+    .day-view__hour-label {
+      font-family: var(--font-family-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
     .week-view__day-count {
       margin-top: 0;
       font-size: 0;
@@ -399,8 +449,28 @@
       padding: var(--workspace-space-3) 0;
     }
 
+    /* Hairline section header: date label + rule + mono count */
     .list-view__group-head {
+      gap: var(--workspace-space-2);
       margin-bottom: var(--workspace-space-1);
+      padding-bottom: var(--workspace-space-1);
+      border-bottom: 1px solid var(--workspace-border-subtle);
+    }
+
+    .list-view__today-tag {
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--workspace-accent);
+      font-family: var(--font-family-mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .list-view__group-count {
+      font-family: var(--font-family-mono);
+      font-size: var(--workspace-font-size-meta);
+      letter-spacing: 0.08em;
     }
 
     .list-view__items {
@@ -420,7 +490,7 @@
 
       &:hover {
         border-color: var(--workspace-border-subtle);
-        background: var(--workspace-surface-hover);
+        background: transparent;
         box-shadow: none;
       }
 
@@ -448,9 +518,23 @@
       gap: var(--workspace-space-1);
     }
 
+    .list-view__time {
+      font-family: var(--font-family-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .list-view__duration,
+    .list-view__status {
+      font-family: var(--font-family-mono);
+      font-size: var(--workspace-font-size-meta);
+      letter-spacing: 0.06em;
+    }
+
     .list-view__schedule-tag {
       padding: 0;
       border: 0;
+      font-family: var(--font-family-mono);
+      letter-spacing: 0.06em;
     }
 
     .list-view__agent > svg,

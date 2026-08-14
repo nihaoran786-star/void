@@ -24,10 +24,6 @@ vi.mock('@/component-library', () => ({
   MarkdownRenderer: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,
 }));
 
-vi.mock('../hooks/useTypewriter', () => ({
-  useTypewriter: (content: string) => content,
-}));
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: { language: 'en-US' },

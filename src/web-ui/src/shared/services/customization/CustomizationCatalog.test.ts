@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
-import type { ModeInfo } from '@/infrastructure/api/service-api/AgentAPI';
-import type { SubagentInfo } from '@/infrastructure/api/service-api/SubagentAPI';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { agentAPI, type ModeInfo } from '@/infrastructure/api/service-api/AgentAPI';
+import { SubagentAPI, type SubagentInfo } from '@/infrastructure/api/service-api/SubagentAPI';
 import type { SkillInfo } from '@/infrastructure/config/types';
 import { FALLBACK_REVIEW_TEAM_DEFINITION } from '@/shared/services/review-team/defaults';
 import { CapabilityCatalogService } from './CapabilityCatalogService';
@@ -21,6 +21,7 @@ import type {
   CapabilityCatalogEntry,
   CapabilityCatalogSource,
   CatalogSourceSnapshot,
+  CatalogLoadContext,
   SkillCatalogEntry,
 } from './types';
 import {
@@ -92,6 +93,10 @@ function readSkillLocale(locale: 'zh-CN' | 'en-US' | 'zh-TW'): SkillLocaleCatalo
 }
 
 describe('CapabilityCatalogService', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('按来源身份去重，且不会按中文展示名或裸 ID 合并不同来源', async () => {
     const first = skillEntry();
     const second = skillEntry({
@@ -144,9 +149,39 @@ describe('CapabilityCatalogService', () => {
       expect.objectContaining({ sourceId: 'broken', code: 'catalog_source_load_failed' }),
     ]);
   });
+
+  it('把当前执行策略传给目录适配器，用于解析有上下文的智能体可用性', async () => {
+    let receivedContext: CatalogLoadContext | undefined;
+    const service = new CapabilityCatalogService([{
+      sourceId: 'context-probe',
+      async load(context) {
+        receivedContext = context;
+        return {
+          sourceId: 'context-probe',
+          status: 'ready',
+          entries: [],
+          errors: [],
+        };
+      },
+    }]);
+
+    await service.list({
+      executionPolicy: 'agentic',
+      workspacePath: 'D:/repo',
+    });
+
+    expect(receivedContext).toEqual({
+      executionPolicy: 'agentic',
+      workspacePath: 'D:/repo',
+    });
+  });
 });
 
 describe('existing Agent and Skill catalog mappings', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const mode: ModeInfo = {
     id: 'agentic',
     name: 'Agentic',
@@ -157,7 +192,7 @@ describe('existing Agent and Skill catalog mappings', () => {
     configProfileId: 'code',
     configProfileMemberModeIds: ['agentic'],
   };
-  const subagent: SubagentInfo & { promptCacheScopeKey: string } = {
+  const subagent: SubagentInfo = {
     key: 'user::void::agentic',
     id: 'agentic',
     name: 'Agentic helper',
@@ -200,6 +235,32 @@ describe('existing Agent and Skill catalog mappings', () => {
     expect(subagentEntry.availability.status).toBe('available');
     expect(subagentEntry.activationSupport).toBe('parent_persona');
     expect(snapshot.entries).toHaveLength(2);
+  });
+
+  it('默认适配器按执行策略请求可管理智能体，不再使用无上下文列表判定派遣状态', async () => {
+    vi.spyOn(agentAPI, 'getAvailableModes').mockResolvedValue([]);
+    const contextualList = vi.spyOn(SubagentAPI, 'listManageableSubagents')
+      .mockResolvedValue([subagent]);
+    const contextlessList = vi.spyOn(SubagentAPI, 'listSubagents')
+      .mockResolvedValue([]);
+
+    const snapshot = await new ExistingAgentCatalogAdapter().load({
+      executionPolicy: 'agentic',
+      workspacePath: 'D:/repo',
+    });
+
+    expect(contextualList).toHaveBeenCalledWith({
+      parentAgentType: 'agentic',
+      workspacePath: 'D:/repo',
+    });
+    expect(contextlessList).not.toHaveBeenCalled();
+    expect(snapshot.entries).toEqual([
+      expect.objectContaining({
+        kind: 'agent',
+        identity: expect.objectContaining({ id: subagent.key }),
+        availability: { status: 'available' },
+      }),
+    ]);
   });
 
   it('按精确执行策略过滤智能体，而不把同属 Code 的模式混在一起', async () => {

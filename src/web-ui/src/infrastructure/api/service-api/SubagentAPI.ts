@@ -35,6 +35,8 @@ export interface SubagentInfo {
   isReview: boolean;
   toolCount: number;
   defaultTools: string[];
+  /** Runtime prompt/user-context compatibility identity used for persona activation. */
+  promptCacheScopeKey?: string;
   defaultEnabled: boolean;
   effectiveEnabled: boolean;
   overrideState?: SubagentOverrideState;

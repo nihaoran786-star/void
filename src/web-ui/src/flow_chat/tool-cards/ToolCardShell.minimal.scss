@@ -86,12 +86,6 @@
       }
     }
 
-    /* Task progress is already conveyed by the live status ring. */
-    .task-tool-display .task-steps__step--now::after {
-      display: none;
-      animation: none;
-    }
-
     /* Shared Task cards still carry the Classic broad-transition baseline.
        Limit Minimal to paint-only state feedback so merging a live subagent
        cannot interpolate width, radius, or padding. */

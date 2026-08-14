@@ -122,6 +122,17 @@ Current examples:
 - `TerminalToolCard`
 - `ExploreGroupRenderer`
 
+## Production activity visual baseline
+
+The production Flow Chat presenter maps all 19 user-approved Beautiful UI
+source components to the corresponding transcript, navigation, composer, tool,
+approval, task, table, loading, and thinking surfaces. Source loading, task
+status, and thinking components are mounted directly. Model summaries and
+grouped activity remain visible; do not wrap them in another typewriter,
+loader, completion ring, auto-collapse, or hidden-region animation. These
+bindings consume existing typed Flow Chat state only and do not alter the tool
+registry, permissions, runtime, session lifecycle, or persistence.
+
 For details, read:
 
 - `src/web-ui/src/flow_chat/components/modern/FLOWCHAT_SCROLL_STABILITY.md`

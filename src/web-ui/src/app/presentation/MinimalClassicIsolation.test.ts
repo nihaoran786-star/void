@@ -54,11 +54,11 @@ describe('Minimal presentation remains isolated from Classic', () => {
     expect(skillsMinimal).not.toContain('@include market.grid;');
     expect(skillsMinimal).toContain('flex-direction: column;');
     expect(skillsMinimal).toMatch(
-      /\.skills-discover__grid \.skill-card__badges \{\s*display: none;/,
+      /\.skill-card__badges \{[\s\S]*?\.badge \{[\s\S]*?font-family: var\(--font-family-mono\);/,
     );
   });
 
-  it('keeps connector geometry Classic by default and compact only in Minimal', () => {
+  it('keeps connector geometry Classic by default and hairline rows only in Minimal', () => {
     const minimalStart = connectorMarket.indexOf('.void-ui--minimal .void-connector-market');
     const classicConnector = connectorMarket.slice(0, minimalStart);
     const minimalConnector = connectorMarket.slice(minimalStart);
@@ -68,10 +68,11 @@ describe('Minimal presentation remains isolated from Classic', () => {
     expect(classicConnector).toContain('width: 52px;');
     expect(classicConnector).toContain('@container connector-catalog (max-width: 900px)');
     expect(classicConnector).toContain('@container connector-catalog (max-width: 620px)');
-    expect(classicConnector).not.toContain('width: min(100%, 306px);');
+    expect(classicConnector).not.toContain('font-family: var(--font-family-mono);');
 
-    expect(minimalConnector).toContain('width: min(100%, 306px);');
-    expect(minimalConnector).toContain('grid-template-columns: 44px minmax(0, 1fr);');
+    expect(minimalConnector).toContain('flex-direction: column;');
+    expect(minimalConnector).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(minimalConnector).toContain('font-family: var(--font-family-mono);');
     expect(minimalConnector).toContain('@container connector-catalog (max-width: 720px)');
     expect(minimalConnector).toContain('@container connector-catalog (max-width: 520px)');
   });

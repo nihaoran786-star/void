@@ -13,7 +13,9 @@ import {
 import type { FlowToolItem, FlowItem, FlowChatState } from '../../types/flow-chat';
 import { FlowChatStore } from '../../store/FlowChatStore';
 import { ToolTimeoutIndicator } from '../../tool-cards/ToolTimeoutIndicator';
-import { Button, DotMatrixLoader } from '@/component-library';
+import { Button } from '@/component-library';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import LoadingState, { PixelGrid } from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import { createLogger } from '@/shared/utils/logger';
 import { agentAPI } from '@/infrastructure/api/service-api/AgentAPI';
 import type { ReviewerContext } from '@/shared/services/reviewTeamService';
@@ -516,7 +518,9 @@ const TaskDetailPanelContent: React.FC<TaskDetailPanelContentProps> = ({ data, i
         />
         {isRunning && (
           <span className="task-detail-panel__header-loading">
-            <DotMatrixLoader size="small" />
+            <BeautifulUIStage mode="icon">
+              <PixelGrid variant="Drive" />
+            </BeautifulUIStage>
           </span>
         )}
       </div>
@@ -614,25 +618,23 @@ const TaskDetailPanelContent: React.FC<TaskDetailPanelContentProps> = ({ data, i
 
         {hasPendingSubagentRender && (
           <div className="task-detail-panel__loading task-detail-panel__loading--inline">
-            <DotMatrixLoader size="small" />
-            <span>
-              {t('toolCards.taskDetailPanel.loadingMore', {
+            <BeautifulUIStage mode="inline">
+              <LoadingState label={t('toolCards.taskDetailPanel.loadingMore', {
                 defaultValue: 'Loading more output...',
-              })}
-            </span>
+              })} variant="Drive" />
+            </BeautifulUIStage>
           </div>
         )}
 
         {((isRunning || !isSnapshotHydrated) && subagentItems.length === 0) && (
           <div className="task-detail-panel__loading">
-            <DotMatrixLoader size="medium" />
-            <span>
-              {isSnapshotHydrated
+            <BeautifulUIStage mode="inline">
+              <LoadingState label={isSnapshotHydrated
                 ? t('toolCards.taskDetailPanel.status.running')
                 : t('toolCards.taskDetailPanel.loading', {
                   defaultValue: 'Loading task details...',
-                })}
-            </span>
+                })} variant="Drive" />
+            </BeautifulUIStage>
           </div>
         )}
       </div>

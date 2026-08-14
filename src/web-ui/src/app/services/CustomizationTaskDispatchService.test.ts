@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useSceneStore } from '@/app/stores/sceneStore';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
+import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import type {
   AgentCatalogEntry,
   TeamCatalogEntry,
@@ -142,6 +145,10 @@ describe('CustomizationTaskDispatchService', () => {
     service = new CustomizationTaskDispatchService(dependencies);
   });
 
+  afterEach(() => {
+    useSessionModeStore.getState().clearDraft();
+  });
+
   it('市场派发只打开新会话草稿，不提前创建真实会话', async () => {
     const result = await service.dispatch({
       target: customAgent(),
@@ -159,6 +166,39 @@ describe('CustomizationTaskDispatchService', () => {
       scenario: 'media',
       action: 'draft_opened',
     });
+  });
+
+  it('默认派遣链路从欢迎页切换到带智能体的新会话草稿', async () => {
+    useSceneStore.setState({
+      openTabs: [{ id: 'welcome', openedAt: 1, lastUsed: 1 }],
+      activeTabId: 'welcome',
+      navHistory: ['welcome'],
+      navCursor: 0,
+    });
+    flowChatStore.setState(previous => ({
+      ...previous,
+      activeSessionId: 'existing-session',
+    }));
+
+    await new CustomizationTaskDispatchService().dispatch({
+      target: customAgent(),
+      preferredScenario: 'code',
+    });
+
+    expect(useSceneStore.getState()).toEqual(expect.objectContaining({
+      activeTabId: 'session',
+      openTabs: [expect.objectContaining({ id: 'session' })],
+    }));
+    expect(flowChatStore.getState().activeSessionId).toBeNull();
+    expect(useSessionModeStore.getState()).toEqual(expect.objectContaining({
+      draftStatus: 'draft',
+      mode: 'code',
+      draftExecutionPolicy: 'agentic',
+      draftPersonaTarget: expect.objectContaining({
+        kind: 'agent',
+        identity: expect.objectContaining({ id: 'user::void::designer' }),
+      }),
+    }));
   });
 
   it('把内置模式派发到它自己的房间', async () => {

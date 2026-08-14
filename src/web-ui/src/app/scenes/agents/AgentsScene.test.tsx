@@ -471,8 +471,8 @@ describeWithJsdom('AgentsScene', () => {
     });
   });
 
-  it('移除可见页面标题并让全部智能体固定每页八张', async () => {
-    sceneFixture.agents = Array.from({ length: 9 }, (_, index) => ({
+  it('移除可见页面标题并让全部智能体固定每页二十四张', async () => {
+    sceneFixture.agents = Array.from({ length: 25 }, (_, index) => ({
       key: `user::void::agent-${index}`,
       id: `agent-${index}`,
       name: `Agent ${index}`,
@@ -497,7 +497,7 @@ describeWithJsdom('AgentsScene', () => {
     });
 
     expect(container.querySelector('header')).toBeNull();
-    expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(8);
+    expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(24);
     expect(container.textContent).toContain('nav.coreAgents');
     expect(container.textContent).toContain('nav.agents');
     expect(container.querySelector('[aria-label="page.searchPlaceholder"]')).toBeTruthy();
@@ -509,11 +509,11 @@ describeWithJsdom('AgentsScene', () => {
     });
 
     expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(1);
-    expect(container.querySelector('[data-testid="agent-card-user::void::agent-8"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="agent-card-user::void::agent-24"]')).toBeTruthy();
   });
 
   it('搜索条件变化后回到智能体第一页', async () => {
-    sceneFixture.agents = Array.from({ length: 9 }, (_, index) => ({
+    sceneFixture.agents = Array.from({ length: 25 }, (_, index) => ({
       key: `user::void::agent-${index}`,
       id: `agent-${index}`,
       name: `Agent ${index}`,
@@ -540,7 +540,7 @@ describeWithJsdom('AgentsScene', () => {
       container.querySelector<HTMLButtonElement>('[aria-label="pagination.next"]')!
         .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
-    expect(container.querySelector('[data-testid="agent-card-user::void::agent-8"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="agent-card-user::void::agent-24"]')).toBeTruthy();
 
     await act(async () => {
       useAgentsStore.getState().setSearchQuery('审查');

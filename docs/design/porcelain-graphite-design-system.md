@@ -445,10 +445,20 @@ The main conversation becomes a continuous working transcript.
 - AI and user content should feel editorial and conversational, not like a
   ticketing system or operator log;
 - author/time metadata is shown only where it helps orientation;
-- tool activity is a compact, keyboard-expandable status row;
+- tool activity uses the corresponding Beautiful UI source row and keeps its
+  real event content mounted;
 - cards remain only for files, media, snapshots, approvals, significant tasks,
   recoverable errors, and other independently actionable artifacts;
-- thinking and streaming do not animate layout or mount a second placeholder;
+- thinking summaries and grouped activity remain visible instead of being
+  automatically hidden or collapsed;
+- thinking and streaming do not mount a second placeholder, typewriter,
+  completion ring, or duplicate animation layer;
+- Flow Chat activity uses the user-selected Beautiful UI source pattern for
+  the 3×3 running indicator, thinking disclosure, elapsed time, and grouped
+  tool timeline; the surrounding conversation still consumes shared semantic
+  tokens and remains visually quiet;
+- only existing model summaries and tool events are rendered; no hidden chain
+  of thought is exposed or fabricated;
 - readable text column stays near 62–72 Chinese characters at its widest;
 - composer uses an 8px radius, low-profile border, and one primary send action;
 - persona, Team, workspace, model, permission, and execution policy are quiet

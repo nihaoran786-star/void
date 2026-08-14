@@ -117,7 +117,7 @@ describe('Skills market presentation contract', () => {
     expect(minimalStyles).toContain('.skills-card__avatar,');
     expect(minimalStyles).toContain('.skill-card__avatar');
     expect(minimalStyles).toMatch(
-      /\.skills-card__actions \{[\s\S]*?opacity: 0;/,
+      /\.skills-card__actions,[\s\S]*?\.skill-card__actions \{[\s\S]*?opacity: 0;/,
     );
     expect(minimalStyles).toMatch(
       /\.skills-card:hover \.skills-card__actions,[\s\S]*?opacity: 1;/,

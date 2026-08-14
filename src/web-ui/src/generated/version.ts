@@ -1,6 +1,6 @@
 /**
  * Auto-generated version info. Do not edit.
- * Generated: 2026-08-11T07:39:31.741Z
+ * Generated: 2026-08-14T12:40:51.755Z
  */
 
 import type { VersionInfo } from '../shared/types/version';
@@ -8,11 +8,11 @@ import type { VersionInfo } from '../shared/types/version';
 export const VERSION_INFO: VersionInfo = {
   "name": "void",
   "version": "0.2.8",
-  "buildDate": "2026-08-11T07:39:31.740Z",
-  "buildTimestamp": 1786433971740,
+  "buildDate": "2026-08-14T12:40:51.753Z",
+  "buildTimestamp": 1786711251754,
   "buildEnv": "development",
   "isDev": true,
-  "gitCommit": "3a2e9e6",
-  "gitCommitFull": "3a2e9e659c30799e1ddcb704bf6cc78c78e8ad92",
+  "gitCommit": "b6f5a99",
+  "gitCommitFull": "b6f5a997f49ef294f5f9c30a97942d73896e99d1",
   "gitBranch": "codex/minimal-workspace-ui"
 };

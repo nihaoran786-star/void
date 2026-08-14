@@ -35,7 +35,7 @@ export interface AgentDebugPersonaState {
 
 export interface AgentDebugRuntimeDeps {
   createSubagent: (payload: CreateSubagentPayload) => Promise<string>;
-  listSubagents: () => Promise<Array<SubagentInfo & { promptCacheScopeKey?: string }>>;
+  listSubagents: () => Promise<SubagentInfo[]>;
   deleteSubagent: (payload: DeleteSubagentPayload) => Promise<void>;
   createChatSession: (config: SessionConfig, mode?: string) => Promise<string>;
   persistPersona: (sessionId: string, state: AgentDebugPersonaState) => Promise<void>;

@@ -144,7 +144,15 @@ vi.mock('@/component-library', () => ({
       {children}
     </button>
   ),
-  DotMatrixLoader: () => null,
+}));
+
+vi.mock('@/component-library/components/BeautifulUI', () => ({
+  BeautifulUIStage: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/component-library/preview/beautiful-ui-original/components/loading-state', () => ({
+  default: ({ label }: { label: string }) => <span>{label}</span>,
+  PixelGrid: () => <span data-testid="beautiful-pixel-grid" />,
 }));
 
 vi.mock('@/infrastructure/api/service-api/AgentAPI', () => ({

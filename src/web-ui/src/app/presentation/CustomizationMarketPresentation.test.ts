@@ -34,6 +34,7 @@ const agentsMinimal = read('../scenes/agents/AgentsScene.minimal.scss');
 const skillsScene = read('../scenes/skills/SkillsScene.scss');
 const skillsMinimal = read('../scenes/skills/SkillsScene.minimal.scss');
 const connectorMarket = read('../../infrastructure/config/components/ConnectorMarketplacePanel.scss');
+const mcpCatalogMinimal = read('../../infrastructure/config/components/McpToolsConfig.minimal.scss');
 
 describe('customization market presentation contract', () => {
   it('uses the shared four-column, 160px-card market geometry', () => {
@@ -42,7 +43,7 @@ describe('customization market presentation contract', () => {
     expect(sharedMarket).toContain('gap: var(--workspace-space-3);');
   });
 
-  it('presents Minimal agent and team cards as quiet rows without rewriting Classic cards', () => {
+  it('presents Minimal agent and team cards as living-being tiles without rewriting Classic cards', () => {
     const minimalCards = extractScssBlock(
       agentsMinimal,
       '.agent-card,\n    .core-agent-card,\n    .agent-team-card',
@@ -51,21 +52,20 @@ describe('customization market presentation contract', () => {
       agentsMinimal,
       '.agent-avatar--card,\n    .agent-team-card__avatar',
     );
-    const minimalDescriptions = extractScssBlock(
+    const minimalBodies = extractScssBlock(
       agentsMinimal,
-      '.agent-card__desc,\n    .core-agent-card__desc,\n    .agent-team-card__desc',
+      '.agent-card__body,\n    .core-agent-card__body,\n    .agent-team-card__body',
     );
     const classicAgent = extractScssBlock(agentCard, '.agent-card');
     const classicTeamIcon = extractScssBlock(teamCard, '&__icon');
 
-    expect(minimalCards).toContain('flex-direction: row;');
-    expect(minimalCards).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(minimalCards).toContain('flex-direction: column;');
+    expect(minimalCards).toContain('border: 1px solid var(--workspace-border-subtle);');
     expect(minimalCards).not.toContain('@include market.card;');
     expect(sharedMarket).toContain('height: var(--customization-market-card-height, #{$card-height});');
-    expect(minimalAvatars).toContain('width: 20px;');
-    expect(minimalAvatars).toContain('height: 20px;');
-    expect(minimalDescriptions).toContain('font-size: var(--workspace-font-size-label);');
-    expect(minimalDescriptions).toContain('line-height: 1.5;');
+    expect(minimalAvatars).toContain('width: 56px;');
+    expect(minimalAvatars).toContain('height: 56px;');
+    expect(minimalBodies).toContain('display: none;');
 
     expect(classicAgent).toContain('height: 200px;');
     expect(classicTeamIcon).toContain('width: 40px;');
@@ -89,7 +89,7 @@ describe('customization market presentation contract', () => {
     );
 
     expect(minimalDispatchHeaders).toContain('padding-right: 0;');
-    expect(agentsMinimal).toContain('position: static;');
+    expect(agentsMinimal).toContain('position: absolute;');
     expect(agentsMinimal).toContain('.void-ui--minimal .void-agents-scene');
     expect(classicAgentDispatchHeader).toContain('padding-right: 104px;');
     expect(classicTeamDispatchHeader).toContain('padding-right: 104px;');
@@ -116,27 +116,33 @@ describe('customization market presentation contract', () => {
     expect(classicProjection).toContain('height: 36px;');
   });
 
-  it('removes only the duplicate marketplace header badge from skill cards', () => {
-    const minimalMarket = extractScssBlock(
-      skillsMinimal,
-      ".void-ui--minimal .void-skills-scene[data-customization-market='skills']",
+  it('restyles marketplace badges as plain monospace meta in Minimal rows', () => {
+    expect(skillsMinimal).not.toContain('.skills-discover__grid .skill-card__badges');
+    expect(skillsMinimal).toMatch(
+      /\.skill-card__badges \{[\s\S]*?\.badge \{[\s\S]*?font-family: var\(--font-family-mono\);[\s\S]*?background: transparent;/,
     );
-    const discoverBadges = extractScssBlock(
-      minimalMarket,
-      '.skills-discover__grid .skill-card__badges',
-    );
-
-    expect(discoverBadges).toContain('display: none;');
-    expect(minimalMarket).not.toContain('.skills-main__grid .skill-card__badges');
     expect(skillsScene).not.toContain('.skills-discover__grid .skill-card__badges');
   });
 
-  it('uses matching connector breakpoints and compact identity sizing', () => {
+  it('uses matching connector breakpoints and hairline row geometry in Minimal', () => {
     expect(connectorMarket).toContain('@container connector-catalog (max-width: 720px)');
     expect(connectorMarket).toContain('@container connector-catalog (max-width: 520px)');
-    expect(connectorMarket).toContain('width: 44px;');
-    expect(connectorMarket).toContain('height: 44px;');
-    expect(connectorMarket).toContain('font-size: var(--workspace-font-size-body);');
-    expect(connectorMarket).toContain('width: min(100%, 306px);');
+    expect(connectorMarket).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(connectorMarket).toContain('font-family: var(--font-family-mono);');
+    expect(connectorMarket).toContain('width: 20px;');
+    expect(connectorMarket).toMatch(
+      /@container connector-catalog \(max-width: 520px\)[\s\S]*?&__categories \{[\s\S]*?flex-wrap: wrap;[\s\S]*?overflow-x: visible;/,
+    );
   });
+
+  it('presents the installed connector catalog as hairline directory rows in Minimal', () => {
+    expect(mcpCatalogMinimal).toContain('.void-ui--minimal .void-mcp-tools--catalog');
+    expect(mcpCatalogMinimal).toContain('.void-mcp-tools__catalog-grid');
+    expect(mcpCatalogMinimal).toContain('flex-direction: column;');
+    expect(mcpCatalogMinimal).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(mcpCatalogMinimal).toContain('font-family: var(--font-family-mono);');
+    expect(mcpCatalogMinimal).toContain('.void-mcp-tools__catalog-card-actions');
+    expect(mcpCatalogMinimal).toContain('.void-mcp-tools__status-badge');
+  });
+
 });

@@ -176,6 +176,8 @@ export interface CapabilityCatalogSource {
 
 export interface CatalogLoadContext {
   workspacePath?: string;
+  /** Parent runtime policy used to resolve scoped Agent availability. */
+  executionPolicy?: string;
 }
 
 export interface CapabilityCatalogQuery extends CatalogLoadContext {

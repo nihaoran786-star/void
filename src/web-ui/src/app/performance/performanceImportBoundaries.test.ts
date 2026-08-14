@@ -252,6 +252,9 @@ describe('Web UI startup import boundaries', () => {
     expect(markdownFacade).toContain("whiteSpace: 'pre-wrap'");
     expect(markdownFacade).not.toContain("export { Markdown } from './Markdown'");
     expect(modelThinkingDisplay).toContain(
+      "from '@/component-library/preview/beautiful-ui-original/components/thinking-state'",
+    );
+    expect(modelThinkingDisplay).not.toContain(
       "from '@/component-library/components/Markdown'",
     );
     expect(taskToolDisplay).toContain(

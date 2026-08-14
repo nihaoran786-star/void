@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工具调用 · 子代理 动效重设计</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+  background: #0a0a0b; color: #e8e8e6;
+  padding: 48px 32px 80px;
+  font-synthesis: none; -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+
+.page-head { max-width: 1240px; margin: 0 auto 36px; }
+.page-head h1 { font-size: 20px; font-weight: 600; }
+.page-head p { margin-top: 8px; font-size: 12.5px; color: #8a8a86; line-height: 1.8; }
+.page-head b { color: #c9c9c4; font-weight: 600; }
+
+.cols { display: flex; gap: 28px; justify-content: center; max-width: 1240px; margin: 0 auto; flex-wrap: wrap; }
+.col { flex: 1 1 460px; max-width: 560px; display: flex; flex-direction: column; gap: 18px; }
+.col-head { font-size: 13px; font-weight: 600; letter-spacing: .06em; }
+.col-head span { font-weight: 400; color: #7d7d78; font-size: 11.5px; margin-left: 8px; letter-spacing: 0; }
+
+.demo { border-radius: 20px; padding: 26px 24px 22px; display: flex; flex-direction: column; gap: 14px; }
+.demo-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.demo-cap h3 { font-size: 12px; font-weight: 600; letter-spacing: .05em; }
+.demo-cap .note { font-size: 10.5px; color: #7d7d78; }
+.play {
+  border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: 11px; color: var(--p-accent, #d4ff00); padding: 2px 0;
+  border-bottom: 1px solid transparent; transition: border-color .2s;
+}
+.play:hover { border-bottom-color: currentColor; }
+
+/* ============ 主题变量:曜岩 / 霜白 ============ */
+.dark { --p-bg: #0c0c0c; --p-card: #101010; --p-border: rgba(255,255,255,.09); --p-text: #f0f0f0; --p-dim: rgba(240,240,240,.52); --p-faint: rgba(240,240,240,.25); --p-accent: #d4ff00; }
+.dark .demo { background: #050505; }
+.light { --p-bg: #fbf9f5; --p-card: #ffffff; --p-border: rgba(10,10,12,.1); --p-text: #0a0a0c; --p-dim: rgba(10,10,12,.58); --p-faint: rgba(10,10,12,.34); --p-accent: #000bbf; }
+.light .demo { background: #efeae2; }
+.light .play { color: var(--p-accent); }
+
+/* ============ 现状对照:点阵 loader 堆叠 ============ */
+.before { display: flex; flex-direction: column; gap: 8px; }
+.before .bcard {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--p-card); border: 1px solid var(--p-border); border-radius: 10px;
+  padding: 9px 12px; font-size: 11.5px; color: var(--p-dim);
+}
+.before .bcard .bn { flex: 1; }
+.before .bcard .bt { font-size: 9px; color: var(--p-faint); }
+.dots { display: grid; grid-template-columns: repeat(3, 3px); gap: 2px; }
+.dots i { width: 3px; height: 3px; border-radius: 50%; background: var(--p-faint); animation: dt 1.2s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .1s; } .dots i:nth-child(3) { animation-delay: .2s; }
+.dots i:nth-child(4) { animation-delay: .3s; } .dots i:nth-child(5) { animation-delay: .4s; }
+.dots i:nth-child(6) { animation-delay: .5s; } .dots i:nth-child(7) { animation-delay: .6s; }
+.dots i:nth-child(8) { animation-delay: .7s; } .dots i:nth-child(9) { animation-delay: .8s; }
+@keyframes dt { 0%, 100% { opacity: .25; } 50% { opacity: 1; background: var(--p-accent); } }
+.before-tag { font-size: 9px; letter-spacing: .22em; color: var(--p-faint); }
+</style>
+<style>
+/* ================================================================
+   方案 A · 工具活动流:一卡一组,共享一处动效
+   ================================================================ */
+.stream {
+  background: var(--p-card); border: 1px solid var(--p-border); border-radius: 14px;
+  color: var(--p-text); overflow: hidden;
+  transition: border-color .3s ease;
+}
+.stream.live { border-color: color-mix(in srgb, var(--p-accent) 40%, transparent); }
+
+.stream-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 14px 10px; }
+.stream-title { font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+.stream-meta { flex: 1; font-size: 9px; letter-spacing: .14em; color: var(--p-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stream-meta b { color: var(--p-accent); font-weight: 600; }
+.stream-timer { font-size: 10px; color: var(--p-dim); letter-spacing: .06em; }
+.stream-track { height: 1px; background: var(--p-border); position: relative; }
+.stream-fill { position: absolute; left: 0; top: -0.5px; height: 2px; width: 0; background: var(--p-accent); transition: width .5s cubic-bezier(.22,1,.36,1); }
+
+.srow {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  padding: 7px 14px; transition: opacity .35s ease;
+}
+.srow .st { position: relative; width: 8px; height: 8px; flex: 0 0 auto; }
+/* 排队:空心发丝圈 */
+.srow[data-st="queued"] .st { border: 1px solid var(--p-faint); border-radius: 50%; }
+/* 运行:实心 accent 点 + 单圈涟漪,左缘一线光 */
+.srow[data-st="running"] .st { background: var(--p-accent); border-radius: 50%; }
+.srow[data-st="running"] .st::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 50%;
+  border: 1px solid var(--p-accent);
+  animation: srip 1.8s cubic-bezier(.2,.6,.3,1) infinite;
+}
+@keyframes srip { 0% { opacity: .7; transform: scale(.7); } 100% { opacity: 0; transform: scale(2.2); } }
+.srow[data-st="running"]::before {
+  content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 1px;
+  background: var(--p-accent); opacity: .8;
+  animation: strace 1.8s ease-in-out infinite;
+}
+@keyframes strace { 50% { opacity: .25; } }
+/* 完成:勾划入,行沉到 45% */
+.srow .ok { position: absolute; inset: -3px; opacity: 0; }
+.srow .ok path { stroke: var(--p-accent); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-dasharray: 14; stroke-dashoffset: 14; }
+.srow[data-st="done"] .st { border: 0; background: transparent; }
+.srow[data-st="done"] .ok { opacity: 1; }
+.srow[data-st="done"] .ok path { animation: sdraw .4s cubic-bezier(.22,1,.36,1) forwards; }
+@keyframes sdraw { to { stroke-dashoffset: 0; } }
+.srow[data-st="done"] { opacity: .45; }
+/* 失败:× */
+.srow[data-st="failed"] .st::before, .srow[data-st="failed"] .st::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 9px; height: 1.4px;
+  background: #d85c46; margin: -0.7px 0 0 -4.5px;
+}
+.srow[data-st="failed"] .st::before { transform: rotate(45deg); }
+.srow[data-st="failed"] .st::after { transform: rotate(-45deg); }
+
+.srow .nm { font-size: 12px; font-weight: 550; white-space: nowrap; }
+.srow .args { flex: 1; min-width: 0; font-size: 10px; color: var(--p-faint); letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow[data-st="running"] .args {
+  color: var(--p-dim);
+  background: linear-gradient(90deg, var(--p-dim) 35%, var(--p-text) 50%, var(--p-dim) 65%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 1.7s linear infinite;
+}
+@keyframes shimmer { from { background-position: 120% 0; } to { background-position: -100% 0; } }
+.srow .ms { font-size: 9px; color: var(--p-faint); letter-spacing: .08em; }
+.srow[data-st="running"] .ms { color: var(--p-accent); }
+
+/* 完成后整组折叠成一行总结 */
+.stream-body { display: block; }
+.stream.folded .stream-body { display: none; }
+.stream-sum { display: none; align-items: center; gap: 8px; padding: 10px 14px 12px; font-size: 11px; color: var(--p-dim); cursor: pointer; }
+.stream.folded .stream-sum { display: flex; }
+.stream-sum .tick { color: var(--p-accent); }
+.stream-sum:hover { color: var(--p-text); }
+
+/* ================================================================
+   方案 B · 子代理委派卡:思考环 + 状态词流 + 计时
+   ================================================================ */
+.agent {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--p-card); border: 1px solid var(--p-border); border-radius: 14px;
+  padding: 13px 14px; color: var(--p-text);
+  transition: border-color .3s ease;
+}
+.agent.live { border-color: color-mix(in srgb, var(--p-accent) 40%, transparent); }
+
+.ring { position: relative; width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; }
+/* 待命:实心小点 */
+.ring .core { position: absolute; inset: 6px; border-radius: 50%; background: var(--p-faint); transition: background-color .3s; }
+/* 运行:conic 思考环 */
+.ring .spin, .ring .cap { position: absolute; border-radius: 50%; opacity: 0; transition: opacity .3s; }
+.agent.live .ring .spin {
+  inset: 0; opacity: 1;
+  background: conic-gradient(from 0deg, transparent 0%, var(--p-accent) 10%, var(--p-accent) 25%, transparent 35%);
+  animation: orbit 1.8s linear infinite;
+}
+.agent.live .ring .cap { inset: 1.5px; opacity: 1; background: var(--p-card); }
+.agent.live .ring .core { background: var(--p-accent); }
+@keyframes orbit { to { transform: rotate(360deg); } }
+/* 完成:环收拢,勾划入 */
+.ring .done-ok { position: absolute; inset: 1px; opacity: 0; }
+.ring .done-ok circle { stroke: var(--p-accent); stroke-width: 1.2; fill: none; stroke-dasharray: 60; stroke-dashoffset: 60; }
+.ring .done-ok path { stroke: var(--p-accent); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-dasharray: 14; stroke-dashoffset: 14; }
+.agent.finished .ring .spin, .agent.finished .ring .cap, .agent.finished .ring .core { opacity: 0; }
+.agent.finished .ring .done-ok { opacity: 1; }
+.agent.finished .ring .done-ok circle { animation: sdraw2 .45s cubic-bezier(.22,1,.36,1) forwards; }
+.agent.finished .ring .done-ok path { animation: sdraw .35s cubic-bezier(.22,1,.36,1) .3s forwards; }
+@keyframes sdraw2 { to { stroke-dashoffset: 0; } }
+
+.agent-body { flex: 1; min-width: 0; }
+.agent-title { font-size: 12px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-title span { font-weight: 400; color: var(--p-dim); }
+.agent-steps { display: flex; gap: 12px; margin-top: 7px; font-size: 9.5px; letter-spacing: .14em; }
+.agent-steps .step { color: var(--p-faint); transition: color .3s; position: relative; }
+.agent-steps .step.past { text-decoration: line-through; text-decoration-color: var(--p-faint); }
+.agent-steps .step.now { color: var(--p-accent); }
+.agent-steps .step.now::after {
+  content: ""; display: inline-block; width: 4px; height: 8px; margin-left: 3px;
+  background: var(--p-accent); vertical-align: -1px;
+  animation: caret 1s steps(2) infinite;
+}
+@keyframes caret { 50% { opacity: 0; } }
+.agent-time { font-size: 10px; color: var(--p-dim); letter-spacing: .06em; padding-top: 2px; white-space: nowrap; }
+.agent.finished .agent-time { color: var(--p-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+</style>
+<body>
+<header class="page-head">
+  <h1>工具调用 · 子代理 — 动效重设计</h1>
+  <p>现状问题:批量工具调用是 <b>N 张卡片 × N 个点阵 loader</b>,一屏动效噪音;子代理卡只有一个旋转图标,<b>不可读的等待</b>。<br>
+  新方案把动效收敛为「一组共享一处环境动效 + 可读的进度叙事」,与团队面板同一套曜岩/霜白语言。点 ▶ 播放看完整生命周期。</p>
+</header>
+
+<div class="cols">
+<!-- 每个主题栏由 JS 模板克隆出深浅两份,见底部脚本 -->
+</div>
+
+<template id="col-tpl">
+  <div class="col-inner">
+    <div class="col-head"></div>
+
+    <div class="demo">
+      <div class="demo-cap">
+        <h3>现状 · 批量工具调用</h3>
+        <span class="note">每张卡各自闪烁,无整体进度</span>
+      </div>
+      <div class="before">
+        <div class="bcard"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="bn">Read</span><span class="bt mono">src/auth.ts</span></div>
+        <div class="bcard"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="bn">Grep</span><span class="bt mono">refreshToken</span></div>
+        <div class="bcard"><span class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="bn">Edit</span><span class="bt mono">token.ts</span></div>
+        <span class="before-tag mono">3 × DOT-MATRIX LOADER · 动效噪音</span>
+      </div>
+    </div>
+
+    <div class="demo">
+      <div class="demo-cap">
+        <h3>方案 A · 工具活动流</h3>
+        <span class="note">一卡一组 · 一处动效 · 完成自折叠</span>
+        <button class="play" data-demo="batch">▶ 播放</button>
+      </div>
+      <div class="stream" data-stream>
+        <div class="stream-head">
+          <span class="stream-title">工具调用</span>
+          <span class="stream-meta mono" data-meta>等待中 · 5 个工具</span>
+          <span class="stream-timer mono" data-timer>0.0s</span>
+        </div>
+        <div class="stream-track"><span class="stream-fill" data-fill></span></div>
+        <div class="stream-body">
+          <div class="srow" data-st="queued"><span class="st"><svg class="ok" viewBox="0 0 14 14"><path d="M3 7.5 L6 10.5 L11 3.5"/></svg></span><span class="nm">Read</span><span class="args mono">src/auth/login.ts · 214 行</span><span class="ms mono" data-ms></span></div>
+          <div class="srow" data-st="queued"><span class="st"><svg class="ok" viewBox="0 0 14 14"><path d="M3 7.5 L6 10.5 L11 3.5"/></svg></span><span class="nm">Grep</span><span class="args mono">"refreshToken" · 7 处匹配</span><span class="ms mono" data-ms></span></div>
+          <div class="srow" data-st="queued"><span class="st"><svg class="ok" viewBox="0 0 14 14"><path d="M3 7.5 L6 10.5 L11 3.5"/></svg></span><span class="nm">Edit</span><span class="args mono">src/auth/token.ts · +38 −12</span><span class="ms mono" data-ms></span></div>
+          <div class="srow" data-st="queued"><span class="st"><svg class="ok" viewBox="0 0 14 14"><path d="M3 7.5 L6 10.5 L11 3.5"/></svg></span><span class="nm">Write</span><span class="args mono">src/auth/token.test.ts · 新建</span><span class="ms mono" data-ms></span></div>
+          <div class="srow" data-st="queued"><span class="st"><svg class="ok" viewBox="0 0 14 14"><path d="M3 7.5 L6 10.5 L11 3.5"/></svg></span><span class="nm">Bash</span><span class="args mono">pnpm test -- auth</span><span class="ms mono" data-ms></span></div>
+        </div>
+        <div class="stream-sum" data-sum><span class="tick">✓</span><span>5 个工具 · 全部完成</span><span class="ms mono" data-sumtime></span></div>
+      </div>
+    </div>
+
+    <div class="demo">
+      <div class="demo-cap">
+        <h3>方案 B · 子代理委派卡</h3>
+        <span class="note">思考环 + 状态词流,等待变得可读</span>
+        <button class="play" data-demo="agent">▶ 播放</button>
+      </div>
+      <div class="agent" data-agent>
+        <span class="ring">
+          <span class="spin"></span><span class="cap"></span><span class="core"></span>
+          <svg class="done-ok" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9"/><path d="M6 10.5 L9 13.5 L14.5 6.5"/></svg>
+        </span>
+        <div class="agent-body">
+          <div class="agent-title">探索子代理 <span>· 分析鉴权模块的依赖链路</span></div>
+          <div class="agent-steps mono">
+            <span class="step" data-step="0">排队</span>
+            <span class="step" data-step="1">启动</span>
+            <span class="step" data-step="2">执行</span>
+            <span class="step" data-step="3">收尾</span>
+          </div>
+        </div>
+        <span class="agent-time mono" data-atime></span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/* 克隆曜岩/霜白两栏 */
+const tpl = document.getElementById('col-tpl');
+const cols = document.querySelector('.cols');
+[['dark', '曜岩', '深色模式'], ['light', '霜白', '浅色模式']].forEach(([cls, name, sub]) => {
+  const col = document.createElement('div');
+  col.className = `col ${cls}`;
+  col.appendChild(tpl.content.cloneNode(true));
+  col.querySelector('.col-head').innerHTML = `${name} <span>${sub}</span>`;
+  cols.appendChild(col);
+});
+
+const tick = (cb) => {
+  const t0 = performance.now();
+  const id = setInterval(() => cb((performance.now() - t0) / 1000), 100);
+  return () => clearInterval(id);
+};
+
+/* ============ 方案 A:工具活动流 ============ */
+document.querySelectorAll('[data-stream]').forEach(stream => {
+  const demo = stream.closest('.demo');
+  const btn = demo.querySelector('[data-demo="batch"]');
+  const rows = [...stream.querySelectorAll('.srow')];
+  const meta = stream.querySelector('[data-meta]');
+  const timerEl = stream.querySelector('[data-timer]');
+  const fill = stream.querySelector('[data-fill]');
+  const sum = stream.querySelector('[data-sum]');
+  const sumtime = stream.querySelector('[data-sumtime]');
+  let timers = [], stopClock = null;
+
+  const reset = () => {
+    timers.forEach(clearTimeout); timers = [];
+    stopClock?.(); stopClock = null;
+    rows.forEach(r => { r.dataset.st = 'queued'; r.querySelector('[data-ms]').textContent = ''; });
+    meta.textContent = `等待中 · ${rows.length} 个工具`;
+    timerEl.textContent = '0.0s';
+    fill.style.width = '0';
+    stream.classList.remove('folded', 'live');
+  };
+  sum.addEventListener('click', () => stream.classList.toggle('folded'));
+
+  btn.addEventListener('click', () => {
+    reset();
+    stream.classList.add('live');
+    let done = 0;
+    stopClock = tick(s => { timerEl.textContent = s.toFixed(1) + 's'; });
+    rows.forEach((row, i) => {
+      timers.push(setTimeout(() => {
+        row.dataset.st = 'running';
+        meta.innerHTML = `运行中 <b>${rows.length - done}</b> / ${rows.length} · ${row.querySelector('.nm').textContent}`;
+      }, i * 750));
+      timers.push(setTimeout(() => {
+        row.dataset.st = 'done';
+        row.querySelector('[data-ms]').textContent = (0.9 + i * 0.35).toFixed(1) + 's';
+        done += 1;
+        fill.style.width = (done / rows.length * 100) + '%';
+        if (done === rows.length) {
+          meta.textContent = `完成 · ${rows.length}/${rows.length}`;
+          stopClock?.();
+          const total = timerEl.textContent;
+          timers.push(setTimeout(() => {
+            stream.classList.remove('live');
+            stream.classList.add('folded');
+            sumtime.textContent = total;
+          }, 700));
+        }
+      }, i * 750 + 1350));
+    });
+  });
+});
+
+/* ============ 方案 B:子代理委派卡 ============ */
+document.querySelectorAll('[data-agent]').forEach(agent => {
+  const demo = agent.closest('.demo');
+  const btn = demo.querySelector('[data-demo="agent"]');
+  const steps = [...agent.querySelectorAll('.step')];
+  const time = agent.querySelector('[data-atime]');
+  let timers = [], stopClock = null;
+
+  const reset = () => {
+    timers.forEach(clearTimeout); timers = [];
+    stopClock?.(); stopClock = null;
+    agent.classList.remove('live', 'finished');
+    steps.forEach(s => s.classList.remove('now', 'past'));
+    time.textContent = '';
+  };
+
+  btn.addEventListener('click', () => {
+    reset();
+    agent.classList.add('live');
+    stopClock = tick(s => { time.textContent = s.toFixed(1) + 's'; });
+    const plan = [[0, 0], [1, 700], [2, 1500], [3, 4200]];
+    plan.forEach(([idx, at]) => {
+      timers.push(setTimeout(() => {
+        steps.forEach((s, j) => {
+          s.classList.toggle('past', j < idx);
+          s.classList.toggle('now', j === idx);
+        });
+      }, at));
+    });
+    timers.push(setTimeout(() => {
+      steps.forEach(s => { s.classList.remove('now'); s.classList.add('past'); });
+      agent.classList.remove('live');
+      agent.classList.add('finished');
+      stopClock?.();
+      time.textContent = '4.8s';
+    }, 5200));
+  });
+});
+</script>
+</body>
+</html>

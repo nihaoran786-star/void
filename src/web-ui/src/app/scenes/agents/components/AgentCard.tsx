@@ -29,7 +29,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
   active = false,
 }) => {
   const { t } = useTranslation('scenes/agents');
-  const avatarState = dispatching ? 'running' : active ? 'active' : 'idle';
+  const [hovered, setHovered] = React.useState(false);
+  const avatarState = dispatching ? 'running' : active || hovered ? 'active' : 'idle';
   const sourceLabel = agent.subagentSource === 'user'
     ? t('filters.user')
     : agent.subagentSource === 'project'
@@ -50,6 +51,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
         '--card-index': index,
       } as React.CSSProperties}
       onClick={openDetails}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}

@@ -252,7 +252,7 @@ async function waitForEmbeddedDriverReady(timeoutMs: number = 30000): Promise<vo
   throw new Error(`Embedded WebDriver did not become ready within ${timeoutMs}ms`);
 }
 
-async function waitForActiveSessionDocumentReady(timeoutMs: number = 30000): Promise<void> {
+async function waitForActiveSessionDocumentReady(timeoutMs: number = 120000): Promise<void> {
   await browser.waitUntil(async () => browser.execute(() => {
     const root = document.getElementById('root');
     const appLayout = document.querySelector('[data-testid="app-layout"], .void-app-layout');

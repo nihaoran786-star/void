@@ -4,11 +4,7 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  exploreGroupStates: new Map<string, boolean>(),
-  onExploreGroupToggle: vi.fn(),
-  onCollapseGroup: vi.fn(),
-}));
+const mocks = vi.hoisted(() => ({}));
 
 vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
@@ -27,29 +23,12 @@ vi.mock('./FlowChatPresentationActivity', () => ({
   useFlowChatPresentationActive: () => true,
 }));
 
-vi.mock('../../tool-cards/useToolCardHeightContract', () => ({
-  useToolCardHeightContract: () => ({
-    cardRootRef: { current: null },
-    applyExpandedState: (
-      _from: boolean,
-      _to: boolean,
-      apply: () => void,
-    ) => apply(),
-  }),
+vi.mock('@/component-library/components/BeautifulUI', () => ({
+  BeautifulUIStage: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('./SmoothHeightCollapse', () => ({
-  SmoothHeightCollapse: ({
-    isOpen,
-    children,
-  }: {
-    isOpen: boolean;
-    children: React.ReactNode;
-  }) => (
-    <div data-testid="explore-details" data-open={String(isOpen)}>
-      {isOpen ? children : null}
-    </div>
-  ),
+vi.mock('@/component-library/preview/beautiful-ui-original/components/loading-state', () => ({
+  default: ({ label }: { label: string }) => <span className="explore-region__summary">{label}</span>,
 }));
 
 vi.mock('../FlowTextBlock', () => ({
@@ -78,14 +57,11 @@ const data = {
   wasCutByCritical: false,
 };
 
-describe('ExploreGroupRenderer compact disclosure', () => {
+describe('ExploreGroupRenderer always-visible activity', () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
-    mocks.exploreGroupStates = new Map();
-    mocks.onExploreGroupToggle.mockReset();
-    mocks.onCollapseGroup.mockReset();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -96,41 +72,29 @@ describe('ExploreGroupRenderer compact disclosure', () => {
     container.remove();
   });
 
-  it('keeps even the active tail collapsed until the user explicitly expands it', () => {
+  it('keeps the active tail visible without a second disclosure control', () => {
     act(() => {
       root.render(<ExploreGroupRenderer data={data} turnId="turn-1" />);
     });
 
-    const toggle = container.querySelector<HTMLButtonElement>(
-      '.explore-region__header',
-    );
-    expect(toggle?.tagName).toBe('BUTTON');
-    expect(toggle?.type).toBe('button');
-    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.explore-region__header')?.tagName).not.toBe('BUTTON');
     expect(container.querySelector('.explore-region')?.classList)
-      .toContain('explore-region--collapsed');
-    expect(container.querySelector('[data-testid="explore-details"]')
-      ?.getAttribute('data-open')).toBe('false');
-
-    act(() => toggle?.click());
-    expect(mocks.onExploreGroupToggle).toHaveBeenCalledWith('explore-1');
+      .toContain('explore-region--always-visible');
+    expect(container.querySelector('.explore-region__content')).not.toBeNull();
   });
 
-  it('honors an explicit expanded state and exposes details on demand', () => {
-    mocks.exploreGroupStates = new Map([['explore-1', true]]);
+  it('ignores stale collapse state and keeps details mounted', () => {
     act(() => {
       root.render(
         <ExploreGroupRenderer data={{ ...data }} turnId="turn-1" />,
       );
     });
 
-    expect(container.querySelector('.explore-region__header')
-      ?.getAttribute('aria-expanded')).toBe('true');
-    expect(container.querySelector('[data-testid="explore-details"]')
-      ?.getAttribute('data-open')).toBe('true');
+    expect(container.querySelector('.explore-region--collapsed')).toBeNull();
+    expect(container.querySelector('.explore-region__content')).not.toBeNull();
   });
 
-  it('labels a thinking-only disclosure as reasoning instead of zero explorations', () => {
+  it('does not duplicate the thinking header for a thinking-only group', () => {
     act(() => {
       root.render(
         <ExploreGroupRenderer
@@ -152,8 +116,7 @@ describe('ExploreGroupRenderer compact disclosure', () => {
       );
     });
 
-    expect(container.querySelector('.explore-region__summary')?.textContent)
-      .toBe('toolCards.think.thinkingProcess:');
+    expect(container.querySelector('.explore-region__header')).toBeNull();
   });
 
   it('does not present live progress for defensive Explore data containing a running tool', () => {

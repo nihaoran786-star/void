@@ -6,29 +6,30 @@
     "Budgets capture current audit debt only; lower values when cleanup reduces debt.",
     "2026-08-09: budgets raised for the intentional Porcelain Air light palette and Glass Air material tokens (owner-selected direction B).",
     "2026-08-10: cobalt accent replaced with the owner-directed terracotta family; nearTotal lowered to match the reduced blue/white near-pair debt.",
-    "2026-08-10: owner-directed palette pivot to Cool White + Pulse Blue (light) and Deep Space + Electric Cyan (dark); budgets synced to the new accent/semantic families."
+    "2026-08-10: owner-directed palette pivot to Cool White + Pulse Blue (light) and Deep Space + Electric Cyan (dark); budgets synced to the new accent/semantic families.",
+    "2026-08-14: owner approved Beautiful UI original production styling; budgets include its intentionally preserved light/dark source palette and exact component states."
   ],
   "budgets": {
     "uniqueColors": {
-      "max": 1585
+      "max": 1604
     },
     "domainMetrics.app-ui.uniqueColors": {
-      "max": 1486
+      "max": 1504
     },
     "domainMetrics.generated-runtime.uniqueColors": {
       "max": 24
     },
     "cssVars.fallbackOnlyUnique": {
-      "max": 69
+      "max": 68
     },
     "cssVars.undefinedUnique": {
       "max": 0
     },
     "nearPairs.indistinguishableTotal": {
-      "max": 45
+      "max": 57
     },
     "nearPairs.nearTotal": {
-      "max": 1373
+      "max": 1591
     }
   }
 }

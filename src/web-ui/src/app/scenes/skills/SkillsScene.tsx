@@ -275,7 +275,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
             role="tab"
             aria-selected={activeTab === 'installed'}
             tabIndex={activeTab === 'installed' ? 0 : -1}
-          ><span>{t('installed.titleAll')}</span></button>
+          ><span>{t('installed.titleAll')}</span><span className="skills-tabs-bar__tab-count">{String(installed.skills.length).padStart(2, '0')}</span></button>
           <span className="skills-tabs-bar__divider" aria-hidden="true" />
           <button
             type="button"
@@ -285,7 +285,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
             role="tab"
             aria-selected={activeTab === 'discover'}
             tabIndex={activeTab === 'discover' ? 0 : -1}
-          ><span>{t('market.title')}</span></button>
+          ><span>{t('market.title')}</span><span className="skills-tabs-bar__tab-count">{String(market.totalLoaded).padStart(2, '0')}</span></button>
         </div>
       </div>
       {!canManage && (

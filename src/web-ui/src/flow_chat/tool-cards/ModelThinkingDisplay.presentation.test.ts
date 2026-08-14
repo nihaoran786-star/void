@@ -6,34 +6,25 @@ const componentSource = readFileSync(
   'utf8',
 );
 
-const stylesheet = readFileSync(
-  new URL('./ModelThinkingDisplay.scss', import.meta.url),
+const originalSource = readFileSync(
+  new URL('../../component-library/preview/beautiful-ui-original/components/thinking-state.tsx', import.meta.url),
   'utf8',
 );
 
-const packageJson = JSON.parse(readFileSync(
-  new URL('../../../package.json', import.meta.url),
-  'utf8',
-)) as { dependencies?: Record<string, string> };
-
 describe('ModelThinkingDisplay presentation contract', () => {
-  it('uses ThinkingOrb for active composing while completed thinking keeps its disclosure affordance', () => {
-    expect(packageJson.dependencies?.['thinking-orbs']).toBe('0.2.0');
-    expect(componentSource).toContain("await import('thinking-orbs')");
-    expect(componentSource).toContain('const ThinkingOrb = React.lazy');
-    expect(componentSource).toMatch(/isActive\s*\?\s*\(\s*<React\.Suspense[\s\S]*?<ThinkingOrb/);
-    expect(componentSource).toContain('state="composing"');
-    expect(componentSource).toContain('size={64}');
-    expect(componentSource).toContain('theme="auto"');
-    expect(componentSource).not.toContain("@/infrastructure/theme");
-    expect(componentSource).toContain('<React.Suspense fallback={<span className="thinking-orb" aria-hidden="true" />}>');
-    expect(componentSource).toContain('<ChevronRight size={14} className="thinking-chevron" />');
+  it('renders the original Beautiful UI thinking component with real summaries', () => {
+    expect(componentSource).toContain("components/thinking-state'");
+    expect(componentSource).toContain('rows={rows}');
+    expect(componentSource).toContain('working={isActive}');
+    expect(componentSource).toContain('alwaysExpanded');
+    expect(componentSource).toContain('data-beautiful-component="thinking-state"');
   });
 
-  it('lets the orb own motion without adding layout-animation CSS', () => {
-    const orbRule = stylesheet.match(/\.thinking-orb\s*\{[^}]+\}/)?.[0];
-
-    expect(orbRule).toMatch(/width:\s*64px;[\s\S]*height:\s*64px;/);
-    expect(orbRule).not.toContain('animation:');
+  it('removes the duplicate Flow Chat hide and replay animation layer', () => {
+    expect(componentSource).not.toContain('useThinkingElapsed');
+    expect(componentSource).not.toContain('useTypewriter');
+    expect(componentSource).not.toContain('thinking-expand-container');
+    expect(originalSource).toContain('alwaysExpanded');
+    expect(originalSource).toContain('shimmer-text 1.4s linear infinite');
   });
 });

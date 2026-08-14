@@ -1,7 +1,12 @@
 pub(super) fn script() -> &'static str {
     r####"
     const setSelectionRange = (element, start, end) => {
-      if (typeof element.setSelectionRange === "function") {
+      const ownerWindow = element?.ownerDocument?.defaultView || window;
+      const selectableInputTypes = new Set(["text", "search", "url", "tel", "password"]);
+      const supportsTextSelection = !(
+        element instanceof ownerWindow.HTMLInputElement
+      ) || selectableInputTypes.has(element.type);
+      if (supportsTextSelection && typeof element.setSelectionRange === "function") {
         element.setSelectionRange(start, end);
       }
     };

@@ -28,6 +28,7 @@ interface UseAgentsListOptions {
   searchQuery: string;
   filterLevel: FilterLevel;
   filterType: FilterType;
+  executionPolicies: readonly string[];
   t: TFunction<'scenes/agents'>;
 }
 
@@ -85,10 +86,46 @@ function buildModeConfigsByProfile(
   return byProfile;
 }
 
+export function mergeContextualSubagents(
+  results: ReadonlyArray<{
+    executionPolicy: string;
+    subagents: SubagentInfo[];
+  }>,
+): SubagentInfo[] {
+  const merged = new Map<string, SubagentInfo>();
+
+  for (const { executionPolicy, subagents } of results) {
+    for (const subagent of subagents) {
+      const previous = merged.get(subagent.key);
+      if (previous?.effectiveEnabled || (!subagent.effectiveEnabled && previous)) {
+        continue;
+      }
+      const allowedParentAgentIds = subagent.visibility?.allowedParentAgentIds ?? [];
+      merged.set(subagent.key, {
+        ...subagent,
+        visibility: subagent.visibility
+          ? {
+              ...subagent.visibility,
+              allowedParentAgentIds: subagent.effectiveEnabled
+                ? [
+                    executionPolicy,
+                    ...allowedParentAgentIds.filter(id => id !== executionPolicy),
+                  ]
+                : allowedParentAgentIds,
+            }
+          : undefined,
+      });
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
 export function useAgentsList({
   searchQuery,
   filterLevel,
   filterType,
+  executionPolicies,
   t,
 }: UseAgentsListOptions) {
   const notification = useNotification();
@@ -111,13 +148,20 @@ export function useAgentsList({
     setLoading(true);
 
     try {
-      const [modes, subagents, tools, configs, reviewTeamDefinition] = await Promise.all([
+      const [modes, contextualSubagents, tools, configs, reviewTeamDefinition] = await Promise.all([
         agentAPI.getAvailableModes().catch(() => []),
-        SubagentAPI.listSubagents({ workspacePath: workspacePath || undefined }).catch(() => []),
+        Promise.all(executionPolicies.map(async executionPolicy => ({
+          executionPolicy,
+          subagents: await SubagentAPI.listManageableSubagents({
+            parentAgentType: executionPolicy,
+            workspacePath: workspacePath || undefined,
+          }).catch(() => []),
+        }))),
         toolAPI.getAllToolsInfo().catch(() => []),
         configAPI.getAgentProfileConfigs().catch(() => ({})),
         loadDefaultReviewTeamDefinition().catch(() => undefined),
       ]);
+      const subagents = mergeContextualSubagents(contextualSubagents);
 
       const profileMap = buildProfileMap(modes);
       const profileEntries = Object.values(profileMap);
@@ -218,7 +262,7 @@ export function useAgentsList({
         setLoading(false);
       }
     }
-  }, [t, workspacePath]);
+  }, [executionPolicies, t, workspacePath]);
 
   useEffect(() => {
     void loadAgents();

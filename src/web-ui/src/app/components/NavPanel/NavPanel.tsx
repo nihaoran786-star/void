@@ -81,7 +81,11 @@ const NavPanel: React.FC<NavPanelProps> = ({ className = '' }) => {
   ].filter(Boolean).join(' ');
 
   return (
-    <nav className={`void-nav-panel ${className}`} aria-label={t('nav.aria.mainNav')}>
+    <nav
+      className={`void-nav-panel ${className}`}
+      data-beautiful-component="sidebar-nav"
+      aria-label={t('nav.aria.mainNav')}
+    >
       <div ref={contentRef} className={contentCls}>
 
         <div className="void-nav-panel__layer void-nav-panel__layer--main">

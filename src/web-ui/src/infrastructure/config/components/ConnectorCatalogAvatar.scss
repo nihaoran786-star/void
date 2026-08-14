@@ -1,0 +1,47 @@
+.connector-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+  &--card {
+    width: 20px;
+    height: 20px;
+  }
+
+  &--detail {
+    width: 30px;
+    height: 30px;
+  }
+
+  &__mark {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  &.is-idle {
+    opacity: 0.45;
+  }
+
+  &.is-connecting {
+    color: var(--workspace-accent);
+  }
+
+  &.is-error {
+    color: var(--workspace-status-error-text);
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connector-link {
+    transition: none;
+  }
+
+  .connector-link__pulse {
+    display: none;
+  }
+}

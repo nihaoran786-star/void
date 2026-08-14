@@ -133,6 +133,10 @@ pub(super) fn script() -> &'static str {
 
     const emitResult = async (payload) => {
       const errors = [];
+      const bridgePayload = {
+        channel: "void_webdriver_result",
+        ...payload
+      };
       const webviewPostMessage = window.chrome && window.chrome.webview
         && typeof window.chrome.webview.postMessage === "function"
         ? window.chrome.webview.postMessage.bind(window.chrome.webview)
@@ -146,7 +150,7 @@ pub(super) fn script() -> &'static str {
 
       if (webviewPostMessage) {
         try {
-          webviewPostMessage(JSON.stringify(payload));
+          webviewPostMessage(JSON.stringify(bridgePayload));
           return;
         } catch (error) {
           errors.push(`window.chrome.webview.postMessage failed: ${safeStringify(error)}`);
@@ -156,7 +160,7 @@ pub(super) fn script() -> &'static str {
       if (tauriInvoke) {
         try {
           await tauriInvoke("webdriver_bridge_result", {
-            request: { payload }
+            request: { payload: bridgePayload }
           });
           return;
         } catch (error) {
@@ -166,7 +170,7 @@ pub(super) fn script() -> &'static str {
 
       if (window.__TAURI__ && window.__TAURI__.event && typeof window.__TAURI__.event.emit === "function") {
         try {
-          await window.__TAURI__.event.emit(EVENT_NAME, payload);
+          await window.__TAURI__.event.emit(EVENT_NAME, bridgePayload);
           return;
         } catch (error) {
           errors.push(`window.__TAURI__.event.emit failed: ${safeStringify(error)}`);
@@ -177,7 +181,7 @@ pub(super) fn script() -> &'static str {
         try {
           await internalInvoke("plugin:event|emit", {
             event: EVENT_NAME,
-            payload
+            payload: bridgePayload
           });
           return;
         } catch (error) {
@@ -186,7 +190,7 @@ pub(super) fn script() -> &'static str {
 
         try {
           await internalInvoke("webdriver_bridge_result", {
-            request: { payload }
+            request: { payload: bridgePayload }
           });
           return;
         } catch (error) {

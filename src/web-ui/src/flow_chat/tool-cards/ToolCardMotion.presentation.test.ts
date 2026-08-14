@@ -26,12 +26,11 @@ describe('tool card motion presentation', () => {
     );
   });
 
-  it('keeps one functional task status animation without a decorative caret', () => {
-    expect(taskToolSource).toContain('task-status-ring-orbit');
-    expect(taskToolSource).toContain('.task-steps__step');
-    expect(minimalToolCardSource).toMatch(
-      /\.task-steps__step--now::after[\s\S]*?display:\s*none;/,
-    );
+  it('removes the duplicate task ring and decorative caret animations', () => {
+    expect(taskToolSource).not.toContain('task-status-ring-orbit');
+    expect(taskToolSource).not.toContain('task-status-ring-draw');
+    expect(taskToolSource).not.toContain('task-steps-caret');
+    expect(taskToolSource).toContain('&__step');
   });
 
   it('keeps task shell state transitions off geometry properties', () => {
@@ -53,8 +52,11 @@ describe('tool card motion presentation', () => {
     );
   });
 
-  it('reserves the signature composing motion for the thinking orb', () => {
-    expect(thinkingSource).toContain("await import('thinking-orbs')");
-    expect(thinkingSource).toContain('state="composing"');
+  it('uses the original Beautiful UI thinking component without a duplicate animation layer', () => {
+    expect(thinkingSource).toContain("components/thinking-state'");
+    expect(thinkingSource).toContain('alwaysExpanded');
+    expect(thinkingSource).not.toContain('useThinkingElapsed');
+    expect(thinkingSource).not.toContain('useTypewriter');
+    expect(thinkingSource).not.toContain("await import('thinking-orbs')");
   });
 });

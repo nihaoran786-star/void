@@ -2319,6 +2319,6 @@
     "phaseStatus": { "pending": "待開始", "ready": "可開始", "running": "進行中", "blocked": "已阻塞", "completed": "已完成", "failed": "失敗", "skipped": "已略過", "cancelled": "已取消", "not_started": "未開始", "unavailable": "狀態不可用" },
     "phaseKinds": { "serial": "依序進行", "parallel": "平行處理", "decision": "需要決策", "review": "品質審查" },
     "updatedAt": "更新於 {{value}}",
-    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。", "notStartedTitle": "成員正在待命", "notStartedDescription": "這位成員已屬於目前團隊。前置階段完成或左側主理人派發任務後，會在這裡顯示完整對話。" }
+    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。", "notStartedTitle": "成員正在待命", "notStartedDescription": "這位成員已屬於目前團隊。前置階段完成或左側主理人派發任務後，會在這裡顯示完整對話。", "failedTitle": "成員任務啟動失敗", "failedDescription": "本次派發未建立成員會話。請返回左側主會話重新派發；團隊綁定不會解除。" }
   }
 }

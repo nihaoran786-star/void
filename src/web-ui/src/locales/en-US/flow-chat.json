@@ -2319,6 +2319,6 @@
     "phaseStatus": { "pending": "Pending", "ready": "Ready", "running": "In progress", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "skipped": "Skipped", "cancelled": "Cancelled", "not_started": "Not started", "unavailable": "Status unavailable" },
     "phaseKinds": { "serial": "Sequential", "parallel": "Parallel", "decision": "Decision", "review": "Quality review" },
     "updatedAt": "Updated at {{value}}",
-    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history.", "notStartedTitle": "Member standing by", "notStartedDescription": "This member already belongs to the active team. Its full conversation appears after prerequisites finish or the lead dispatches a task." }
+    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history.", "notStartedTitle": "Member standing by", "notStartedDescription": "This member already belongs to the active team. Its full conversation appears after prerequisites finish or the lead dispatches a task.", "failedTitle": "Member task failed to start", "failedDescription": "This dispatch did not establish a member conversation. Return to the lead conversation and dispatch again; the Team binding stays intact." }
   }
 }

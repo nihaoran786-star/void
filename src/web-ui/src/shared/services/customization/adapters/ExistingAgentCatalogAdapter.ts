@@ -89,9 +89,7 @@ export function mapModeToCatalogEntry(mode: ModeInfo): AgentCatalogEntry {
 }
 
 export function mapSubagentToCatalogEntry(subagent: SubagentInfo): AgentCatalogEntry {
-  const promptCacheScopeKey = (
-    subagent as SubagentInfo & { promptCacheScopeKey?: string }
-  ).promptCacheScopeKey?.trim();
+  const promptCacheScopeKey = subagent.promptCacheScopeKey?.trim();
   const presentation = resolveDefaultCatalogPresentation({
     kind: 'subagent',
     id: subagent.id,
@@ -153,9 +151,14 @@ export class ExistingAgentCatalogAdapter implements CapabilityCatalogSource {
 
   constructor(private readonly dependencies: ExistingAgentCatalogDependencies = {
     loadModes: () => agentAPI.getAvailableModes(),
-    loadSubagents: context => SubagentAPI.listSubagents({
-      workspacePath: context.workspacePath,
-    }),
+    loadSubagents: context => context.executionPolicy
+      ? SubagentAPI.listManageableSubagents({
+          parentAgentType: context.executionPolicy,
+          workspacePath: context.workspacePath,
+        })
+      : SubagentAPI.listSubagents({
+          workspacePath: context.workspacePath,
+        }),
   }) {}
 
   async load(context: CatalogLoadContext): Promise<CatalogSourceSnapshot> {

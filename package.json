@@ -67,6 +67,8 @@
     "cli:check": "cd src/apps/cli && cargo check",
     "cli:test": "cd src/apps/cli && cargo test",
     "preview-components": "pnpm --dir src/web-ui exec vite --config vite.config.preview.ts",
+    "preview:flow-activity": "pnpm --dir src/web-ui exec vite --config vite.config.preview.ts --open /flow-activity-prototype.html",
+    "preview:flow-chat-comparison": "pnpm --dir src/web-ui exec vite --config vite.config.preview.ts --open /flow-chat-comparison-prototype.html",
     "build-components": "pnpm --dir src/web-ui exec vite build --config vite.config.preview.ts",
     "e2e:install": "pnpm --dir tests/e2e install",
     "e2e:test": "cross-env VOID_E2E_APP_MODE=debug pnpm --dir tests/e2e test",

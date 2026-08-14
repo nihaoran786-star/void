@@ -93,6 +93,10 @@ function isGeneratedBuildArtifact(relativePath) {
   );
 }
 
+function isVendoredPreviewFile(relativePath) {
+  return relativePath.startsWith('component-library/preview/beautiful-ui-original/');
+}
+
 function collectMatches(content, pattern) {
   pattern.lastIndex = 0;
   return Array.from(content.matchAll(pattern));
@@ -339,6 +343,7 @@ export function auditThemeColors(options = {}) {
   let filesScanned = 0;
   let ignoredTestFiles = 0;
   let ignoredGeneratedFiles = 0;
+  let ignoredVendoredFiles = 0;
   let filesWithColors = 0;
 
   for (const file of files) {
@@ -350,6 +355,10 @@ export function auditThemeColors(options = {}) {
     }
     if (isGeneratedBuildArtifact(relativeToRoot)) {
       ignoredGeneratedFiles += 1;
+      continue;
+    }
+    if (isVendoredPreviewFile(relativeToRoot)) {
+      ignoredVendoredFiles += 1;
       continue;
     }
 
@@ -418,6 +427,7 @@ export function auditThemeColors(options = {}) {
     filesScanned,
     ignoredTestFiles,
     ignoredGeneratedFiles,
+    ignoredVendoredFiles,
     filesWithColors,
     colorOccurrences: allColorEntries.length,
     uniqueColors: colorCounts.size,
@@ -930,6 +940,7 @@ function printReport(report) {
   console.log(`Files scanned: ${report.filesScanned}`);
   console.log(`Ignored test files: ${report.ignoredTestFiles}`);
   console.log(`Ignored generated files: ${report.ignoredGeneratedFiles}`);
+  console.log(`Ignored vendored preview files: ${report.ignoredVendoredFiles}`);
   console.log(`Files with colors: ${report.filesWithColors}`);
   console.log(`Color occurrences: ${report.colorOccurrences}`);
   console.log(`Unique colors: ${report.uniqueColors}`);

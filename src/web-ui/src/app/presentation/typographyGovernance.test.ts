@@ -215,7 +215,9 @@ function isExplicitFontEngineException(path: string, value: string): boolean {
     (/^component-library\/components\/Markdown\//.test(path) &&
       katexFontFamilies.has(value)) ||
     (/^component-library\/components\/CodeEditor\//.test(path) &&
-      value === 'codicon')
+      value === 'codicon') ||
+    (path === 'flow_chat/BeautifulUIFlowBindings.scss' &&
+      /BeautifulUI (?:Inter|Mono)/.test(value))
   );
 }
 

@@ -11,6 +11,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../component-library';
 import { Markdown } from '@/component-library/components/Markdown';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import { SpinnerRing } from '@/component-library/preview/beautiful-ui-original/components/task-rows';
 import type { FlowToolItem, ToolCardProps } from '../types/flow-chat';
 import { BaseToolCard } from './BaseToolCard';
 import { ToolCardIconSlot } from './ToolCardIconSlot';
@@ -54,86 +56,26 @@ function readTaskErrorMessage(toolResult: FlowToolItem['toolResult'] | undefined
   return null;
 }
 
-function readStringValue(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function readTaskSubagentType(input: unknown): string {
-  if (!input || typeof input !== 'object') {
-    return '';
-  }
-  const data = input as Record<string, unknown>;
-  return (
-    readStringValue(data.subagent_type) ||
-    readStringValue(data.subagentType) ||
-    readStringValue(data.agent_type) ||
-    readStringValue(data.agentType)
-  );
-}
-
-function isDeepReviewReviewerTask(toolItem: FlowToolItem): boolean {
-  if (toolItem.toolName?.toLowerCase() !== 'task') {
-    return false;
-  }
-
-  const input = toolItem.toolCall?.input;
-  const subagentType = readTaskSubagentType(input);
-  if (!subagentType) {
-    return false;
-  }
-
-  if (getReviewerContextBySubagentId(subagentType) || /^Review[A-Z0-9_]/.test(subagentType)) {
-    return true;
-  }
-
-  if (!input || typeof input !== 'object') {
-    return false;
-  }
-
-  const description = readStringValue((input as Record<string, unknown>).description);
-  return /\bpacket\s+(reviewer|judge):/i.test(description);
-}
-
-type TaskStatusRingPhase = 'queued' | 'active' | 'done' | 'error' | 'cancelled';
-
 const TASK_STEP_KEYS = ['queued', 'launching', 'executing'] as const;
 
-/**
- * Quiet status ring for the delegation card (replaces the dot-matrix loader):
- * faint core dot while queued, conic orbit ring while live, checkmark draw-in
- * on completion (animated only when this mount observed the live run).
- */
 const TaskStatusRing: React.FC<{
   status: ToolCardProps['toolItem']['status'];
-  animateCompletion: boolean;
-}> = ({ status, animateCompletion }) => {
-  const phase: TaskStatusRingPhase =
-    status === 'completed'
-      ? 'done'
-      : status === 'error'
-        ? 'error'
-        : status === 'cancelled'
-          ? 'cancelled'
-          : status === 'streaming' || status === 'running'
-            ? 'active'
-            : 'queued';
+}> = ({ status }) => {
+  const active = status === 'preparing' || status === 'streaming' || status === 'running';
+  const failed = status === 'error' || status === 'cancelled';
 
   return (
-    <span
-      className={`task-status-ring task-status-ring--${phase}${phase === 'done' && animateCompletion ? ' task-status-ring--animate' : ''}`}
-      aria-hidden
-    >
-      <span className="task-status-ring__spin" />
-      <span className="task-status-ring__core" />
-      <svg className="task-status-ring__mark task-status-ring__mark--done" viewBox="0 0 16 16">
-        <circle cx="8" cy="8" r="7" />
-        <path d="M4.8 8.4 L7.1 10.7 L11.4 5.6" />
-      </svg>
-      <svg className="task-status-ring__mark task-status-ring__mark--failed" viewBox="0 0 16 16">
-        <circle cx="8" cy="8" r="7" />
-        <path d="M5.4 5.4 L10.6 10.6 M10.6 5.4 L5.4 10.6" />
-      </svg>
-    </span>
+    <BeautifulUIStage mode="icon">
+      <SpinnerRing active={active}>
+        {!active && (
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            {failed
+              ? <path d="M4.5 4.5l7 7m0-7l-7 7" />
+              : <path d="M3.5 8.3l2.8 2.8 6.2-6.2" />}
+          </svg>
+        )}
+      </SpinnerRing>
+    </BeautifulUIStage>
   );
 };
 
@@ -151,42 +93,18 @@ export const TaskToolDisplay: React.FC<ToolCardProps> = ({
   const { toolCall, toolResult, status, requiresConfirmation, userConfirmed } = toolItem;
   const toolId = toolItem.id ?? toolCall?.id;
   
-  // Restore collapse state; default to collapsed.
-  const [isExpanded, setIsExpanded] = useState(() => {
-    const savedState = taskCollapseStateManager.getCollapsedOrUndefined(toolItem.id);
-    if (savedState !== undefined) {
-      return !savedState;
-    }
-    return false;
-  });
+  // Beautiful UI task rows remain visible by default.
+  const [isExpanded, setIsExpanded] = useState(true);
   
   const isRunning = status === 'preparing' || status === 'streaming' || status === 'running';
   /* Delegation narrative step: queued -> launching -> executing. */
   const taskStepIndex = status === 'preparing' ? 0 : status === 'streaming' ? 1 : 2;
-  /* Arm one completion draw-in only after this mount observes a live run. */
-  const observedRunningRef = useRef(false);
-  const completionAnimationPlayedRef = useRef(false);
-  const completionAnimationActiveRef = useRef(false);
-  if (isRunning) {
-    observedRunningRef.current = true;
-    completionAnimationActiveRef.current = false;
-  } else if (
-    status === 'completed'
-    && observedRunningRef.current
-    && !completionAnimationPlayedRef.current
-  ) {
-    completionAnimationPlayedRef.current = true;
-    completionAnimationActiveRef.current = true;
-  }
-  const keepCollapsedWhileRunning = isDeepReviewReviewerTask(toolItem);
   
   const { cardRootRef, applyExpandedState } = useToolCardHeightContract({
     toolId,
     toolName: toolItem.toolName,
   });
   
-  const prevStatusRef = useRef(status);
-
   const updateCardExpandedState = useCallback((
     nextExpanded: boolean,
     reason: 'manual' | 'auto' = 'manual',
@@ -198,20 +116,6 @@ export const TaskToolDisplay: React.FC<ToolCardProps> = ({
     applyExpandedState(isExpanded, nextExpanded, setIsExpanded, { reason });
   }, [applyExpandedState, isExpanded, toolItem.id]);
 
-  useLayoutEffect(() => {
-    const prevStatus = prevStatusRef.current;
-    
-    if (prevStatus !== status) {
-      prevStatusRef.current = status;
-      
-      if (status === 'completed') {
-        updateCardExpandedState(false, 'auto');
-      } else if (isRunning && !keepCollapsedWhileRunning) {
-        updateCardExpandedState(true, 'auto');
-      }
-    }
-  }, [isRunning, keepCollapsedWhileRunning, status, updateCardExpandedState]);
-  
   useLayoutEffect(() => {
     taskCollapseStateManager.setCollapsed(toolItem.id, !isExpanded);
   }, [isExpanded, toolItem.id]);
@@ -441,7 +345,7 @@ export const TaskToolDisplay: React.FC<ToolCardProps> = ({
   const renderHeader = () => (
     <div className="task-header-wrapper">
       <ToolCardIconSlot
-        icon={<TaskStatusRing status={status} animateCompletion={completionAnimationActiveRef.current} />}
+        icon={<TaskStatusRing status={status} />}
         iconClassName="task-icon"
         expandable={showHeaderExpandHint}
         affordanceKind="expand"

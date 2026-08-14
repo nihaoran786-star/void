@@ -40,6 +40,7 @@ import {
 } from '../../api/service-api/MCPAPI';
 import { systemAPI } from '../../api/service-api/SystemAPI';
 import ConnectorCatalogAvatar from './ConnectorCatalogAvatar';
+import type { ConnectorLinkState } from './linkGlyph';
 import ConnectorMarketplacePanel from './ConnectorMarketplacePanel';
 import './McpToolsConfig.scss';
 
@@ -1132,6 +1133,20 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     setCatalogPage((page) => Math.min(page, Math.max(0, catalogTotalPages - 1)));
   }, [catalogTotalPages]);
 
+  const getCatalogLinkState = (server: MCPServerInfo): ConnectorLinkState => {
+    if (isServerControlBusy(server)) return 'connecting';
+    switch (getCatalogStatusGroup(server.status)) {
+      case 'connected':
+        return 'connected';
+      case 'transitioning':
+        return 'connecting';
+      case 'attention':
+        return 'error';
+      case 'stopped':
+        return 'idle';
+    }
+  };
+
   const renderServerBadge = (server: MCPServerInfo) => (
     <span className={`void-mcp-tools__status-badge ${getCatalogStatusClass(server.status)}`}>
       {getStatusIcon(server.status)}
@@ -1342,6 +1357,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             identity={server.id}
             name={server.name}
             transport={server.transport}
+            state={getCatalogLinkState(server)}
             className="void-mcp-tools__catalog-card-avatar"
           />
           <span className="void-mcp-tools__catalog-card-copy">

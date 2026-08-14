@@ -21,7 +21,9 @@ import { ToolCardStatusSlot } from './ToolCardStatusSlot';
 import { createTerminalTab } from '@/shared/utils/tabUtils';
 import { BaseToolCard, ToolCardHeader } from './BaseToolCard';
 import { CompactToolCard, CompactToolCardHeader } from './CompactToolCard';
-import { DotMatrixLoader, IconButton } from '../../component-library';
+import { IconButton } from '../../component-library';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import { PixelGrid } from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import { LazyTerminalOutputRenderer } from '@/tools/terminal/components/LazyTerminalOutputRenderer';
 import { createLogger } from '@/shared/utils/logger';
 import { useToolCardHeightContract, type ToolCardCollapseReason } from './useToolCardHeightContract';
@@ -457,7 +459,11 @@ export const TerminalToolCard: React.FC<TerminalToolCardProps> = ({
 
   const renderLoadingStatusIcon = () => {
     if (viewState.isLoading) {
-      return <DotMatrixLoader size="medium" />;
+      return (
+        <BeautifulUIStage mode="icon">
+          <PixelGrid variant="Drive" />
+        </BeautifulUIStage>
+      );
     }
 
     return null;

@@ -14,8 +14,12 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('@/component-library', () => ({
-  DotMatrixLoader: () => <span data-testid="dot-matrix" />,
+vi.mock('@/component-library/components/BeautifulUI', () => ({
+  BeautifulUIStage: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/component-library/preview/beautiful-ui-original/components/loading-state', () => ({
+  default: () => <span data-testid="beautiful-loading" />,
 }));
 
 function Harness({ isActive }: { isActive: boolean }) {
@@ -56,7 +60,7 @@ describe('ProcessingIndicator presentation lifecycle', () => {
     });
 
     expect(vi.getTimerCount()).toBe(0);
-    expect(container.querySelector('[data-testid="dot-matrix"]')).toBeNull();
+    expect(container.querySelector('[data-testid="beautiful-loading"]')).toBeNull();
     expect(container.querySelector('.processing-indicator')?.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -67,7 +71,7 @@ describe('ProcessingIndicator presentation lifecycle', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(container.querySelector('[data-testid="dot-matrix"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="beautiful-loading"]')).not.toBeNull();
     expect(vi.getTimerCount()).toBe(1);
 
     act(() => {
@@ -75,6 +79,6 @@ describe('ProcessingIndicator presentation lifecycle', () => {
     });
 
     expect(vi.getTimerCount()).toBe(0);
-    expect(container.querySelector('[data-testid="dot-matrix"]')).toBeNull();
+    expect(container.querySelector('[data-testid="beautiful-loading"]')).toBeNull();
   });
 });

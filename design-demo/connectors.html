@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>连接器页 · Link 链路符 + 行式目录</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+  background: #0a0a0b; color: #e8e8e6;
+  padding: 48px 32px 80px;
+  font-synthesis: none; -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+
+.page-head { max-width: 1240px; margin: 0 auto 36px; }
+.page-head h1 { font-size: 20px; font-weight: 600; }
+.page-head p { margin-top: 8px; font-size: 12.5px; color: #8a8a86; line-height: 1.8; max-width: 820px; }
+.page-head b { color: #c9c9c4; font-weight: 600; }
+
+.cols { display: flex; gap: 28px; justify-content: center; max-width: 1240px; margin: 0 auto; flex-wrap: wrap; }
+.col { flex: 1 1 560px; max-width: 592px; display: flex; flex-direction: column; gap: 18px; }
+.col-head { font-size: 13px; font-weight: 600; letter-spacing: .06em; }
+.col-head span { font-weight: 400; color: #7d7d78; font-size: 11.5px; margin-left: 8px; letter-spacing: 0; }
+
+.demo { border-radius: 20px; padding: 26px 24px 22px; display: flex; flex-direction: column; gap: 14px; }
+.demo-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.demo-cap h3 { font-size: 12px; font-weight: 600; letter-spacing: .05em; }
+.demo-cap .note { font-size: 10.5px; color: #7d7d78; }
+.play {
+  border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: 11px; color: var(--p-accent, #d4ff00); padding: 2px 0;
+  border-bottom: 1px solid transparent; transition: border-color .2s;
+}
+.play:hover { border-bottom-color: currentColor; }
+
+/* ============ 主题变量:曜岩 / 霜白 ============ */
+.dark { --p-bg: #0c0c0c; --p-panel: #0a0a0a; --p-border: rgba(255,255,255,.09); --p-text: #f0f0f0; --p-dim: rgba(240,240,240,.52); --p-faint: rgba(240,240,240,.25); --p-accent: #d4ff00; }
+.dark .demo { background: #050505; }
+.light { --p-bg: #fbf9f5; --p-panel: #f5f2ec; --p-border: rgba(10,10,12,.1); --p-text: #0a0a0c; --p-dim: rgba(10,10,12,.58); --p-faint: rgba(10,10,12,.34); --p-accent: #000bbf; }
+.light .demo { background: #efeae2; }
+.light .play { color: var(--p-accent); }
+</style>
+<style>
+/* ================================================================
+   连接器页 · Link 链路符 + 行式目录(与智能体/技能页同一语言)
+   orb = 生命体(动) / sigil = 工具(静) / link = 通道(通断即状态)
+   ================================================================ */
+.scene {
+  background: var(--p-panel);
+  border: 1px solid var(--p-border);
+  border-radius: 14px;
+  color: var(--p-text);
+  overflow: hidden;
+  font-size: 12px;
+  display: flex; flex-direction: column;
+}
+
+/* ── 页头 ── */
+.sc-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 16px 12px;
+  border-bottom: 1px solid var(--p-border);
+}
+.sc-title { display: flex; align-items: baseline; gap: 8px; }
+.sc-title .t { font-size: 13px; font-weight: 600; letter-spacing: .02em; }
+.sc-title .c {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 9px; letter-spacing: .14em; color: var(--p-faint);
+}
+.sc-search {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 7px;
+  color: var(--p-faint); font-size: 11.5px; cursor: pointer;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--p-border);
+  transition: color .2s ease;
+}
+.sc-search:hover { color: var(--p-dim); }
+.sc-search .kbd {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .08em;
+  border: 1px solid var(--p-border); border-radius: 3px; padding: 0 4px;
+}
+.sc-primary {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--p-text); padding: 4px 0;
+  transition: color .2s ease;
+}
+.sc-primary .plus { color: var(--p-accent); display: flex; align-items: center; }
+.sc-primary:hover { color: var(--p-accent); }
+
+/* ── 分区头 ── */
+.sc-sec {
+  display: flex; align-items: center; gap: 8px;
+  margin: 14px 16px 2px;
+}
+.sc-sec .nl {
+  font-size: 10px; font-weight: 600; letter-spacing: .12em;
+  color: var(--p-faint);
+}
+.sc-sec .hline { flex: 1; height: 1px; background: var(--p-border); }
+.sc-sec .nc {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 9px; letter-spacing: .1em; color: var(--p-faint);
+}
+
+/* ── 筛选筹码 ── */
+.filters {
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 16px 6px;
+}
+.fg { display: flex; align-items: center; gap: 10px; }
+.fg .fl {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .18em; color: var(--p-faint);
+}
+.chip {
+  position: relative;
+  border: 0; background: none; cursor: pointer; font: inherit;
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-size: 11px; color: var(--p-faint); padding: 2px 0;
+  transition: color .18s ease;
+}
+.chip .n {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .06em; opacity: .8;
+}
+.chip:hover { color: var(--p-dim); }
+.chip.on { color: var(--p-text); font-weight: 600; }
+.chip.on::before {
+  content: ""; position: absolute; left: -7px; top: 50%;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--p-accent);
+  transform: translateY(-50%);
+}
+.fg-sep { width: 1px; height: 10px; background: var(--p-border); }
+
+/* ── 连接器行 ── */
+.list { padding: 2px 16px 8px; display: flex; flex-direction: column; }
+.crow {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0 7px 2px;
+  cursor: pointer;
+}
+.crow .link { flex: 0 0 auto; display: flex; opacity: .85; transition: opacity .2s ease; }
+.crow[data-st="idle"] .link { opacity: .4; }
+.crow[data-st="error"] .link { opacity: .6; color: var(--p-accent); }
+.crow:hover .link { opacity: 1; }
+
+.crow .mid { flex: 1; min-width: 0; }
+.crow .nm { display: flex; align-items: baseline; gap: 8px; }
+.crow .nm .n {
+  font-size: 12px; color: var(--p-dim); font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .18s ease;
+}
+.crow .nm .k {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .14em; color: var(--p-faint);
+  flex: 0 0 auto;
+}
+.crow .ds {
+  margin-top: 1px;
+  font-size: 10.5px; color: var(--p-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .18s ease;
+}
+.crow:hover .nm .n { color: var(--p-text); }
+.crow:hover .ds { color: var(--p-dim); }
+.crow.is-active .nm .n { color: var(--p-text); font-weight: 600; }
+.crow.is-active::before {
+  content: ""; position: absolute; left: -16px; top: 7px; bottom: 7px; width: 2px;
+  background: var(--p-accent);
+}
+.crow[data-st="idle"] .nm .n, .crow[data-st="idle"] .ds { opacity: .55; }
+
+.crow .cap {
+  flex: 0 0 auto;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .1em; color: var(--p-faint);
+  text-align: right;
+}
+.crow[data-st="connected"] .cap { color: var(--p-dim); }
+.crow[data-st="connecting"] .cap { color: var(--p-accent); }
+.crow[data-st="error"] .cap { color: var(--p-accent); }
+.crow .ops {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; gap: 10px;
+  background: var(--p-panel); padding-left: 10px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s ease;
+}
+.crow:hover .ops { opacity: 1; pointer-events: auto; }
+.crow .ops button {
+  border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: 10.5px; color: var(--p-dim); padding: 2px 0;
+  border-bottom: 1px solid transparent;
+  transition: color .15s ease, border-color .15s ease;
+}
+.crow .ops button:hover { color: var(--p-text); border-bottom-color: currentColor; }
+.crow .ops button.go { color: var(--p-accent); }
+
+/* 已连接行下发丝通路 */
+.crow .track { position: absolute; left: 32px; right: 0; bottom: 2px; height: 1px; background: var(--p-border); display: none; }
+.crow[data-st="connected"] .track { display: block; }
+.crow .track i { position: absolute; left: 0; top: -0.5px; height: 2px; width: 100%; background: var(--p-dim); opacity: .35; transition: width .6s cubic-bezier(.22,1,.36,1); }
+
+/* ── 分页 ── */
+.pager {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 8px 0 12px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 9px; letter-spacing: .12em; color: var(--p-faint);
+}
+.pager b { color: var(--p-text); font-weight: 600; }
+.pager span { cursor: pointer; transition: color .15s ease; }
+.pager span:hover { color: var(--p-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  .link .pulse { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="page-head">
+  <h1>连接器页 — Link 链路符 + 行式目录</h1>
+  <p>体系第三层:<b>orb = 生命体(会动),sigil = 工具(永静),link = 通道(通断即状态)</b>。
+  连接器图标 = 两个端点 + 一条由 identity 哈希决定路径的链路(直线/弧线/折线/波纹):<b>已连接 = 实线连通</b>,
+  <b>未连接 = 中间断开 + 低透明</b>,<b>连接中 = 脉冲点沿线流动</b>(唯一的动画,因为此时它确实是活的),
+  <b>错误 = 断口 + accent</b>。已连接的行下方出现一条发丝通路。<br>
+  版式与前两页完全同构。点 ▶ 播放看「连接中 → 已连接」的完整叙事。</p>
+</header>
+
+<div class="cols"></div>
+
+<template id="col-tpl">
+  <div class="col-inner">
+    <div class="col-head"></div>
+
+    <div class="demo">
+      <div class="demo-cap">
+        <h3>连接器 · 目录页</h3>
+        <span class="note">link 链路符 · 通断即状态</span>
+        <button class="play" data-demo="connect">▶ 播放连接</button>
+      </div>
+
+      <div class="scene" data-scene>
+        <!-- 页头 -->
+        <div class="sc-head">
+          <div class="sc-title">
+            <span class="t">连接器</span>
+            <span class="c">05</span>
+          </div>
+          <div class="sc-search">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <span>搜索连接器</span>
+            <kbd class="kbd">⌘K</kbd>
+          </div>
+          <div class="sc-primary">
+            <span class="plus"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="square"><path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4"/><path d="M12 8.5v7M8.5 12h7"/></svg></span>
+            <span>新建连接器</span>
+          </div>
+        </div>
+
+        <!-- 已配置 -->
+        <div class="sc-sec">
+          <span class="nl">已配置</span>
+          <span class="hline"></span>
+          <span class="nc">05</span>
+        </div>
+        <div class="filters">
+          <div class="fg">
+            <span class="fl">类型</span>
+            <button class="chip on" data-chip>全部 <span class="n">05</span></button>
+            <button class="chip" data-chip>本地 <span class="n">03</span></button>
+            <button class="chip" data-chip>远程 <span class="n">02</span></button>
+          </div>
+          <span class="fg-sep"></span>
+          <div class="fg">
+            <span class="fl">状态</span>
+            <button class="chip on" data-chip>全部</button>
+            <button class="chip" data-chip>已连接</button>
+            <button class="chip" data-chip>未连接</button>
+          </div>
+        </div>
+
+        <div class="list">
+          <div class="crow is-active" data-st="connected" data-crow data-link="context7">
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">Context7 文档</span><span class="k">REMOTE · HTTPS</span></div>
+              <div class="ds">官方文档检索,固定远程端点</div>
+            </div>
+            <span class="cap" data-cap>CONNECTED · 12d</span>
+            <div class="ops"><button class="go">详情</button><button>断开</button></div>
+            <span class="track"><i></i></span>
+          </div>
+          <div class="crow" data-st="connected" data-crow data-link="filesystem">
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">文件系统</span><span class="k">LOCAL · STDIO</span></div>
+              <div class="ds">工作区文件读写,本地命令模板</div>
+            </div>
+            <span class="cap">CONNECTED · 3d</span>
+            <div class="ops"><button class="go">详情</button><button>断开</button></div>
+            <span class="track"><i></i></span>
+          </div>
+          <div class="crow" data-st="connecting" data-crow data-link="terminal" data-demo-row>
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">终端</span><span class="k">LOCAL · STDIO</span></div>
+              <div class="ds">受控 shell 执行,参数数组模板</div>
+            </div>
+            <span class="cap" data-cap>CONNECTING…</span>
+            <div class="ops"><button class="go">详情</button><button>取消</button></div>
+            <span class="track"><i data-fill></i></span>
+          </div>
+          <div class="crow" data-st="idle" data-crow data-link="git">
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">Git 仓库</span><span class="k">LOCAL · STDIO</span></div>
+              <div class="ds">分支、提交、diff 只读检索</div>
+            </div>
+            <span class="cap">IDLE</span>
+            <div class="ops"><button class="go">详情</button><button>连接</button></div>
+            <span class="track"><i></i></span>
+          </div>
+          <div class="crow" data-st="error" data-crow data-link="legacy-remote">
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">旧远程网关</span><span class="k">REMOTE · SSE</span></div>
+              <div class="ds">OAuth 令牌过期,需要重新授权</div>
+            </div>
+            <span class="cap">ERROR · AUTH</span>
+            <div class="ops"><button class="go">重新授权</button><button>删除</button></div>
+            <span class="track"><i></i></span>
+          </div>
+        </div>
+
+        <!-- 连接器市场 -->
+        <div class="sc-sec">
+          <span class="nl">连接器市场</span>
+          <span class="hline"></span>
+          <span class="nc">07</span>
+        </div>
+        <div class="list">
+          <div class="crow" data-st="idle" data-crow data-link="sqlite">
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">SQLite 查询</span><span class="k">TEMPLATE · LOCAL</span></div>
+              <div class="ds">本地数据库只读查询模板</div>
+            </div>
+            <span class="cap">v1.2</span>
+            <div class="ops"><button class="go">安装</button><button>详情</button></div>
+          </div>
+          <div class="crow" data-st="idle" data-crow data-link="fetch">
+            <span class="link"></span>
+            <div class="mid">
+              <div class="nm"><span class="n">Fetch 抓取</span><span class="k">TEMPLATE · LOCAL</span></div>
+              <div class="ds">URL 内容抓取与正文提取</div>
+            </div>
+            <span class="cap">v2.0</span>
+            <div class="ops"><button class="go">安装</button><button>详情</button></div>
+          </div>
+        </div>
+
+        <div class="pager">
+          <span>←</span><span><b>01</b> / 02</span><span>→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/* ================================================================
+   Link 链路符生成器:identity 哈希 → 端点 + 路径形态
+   状态:connected 实线 / idle 断开 / connecting 脉冲流动 / error 断口+accent
+   ================================================================ */
+function fnv(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+/* 四种确定性路径:直线 / 上弧 / 下弧 / 折线 */
+const PATHS = [
+  'M3,10 L17,10',
+  'M3,10 Q10,2 17,10',
+  'M3,10 Q10,18 17,10',
+  'M3,10 L7,6 L13,14 L17,10',
+];
+function linkSvg(identity, state, px) {
+  const h = fnv('link:' + identity);
+  const d = PATHS[h % PATHS.length];
+  const dotL = '<circle cx="3" cy="10" r="2"/>';
+  const dotR = '<circle cx="17" cy="10" r="2"/>';
+  let line = '';
+  let pulse = '';
+  if (state === 'connected') {
+    line = `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4"/>`;
+  } else if (state === 'idle') {
+    /* 中间断开的两段 */
+    line = `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 3" opacity=".7"/>`;
+  } else if (state === 'connecting') {
+    line = `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1" opacity=".35"/>`;
+    pulse = `<circle class="pulse" r="1.8" fill="currentColor"><animateMotion dur="1.4s" repeatCount="indefinite" path="${d}"/></circle>`;
+  } else if (state === 'error') {
+    line = `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 3"/>`;
+  }
+  return `<svg width="${px}" height="${px}" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">${line}${dotL}${dotR}${pulse}</svg>`;
+}
+function paintLink(row) {
+  row.querySelector('.link').innerHTML = linkSvg(row.dataset.link, row.dataset.st, 20);
+}
+
+/* 克隆曜岩/霜白两栏 */
+const tpl = document.getElementById('col-tpl');
+const cols = document.querySelector('.cols');
+[['dark', '曜岩', '深色模式'], ['light', '霜白', '浅色模式']].forEach(([cls, name, sub]) => {
+  const col = document.createElement('div');
+  col.className = `col ${cls}`;
+  col.appendChild(tpl.content.cloneNode(true));
+  col.querySelector('.col-head').innerHTML = `${name} <span>${sub}</span>`;
+  cols.appendChild(col);
+});
+document.querySelectorAll('[data-link]').forEach(paintLink);
+
+/* 交互:行选中 / 筹码单选 */
+document.querySelectorAll('[data-scene]').forEach(scene => {
+  scene.querySelectorAll('.list').forEach(zone => {
+    zone.querySelectorAll('[data-crow]').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.ops')) return;
+        zone.querySelectorAll('.crow').forEach(r => r.classList.remove('is-active'));
+        row.classList.add('is-active');
+      });
+    });
+  });
+  scene.querySelectorAll('.fg').forEach(group => {
+    group.querySelectorAll('[data-chip]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        group.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+        chip.classList.add('on');
+      });
+    });
+  });
+});
+
+/* 播放:连接中 → 已连接,脉冲停止,发丝通路铺满 */
+document.querySelectorAll('[data-demo="connect"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const demo = btn.closest('.demo');
+    const row = demo.querySelector('[data-demo-row]');
+    if (row.dataset.st !== 'connecting') {
+      row.dataset.st = 'connecting';
+      row.querySelector('[data-cap]').textContent = 'CONNECTING…';
+      paintLink(row);
+    }
+    const fill = row.querySelector('[data-fill]');
+    const cap = row.querySelector('[data-cap]');
+    fill.style.width = '0';
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      fill.style.width = Math.min(100, s * 40) + '%';
+      if (s >= 2.5) {
+        clearInterval(id);
+        row.dataset.st = 'connected';
+        cap.textContent = 'CONNECTED · 刚刚';
+        paintLink(row);
+        fill.style.width = '100%';
+      }
+    }, 100);
+  });
+});
+</script>
+</body>
+</html>

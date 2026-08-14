@@ -30,7 +30,7 @@ const draft: AgentDebugDraft = {
 function subagentEntry(
   id: string,
   promptCacheScopeKey: string = 'scope-a||scope-b',
-): SubagentInfo & { promptCacheScopeKey: string } {
+): SubagentInfo {
   return {
     key: `user::void::${id}`,
     id,

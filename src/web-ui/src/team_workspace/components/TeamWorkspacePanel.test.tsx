@@ -52,6 +52,8 @@ vi.mock('react-i18next', () => ({
         'teamWorkspace.memberConversation.loadingDescription': '正在恢复这位成员的工作记录。',
         'teamWorkspace.memberConversation.notStartedTitle': '尚未开始对话',
         'teamWorkspace.memberConversation.notStartedDescription': '这位成员还没有工作记录。团队总管派发任务后，会在这里显示完整对话。',
+        'teamWorkspace.memberConversation.failedTitle': '成员任务启动失败',
+        'teamWorkspace.memberConversation.failedDescription': '本次派发未建立成员会话。请返回左侧主会话重新派发；团队绑定不会解除。',
       };
       if (key === 'teamWorkspace.members.count') return `${values?.count ?? 0} 人`;
       if (key === 'teamWorkspace.phases.count') return `${values?.count ?? 0} 个`;
@@ -324,6 +326,43 @@ describe('TeamWorkspacePanel', () => {
     expect(container.textContent).toContain('尚未开始对话');
     expect(container.textContent).toContain('团队总管派发任务后');
     expect(container.querySelector('[data-testid="member-conversation"]')).toBeNull();
+  });
+
+  it('成员派发失败且没有子会话时展示失败而不是待命', async () => {
+    const team = activeTeam();
+    const member = team.members[1]!;
+    if (member.state.source !== 'runtime') {
+      throw new Error('Expected a runtime-backed member fixture.');
+    }
+    member.state = {
+      source: 'runtime',
+      status: 'failed',
+      run: {
+        ...member.state.run,
+        status: 'failed',
+        childSessionId: undefined,
+        error: {
+          source: 'team_runtime_service',
+          code: 'adapterrejected',
+          message: 'Member launch was rejected.',
+          retryable: false,
+        },
+      },
+    };
+    member.childSessionId = undefined;
+
+    await render(readyState(team));
+    const developerButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="查看开发工程师的会话"]',
+    );
+    await act(async () => {
+      developerButton?.click();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('成员任务启动失败');
+    expect(container.textContent).toContain('请返回左侧主会话重新派发');
+    expect(container.textContent).not.toContain('尚未开始对话');
   });
 
   it('同一成员快照刷新不替换会话 DOM，切换成员时正确更新子会话', async () => {

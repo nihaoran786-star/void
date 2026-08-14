@@ -1,10 +1,19 @@
 # Current collaboration context
 
-Updated: 2026-08-09
+Updated: 2026-08-13
 
 ## Product state
 
 - Active customization integration branch: `codex/minimal-workspace-ui`.
+- The Quiet Directory design system is the current entity-glyph and catalog
+  language: Agent orbs (animated when selected/running), Skill sigils (static
+  runes), and Connector link glyphs (route state: solid/broken/pulse/error)
+  sit on hairline directory rows with mono chips, mono right-aligned meta,
+  hover-collected operations, one quiet primary action, and underline search.
+  It is applied to the Agents, Skills, and Connectors (installed + market)
+  catalogs and to the Automation chrome/list view; the Automation calendar
+  grid and scheduling logic are intentionally unchanged. The active contract
+  is [docs/design/quiet-directory-design-system.md](docs/design/quiet-directory-design-system.md).
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
 - Bound Teams use one floating presentation path: the Team Workspace is a
@@ -191,6 +200,16 @@ semantic values it owns; preserving a cold or severe existing value is not a
 design goal. Enterprise-admin, finance-console, dense-IDE, and gray-card-wall
 results fail visual acceptance even when functional checks pass.
 
+For Flow Chat activity presentation, the user accepted all 19 source components
+from Beautiful UI as the production visual baseline on 2026-08-14. Production
+bindings map the existing transcript, composer, navigation, tool, approval,
+task, table, loading, and thinking surfaces to those source patterns. Loading,
+task status, and thinking mount the source components directly; Flow Chat no
+longer adds a second typewriter, loader, completion ring, auto-collapse, or
+hidden-group animation around them. Existing model summaries and typed tool
+events remain the only content source. Permissions, Team runtime, session
+lifecycle, routing, persistence, and the tool-card registry remain unchanged.
+
 The user-approved promotional workspace image, not OpenWork's live application
 or source code, is the visual reference for density, whitespace, translucent
 navigation, and quiet interaction. An OpenWork checkout was evaluated on
@@ -250,10 +269,13 @@ stronger evidence than their apparent convenience.
 
 ## Current quality state
 
-Current verified baseline on 2026-08-09:
+Current verified baseline on 2026-08-14:
 
-- the default parallel Web suite passes 527/527 files and 3042/3042 tests with
+- the default parallel Web suite passes 536/536 files and 3117/3117 tests with
   zero unhandled errors;
+- the Flow Chat Beautiful UI production binding, standalone 19-case/26-mode
+  preview, responsive widths, pause/replay, keyboard behavior, and reduced
+  motion pass the final interaction and full-window visual review;
 - Desktop Rust tests pass 197 tests with one explicit manual smoke ignored;
 - Web type checking, theme contracts, core boundaries, repository hygiene,
   production build, Monaco assets, and performance budgets pass;

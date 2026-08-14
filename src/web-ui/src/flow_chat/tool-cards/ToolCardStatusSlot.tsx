@@ -4,7 +4,7 @@
  * Two display modes (controlled by `defaultIcon`):
  *
  * "status" (default) — most tools:
- *   - Default: status icon (dots / check / X)
+ *   - Default: status icon (pixel grid / queued ring / check / X)
  *   - Hover:   tool-specific icon
  *
  * "tool" — identity-first tools (Git, Shell):
@@ -17,6 +17,8 @@
 import React, { ReactNode } from 'react';
 import { Check, X } from 'lucide-react';
 import type { ToolProcessingDotsSize } from '@/component-library';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import { PixelGrid } from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import type { BaseToolCardProps } from './BaseToolCard';
 import './ToolCardStatusSlot.scss';
 
@@ -27,8 +29,8 @@ export interface ToolCardStatusSlotProps {
   toolIcon?: ReactNode;
   /**
    * Which icon is shown by default (non-hovered).
-   * - `"status"` (default): dots/check/X default; tool icon on hover.
-   * - `"tool"`: tool icon default; dots/check/X on hover.
+   * - `"status"` (default): pixel grid/ring/check/X default; tool icon on hover.
+   * - `"tool"`: tool icon default; pixel grid/ring/check/X on hover.
    */
   defaultIcon?: 'status' | 'tool';
   size?: ToolProcessingDotsSize;
@@ -55,13 +57,10 @@ function StatusIcon({ status, size }: { status: ToolCardStatusSlotStatus; size: 
         />
       );
     default:
-      // Active: accent dot with a single quiet ripple.
       return (
-        <span
-          className="tcss-dot tcss-dot--active"
-          style={{ width: dotSize, height: dotSize }}
-          aria-hidden
-        />
+        <BeautifulUIStage mode="icon">
+          <PixelGrid variant="Drive" />
+        </BeautifulUIStage>
       );
   }
 }

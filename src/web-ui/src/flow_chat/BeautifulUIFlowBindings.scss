@@ -1,0 +1,126 @@
+@font-face {
+  font-family: 'BeautifulUI Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/beautiful-ui-original/e4af272ccee01ff0-s.p.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'BeautifulUI Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/beautiful-ui-original/bb3ef058b751a6ad-s.p.woff2') format('woff2');
+}
+
+:where([data-beautiful-component], [data-beautiful-components]) {
+  --bui-page: #fafafb;
+  --bui-canvas: #f1f2f3;
+  --bui-surface: #fff;
+  --bui-inset: #f7f8f9;
+  --bui-hover: #f4f5f6;
+  --bui-hover-2: #e7e9eb;
+  --bui-ink: #1f2124;
+  --bui-ink-2: #62656b;
+  --bui-ink-3: #9a9da3;
+  --bui-line: #ecedef;
+  --bui-line-strong: #e0e2e5;
+  --bui-accent: #0285ff;
+  --bui-green: #189a4d;
+  --bui-orange: #ef720c;
+  --bui-red: #e3474c;
+  --bui-shadow-hairline: 0 0 0 1px var(--bui-line);
+  --bui-shadow-btn: 0 0 0 1px var(--bui-line-strong), 0 1px 2px #1018280d;
+  --bui-shadow-card: 0 0 0 1px var(--bui-line), 0 1px 2px #1018280a, 0 2px 6px #10182808;
+  font-family: 'BeautifulUI Inter', Inter, var(--workspace-font-family);
+}
+
+.flow-tool-card-wrapper[data-beautiful-component] {
+  color: var(--bui-ink);
+
+  :where(.compact-tool-card, .base-tool-card) {
+    border-color: transparent;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  :where(.compact-tool-card-header, .base-tool-card-header) {
+    min-height: 28px;
+    border-radius: 8px;
+    color: var(--bui-ink-2);
+    transition: background-color 100ms ease, color 100ms ease;
+  }
+
+  :where(.compact-tool-card-header, .base-tool-card-header):hover {
+    color: var(--bui-ink);
+    background: var(--bui-hover-2);
+  }
+
+  :where(code, pre, .tool-card-mono) {
+    font-family: 'BeautifulUI Mono', var(--tool-card-font-mono);
+  }
+
+  :where(button, [role='button']):focus-visible {
+    outline: 2px solid var(--bui-accent);
+    outline-offset: 2px;
+  }
+}
+
+.flow-tool-card-wrapper[data-beautiful-component='approval-card']
+  :where(.compact-tool-card, .base-tool-card) {
+  border-color: var(--bui-line);
+  border-radius: 10px;
+  background: var(--bui-surface);
+  box-shadow: var(--bui-shadow-card);
+}
+
+.flow-tool-card-wrapper:is(
+  [data-beautiful-component='records-table'],
+  [data-beautiful-component='diff-table'],
+  [data-beautiful-component='filter-table'],
+  [data-beautiful-component='insight-cards']
+) :where(table, .tool-card-table) {
+  overflow: hidden;
+  border: 1px solid var(--bui-line);
+  border-radius: 10px;
+  background: var(--bui-surface);
+  box-shadow: var(--bui-shadow-hairline);
+}
+
+.flow-tool-card-wrapper[data-beautiful-component='code-block'] :where(pre, .code-block) {
+  border: 1px solid var(--bui-line);
+  border-radius: 10px;
+  background: var(--bui-inset);
+  box-shadow: var(--bui-shadow-hairline);
+}
+
+.flow-tool-card-wrapper:is(
+  [data-beautiful-component='context-cards'],
+  [data-beautiful-component='recommendation-card'],
+  [data-beautiful-component='fine-tune-card']
+) :where(.tool-card-expanded-content, .compact-tool-card-content, .base-tool-card-content) {
+  border-radius: 10px;
+  background: var(--bui-surface);
+  box-shadow: var(--bui-shadow-hairline);
+}
+
+.void-chat-input[data-beautiful-components~='prompt-bar'] .void-chat-input__box {
+  border: 1px solid var(--bui-line-strong);
+  border-radius: 28px;
+  background: var(--bui-surface);
+  box-shadow: var(--bui-shadow-btn);
+}
+
+.void-chat-input[data-beautiful-components~='chat-composer']
+  :where(button, [role='button']):focus-visible,
+.void-nav-panel[data-beautiful-component='sidebar-nav']
+  :where(button, [role='button'], a):focus-visible {
+  outline: 2px solid var(--bui-accent);
+  outline-offset: 2px;
+}
+
+.void-nav-panel[data-beautiful-component='sidebar-nav'] {
+  font-family: 'BeautifulUI Inter', Inter, var(--workspace-font-family);
+}

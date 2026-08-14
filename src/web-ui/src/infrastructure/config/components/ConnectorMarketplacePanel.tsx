@@ -250,6 +250,13 @@ const ConnectorMarketplacePanel: React.FC<ConnectorMarketplacePanelProps> = ({
                     transport={entry.kind === 'local-command'
                       ? entry.runtimeCommand
                       : entry.transport}
+                    state={isInstalling
+                      ? 'connecting'
+                      : state.phase === 'error'
+                        ? 'error'
+                        : isInstalled
+                          ? 'connected'
+                          : 'idle'}
                     className="void-connector-market__avatar"
                   />
                   <div className="void-connector-market__copy">

@@ -11,6 +11,8 @@ const allowedShadowValues = [
   /^inset 0 0 0 (?:1|2)px var\(--workspace-(?:focus-ring|border-subtle|border-strong|accent)\)(?:\s*!important)?$/,
   // Glass Air shell: inset hairline ring plus one soft float-shadow layer.
   /^inset 0 0 0 (?:1|2)px var\(--workspace-(?:focus-ring|border-subtle|border-strong|accent)\), var\(--workspace-glass-shadow\)(?:\s*!important)?$/,
+  // Minimal sidebar: selected-row accent hairline light bar.
+  /^inset 2px 0 0 var\(--color-accent-500\)$/,
 ];
 
 function collectMinimalStyles(directory: string): string[] {

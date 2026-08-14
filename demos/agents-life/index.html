@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>智能体 · 卡片星图 Demo v3（现有 orb 特效）</title>
+<style>
+  :root {
+    --canvas: #f6f7fa;
+    --card: #ffffff;
+    --ink: #1a1d24;
+    --ink-2: #5a6070;
+    --ink-3: #9aa0ae;
+    --hairline: #e8eaf0;
+    --accent: #3d4fc4;
+    --accent-soft: #ecedfb;
+    --orb: #3f4b8f;
+    --orb-alt: #5e5498;
+    --mono: "SF Mono", "JetBrains Mono", Consolas, "Courier New", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--canvas); color: var(--ink); }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .page { max-width: 1240px; margin: 0 auto; padding: 0 36px 96px; }
+
+  /* ── 页头：标识 + 切换 + 搜索 ─────────────────── */
+  .page-head {
+    display: flex; align-items: center; gap: 20px;
+    padding: 20px 0 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .logo {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand .logo canvas { width: 20px; height: 20px; display: block; }
+  .brand h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+
+  .tabs { display: flex; align-items: center; gap: 22px; margin-left: 8px; }
+  .tab {
+    position: relative; border: 0; background: none; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--ink-3);
+    padding: 4px 2px 8px; font-family: inherit;
+    transition: color .18s ease;
+  }
+  .tab:hover { color: var(--ink-2); }
+  .tab.is-active { color: var(--accent); font-weight: 600; }
+  .tab::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    border-radius: 2px; background: var(--accent);
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .tab.is-active::after { opacity: 1; }
+
+  .search {
+    margin-left: auto; border: 0; outline: none; font-family: inherit;
+    font-size: 12px; color: var(--ink);
+    background: #eef0f4; border-radius: 999px;
+    padding: 9px 16px; width: 250px;
+    transition: box-shadow .18s ease;
+  }
+  .search:focus { box-shadow: 0 0 0 2px rgba(61,79,196,.22); background: #fff; }
+  .search::placeholder { color: var(--ink-3); }
+
+  /* ── 分区头 ─────────────────────────────────── */
+  .zone-head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 22px 0 12px;
+  }
+  .zone-head h2 { font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+  .zone-head .count { font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: .06em; }
+  .zone-head .right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .zone-head .live {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--accent);
+  }
+  .zone-head .live i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: blink 1.6s ease-in-out infinite; }
+  .zone-head .more { font-size: 11px; color: var(--ink-3); text-decoration: none; }
+
+  /* ── 筛选条 ─────────────────────────────────── */
+  .filter-row {
+    display: flex; align-items: center; gap: 18px;
+    margin: 0 0 14px;
+  }
+  .chip {
+    border: 0; background: none; cursor: pointer; font-family: inherit;
+    font-size: 12px; font-weight: 500; color: var(--ink-3);
+    padding: 5px 12px; border-radius: 999px;
+    transition: color .18s ease, background-color .18s ease;
+  }
+  .chip:hover { color: var(--ink); }
+  .chip.is-active { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .chip .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-right: 5px; vertical-align: 1px; }
+  .sort {
+    margin-left: auto; border: 0; background: none; cursor: pointer;
+    font-family: inherit; font-size: 12px; color: var(--ink-3);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .sort:hover { color: var(--ink); }
+
+  /* ── 推荐区：横排卡（orb 左，文字右） ─────────────────── */
+  .heroes {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  .hero-card {
+    position: relative; display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px; border: 1px solid var(--hairline); border-radius: 14px;
+    background: var(--card); cursor: pointer; text-align: left; font-family: inherit;
+    box-shadow: 0 1px 2px rgba(26,29,36,.03);
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+  .hero-card:hover {
+    border-color: rgba(61,79,196,.35);
+    box-shadow: 0 6px 20px rgba(26,29,36,.07);
+    transform: translateY(-1px);
+  }
+  .hero-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hero-card canvas { width: 52px; height: 52px; display: block; color: var(--orb); flex: 0 0 auto; transition: color .18s ease; }
+  .hero-card:hover canvas { color: var(--accent); }
+  .hero-card.is-alt canvas:not(:hover) { color: var(--orb-alt); }
+  .hero-card.is-running canvas { color: var(--accent); }
+  .hero-card .meta { min-width: 0; }
+  .hero-card .name { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+  .hero-card .role { margin-top: 3px; font-size: 11px; color: var(--ink-3); }
+  .hero-card .status {
+    margin-top: 7px; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; color: var(--accent);
+  }
+  .hero-card .status i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: blink 1.6s ease-in-out infinite; }
+
+  /* ── 全部区：白卡星座格 ─────────────────── */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px;
+  }
+  .cell {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    padding: 22px 10px 16px; border: 1px solid var(--hairline); border-radius: 14px;
+    background: var(--card); cursor: pointer; font-family: inherit;
+    box-shadow: 0 1px 2px rgba(26,29,36,.03);
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+  .cell:hover {
+    border-color: rgba(61,79,196,.35);
+    box-shadow: 0 6px 18px rgba(26,29,36,.07);
+    transform: translateY(-1px);
+  }
+  .cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .cell canvas { width: 58px; height: 58px; display: block; color: var(--orb); transition: color .18s ease, transform .2s ease; }
+  .cell:hover canvas { color: var(--accent); transform: scale(1.06); }
+  .cell.is-alt canvas:not(:hover) { color: var(--orb-alt); }
+  .cell.is-running canvas { color: var(--accent); }
+  .cell .name { margin-top: 13px; font-size: 13px; font-weight: 700; }
+  .cell .role { margin-top: 3px; font-size: 10px; color: var(--ink-3); }
+  .cell .tag {
+    margin-top: 9px; font-size: 10px; font-weight: 500;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 3px 10px; border-radius: 999px;
+  }
+  .cell .live-flag {
+    position: absolute; top: 10px; right: 10px;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--accent);
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .cell.is-running .live-flag { opacity: 1; }
+  .cell .live-flag i { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); animation: blink 1.6s ease-in-out infinite; }
+
+  /* 虚线新建卡 */
+  .cell--new {
+    border: 1.5px dashed #b9c8f5; background: #f7f9ff;
+    color: var(--accent); justify-content: center; gap: 10px;
+    box-shadow: none;
+  }
+  .cell--new:hover { border-color: var(--accent); background: var(--accent-soft); box-shadow: none; }
+  .cell--new .plus {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 300; line-height: 1;
+  }
+  .cell--new .label { font-size: 12px; font-weight: 600; }
+
+  @keyframes blink { 50% { opacity: .25; } }
+
+  @media (max-width: 900px) {
+    .heroes { grid-template-columns: repeat(2, 1fr); }
+    .page { padding: 0 20px 72px; }
+    .search { width: 170px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-head">
+    <div class="brand">
+      <span class="logo"><canvas id="logo-orb" aria-hidden="true"></canvas></span>
+      <h1>智能体</h1>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" aria-selected="true">智能体</button>
+      <button class="tab" role="tab" aria-selected="false">团队</button>
+    </div>
+    <input class="search" type="search" placeholder="搜索智能体…" aria-label="搜索智能体" />
+  </div>
+
+  <div class="zone-head">
+    <h2>推荐智能体</h2><span class="count">04</span>
+    <div class="right">
+      <span class="live"><i></i>运行中</span>
+      <a class="more" href="#">›</a>
+    </div>
+  </div>
+  <div class="heroes" id="heroes"></div>
+
+  <div class="zone-head">
+    <h2>全部智能体</h2><span class="count">15</span>
+  </div>
+  <div class="filter-row">
+    <button class="chip is-active">全部</button>
+    <button class="chip"><span class="dot"></span>运行中</button>
+    <button class="chip">专业员工</button>
+    <button class="chip">子智能体</button>
+    <button class="chip">用户创建</button>
+    <button class="sort">⇅ 默认排序</button>
+  </div>
+  <div class="grid" id="grid"></div>
+
+</div>
+
+<script>
+(() => {
+  /* ──────────────────────────────────────────────────────────────
+   * 项目现有 orbAvatarEngine 等比移植：九种运动形态 painter。
+   * 待机静态帧；hover/运行中动画。颜色读 canvas CSS color。
+   * ────────────────────────────────────────────────────────────── */
+  const TAU = Math.PI * 2;
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DPR = Math.min(devicePixelRatio || 1, 2);
+
+  const ORB_TYPES = ['breathing','searching','working','solving','listening','connecting','weaving','composing','shaping'];
+
+  function resolveOrbType(identity) {
+    let hash = 2166136261;
+    for (let i = 0; i < identity.length; i++) { hash ^= identity.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+    return ORB_TYPES[(hash >>> 0) % ORB_TYPES.length];
+  }
+
+  function drawDot(ctx, x, y, r, alpha, ink) {
+    ctx.globalAlpha = alpha; ctx.fillStyle = ink;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  }
+  function polygonRadius(angle, sides) {
+    const segment = TAU / sides;
+    const d = ((angle % segment) + segment) % segment - segment / 2;
+    return Math.cos(segment / 2) / Math.cos(d);
+  }
+  const smooth = x => x * x * (3 - 2 * x);
+  function fibSphere(count) {
+    const points = [];
+    for (let i = 0; i < count; i++) {
+      const y = 1 - (i / (count - 1)) * 2;
+      const radius = Math.sqrt(1 - y * y);
+      const theta = i * 2.39996;
+      points.push([Math.cos(theta) * radius, y, Math.sin(theta) * radius]);
+    }
+    return points;
+  }
+  const SEARCH_POINTS = fibSphere(90);
+  const CONNECT_POINTS = [
+    [-0.6,-0.5,0],[0.1,-0.75,1.2],[0.68,-0.28,2.1],[0.5,0.48,3.3],
+    [-0.15,0.7,4.0],[-0.72,0.22,5.1],[0.05,-0.05,2.6],
+  ];
+
+  const ORB_PAINTERS = {
+    breathing(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.36, count = 26;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * TAU;
+        const wave = 0.5 + 0.5 * Math.sin(t * 0.9 + angle * 3);
+        drawDot(ctx, c + Math.cos(angle) * radius * (1 + 0.1 * wave), c + Math.sin(angle) * radius * (1 + 0.1 * wave), size * 0.034, 0.35 + 0.55 * wave, ink);
+      }
+    },
+    searching(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.38, rotation = t * 0.15, sweep = (t * 0.9) % TAU;
+      for (const [ux, uy, uz] of SEARCH_POINTS) {
+        const x = ux * Math.cos(rotation) - uz * Math.sin(rotation);
+        const z = ux * Math.sin(rotation) + uz * Math.cos(rotation);
+        const pointAngle = Math.atan2(uy, x);
+        let delta = Math.abs(pointAngle - sweep);
+        if (delta > Math.PI) delta = TAU - delta;
+        const glow = Math.exp(-delta * delta * 7);
+        drawDot(ctx, c + x * radius, c + uy * radius * 0.92, size * (0.016 + 0.014 * (z * 0.5 + 0.5)), 0.22 + 0.68 * glow, ink);
+      }
+    },
+    working(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.4, tilt = -0.42;
+      const cosTilt = Math.cos(tilt), sinTilt = Math.sin(tilt);
+      for (let i = 0; i < 26; i++) {
+        const angle = (i / 26) * TAU;
+        const ex = Math.cos(angle) * radius, ey = Math.sin(angle) * radius * 0.38;
+        drawDot(ctx, c + ex * cosTilt - ey * sinTilt, c + ex * sinTilt + ey * cosTilt, size * 0.018, 0.18, ink);
+      }
+      for (let k = 0; k < 3; k++) {
+        const angle = t * 1.6 + (k * TAU) / 3;
+        const ex = Math.cos(angle) * radius, ey = Math.sin(angle) * radius * 0.38;
+        drawDot(ctx, c + ex * cosTilt - ey * sinTilt, c + ex * sinTilt + ey * cosTilt, size * 0.042, 0.6 + 0.35 * (Math.sin(angle) * 0.5 + 0.5), ink);
+      }
+    },
+    solving(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.36;
+      const amplitude = (0.5 + 0.5 * Math.sin(t * 0.7)) * size * 0.09;
+      for (let band = 0; band < 5; band++) {
+        const y = c + (band - 2) * radius * 0.44;
+        for (let i = 0; i < 9; i++) {
+          const px = c + (i - 4) * radius * 0.23 + Math.sin(i * 2.3 + band * 1.7 + t * 1.3) * amplitude;
+          drawDot(ctx, px, y, size * 0.026, 0.7, ink);
+        }
+      }
+    },
+    listening(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.36, count = 24;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * TAU;
+        const wave = 0.5 + 0.5 * Math.sin(t * 2.2 - angle * 2);
+        drawDot(ctx, c + Math.cos(angle) * radius, c + Math.sin(angle) * radius, size * (0.018 + 0.022 * wave), 0.3 + 0.55 * wave, ink);
+      }
+    },
+    connecting(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.34;
+      const points = CONNECT_POINTS.map(([px, py, phase]) => [
+        c + (px + 0.09 * Math.sin(t * 0.6 + phase)) * radius,
+        c + (py + 0.09 * Math.cos(t * 0.5 + phase * 1.3)) * radius,
+      ]);
+      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(0.6, size * 0.02);
+      for (let i = 0; i < points.length; i++) for (let j = i + 1; j < points.length; j++) {
+        const distance = Math.hypot(points[i][0] - points[j][0], points[i][1] - points[j][1]);
+        if (distance < radius * 1.15) {
+          ctx.globalAlpha = (1 - distance / (radius * 1.15)) * (0.25 + 0.3 * (0.5 + 0.5 * Math.sin(t + i + j)));
+          ctx.beginPath(); ctx.moveTo(points[i][0], points[i][1]); ctx.lineTo(points[j][0], points[j][1]); ctx.stroke();
+        }
+      }
+      for (const [x, y] of points) drawDot(ctx, x, y, size * 0.03, 0.85, ink);
+    },
+    weaving(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.38;
+      for (let strand = 0; strand < 3; strand++) for (let i = 0; i < 36; i++) {
+        const u = (i / 36) * TAU;
+        const x = c + Math.cos(u) * radius;
+        const y = c + Math.sin(u * 3 + (strand * TAU) / 3 + t * 1.2) * radius * 0.4 * Math.sin(u);
+        const depth = 0.5 + 0.5 * Math.cos(u + t * 0.4);
+        drawDot(ctx, x, y, size * 0.02, 0.25 + 0.55 * depth, ink);
+      }
+    },
+    composing(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.36;
+      for (let band = 0; band < 4; band++) for (let i = 0; i < 15; i++) {
+        const u = i / 14;
+        const x = c + (u - 0.5) * 2 * radius;
+        const y = c + (band - 1.5) * radius * 0.3 + Math.sin(u * 6 + t * 1.4 + band * 1.3) * size * 0.032;
+        drawDot(ctx, x, y, size * 0.021, 0.6, ink);
+      }
+    },
+    shaping(ctx, size, t, ink) {
+      const c = size / 2, radius = size * 0.3, count = 36;
+      const phase = (t * 0.22) % 3;
+      const index = Math.floor(phase);
+      const fraction = smooth(phase - index);
+      const shapes = [null, 3, 4];
+      const radiusAt = (angle, sides) => sides === null ? 1 : polygonRadius(angle + (sides === 3 ? Math.PI / 2 : Math.PI / 4), sides);
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * TAU;
+        const r1 = radiusAt(angle, shapes[index]);
+        const r2 = radiusAt(angle, shapes[(index + 1) % 3]);
+        const r = radius * (r1 + (r2 - r1) * fraction) * 1.05;
+        drawDot(ctx, c + Math.cos(angle) * r, c + Math.sin(angle) * r, size * 0.024, 0.75, ink);
+      }
+    },
+  };
+
+  const live = [];
+  let rafId = null;
+
+  class Orb {
+    constructor(canvas, name) {
+      this.c = canvas;
+      this.x = canvas.getContext('2d');
+      this.type = resolveOrbType(name);
+      this.animating = false;
+      this.start = 0;
+      this.syncSize();
+      live.push(this);
+    }
+    syncSize() {
+      const css = Math.max(12, Math.round(this.c.clientWidth || 56));
+      this.size = css;
+      this.c.width = css * DPR; this.c.height = css * DPR;
+      this.x.setTransform(DPR, 0, 0, DPR, 0, 0);
+      this.paint(0);
+    }
+    paint(t) {
+      this.x.clearRect(0, 0, this.size, this.size);
+      this.x.globalAlpha = 1;
+      ORB_PAINTERS[this.type](this.x, this.size, t, getComputedStyle(this.c).color);
+      this.x.globalAlpha = 1;
+    }
+    setAnimating(on) {
+      if (REDUCED) return;
+      if (on && !this.animating) { this.animating = true; this.start = performance.now(); schedule(); }
+      else if (!on && this.animating) { this.animating = false; this.paint(0); }
+    }
+  }
+  function schedule() { if (rafId === null) rafId = requestAnimationFrame(tick); }
+  function tick(now) {
+    rafId = null;
+    let any = false;
+    for (const o of live) if (o.animating) { any = true; o.paint((now - o.start) / 1000); }
+    if (any) schedule();
+  }
+
+  const HEROES = [
+    { name: '代码执行', role: '编程专家', running: true },
+    { name: '日常办公', role: '办公助理', running: true },
+    { name: '设计创意', role: '创意制作人', running: true },
+    { name: '电脑操作', role: '电脑操作助理', running: true },
+  ];
+  const ALL = [
+    { name: '方案规划', role: '专业员工', tag: '专业员工' },
+    { name: '调试诊断', role: '专业员工', tag: '专业员工' },
+    { name: '并行任务', role: '专业员工', tag: '专业员工' },
+    { name: '深度研究', role: '专业员工', tag: '专业员工' },
+    { name: '开发协作', role: '专业员工', tag: '专业员工', running: true },
+    { name: '文档撰写', role: '专业员工', tag: '专业员工' },
+    { name: '数据洞察', role: '子智能体', tag: '子智能体' },
+    { name: '网页巡检', role: '子智能体', tag: '子智能体' },
+    { name: '会议纪要', role: '子智能体', tag: '子智能体' },
+    { name: '翻译官', role: '子智能体', tag: '子智能体' },
+    { name: '我的助手', role: '用户创建', tag: '用户创建' },
+    { name: '周报生成', role: '用户创建', tag: '用户创建' },
+    { name: '播客剪辑', role: '用户创建', tag: '用户创建' },
+    { name: '竞品监控', role: '用户创建', tag: '用户创建' },
+    { name: '睡前阅读', role: '用户创建', tag: '用户创建' },
+  ];
+
+  function bindWake(el, orb, running) {
+    const wake = () => orb.setAnimating(true);
+    const sleep = () => { if (!running) orb.setAnimating(false); };
+    el.addEventListener('mouseenter', wake);
+    el.addEventListener('mouseleave', sleep);
+    el.addEventListener('focus', wake);
+    el.addEventListener('blur', sleep);
+    if (running) orb.setAnimating(true);
+  }
+
+  /* 页头 logo orb：常动的 breathing */
+  const logoOrb = new Orb(document.getElementById('logo-orb'), '__void_brand__');
+  logoOrb.setAnimating(true);
+
+  for (const a of HEROES) {
+    const el = document.createElement('button');
+    el.className = 'hero-card' + (a.running ? ' is-running' : '');
+    el.innerHTML = `
+      <canvas aria-hidden="true"></canvas>
+      <span class="meta">
+        <span class="name">${a.name}</span>
+        <span class="role" style="display:block">${a.role}</span>
+        ${a.running ? '<span class="status"><i></i>运行中</span>' : ''}
+      </span>`;
+    document.getElementById('heroes').appendChild(el);
+    const orb = new Orb(el.querySelector('canvas'), a.name);
+    if (['weaving','connecting','shaping'].includes(orb.type)) el.classList.add('is-alt');
+    bindWake(el, orb, !!a.running);
+  }
+
+  const grid = document.getElementById('grid');
+  for (const a of ALL) {
+    const el = document.createElement('button');
+    el.className = 'cell' + (a.running ? ' is-running' : '');
+    el.innerHTML = `
+      <span class="live-flag"><i></i>运行中</span>
+      <canvas aria-hidden="true"></canvas>
+      <span class="name">${a.name}</span>
+      <span class="role">${a.role}</span>
+      <span class="tag">${a.tag}</span>`;
+    grid.appendChild(el);
+    const orb = new Orb(el.querySelector('canvas'), a.name);
+    if (['weaving','connecting','shaping'].includes(orb.type)) el.classList.add('is-alt');
+    bindWake(el, orb, !!a.running);
+  }
+
+  const add = document.createElement('button');
+  add.className = 'cell cell--new';
+  add.innerHTML = `<span class="plus">＋</span><span class="label">新建智能体</span>`;
+  grid.appendChild(add);
+
+  addEventListener('resize', () => live.forEach(o => o.syncSize()));
+})();
+</script>
+</body>
+</html>

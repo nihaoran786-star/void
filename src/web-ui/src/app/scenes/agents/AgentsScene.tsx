@@ -77,7 +77,7 @@ import { createLogger } from '@/shared/utils/logger';
 const agentsSceneLog = createLogger('AgentsScene');
 
 const UNGROUPED_SKILL_GROUP = '__ungrouped__';
-const AGENT_PAGE_SIZE = 8;
+const AGENT_PAGE_SIZE = 24;
 
 let agentsSceneDebugRuntime: ReturnType<typeof createAgentDebugRuntime> | undefined;
 function resolveAgentsSceneDebugRuntime() {
@@ -246,6 +246,12 @@ interface AgentsHomeViewProps {
   taskDispatcher: CustomizationTaskDispatcher;
 }
 
+const SCENARIO_EXECUTION_POLICIES = {
+  code: ['agentic', 'Plan', 'debug', 'Multitask', 'Team'],
+  cowork: ['Cowork', 'DeepResearch', 'Claw'],
+  media: ['Media'],
+} as const;
+
 const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
   const { t } = useTranslation('scenes/agents');
   const { t: tSkills } = useTranslation('scenes/skills');
@@ -298,6 +304,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
     searchQuery,
     filterLevel: agentFilterLevel,
     filterType: agentFilterType,
+    executionPolicies: SCENARIO_EXECUTION_POLICIES[preferredScenario],
     t,
   });
 

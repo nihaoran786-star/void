@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOID · 单焦点工作台 — 设计 Demo</title>
+<style>
+  :root{
+    --bg:        #f6f6f6;
+    --surface:   #fefefd;
+    --ink:       #171717;
+    --grey-600:  #525355;
+    --grey-500:  #8f9293;
+    --grey-300:  #d9d9d6;
+    --recede:    0.32;             /* 非焦点内容的不透明度 */
+    --ease-out:  cubic-bezier(0.22, 1, 0.36, 1);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI",
+            "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  ::selection{ background: var(--ink); color: var(--surface); }
+
+  /* ============ 图标栏：56px，纯图标，不透明度即层级 ============ */
+  .rail{
+    position: fixed; left:0; top:0; bottom:0; width:56px;
+    display:flex; flex-direction:column; align-items:center;
+    padding: 18px 0; gap: 4px;
+    background: var(--bg);
+    border-right: 1px solid transparent;
+    transition: transform .3s var(--ease-out), opacity .3s var(--ease-out);
+    z-index: 40;
+  }
+  .rail .brand{
+    width: 28px; height: 28px; margin-bottom: 22px;
+    display:grid; place-items:center;
+    font-weight: 700; font-size: 13px; letter-spacing: -0.5px;
+    opacity: .9;
+  }
+  .rail-btn{
+    width: 40px; height: 40px; border:0; background: transparent;
+    display:grid; place-items:center; border-radius: 10px;
+    cursor: pointer; opacity: var(--recede);
+    transition: opacity .4s ease, background .2s ease;
+    position: relative; color: var(--ink);
+  }
+  .rail-btn:hover{ opacity: 1; background: #eeeee9; }
+  .rail-btn.on{ opacity: 1; }
+  .rail-btn.on::before{
+    content:""; position:absolute; left:-8px; top:50%; translate: 0 -50%;
+    width: 3px; height: 16px; border-radius: 2px; background: var(--ink);
+  }
+  .rail .spacer{ flex:1; }
+  .rail-btn svg{ width: 19px; height: 19px; }
+
+  /* 悬停提示：唯一的文字，且只在需要时出现 */
+  .tip{
+    position: fixed; left: 62px; padding: 4px 10px;
+    background: var(--ink); color: var(--surface);
+    font-size: 12px; border-radius: 6px; white-space: nowrap;
+    opacity: 0; pointer-events: none;
+    transition: opacity .15s ease;
+    z-index: 100; letter-spacing: .02em;
+  }
+  .tip.show{ opacity: 1; }
+  .tip kbd{
+    font-family: inherit; font-size: 11px; color: var(--grey-500);
+    margin-left: 8px;
+  }
+
+  /* ============ 舞台：单焦点 ============ */
+  .stage{
+    position: fixed; inset: 0 0 0 56px;
+    display: flex; flex-direction: column; align-items: center;
+    transition: inset .3s var(--ease-out);
+  }
+
+  /* 顶部语境条：极薄，平时退到 35% */
+  .context-bar{
+    width: 100%; max-width: 720px;
+    display:flex; align-items:center; justify-content: space-between;
+    padding: 20px 8px 0;
+    opacity: .35; transition: opacity .4s ease;
+    font-size: 12.5px; color: var(--grey-600);
+  }
+  .context-bar:hover{ opacity: 1; }
+  .context-bar .crumb{ display:flex; gap:8px; align-items:baseline; }
+  .context-bar .crumb b{ color: var(--ink); font-weight: 600; }
+  .context-bar .crumb span{ color: var(--grey-500); }
+  .kbd-hint{
+    font-size: 11.5px; color: var(--grey-500);
+    border: 1px solid var(--grey-300); border-radius: 6px;
+    padding: 2px 8px; cursor: pointer; background: var(--surface);
+    transition: border-color .2s;
+  }
+  .kbd-hint:hover{ border-color: var(--grey-500); }
+
+  /* 对话流：唯一主角 */
+  .conversation{
+    flex: 1; width: 100%; max-width: 720px;
+    overflow-y: auto; padding: 56px 8px 32px;
+    scrollbar-width: thin; scrollbar-color: var(--grey-300) transparent;
+  }
+  .msg{ margin-bottom: 44px; }
+  .msg .meta{
+    font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--grey-500); margin-bottom: 10px;
+    display:flex; align-items:baseline; gap: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .msg .meta .zh{ letter-spacing: .05em; text-transform: none; }
+  .msg .body{ font-size: 15px; max-width: 56ch; }
+  .msg.user{ text-align: right; }
+  .msg.user .meta{ justify-content: flex-end; }
+  .msg.user .body{
+    display: inline-block; text-align: left;
+    background: var(--surface); border: 1px solid var(--grey-300);
+    padding: 10px 16px; border-radius: 14px 14px 4px 14px;
+  }
+  /* 非焦点消息后退 */
+  .conversation:hover .msg{ opacity: .45; transition: opacity .4s ease; }
+  .conversation:hover .msg:hover{ opacity: 1; }
+  .msg{ transition: opacity .4s ease; }
+
+  /* 输入区：居中、克制 */
+  .composer{
+    width: 100%; max-width: 720px; padding: 0 8px 28px;
+  }
+  .composer .box{
+    background: var(--surface);
+    border: 1px solid var(--grey-300);
+    border-radius: 16px; padding: 14px 18px;
+    transition: border-color .2s ease, box-shadow .2s ease;
+  }
+  .composer .box:focus-within{
+    border-color: var(--grey-500);
+    box-shadow: 0 8px 30px -18px rgba(23,23,23,.35);
+  }
+  .composer textarea{
+    width: 100%; border: 0; outline: 0; resize: none;
+    background: transparent; font: inherit; color: var(--ink);
+    height: 24px; line-height: 24px;
+  }
+  .composer textarea::placeholder{ color: var(--grey-500); }
+  .composer .row{
+    display:flex; align-items:center; justify-content: space-between;
+    margin-top: 8px;
+  }
+  .chip{
+    font-size: 11.5px; color: var(--grey-600);
+    background: var(--bg); border-radius: 6px; padding: 2px 9px;
+    opacity: .7; transition: opacity .3s;
+  }
+  .composer .box:focus-within .chip, .chip:hover{ opacity: 1; }
+  .send{
+    border: 0; background: var(--ink); color: var(--surface);
+    font-size: 12.5px; padding: 6px 18px; border-radius: 8px;
+    cursor: pointer; letter-spacing: .05em;
+    transition: opacity .2s;
+  }
+  .send:hover{ opacity: .82; }
+
+  /* ============ 浮层窗口：桌面隐喻，可拖拽，非焦点后退 ============ */
+  .window{
+    position: fixed; width: 380px; max-height: 70vh;
+    background: var(--surface);
+    border: 1px solid var(--grey-300);
+    border-radius: 14px;
+    box-shadow: 0 24px 70px -30px rgba(23,23,23,.4);
+    display: none; flex-direction: column;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity .4s ease;
+    z-index: 50;
+  }
+  .window.open{ display: flex; animation: win-in .3s var(--ease-out); }
+  @keyframes win-in{
+    from{ opacity: 0; transform: translateY(10px); }
+    to  { opacity: 1; transform: translateY(0); }
+  }
+  .window.recede{ opacity: .45; }
+  .window.recede:hover{ opacity: .9; }
+  .win-bar{
+    display:flex; align-items:center; justify-content: space-between;
+    padding: 12px 16px; cursor: grab; user-select: none;
+    border-bottom: 1px solid var(--grey-300);
+  }
+  .win-bar:active{ cursor: grabbing; }
+  .win-bar .t{
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--grey-600); display:flex; align-items:baseline; gap: 8px;
+  }
+  .win-bar .t .zh{ letter-spacing: .08em; text-transform: none; color: var(--ink); font-weight: 600; font-size: 13px; }
+  .win-close{
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--grey-500); font-size: 15px; line-height: 1;
+    padding: 4px 6px; border-radius: 6px;
+  }
+  .win-close:hover{ color: var(--ink); background: var(--bg); }
+  .win-body{ overflow-y: auto; padding: 8px; scrollbar-width: thin; scrollbar-color: var(--grey-300) transparent; }
+
+  /* 窗口内列表项：元信息后退 */
+  .item{
+    padding: 10px 12px; border-radius: 10px; cursor: pointer;
+    transition: background .15s ease;
+  }
+  .item:hover{ background: var(--bg); }
+  .item .name{ font-size: 13.5px; font-weight: 500; }
+  .item .sub{
+    font-size: 11.5px; color: var(--grey-500);
+    opacity: var(--recede); transition: opacity .4s ease;
+    font-variant-numeric: tabular-nums;
+  }
+  .item:hover .sub{ opacity: 1; }
+  .item .row{ display:flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--ink); display:inline-block; margin-right: 6px; vertical-align: 2px; }
+  .dot.dim{ background: var(--grey-300); }
+
+  .group-label{
+    font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--grey-500); padding: 14px 12px 4px;
+  }
+
+  /* ============ 命令面板：文字按需出现 ============ */
+  .palette-mask{
+    position: fixed; inset: 0; background: rgba(246,246,246,.72);
+    backdrop-filter: blur(2px);
+    display: none; z-index: 80;
+  }
+  .palette-mask.open{ display: block; animation: fade .2s ease; }
+  @keyframes fade{ from{opacity:0} to{opacity:1} }
+  .palette{
+    position: fixed; top: 18vh; left: 50%; translate: -50% 0;
+    width: 520px; background: var(--surface);
+    border: 1px solid var(--grey-300); border-radius: 14px;
+    box-shadow: 0 30px 90px -30px rgba(23,23,23,.45);
+    display: none; z-index: 90; overflow: hidden;
+  }
+  .palette.open{ display: block; animation: win-in .25s var(--ease-out); }
+  .palette input{
+    width: 100%; border: 0; outline: 0; background: transparent;
+    font: inherit; font-size: 15px; padding: 16px 20px;
+    border-bottom: 1px solid var(--grey-300);
+  }
+  .palette input::placeholder{ color: var(--grey-500); }
+  .palette .list{ max-height: 320px; overflow-y: auto; padding: 6px; }
+  .palette .foot{
+    padding: 8px 16px; border-top: 1px solid var(--grey-300);
+    font-size: 11px; color: var(--grey-500);
+    display: flex; gap: 16px;
+  }
+
+  /* ============ 设计原则浮层 ============ */
+  .principles{
+    position: fixed; inset: 0; background: var(--bg);
+    z-index: 70; display: none;
+    overflow-y: auto; padding: 8vh 24px 12vh;
+  }
+  .principles.open{ display: block; animation: fade .3s ease; }
+  .principles .inner{ max-width: 640px; margin: 0 auto; }
+  .principles h1{
+    font-size: 34px; font-weight: 700; letter-spacing: -0.02em;
+    line-height: 1.3; margin-bottom: 6px;
+  }
+  .principles .lede{ color: var(--grey-600); margin-bottom: 56px; font-size: 15px; }
+  .principle{ display: flex; gap: 28px; padding: 26px 0; border-top: 1px solid var(--grey-300); }
+  .principle .no{
+    font-size: 12px; color: var(--grey-500); letter-spacing: .1em;
+    font-variant-numeric: tabular-nums; padding-top: 4px; min-width: 32px;
+  }
+  .principle h2{ font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+  .principle p{ color: var(--grey-600); font-size: 13.5px; max-width: 52ch; }
+  .principles .close-p{
+    position: fixed; top: 26px; right: 34px;
+    border: 1px solid var(--grey-300); background: var(--surface);
+    border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 12.5px;
+  }
+  .principles .close-p:hover{ border-color: var(--grey-500); }
+
+  /* ============ 专注模式：舞台收窄，栏退隐 ============ */
+  body.focus .rail{ transform: translateX(-100%); }
+  body.focus .stage{ inset-left: 0; }
+  body.focus .conversation,
+  body.focus .composer,
+  body.focus .context-bar{ max-width: 640px; }
+  body.focus .context-bar{ opacity: .18; }
+
+  .focus-toggle{
+    position: fixed; right: 22px; bottom: 22px; z-index: 60;
+    border: 1px solid var(--grey-300); background: var(--surface);
+    border-radius: 999px; padding: 8px 18px; cursor: pointer;
+    font-size: 12.5px; letter-spacing: .06em; color: var(--grey-600);
+    opacity: var(--recede); transition: opacity .4s ease, color .2s, border-color .2s;
+  }
+  .focus-toggle:hover{ opacity: 1; }
+  body.focus .focus-toggle{ opacity: 1; color: var(--surface); background: var(--ink); border-color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ 图标栏 ══ -->
+<aside class="rail" id="rail">
+  <div class="brand">V</div>
+  <button class="rail-btn" data-win="sessions" data-tip="会话 <kbd>Ctrl K</kbd>" aria-label="会话">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <button class="rail-btn" data-win="agents" data-tip="智能体" aria-label="智能体">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M8 4h8"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/></svg>
+  </button>
+  <button class="rail-btn" data-win="automation" data-tip="自动化" aria-label="自动化">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+  </button>
+  <button class="rail-btn" data-win="settings" data-tip="设置" aria-label="设置">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+  <div class="spacer"></div>
+  <button class="rail-btn" id="btn-principles" data-tip="设计原则" aria-label="设计原则">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+  </button>
+</aside>
+<div class="tip" id="tip"></div>
+
+<!-- ══ 舞台 ══ -->
+<main class="stage">
+  <div class="context-bar">
+    <div class="crumb"><span>会话</span><span>/</span><b id="crumb-title">你好</b><span>· 第 2 轮</span></div>
+    <button class="kbd-hint" id="open-palette">Ctrl K 搜索一切</button>
+  </div>
+
+  <section class="conversation" id="conversation">
+    <div class="msg user">
+      <div class="meta"><span class="zh">你</span><span>13:02</span></div>
+      <div class="body">你好</div>
+    </div>
+    <div class="msg">
+      <div class="meta"><span class="zh">VOID</span><span>13:02</span></div>
+      <div class="body">你好！有什么我可以帮你的吗？<br><br>试试按 <b>Ctrl K</b> —— 所有会话、智能体、设置都收进了命令面板，不再常驻占用你的视线。左侧只剩一排图标，悬停才会告诉你它是什么。</div>
+    </div>
+    <div class="msg user">
+      <div class="meta"><span class="zh">你</span><span>13:04</span></div>
+      <div class="body">帮我看看《迟到三年的告白》的剧本进度</div>
+    </div>
+    <div class="msg">
+      <div class="meta"><span class="zh">VOID</span><span>13:04</span></div>
+      <div class="body">剧本阶段已完成初稿：三幕结构已定，主要角色小传 3/3 完成。分镜阶段待你开始。点左侧第二个图标可以打开智能体面板查看细节 —— 它不再常驻在屏幕上。</div>
+    </div>
+  </section>
+
+  <div class="composer">
+    <div class="box">
+      <textarea placeholder="说点什么…" rows="1"></textarea>
+      <div class="row">
+        <span class="chip">AI 短剧团队 · gpt-5.6-luna</span>
+        <button class="send">发送</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ══ 浮层窗口：会话 ══ -->
+<div class="window" id="win-sessions" style="top:96px; left:96px;">
+  <div class="win-bar">
+    <div class="t">SESSIONS<span class="zh">会话</span></div>
+    <button class="win-close" aria-label="关闭">×</button>
+  </div>
+  <div class="win-body">
+    <div class="group-label">进行中 · Active</div>
+    <div class="item"><div class="row"><span class="name"><span class="dot"></span>迟到三年的告白 · 剧本</span><span class="sub">13:04</span></div></div>
+    <div class="item"><div class="row"><span class="name">底层女孩逆袭制片人 · 策划</span><span class="sub">昨天</span></div></div>
+    <div class="group-label">今天 · Today</div>
+    <div class="item"><div class="row"><span class="name">打招呼</span><span class="sub">11:20</span></div></div>
+    <div class="item"><div class="row"><span class="name">读取根目录前 5 项</span><span class="sub">09:47</span></div></div>
+    <div class="group-label">更早 · Earlier</div>
+    <div class="item"><div class="row"><span class="name">新建 Code 会话 1</span><span class="sub">周一</span></div></div>
+    <div class="item"><div class="row"><span class="name">中文问候</span><span class="sub">周一</span></div></div>
+  </div>
+</div>
+
+<!-- ══ 浮层窗口：智能体 ══ -->
+<div class="window" id="win-agents" style="top:120px; left:460px;">
+  <div class="win-bar">
+    <div class="t">AGENTS<span class="zh">智能体</span></div>
+    <button class="win-close" aria-label="关闭">×</button>
+  </div>
+  <div class="win-body">
+    <div class="group-label">AI 短剧团队</div>
+    <div class="item"><div class="row"><span class="name"><span class="dot"></span>剧本导演</span><span class="sub">进行中</span></div><div class="sub" style="padding-left:12px">《迟到三年的告白》· 初稿完成</div></div>
+    <div class="item"><div class="row"><span class="name"><span class="dot dim"></span>分镜师</span><span class="sub">待命</span></div></div>
+    <div class="item"><div class="row"><span class="name"><span class="dot dim"></span>视频生成</span><span class="sub">待命</span></div></div>
+    <div class="item"><div class="row"><span class="name"><span class="dot dim"></span>后期剪辑</span><span class="sub">待命</span></div></div>
+  </div>
+</div>
+
+<!-- ══ 浮层窗口：自动化 ══ -->
+<div class="window" id="win-automation" style="top:150px; left:830px;">
+  <div class="win-bar">
+    <div class="t">AUTOMATION<span class="zh">自动化</span></div>
+    <button class="win-close" aria-label="关闭">×</button>
+  </div>
+  <div class="win-body">
+    <div class="item"><div class="row"><span class="name">每日财经简报</span><span class="sub">07:42</span></div></div>
+    <div class="item"><div class="row"><span class="name">Kimi Blog 抓取</span><span class="sub">每 6 小时</span></div></div>
+  </div>
+</div>
+
+<!-- ══ 浮层窗口：设置 ══ -->
+<div class="window" id="win-settings" style="top:180px; left:640px;">
+  <div class="win-bar">
+    <div class="t">SETTINGS<span class="zh">设置</span></div>
+    <button class="win-close" aria-label="关闭">×</button>
+  </div>
+  <div class="win-body">
+    <div class="group-label">外观 · Appearance</div>
+    <div class="item"><div class="row"><span class="name">主题</span><span class="sub">跟随系统</span></div></div>
+    <div class="item"><div class="row"><span class="name">字号</span><span class="sub">标准</span></div></div>
+    <div class="group-label">通用 · General</div>
+    <div class="item"><div class="row"><span class="name">语言</span><span class="sub">简体中文</span></div></div>
+  </div>
+</div>
+
+<!-- ══ 命令面板 ══ -->
+<div class="palette-mask" id="palette-mask"></div>
+<div class="palette" id="palette">
+  <input type="text" id="palette-input" placeholder="搜索会话、智能体、设置…" autocomplete="off">
+  <div class="list" id="palette-list"></div>
+  <div class="foot"><span>↑↓ 选择</span><span>↵ 打开</span><span>Esc 关闭</span></div>
+</div>
+
+<!-- ══ 设计原则 ══ -->
+<div class="principles" id="principles">
+  <button class="close-p" id="close-principles">关闭 Esc</button>
+  <div class="inner">
+    <h1>单焦点工作台</h1>
+    <p class="lede">重新思考信息密度：不是删除功能，而是让一切按需出现。</p>
+
+    <div class="principle"><span class="no">01</span><div>
+      <h2>单焦点舞台</h2>
+      <p>同屏四面板被折叠为一个舞台。对话是唯一主角；智能体、设置、会话列表变为可拖拽的浮层窗口，用完即关。任何时候，用户只需要看一个地方。</p>
+    </div></div>
+
+    <div class="principle"><span class="no">02</span><div>
+      <h2>文字按需出现</h2>
+      <p>常驻文字侧栏消失，变成 56px 纯图标栏 —— 图标的含义只在悬停时用一条提示告诉你。完整的会话列表收进 Ctrl K 命令面板，打字召唤，回车即达。</p>
+    </div></div>
+
+    <div class="principle"><span class="no">03</span><div>
+      <h2>透明度即层级</h2>
+      <p>所有非焦点内容退到 32% 不透明度：图标、时间戳、次要消息、未聚焦的窗口。悬停或聚焦时，它们在 400ms 内回到 100%。界面永远安静，但没有任何信息被删除。</p>
+    </div></div>
+
+    <div class="principle"><span class="no">04</span><div>
+      <h2>灰度阶梯</h2>
+      <p>放弃彩色分区与描边卡片。暖灰底 #f6f6f6、纸面 #fefefd、墨色 #171717，层级全部由灰阶与字重承担。数字使用等宽数字字形，时间戳对齐不跳动。</p>
+    </div></div>
+
+    <div class="principle"><span class="no">05</span><div>
+      <h2>动效只为功能</h2>
+      <p>窗口 300ms 滑入告诉你"它来了"，透明度 400ms 过渡告诉你"它退下了"。没有入场动画、没有悬浮放大、没有装饰性移动。尊重 prefers-reduced-motion。</p>
+    </div></div>
+  </div>
+</div>
+
+<button class="focus-toggle" id="focus-toggle">专注模式</button>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+  /* ── 悬停提示：文字只在需要时出现 ── */
+  var tip = $("#tip");
+  $$(".rail-btn").forEach(function(btn){
+    btn.addEventListener("mouseenter", function(){
+      if(!btn.dataset.tip) return;
+      tip.innerHTML = btn.dataset.tip;
+      var r = btn.getBoundingClientRect();
+      tip.style.top = (r.top + r.height/2 - 13) + "px";
+      tip.classList.add("show");
+    });
+    btn.addEventListener("mouseleave", function(){ tip.classList.remove("show"); });
+  });
+
+  /* ── 浮层窗口：桌面隐喻 ── */
+  var zTop = 50;
+  function focusedWin(){ return $$(".window.open").sort(function(a,b){ return (+b.style.zIndex||0)-(+a.style.zIndex||0); })[0]; }
+  function refreshRecede(){
+    var top = focusedWin();
+    $$(".window.open").forEach(function(w){ w.classList.toggle("recede", w !== top); });
+  }
+  function toggleWin(name, forceClose){
+    var win = $("#win-"+name);
+    if(!win) return;
+    var btn = document.querySelector('.rail-btn[data-win="'+name+'"]');
+    if(win.classList.contains("open") || forceClose){
+      win.classList.remove("open");
+      if(btn) btn.classList.remove("on");
+    }else{
+      win.classList.add("open");
+      win.style.zIndex = ++zTop;
+      if(btn) btn.classList.add("on");
+    }
+    refreshRecede();
+  }
+  $$(".rail-btn[data-win]").forEach(function(btn){
+    btn.addEventListener("click", function(){ toggleWin(btn.dataset.win); });
+  });
+  $$(".win-close").forEach(function(x){
+    x.addEventListener("click", function(){ x.closest(".window").classList.remove("open");
+      $$(".rail-btn").forEach(function(b){ b.classList.remove("on"); });
+      refreshRecede();
+    });
+  });
+  $$(".window").forEach(function(win){
+    win.addEventListener("mousedown", function(){ win.style.zIndex = ++zTop; refreshRecede(); });
+    /* 拖拽 */
+    var bar = win.querySelector(".win-bar"), sx, sy, ox, oy, dragging = false;
+    bar.addEventListener("mousedown", function(e){
+      if(e.target.closest(".win-close")) return;
+      dragging = true; sx = e.clientX; sy = e.clientY;
+      var r = win.getBoundingClientRect(); ox = r.left; oy = r.top;
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", function(e){
+      if(!dragging) return;
+      win.style.left = Math.max(8, ox + e.clientX - sx) + "px";
+      win.style.top  = Math.max(8, oy + e.clientY - sy) + "px";
+    });
+    document.addEventListener("mouseup", function(){ dragging = false; });
+  });
+
+  /* ── 命令面板：Ctrl K ── */
+  var mask = $("#palette-mask"), palette = $("#palette"),
+      input = $("#palette-input"), list = $("#palette-list");
+  var DATA = [
+    { t:"会话", n:"迟到三年的告白 · 剧本", s:"进行中" },
+    { t:"会话", n:"底层女孩逆袭制片人 · 策划", s:"昨天" },
+    { t:"会话", n:"打招呼", s:"11:20" },
+    { t:"会话", n:"读取根目录前 5 项", s:"09:47" },
+    { t:"会话", n:"中文问候", s:"周一" },
+    { t:"智能体", n:"剧本导演", s:"AI 短剧团队" },
+    { t:"智能体", n:"分镜师", s:"待命" },
+    { t:"设置", n:"外观 · 主题", s:"跟随系统" },
+    { t:"设置", n:"语言", s:"简体中文" },
+    { t:"自动化", n:"每日财经简报", s:"07:42" }
+  ];
+  var selIdx = 0;
+  function renderList(q){
+    var rows = DATA.filter(function(d){
+      return !q || (d.n + d.t + d.s).toLowerCase().indexOf(q.toLowerCase()) !== -1;
+    });
+    selIdx = 0;
+    list.innerHTML = rows.map(function(d, i){
+      return '<div class="item'+(i===0?' hover':'')+'" data-i="'+i+'" style="'+(i===0?'background:var(--bg)':'')+'">'
+        + '<div class="row"><span class="name">'+d.n+'</span><span class="sub">'+d.s+'</span></div>'
+        + '<div class="sub">'+d.t+'</div></div>';
+    }).join("") || '<div class="item"><span class="sub" style="opacity:1">没有匹配结果</span></div>';
+    $$("#palette-list .item").forEach(function(el, i){
+      el.addEventListener("click", function(){ pick(rows[i]); });
+      el.addEventListener("mouseenter", function(){
+        $$("#palette-list .item").forEach(function(x){ x.style.background=""; });
+        el.style.background = "var(--bg)"; selIdx = i;
+      });
+    });
+    palette._rows = rows;
+  }
+  function pick(d){
+    if(!d) return;
+    closePalette();
+    if(d.t === "会话"){ $("#crumb-title").textContent = d.n.split(" · ")[0]; }
+    if(d.t === "智能体"){ toggleWin("agents"); }
+    if(d.t === "设置"){ toggleWin("settings"); }
+    if(d.t === "自动化"){ toggleWin("automation"); }
+  }
+  function openPalette(){ mask.classList.add("open"); palette.classList.add("open"); input.value=""; renderList(""); setTimeout(function(){ input.focus(); }, 30); }
+  function closePalette(){ mask.classList.remove("open"); palette.classList.remove("open"); }
+  mask.addEventListener("click", closePalette);
+  $("#open-palette").addEventListener("click", openPalette);
+  input.addEventListener("input", function(){ renderList(input.value.trim()); });
+  input.addEventListener("keydown", function(e){
+    var rows = palette._rows || [];
+    if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+      e.preventDefault();
+      selIdx = (selIdx + (e.key==="ArrowDown"?1:-1) + rows.length) % rows.length;
+      $$("#palette-list .item").forEach(function(x,i){ x.style.background = i===selIdx ? "var(--bg)" : ""; });
+    }
+    if(e.key === "Enter"){ pick(rows[selIdx]); }
+  });
+
+  /* ── 设计原则 ── */
+  var principles = $("#principles");
+  $("#btn-principles").addEventListener("click", function(){ principles.classList.add("open"); });
+  $("#close-principles").addEventListener("click", function(){ principles.classList.remove("open"); });
+
+  /* ── 专注模式 ── */
+  $("#focus-toggle").addEventListener("click", function(){ document.body.classList.toggle("focus"); });
+
+  /* ── 键盘 ── */
+  document.addEventListener("keydown", function(e){
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); openPalette(); }
+    if(e.key === "Escape"){ closePalette(); principles.classList.remove("open"); }
+  });
+
+  /* ── 输入框自动增高 ── */
+  var ta = document.querySelector(".composer textarea");
+  ta.addEventListener("input", function(){
+    ta.style.height = "24px";
+    ta.style.height = Math.min(120, ta.scrollHeight) + "px";
+  });
+})();
+</script>
+</body>
+</html>

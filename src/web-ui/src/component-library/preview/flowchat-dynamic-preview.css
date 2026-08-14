@@ -1,0 +1,126 @@
+.flow-dynamic-live {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--workspace-border-subtle);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--workspace-surface-raised) 94%, transparent);
+  box-shadow: var(--workspace-shadow-raised);
+}
+
+.flow-dynamic-live__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--workspace-border-subtle);
+  background: var(--workspace-surface-canvas);
+}
+
+.flow-dynamic-live__toolbar > span,
+.flow-dynamic-live__toolbar > div,
+.flow-dynamic-live__toolbar button {
+  display: flex;
+  align-items: center;
+}
+
+.flow-dynamic-live__toolbar > span {
+  gap: 6px;
+  color: var(--workspace-primary-action);
+  font-size: var(--workspace-font-size-meta);
+  font-weight: var(--workspace-font-weight-medium);
+}
+
+.flow-dynamic-live__toolbar small {
+  color: var(--workspace-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--workspace-font-size-micro);
+  font-weight: var(--workspace-font-weight-regular);
+}
+
+.flow-dynamic-live__toolbar > div {
+  gap: 4px;
+}
+
+.flow-dynamic-live__toolbar button {
+  gap: 5px;
+  min-height: 27px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--workspace-radius-control);
+  color: var(--workspace-text-muted);
+  background: transparent;
+  font: inherit;
+  font-size: var(--workspace-font-size-micro);
+  cursor: pointer;
+}
+
+.flow-dynamic-live__toolbar button:hover {
+  color: var(--workspace-primary-action);
+  background: var(--workspace-surface-hover);
+}
+
+.flow-dynamic-live__toolbar button:focus-visible {
+  outline: 2px solid var(--workspace-focus-ring);
+  outline-offset: 1px;
+}
+
+.flow-dynamic-live__progress {
+  height: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--workspace-primary-action) 8%, transparent);
+}
+
+.flow-dynamic-live__progress i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--workspace-primary-action);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: flow-dynamic-progress 12s linear forwards;
+}
+
+.flow-dynamic-live.is-paused .flow-dynamic-live__progress i {
+  animation-play-state: paused;
+}
+
+.flow-dynamic-live__stage {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  padding: 30px 34px;
+}
+
+.flow-dynamic-live .bui-primitive__label {
+  display: none;
+}
+
+.flow-dynamic-live .bui-primitive__stage {
+  width: 100%;
+}
+
+@keyframes flow-dynamic-progress {
+  to { transform: scaleX(1); }
+}
+
+@media (max-width: 760px) {
+  .flow-dynamic-live__stage {
+    min-height: 190px;
+    padding: 22px 18px;
+  }
+
+  .flow-dynamic-live__toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 9px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-dynamic-live__progress i {
+    animation: none;
+    transform: scaleX(1);
+  }
+}

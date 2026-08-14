@@ -295,4 +295,83 @@
   AI 媒体、短剧五阶段、桌面窗口、WebDriver、权限和会话生命周期；不得用卸载隐藏
   场景、取消后台任务或清空画布的方式优化切换。
 
+## FlowChat 动态 UI 原版组件库（2026-08-14）
+
+### 对照证据
+
+- 设计真值：`https://www.beautifului.dev/` 当前桌面页面，以及逐个点击 19 个
+  `View code` 获得的原始 TSX。
+- 原站捕获：
+  `.codex-artifacts/flow-chat-comparison/beautiful-ui-source/source-desktop.png`
+  和 `source-mobile.png`。
+- 本地全窗口捕获：
+  `.codex-artifacts/flow-chat-comparison/flowchat-dynamic-library-full-window.png`，
+  使用 Per-Monitor-V2 DPI 感知并按 DWM 物理边界捕获，边界与输出均为
+  `2560 × 1368`，完整包含左侧栏、顶部、最右内容、窗口底边和系统控制键。
+- 同图组件对照：
+  `.codex-artifacts/flow-chat-comparison/qa-approval-card-comparison.png`；左右两侧
+  使用同一 Edge 渲染器、相同初始状态，卡片主体均为 320px 宽。
+- 官网全部正式模式的桌面与移动端捕获位于
+  `.codex-artifacts/flow-chat-comparison/beautiful-ui-modes/`；11 个 Variant 的
+  官网/本地纵向同图对照为 `all-variant-source-vs-local.png`，模式尺寸与状态清单
+  记录在 `variant-evidence.json`。
+
+### 结论与修正
+
+- 19 个组件直接使用原站公开源码；其中 Loading State 的 Drive / Dots / Orbit、
+  Thinking State 的 Steps / Reasoning / Search / Coding、Task Rows 的 Capsules /
+  List、Prompt Bar 的 Rounded / Pill 共 11 个正式 Variant 均已接入。其余 15 个
+  案例没有额外 Variant 元数据，原源码中的展开、选择、搜索、输入、权限确认等
+  内部交互状态完整保留，因此组件库合计覆盖 19 个案例、26 个正式展示模式。
+- 原站编译 CSS、Inter / JetBrains Mono 字体和
+  `glimm`、`liveline`、`iconoir-react` 依赖均已本地化，没有重新绘制或改写外观。
+- 首轮同图检查发现 Shadow DOM 中 Tailwind `@property` 初值没有正确参与复合
+  `box-shadow`，使 Approval Card 的单选圆环消失。承载层已在 `base` cascade
+  layer 补齐原始初值；复验后圆环宽度、颜色与 1.5px 内阴影和原站一致，原组件
+  TSX 未因此修改。
+- 本地外层保留 Void 组件库的信息架构、中文标题、持续循环、暂停和重播控制；
+  原版组件放在隔离的暗色舞台中，官网 CSS 不污染组件库或生产工作区。
+- 统一容器切换实测为宽 `1120px`、中 `820px`、窄 `520px`；浏览器缩到
+  `760px` 时无横向溢出。切换动画为 260ms，并在 reduced motion 下关闭。
+- 19 个 Shadow root 和 19 个唯一原组件 ID 均成功挂载；4 组模式选择器的 11 个
+  Variant 已逐一点击并确认 `aria-pressed`，选中的模式在外层自动循环与手动重播后
+  保持不变。暂停、继续、重播、搜索/选择/展开等原组件交互可用，运行期
+  console/page error 为 0。
+- 用户于 2026-08-14 确认该视觉基线可迁入生产 Flow Chat。当前生产共享呈现层已接入
+  原版 3×3 Drive / Orbit 运行指示、思考摘要折叠与计时、多个工具时间线；工具事件、
+  模型摘要、权限、团队运行时、会话生命周期、路由、持久化、Canvas、左栏和生产
+  工具卡注册路径均未修改。
+- 后续确认要求全部迁入并删除其他实现造成的重复动画/隐藏逻辑：生产绑定现覆盖全部
+  19 个原版组件 ID；运行提示、工具状态、任务状态和思考直接挂载 Beautiful UI 源
+  组件。已删除自制 BeautifulPixelGrid / BeautifulLoadingState、thinking-orbs、正文
+  二次打字机、任务完成环、思考自动收起、工具组隐藏和旧涟漪动画。思考与活动内容
+  始终使用真实模型摘要和工具事件，不展示或伪造隐藏推理。
+- 真实桌面项目全窗口证据为
+  `.codex-artifacts/flow-chat-production-baseline/void-production-flowchat-baseline-full.png`；
+  采用 Per-Monitor-V2 与 DWM 物理边界捕获，输出 `2560 × 1368`，包含完整顶部、
+  左侧栏、最右侧 Team 面板、底部输入区和窗口控制键。
+- 最终代码审查后的生产复验为
+  `.codex-artifacts/code-review-final/void-flowchat-tools.png`：真实历史会话中模型摘要
+  “思考过程”、终端工具摘要和正文输出同时可见，输入区没有第二层活动边框。sidecar
+  记录 Per-Monitor-V2、DPI 144、DWM `0,0–2560,1368`、
+  `PrintWindow(PW_RENDERFULLCONTENT)` 与 `potentially_occluded=false`。
+- 独立预览最终自动交互覆盖 19 张案例、26 个模式、1120/820/520 三档容器、暂停、
+  重播、键盘切换、全部 11 个 Variant 和 reduced motion；无横向溢出、console error
+  或 page error。截图为 `.codex-artifacts/code-review-final/preview-flowchat-wide.png`、
+  `preview-flowchat-narrow.png` 和 `preview-thinking-coding.png`。
+- 最终回归：Web 536/536 个测试文件、3117/3117 项通过；Core 1394 项通过、5 项显式
+  ignored，三个集成测试文件 13/13 项通过；WebDriver crate、Workspace cargo check、
+  类型、Lint、i18n、主题、边界、仓库卫生、生产构建与性能预算全部通过。
+
+### 可访问性与响应式
+
+- 容器切换使用命名的 `role="group"` 和 `aria-pressed`；暂停/继续、重播按钮均
+  使用语义 button，键盘可达并具备 `focus-visible`。
+- 官网模式切换器按原站布局和样式接入，并补充命名 `role="group"` 与
+  `aria-pressed`；键盘可逐项聚焦和切换，不依赖鼠标悬停才能辨认当前模式。
+- 原站组件自身的 ARIA、键盘选择、焦点、disabled/expanded 状态和
+  `prefers-reduced-motion` 规则随源码及 CSS 一并保留。
+- 自动化覆盖桌面宽、中、窄容器及 760px 页面视口；没有文字遮挡、组件裁切、
+  控件重叠或页面横向滚动。
+
 final result: passed

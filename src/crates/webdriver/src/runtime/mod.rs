@@ -19,11 +19,19 @@ static BRIDGE_STATE: OnceLock<Arc<AppState>> = OnceLock::new();
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct BridgeResponse {
+    #[serde(rename = "channel")]
+    pub(crate) _channel: BridgeChannel,
     #[serde(rename = "requestId")]
     pub(crate) request_id: String,
     pub(crate) ok: bool,
     pub(crate) value: Option<Value>,
     pub(crate) error: Option<BridgeError>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum BridgeChannel {
+    VoidWebdriverResult,
 }
 
 #[derive(Debug, Deserialize)]
@@ -51,6 +59,22 @@ pub fn handle_invoke_payload(payload: Value) -> Result<(), String> {
     let state = BRIDGE_STATE
         .get()
         .ok_or_else(|| "Embedded WebDriver bridge state is not initialized".to_string())?;
+    if payload.get("channel").and_then(Value::as_str) != Some("void_webdriver_result") {
+        return Ok(());
+    }
+    let request_id = payload
+        .get("requestId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Invalid bridge payload: missing requestId".to_string())?;
+    let request_is_pending = state
+        .pending_requests
+        .lock()
+        .map_err(|_| "Failed to lock pending WebDriver requests".to_string())?
+        .contains_key(request_id);
+    if !request_is_pending {
+        log::debug!("Ignoring stale WebDriver bridge response: request_id={request_id}");
+        return Ok(());
+    }
     let payload = serde_json::from_value::<BridgeResponse>(payload)
         .map_err(|error| format!("Invalid bridge payload: {error}"))?;
     log::debug!(

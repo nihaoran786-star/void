@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>左边栏 v2 · 丰富版 — 曜岩/霜白</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+  background: #0a0a0b; color: #e8e8e6;
+  padding: 48px 32px 80px;
+  font-synthesis: none; -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+
+.page-head { max-width: 1240px; margin: 0 auto 36px; }
+.page-head h1 { font-size: 20px; font-weight: 600; }
+.page-head p { margin-top: 8px; font-size: 12.5px; color: #8a8a86; line-height: 1.8; }
+.page-head b { color: #c9c9c4; font-weight: 600; }
+
+.cols { display: flex; gap: 28px; justify-content: center; max-width: 1240px; margin: 0 auto; flex-wrap: wrap; }
+.col { flex: 1 1 560px; max-width: 592px; display: flex; flex-direction: column; gap: 18px; }
+.col-head { font-size: 13px; font-weight: 600; letter-spacing: .06em; }
+.col-head span { font-weight: 400; color: #7d7d78; font-size: 11.5px; margin-left: 8px; letter-spacing: 0; }
+
+.demo { border-radius: 20px; padding: 26px 24px 22px; display: flex; flex-direction: column; gap: 14px; }
+.demo-row { display: flex; gap: 18px; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+.demo-cap { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.demo-cap h3 { font-size: 12px; font-weight: 600; letter-spacing: .05em; }
+.demo-cap .note { font-size: 10.5px; color: #7d7d78; }
+.play {
+  border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: 11px; color: var(--p-accent, #d4ff00); padding: 2px 0;
+  border-bottom: 1px solid transparent; transition: border-color .2s;
+}
+.play:hover { border-bottom-color: currentColor; }
+
+/* ============ 主题变量:曜岩 / 霜白 ============ */
+.dark { --p-bg: #0c0c0c; --p-panel: #0b0b0b; --p-card: #141414; --p-border: rgba(255,255,255,.09); --p-border-hi: rgba(255,255,255,.16); --p-hover: rgba(255,255,255,.045); --p-text: #f0f0f0; --p-dim: rgba(240,240,240,.55); --p-faint: rgba(240,240,240,.28); --p-accent: #d4ff00; }
+.dark .demo { background: #050505; }
+.light { --p-bg: #fbf9f5; --p-panel: #f6f3ed; --p-card: #ffffff; --p-border: rgba(10,10,12,.1); --p-border-hi: rgba(10,10,12,.22); --p-hover: rgba(10,10,12,.04); --p-text: #0a0a0c; --p-dim: rgba(10,10,12,.6); --p-faint: rgba(10,10,12,.36); --p-accent: #000bbf; }
+.light .demo { background: #efeae2; }
+.light .play { color: var(--p-accent); }
+</style>
+<style>
+/* ================================================================
+   左边栏 v2 · 丰富版
+   信息层加回来:工作区胶囊 / 细线图标 / 助手身份块 / 双行会话
+   但纪律不变:无图标容器、无重色块、动效只有涟漪与发丝线
+   ================================================================ */
+.nav {
+  width: 272px; flex: 0 0 auto;
+  background: var(--p-panel);
+  border: 1px solid var(--p-border);
+  border-radius: 14px;
+  color: var(--p-text);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+/* ── 顶部:当前工作区胶囊(可切换) ── */
+.nav-ws {
+  display: flex; align-items: center; gap: 9px;
+  margin: 12px 12px 0; padding: 8px 10px;
+  border: 1px solid var(--p-border); border-radius: 9px;
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+.nav-ws:hover { border-color: var(--p-border-hi); background: var(--p-hover); }
+.nav-ws .ws-ic {
+  width: 22px; height: 22px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--p-dim);
+}
+.nav-ws .ws-name { font-size: 12.5px; font-weight: 600; letter-spacing: .01em; }
+.nav-ws .ws-branch {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .08em; color: var(--p-faint);
+  margin-top: 1px;
+}
+.nav-ws .ws-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nav-ws .ws-branch { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-ws > svg { color: var(--p-faint); flex: 0 0 auto; }
+
+/* ── 搜索行 ── */
+.nav-search {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 12px 0; padding: 7px 10px;
+  border: 1px solid var(--p-border); border-radius: 9px;
+  color: var(--p-faint); font-size: 11.5px;
+  cursor: pointer;
+  transition: color .2s ease, border-color .2s ease;
+}
+.nav-search:hover { color: var(--p-dim); border-color: var(--p-border-hi); }
+.nav-search .kbd {
+  margin-left: auto; font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 9px; letter-spacing: .08em; color: var(--p-faint);
+  border: 1px solid var(--p-border); border-radius: 3px; padding: 1px 4px;
+}
+
+/* ── 主动作:accent 描边胶囊 ── */
+.nav-primary {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 12px 2px; padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--p-accent) 45%, transparent);
+  border-radius: 9px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: var(--p-text);
+  transition: border-color .2s ease, background-color .2s ease;
+}
+.nav-primary:hover {
+  border-color: var(--p-accent);
+  background: color-mix(in srgb, var(--p-accent) 7%, transparent);
+}
+.nav-primary .plus { font-weight: 400; color: var(--p-accent); font-size: 14px; line-height: 1; }
+.nav-primary .mode {
+  margin-left: auto; font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .16em; color: var(--p-faint);
+}
+
+/* ── 导航行:细线图标 + 文字 + meta ── */
+.nav-rows { padding: 6px 12px 4px; display: flex; flex-direction: column; gap: 1px; }
+.nrow {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: var(--p-dim); font-size: 12px; cursor: pointer;
+  transition: color .18s ease, background-color .18s ease;
+  user-select: none;
+}
+.nrow > svg { flex: 0 0 auto; color: var(--p-faint); transition: color .18s ease; }
+.nrow:hover { color: var(--p-text); background: var(--p-hover); }
+.nrow:hover > svg { color: var(--p-dim); }
+.nrow.is-active { color: var(--p-text); background: var(--p-hover); }
+.nrow.is-active > svg { color: var(--p-accent); }
+.nrow.is-active::before {
+  content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px;
+  border-radius: 1px;
+  background: var(--p-accent);
+}
+.nrow .nmeta {
+  margin-left: auto; font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .12em; color: var(--p-faint);
+  display: flex; align-items: center; gap: 4px;
+}
+.nrow .nbadge {
+  min-width: 14px; height: 14px; padding: 0 3px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--p-accent) 18%, transparent);
+  color: var(--p-accent);
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; line-height: 14px; text-align: center; letter-spacing: 0;
+}
+.nrow .chev { transition: transform .25s cubic-bezier(.22,1,.36,1); }
+.nrow.is-open .chev { transform: rotate(90deg); }
+
+/* ── 扩展子列表 ── */
+.nsub {
+  display: none;
+  margin: 1px 0 3px 21px; padding-left: 8px;
+  border-left: 1px solid var(--p-border);
+  flex-direction: column; gap: 1px;
+}
+.nsub.is-open { display: flex; }
+.nsub .nrow { font-size: 11.5px; padding: 5px 8px; }
+
+/* ── 分区头 ── */
+.nsec {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 14px 3px;
+  cursor: pointer; user-select: none;
+}
+.nsec .nl {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 9px; letter-spacing: .2em; color: var(--p-faint);
+  transition: color .2s ease;
+}
+.nsec:hover .nl { color: var(--p-dim); }
+.nsec .hline { flex: 1; height: 1px; background: var(--p-border); }
+.nsec .nc {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 9px; letter-spacing: .1em; color: var(--p-faint);
+}
+.nsec .nplus {
+  border: 0; background: none; color: var(--p-faint); cursor: pointer;
+  font: inherit; font-size: 13px; line-height: 1; padding: 0 1px;
+  transition: color .18s ease;
+}
+.nsec .nplus:hover { color: var(--p-accent); }
+.nsec .chev { transition: transform .25s cubic-bezier(.22,1,.36,1); color: var(--p-faint); display: flex; }
+.nsec.is-closed .chev { transform: rotate(-90deg); }
+
+/* ── 助手身份块 ── */
+.nagent {
+  display: flex; align-items: center; gap: 9px;
+  margin: 2px 12px 2px; padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+.nagent:hover { background: var(--p-hover); }
+.nagent .av {
+  position: relative;
+  width: 24px; height: 24px; flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid var(--p-border-hi);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--p-dim);
+}
+.nagent .av::after {
+  content: ""; position: absolute; right: -1px; bottom: -1px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--p-accent);
+  border: 2px solid var(--p-panel);
+}
+.nagent .av-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nagent .av-name { font-size: 12px; font-weight: 600; color: var(--p-text); }
+.nagent .av-sub {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .1em; color: var(--p-faint);
+}
+.nagent > svg { color: var(--p-faint); }
+
+/* ── 会话行:双行 — 标题 + mono 子行 ── */
+.nlist { padding: 0 12px 4px; display: flex; flex-direction: column; gap: 1px; }
+.nlist.is-closed { display: none; }
+.srow {
+  position: relative;
+  display: flex; gap: 9px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+.srow:hover { background: var(--p-hover); }
+.srow.is-active { background: var(--p-hover); }
+.srow.is-active::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px;
+  border-radius: 1px;
+  background: var(--p-accent);
+}
+.srow .st { position: relative; width: 7px; height: 7px; flex: 0 0 auto; margin-top: 5px; }
+.srow[data-st="idle"] .st { border: 1px solid var(--p-faint); border-radius: 50%; }
+.srow[data-st="run"] .st { background: var(--p-accent); border-radius: 50%; }
+.srow[data-st="run"] .st::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 50%;
+  border: 1px solid var(--p-accent);
+  animation: srip 1.8s cubic-bezier(.2,.6,.3,1) infinite;
+}
+@keyframes srip { 0% { opacity: .7; transform: scale(.7); } 100% { opacity: 0; transform: scale(2.2); } }
+.srow .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.srow .ttl {
+  font-size: 12px; color: var(--p-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .18s ease;
+}
+.srow:hover .ttl, .srow.is-active .ttl { color: var(--p-text); }
+.srow.is-active .ttl { font-weight: 550; }
+.srow .sub {
+  display: flex; align-items: center; gap: 6px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .08em; color: var(--p-faint);
+  white-space: nowrap; overflow: hidden;
+}
+.srow .sub .tag {
+  border: 1px solid var(--p-border); border-radius: 3px; padding: 0 3px;
+  font-size: 8px; letter-spacing: .12em;
+}
+.srow[data-st="run"] .sub .live { color: var(--p-accent); }
+/* 运行会话:发丝进度 */
+.srow .track { height: 1px; background: var(--p-border); position: relative; margin-top: 4px; display: none; }
+.srow[data-st="run"] .track { display: block; }
+.srow .track i { position: absolute; left: 0; top: -0.5px; height: 2px; width: 0; background: var(--p-accent); transition: width .5s cubic-bezier(.22,1,.36,1); }
+
+/* ── 工作区行 ── */
+.wrow {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 12px; padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color .18s ease;
+}
+.wrow:hover { background: var(--p-hover); }
+.wrow.is-active { background: var(--p-hover); }
+.wrow.is-active::before {
+  content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px;
+  border-radius: 1px;
+  background: var(--p-accent);
+}
+.wrow > svg { flex: 0 0 auto; color: var(--p-faint); }
+.wrow.is-active > svg { color: var(--p-accent); }
+.wrow .w-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.wrow .w-name { font-size: 12px; color: var(--p-dim); transition: color .18s ease; }
+.wrow:hover .w-name, .wrow.is-active .w-name { color: var(--p-text); }
+.wrow .w-branch {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 8.5px; letter-spacing: .08em; color: var(--p-faint);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wrow .w-check { color: var(--p-accent); flex: 0 0 auto; }
+.wrow .w-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--p-faint); flex: 0 0 auto; }
+
+/* ── 底栏 ── */
+.nav-foot {
+  margin-top: auto;
+  border-top: 1px solid var(--p-border);
+  padding: 8px 12px 10px;
+  display: flex; align-items: center; gap: 2px;
+}
+.nav-foot .fbtn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 8px; border-radius: 7px;
+  color: var(--p-dim); font-size: 11.5px; cursor: pointer;
+  transition: color .18s ease, background-color .18s ease;
+}
+.nav-foot .fbtn:hover { color: var(--p-text); background: var(--p-hover); }
+.nav-foot .fbtn svg { color: var(--p-faint); }
+.nav-foot .fav {
+  margin-left: auto;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--p-border-hi);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: var(--p-dim);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+</style>
+<body>
+<header class="page-head">
+  <h1>左边栏 v2 — 丰富版</h1>
+  <p>v1 收得太狠。这一版把信息层加回来:<b>工作区切换胶囊、细线图标、助手身份块、双行会话(标题 + mono 子行)、运行徽标</b>。<br>
+  纪律不变:图标无容器、选中态只有 2px 光线 + 微底色、动效仍只有涟漪与发丝进度。点 ▶ 播放看会话收尾。</p>
+</header>
+
+<div class="cols"></div>
+
+<template id="col-tpl">
+  <div class="col-inner">
+    <div class="col-head"></div>
+
+    <div class="demo">
+      <div class="demo-cap">
+        <h3>完整栏 · 丰富版</h3>
+        <span class="note">图标回归 · 双行会话 · 身份块</span>
+        <button class="play" data-demo="run">▶ 播放</button>
+      </div>
+      <div class="demo-row">
+        <nav class="nav" data-nav>
+          <!-- 工作区胶囊 -->
+          <div class="nav-ws">
+            <span class="ws-ic">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            </span>
+            <span class="ws-meta">
+              <span class="ws-name">void-source</span>
+              <span class="ws-branch">feat/nav-redesign · 本地</span>
+            </span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+
+          <!-- 搜索 -->
+          <div class="nav-search">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <span>搜索会话、文件、工具</span>
+            <kbd class="kbd">⌘K</kbd>
+          </div>
+
+          <!-- 主动作 -->
+          <div class="nav-primary">
+            <span class="plus">+</span><span>新建任务</span>
+            <span class="mode">CODE · ⌘N</span>
+          </div>
+
+          <!-- 导航 -->
+          <div class="nav-rows">
+            <div class="nrow" data-navrow>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+              <span>助手</span>
+            </div>
+            <div class="nrow" data-navrow>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18M9 14l2 2 4-4"/></svg>
+              <span>自动化</span>
+              <span class="nmeta"><span class="nbadge">3</span></span>
+            </div>
+            <div class="nrow" data-ext-toggle>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span>扩展</span>
+              <span class="nmeta">
+                <svg class="chev" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
+              </span>
+            </div>
+            <div class="nsub" data-ext-list>
+              <div class="nrow" data-navrow>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="9" cy="8" r="3.2"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 20c0-3.2 2.5-5 5.5-5s5.5 1.8 5.5 5M14.5 15.6c2.6.3 5 1.9 5 4.4"/></svg>
+                <span>智能体</span>
+              </div>
+              <div class="nrow" data-navrow>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6zM4 4h6v6H4z"/></svg>
+                <span>技能</span>
+              </div>
+              <div class="nrow" data-navrow>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0-6v6"/></svg>
+                <span>连接器</span>
+                <span class="nmeta">12</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 助手会话 -->
+          <div class="nsec" data-sec-toggle>
+            <span class="nl">助手会话</span>
+            <span class="hline"></span>
+            <span class="nc">04</span>
+            <span class="chev"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m6 9 6 6 6-6"/></svg></span>
+          </div>
+          <div class="nlist" data-sec-list>
+            <div class="nagent">
+              <span class="av">K</span>
+              <span class="av-meta">
+                <span class="av-name">Kimi</span>
+                <span class="av-sub">默认助手 · 在线</span>
+              </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 6 6 6-6 6"/></svg>
+            </div>
+            <div class="srow" data-st="run" data-srow>
+              <span class="st"></span>
+              <span class="body">
+                <span class="ttl">重构左侧导航的信息架构</span>
+                <span class="sub"><span class="tag">CODE</span><span class="live" data-run-ms>运行 12:40</span></span>
+                <span class="track"><i data-run-fill></i></span>
+              </span>
+            </div>
+            <div class="srow is-active" data-st="idle" data-srow>
+              <span class="st"></span>
+              <span class="body">
+                <span class="ttl">工具调用动效重构</span>
+                <span class="sub"><span class="tag">CODE</span><span>11:05 · 38 条消息</span></span>
+              </span>
+            </div>
+            <div class="srow" data-st="idle" data-srow>
+              <span class="st"></span>
+              <span class="body">
+                <span class="ttl">短剧分镜 · 第 3 集台词</span>
+                <span class="sub"><span class="tag">MEDIA</span><span>昨天</span></span>
+              </span>
+            </div>
+            <div class="srow" data-st="idle" data-srow>
+              <span class="st"></span>
+              <span class="body">
+                <span class="ttl">团队面板悬浮化评审</span>
+                <span class="sub"><span class="tag">COWORK</span><span>周一 · 4 人协作</span></span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 工作区 -->
+          <div class="nsec" data-sec-toggle>
+            <span class="nl">工作区</span>
+            <span class="hline"></span>
+            <span class="nc">02</span>
+            <button class="nplus" title="添加工作区" onclick="event.stopPropagation()">+</button>
+            <span class="chev"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m6 9 6 6 6-6"/></svg></span>
+          </div>
+          <div class="nlist" data-sec-list style="padding:0">
+            <div class="wrow is-active">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="w-meta">
+                <span class="w-name">void-source</span>
+                <span class="w-branch">feat/nav-redesign</span>
+              </span>
+              <svg class="w-check" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+            </div>
+            <div class="wrow">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span class="w-meta">
+                <span class="w-name">kimi-desktop</span>
+                <span class="w-branch">main</span>
+              </span>
+              <span class="w-dot"></span>
+            </div>
+          </div>
+
+          <!-- 底栏 -->
+          <div class="nav-foot">
+            <span class="fbtn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span>MiniApp</span>
+            </span>
+            <span class="fbtn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.26.6.86 1 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
+              <span>设置</span>
+            </span>
+            <span class="fav">S</span>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/* 克隆曜岩/霜白两栏 */
+const tpl = document.getElementById('col-tpl');
+const cols = document.querySelector('.cols');
+[['dark', '曜岩', '深色模式'], ['light', '霜白', '浅色模式']].forEach(([cls, name, sub]) => {
+  const col = document.createElement('div');
+  col.className = `col ${cls}`;
+  col.appendChild(tpl.content.cloneNode(true));
+  col.querySelector('.col-head').innerHTML = `${name} <span>${sub}</span>`;
+  cols.appendChild(col);
+});
+
+/* ── 交互 ── */
+document.querySelectorAll('[data-nav]').forEach(nav => {
+  nav.querySelectorAll('.nlist').forEach(list => {
+    list.querySelectorAll('[data-srow]').forEach(row => {
+      row.addEventListener('click', () => {
+        list.querySelectorAll('.srow').forEach(r => r.classList.remove('is-active'));
+        row.classList.add('is-active');
+      });
+    });
+  });
+  nav.querySelectorAll('.wrow').forEach(row => {
+    row.addEventListener('click', () => {
+      nav.querySelectorAll('.wrow').forEach(r => {
+        r.classList.remove('is-active');
+        const ck = r.querySelector('.w-check');
+        if (ck) ck.replaceWith(makeDot());
+      });
+      row.classList.add('is-active');
+      row.querySelector('.w-dot')?.replaceWith(makeCheck());
+    });
+  });
+  nav.querySelectorAll('[data-navrow]').forEach(row => {
+    row.addEventListener('click', () => {
+      nav.querySelectorAll('.nav-rows .nrow, .nsub .nrow').forEach(r => r.classList.remove('is-active'));
+      row.classList.add('is-active');
+    });
+  });
+  const extToggle = nav.querySelector('[data-ext-toggle]');
+  const extList = nav.querySelector('[data-ext-list]');
+  extToggle.addEventListener('click', () => {
+    extToggle.classList.toggle('is-open');
+    extList.classList.toggle('is-open');
+  });
+  nav.querySelectorAll('[data-sec-toggle]').forEach(sec => {
+    sec.addEventListener('click', () => {
+      sec.classList.toggle('is-closed');
+      sec.nextElementSibling.classList.toggle('is-closed');
+    });
+  });
+});
+
+function makeDot() {
+  const s = document.createElement('span');
+  s.className = 'w-dot';
+  return s;
+}
+function makeCheck() {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('class', 'w-check');
+  s.setAttribute('width', '11'); s.setAttribute('height', '11');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2.4');
+  s.innerHTML = '<path d="M4 12.5 9.5 18 20 6.5"/>';
+  return s;
+}
+
+/* ── 播放:运行会话收尾 ── */
+document.querySelectorAll('[data-demo="run"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const demo = btn.closest('.demo');
+    const row = demo.querySelector('[data-srow][data-st="run"]');
+    if (!row) return;
+    const fill = row.querySelector('[data-run-fill]');
+    const ms = row.querySelector('[data-run-ms]');
+    let pct = 12;
+    fill.style.width = pct + '%';
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const s = (performance.now() - t0) / 1000;
+      pct = Math.min(100, 12 + s * 30);
+      fill.style.width = pct + '%';
+      ms.textContent = '运行 12:' + String(40 + Math.floor(s)).padStart(2, '0');
+      if (pct >= 100) {
+        clearInterval(id);
+        row.dataset.st = 'idle';
+        ms.textContent = '12:43 · 刚刚完成';
+        ms.classList.remove('live');
+        setTimeout(() => { fill.style.width = '0'; }, 600);
+      }
+    }, 100);
+  });
+});
+</script>
+</body>
+</html>

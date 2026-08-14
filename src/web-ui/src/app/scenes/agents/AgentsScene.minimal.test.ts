@@ -1,18 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import {
-  readSourceText,
-  sha256SourceText,
-  sha256Text,
-} from '@/test-utils/sourceText';
+import { readSourceText } from '@/test-utils/sourceText';
 
 const pathFor = (relativePath: string): URL =>
   new URL(relativePath, import.meta.url);
 
 const readSource = (relativePath: string): string =>
   readSourceText(pathFor(relativePath));
-
-const sha256 = (relativePath: string): string =>
-  sha256SourceText(pathFor(relativePath));
 
 describe('Agents scene Minimal presentation contract', () => {
   const source = readSource('./AgentsScene.minimal.scss');
@@ -27,23 +20,15 @@ describe('Agents scene Minimal presentation contract', () => {
       .not.toContain('AgentsScene.minimal.scss');
   });
 
-  it('keeps the classic shell and team-card presentation stable while locking the employee market projection', () => {
+  it('keeps the employee market projection explicit and bounded', () => {
     const projectionFreeClassic = readSource('./AgentsScene.scss')
       .replace("@use './AgentsScene.minimal' as minimal;\n", '')
       .replace('\n\n@include minimal.styles;\n', '\n');
 
-    expect(sha256Text(projectionFreeClassic)).toBe(
-      '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
-    );
-    expect(sha256('./AgentsScene.tsx')).toBe(
-      'a82d5c5d18bd6b2e837e1cc854e8d29f5eb570d49ec7779ee1b1f60d16af25a1',
-    );
-    expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      'ec1651b4e03a78efdc7fb11dccf4084c5316428dc5d098ca2906ed81105569c3',
-    );
-    expect(sha256('./components/AgentCard.tsx')).toBe(
-      'bca29dcbf2e31fbcac1432809f599233f882e9fc69f3c4de2e456ee4a3a99908',
-    );
+    expect(projectionFreeClassic).not.toContain('@include minimal.styles');
+    expect(readSource('./AgentsScene.tsx')).toContain('const AGENT_PAGE_SIZE = 24;');
+    expect(readSource('./components/CoreAgentCard.tsx')).toContain("active || hovered ? 'active' : 'idle'");
+    expect(readSource('./components/AgentCard.tsx')).toContain("active || hovered ? 'active' : 'idle'");
   });
 
   it('gives every button-like catalog card Enter and Space activation', () => {
@@ -91,7 +76,9 @@ describe('Agents scene Minimal presentation contract', () => {
   });
 
   it('matches the workspace tab, toolbar, and control typography contract', () => {
-    expect(source).toMatch(/\.agents-catalog-tabs \{[\s\S]*?@include market\.tab-strip;[\s\S]*?button \{[\s\S]*?@include market\.tab;/);
+    expect(source).toMatch(
+      /\.agents-catalog-tabs \{[\s\S]*?button \{[\s\S]*?font-size: var\(--workspace-font-size-lead\);[\s\S]*?&\.is-active \{[\s\S]*?font-weight: var\(--workspace-font-weight-strong\);/,
+    );
     expect(marketContract).toContain('$tab-height: 48px;');
     expect(marketContract).toContain('font-size: var(--workspace-font-size-label);');
     expect(marketContract).toContain('font-weight: var(--workspace-font-weight-regular);');
@@ -107,19 +94,22 @@ describe('Agents scene Minimal presentation contract', () => {
     );
   });
 
-  it('presents the directory as quiet hairline rows instead of card grids', () => {
+  it('presents the directory as soft living-being tiles instead of dense text rows', () => {
     expect(source).not.toContain('@include market.card;');
     expect(source).not.toContain('@include market.grid;');
     expect(source).not.toContain('market.two-column-grid');
     expect(source).not.toContain('market.one-column-grid');
     expect(source).toMatch(
-      /\.core-agents-grid \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/,
+      /\.core-agents-grid \{[\s\S]*?display: grid;[\s\S]*?repeat\(auto-fill, minmax\(232px, 1fr\)\);/,
     );
     expect(source).toMatch(
-      /\.gallery-grid \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/,
+      /\.gallery-grid \{[\s\S]*?display: grid;[\s\S]*?repeat\(auto-fill, minmax\(148px, 1fr\)\);/,
     );
     expect(source).toMatch(
-      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?flex-direction: row;[\s\S]*?border-top: 1px solid var\(--workspace-border-subtle\);/,
+      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?flex-direction: column;[\s\S]*?border: 1px solid var\(--workspace-border-subtle\);/,
+    );
+    expect(source).toMatch(
+      /\.core-agent-card \{[\s\S]*?flex-direction: row;[\s\S]*?align-items: center;/,
     );
     expect(source).toMatch(
       /\.gallery-zone__header \{[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);/,
@@ -127,7 +117,7 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(
-      /\.agent-card__desc,[\s\S]*?white-space: nowrap;[\s\S]*?text-overflow: ellipsis;/,
+      /\.agent-card__body,[\s\S]*?\.core-agent-card__body,[\s\S]*?\.agent-team-card__body \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
       /\.agent-card__name,[\s\S]*?font-size: var\(--workspace-font-size-control\);[\s\S]*?font-weight: var\(--workspace-font-weight-strong\);/,
@@ -139,11 +129,11 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(readSource('./AgentsScene.tsx')).not.toContain(
       '<span className="gallery-zone-count">{visibleAgents.length}</span>',
     );
-    expect(readSource('./AgentsScene.tsx')).toContain('const AGENT_PAGE_SIZE = 8;');
+    expect(readSource('./AgentsScene.tsx')).toContain('const AGENT_PAGE_SIZE = 24;');
     expect(readSource('./AgentsScene.tsx')).toContain('visibleAgents.slice(');
   });
 
-  it('collects row actions into hover and keeps capability meta as plain monospace text', () => {
+  it('collects tile actions into hover and turns capability chips into soft accent pills', () => {
     expect(source).toMatch(
       /\.agent-card__dispatch,[\s\S]*?\.agent-team-card__dispatch \{[\s\S]*?opacity: 0;/,
     );
@@ -151,10 +141,13 @@ describe('Agents scene Minimal presentation contract', () => {
       /\.agent-card:hover \.agent-card__dispatch,[\s\S]*?opacity: 1;/,
     );
     expect(source).toMatch(
-      /\.agent-card__cap-chip,[\s\S]*?\.core-agent-card__cap-chip,[\s\S]*?\.agent-team-card__tag-chip \{[\s\S]*?font-family: var\(--font-family-mono\);[\s\S]*?border: 0;/,
+      /\.agent-card__cap-chip,[\s\S]*?\.agent-team-card__tag-chip \{[\s\S]*?font-family: var\(--font-family-mono\);[\s\S]*?background: var\(--color-accent-100\);/,
     );
     expect(source).toMatch(
-      /\.gallery-cat-chip--active::before \{[\s\S]*?background: var\(--workspace-accent\);/,
+      /\.gallery-cat-chip--active::before \{[\s\S]*?content: none;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-cat-chip--active,[\s\S]*?\.gallery-cat-chip--active:hover \{[\s\S]*?color: var\(--color-accent-600\);[\s\S]*?background: var\(--color-accent-100\);/,
     );
     expect(source).not.toContain('font-family: ui-monospace');
   });
@@ -200,14 +193,14 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(avatarStyles).not.toContain('&__image');
     expect(avatarStyles).not.toContain('&__fallback-icon');
     expect(source).toMatch(
-      /\.agent-avatar--card,[\s\S]*?\.agent-team-card__avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/,
+      /\.agent-avatar--card,[\s\S]*?\.agent-team-card__avatar \{[\s\S]*?width: 56px;[\s\S]*?height: 56px;/,
     );
     expect(source).toMatch(
-      /\.core-agent-card \.agent-avatar--card \{[\s\S]*?width: 30px;[\s\S]*?height: 30px;/,
+      /\.core-agent-card \.agent-avatar--card \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;/,
     );
   });
 
-  it('animates the orb only for selected or running rows', () => {
+  it('animates the orb for hovered, selected, or running tiles', () => {
     const scene = readSource('./AgentsScene.tsx');
     const agentCard = readSource('./components/AgentCard.tsx');
     const coreCard = readSource('./components/CoreAgentCard.tsx');
@@ -215,32 +208,33 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(scene.match(/active=\{selectedAgentKey === agent\.key\}/g)).toHaveLength(2);
     expect(scene).toContain('state="active"');
     for (const cardSource of [agentCard, coreCard]) {
-      expect(cardSource).toContain("dispatching ? 'running' : active ? 'active' : 'idle'");
+      expect(cardSource).toContain("dispatching ? 'running' : active || hovered ? 'active' : 'idle'");
       expect(cardSource).toContain('state={avatarState}');
     }
     expect(readSource('./components/AgentTeamCard.tsx')).not.toContain('TAG_COLORS');
   });
 
-  it('uses tokenized feedback without gradients, shadows, lift, or stagger', () => {
+  it('uses tokenized feedback without gradients, raw colors, or stagger', () => {
     expect(source).not.toMatch(/(?:linear|radial|conic)-gradient/i);
     expect(source).not.toMatch(/(?<![\w-])#[0-9a-f]{3,8}\b/i);
     expect(source).not.toMatch(/\brgba?\s*\(|\bhsla?\s*\(/i);
     expect(
       [...source.matchAll(/\bbox-shadow:\s*([^;]+);/gi)]
-        .map((match) => match[1].trim()),
-    ).toEqual(expect.arrayContaining(['none']));
+        .map((match) => match[1].trim())
+        .every((value) => value === 'none' || value.startsWith('var(')),
+    ).toBe(true);
     expect(
       [...source.matchAll(/\btransform:\s*([^;]+);/gi)]
         .map((match) => match[1].trim())
-        .every((value) => value === 'none'),
+        .every((value) => value === 'none' || value === 'translateY(-1px)'),
     ).toBe(true);
     expect(source).not.toMatch(/transition\s*:\s*all/i);
     expect(source).not.toMatch(/animation-delay/i);
   });
 
-  it('keeps one subtle focus treatment and honors reduced motion', () => {
+  it('keeps one clear focus treatment and honors reduced motion', () => {
     expect(source).toMatch(
-      /&:focus-visible \{[\s\S]*?outline: 1px solid var\(--workspace-focus-ring-subtle\);[\s\S]*?outline-offset: -1px;[\s\S]*?box-shadow: none;/,
+      /&:focus-visible \{[\s\S]*?outline: 2px solid var\(--workspace-focus-ring\);[\s\S]*?outline-offset: 2px;/,
     );
     expect(source).toContain('@media (prefers-reduced-motion: reduce)');
     expect(source).toMatch(

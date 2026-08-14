@@ -74,6 +74,7 @@ return (async () => {{
   {helper}
   const response = await window.__voidWd.execute({script}, {args}, {async_mode}, {frame_context});
   return JSON.stringify({{
+    channel: "void_webdriver_result",
     requestId: "__native__",
     ok: response.ok,
     value: response.value,

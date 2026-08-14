@@ -1,21 +1,20 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 /**
  * Explore group renderer.
- * Renders merged explore-only rounds as a collapsible region.
+ * Renders merged explore-only rounds as an always-visible activity region.
  */
 
 import React, { useRef, useMemo, useCallback, useEffect, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import LoadingState from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import type { FlowItem, FlowToolItem, FlowTextItem, FlowThinkingItem } from '../../types/flow-chat';
 import type { ExploreGroupData } from '../../store/modernFlowChatStore';
 import { FlowTextBlock } from '../FlowTextBlock';
 import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
-import { useToolCardHeightContract } from '../../tool-cards/useToolCardHeightContract';
 import { useFlowChatContext } from './FlowChatContext';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
-import { SmoothHeightCollapse } from './SmoothHeightCollapse';
 import './ExploreRegion.scss';
 
 export interface ExploreGroupRendererProps {
@@ -32,13 +31,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = useState({ hasScroll: false, atTop: true, atBottom: true });
   
-  const { 
-    exploreGroupStates, 
-    onExploreGroupToggle, 
-    onCollapseGroup 
-  } = useFlowChatContext();
-  
-  const { 
+  const {
     groupId, 
     allItems, 
     stats, 
@@ -46,29 +39,6 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     isLastGroupInTurn,
     wasCutByCritical,
   } = data;
-  const {
-    cardRootRef,
-    applyExpandedState,
-  } = useToolCardHeightContract({
-    toolId: groupId,
-    toolName: 'explore-group',
-    getCardHeight: () => (
-      containerRef.current?.scrollHeight
-      ?? containerRef.current?.getBoundingClientRect().height
-      ?? null
-    ),
-  });
-  
-  const hasExplicitState = exploreGroupStates?.has(groupId) ?? false;
-  const explicitExpanded = exploreGroupStates?.get(groupId) ?? false;
-  // Tool detail is progressive disclosure: every aggregate starts quiet and
-  // expands only after an explicit user action, including the active tail.
-  const defaultExpanded = false;
-  const isExpanded = hasExplicitState ? explicitExpanded : defaultExpanded;
-  const isCollapsed = !isExpanded;
-  // Header is always interactive so the user can collapse/expand at any time.
-  const allowManualToggle = true;
-
   const checkScrollState = useCallback(() => {
     const el = containerRef.current;
     if (!el) {
@@ -86,7 +56,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   // Use double requestAnimationFrame to ensure the browser has completed
   // layout of newly added content before we measure scrollHeight.
   useEffect(() => {
-    if (isPresentationActive && !isCollapsed && isLastGroupInTurn && !wasCutByCritical && containerRef.current) {
+    if (isPresentationActive && isLastGroupInTurn && !wasCutByCritical && containerRef.current) {
       let innerFrameId: number | null = null;
       const outerFrameId = requestAnimationFrame(() => {
         innerFrameId = requestAnimationFrame(() => {
@@ -102,10 +72,10 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
         if (innerFrameId !== null) cancelAnimationFrame(innerFrameId);
       };
     }
-  }, [allItems, checkScrollState, isCollapsed, isLastGroupInTurn, isPresentationActive, wasCutByCritical]);
+  }, [allItems, checkScrollState, isLastGroupInTurn, isPresentationActive, wasCutByCritical]);
 
   useEffect(() => {
-    if (!isPresentationActive || !isExpanded) {
+    if (!isPresentationActive) {
       setScrollState({ hasScroll: false, atTop: true, atBottom: true });
       return;
     }
@@ -130,7 +100,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
       cancelAnimationFrame(frameId);
       observer.disconnect();
     };
-  }, [allItems, checkScrollState, isExpanded, isPresentationActive]);
+  }, [allItems, checkScrollState, isPresentationActive]);
   
   // Build summary text with i18n.
   const displaySummary = useMemo(() => {
@@ -160,24 +130,15 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     return parts.join(t('exploreRegion.separator'));
   }, [allItems, stats, t]);
 
-  const handleToggle = useCallback(() => {
-    if (isCollapsed) {
-      applyExpandedState(false, true, () => {
-        onExploreGroupToggle?.(groupId);
-      });
-      return;
-    }
-
-    applyExpandedState(true, false, () => {
-      onCollapseGroup?.(groupId);
-    });
-  }, [applyExpandedState, groupId, isCollapsed, onCollapseGroup, onExploreGroupToggle]);
+  const isThinkingOnly = useMemo(() => (
+    allItems.some(item => item.type === 'thinking')
+    && allItems.every(item => item.type !== 'tool')
+  ), [allItems]);
 
   // Build class list.
   const className = [
     'explore-region',
-    'explore-region--collapsible',
-    isCollapsed ? 'explore-region--collapsed' : 'explore-region--expanded',
+    'explore-region--always-visible',
     isGroupStreaming ? 'explore-region--streaming' : null,
     // --bounded: group is still growing (tail, not yet cut). Controls fixed
     // max-height and gradient masks regardless of streaming state.
@@ -188,39 +149,29 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   ].filter(Boolean).join(' ');
   return (
     <div
-      ref={cardRootRef}
       data-tool-card-id={groupId}
+      data-beautiful-component="tool-chips"
       className={className}
     >
-      {allowManualToggle && (
-        <button
-          type="button"
-          className="explore-region__header"
-          aria-expanded={isExpanded}
-          onClick={handleToggle}
-        >
-          <ChevronRight size={14} className="explore-region__icon" aria-hidden="true" />
+      {!isThinkingOnly && (isGroupStreaming ? (
+        <BeautifulUIStage mode="inline" className="explore-region__header">
+          <LoadingState label={displaySummary} variant="Orbit" />
+        </BeautifulUIStage>
+      ) : (
+        <div className="explore-region__header">
           <span className="explore-region__summary">{displaySummary}</span>
-        </button>
-      )}
-      <SmoothHeightCollapse
-        isOpen={isExpanded}
-        className="explore-region__content-wrapper"
-        innerClassName="explore-region__content-inner"
-        durationMs={220}
-        disableAnimation={isGroupStreaming}
-      >
-        <div ref={containerRef} className="explore-region__content" onScroll={checkScrollState}>
-          {allItems.map((item, idx) => (
-            <ExploreItemRenderer
-              key={item.id}
-              item={item}
-              turnId={turnId}
-              isLastItem={isLastGroupInTurn && idx === allItems.length - 1}
-            />
-          ))}
         </div>
-      </SmoothHeightCollapse>
+      ))}
+      <div ref={containerRef} className="explore-region__content" onScroll={checkScrollState}>
+        {allItems.map((item, idx) => (
+          <ExploreItemRenderer
+            key={item.id}
+            item={item}
+            turnId={turnId}
+            isLastItem={isLastGroupInTurn && idx === allItems.length - 1}
+          />
+        ))}
+      </div>
     </div>
   );
 });

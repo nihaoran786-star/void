@@ -53,7 +53,10 @@ export class CapabilityCatalogService {
 
   async list(query: CapabilityCatalogQuery = {}): Promise<CapabilityCatalogResult> {
     const settled = await Promise.allSettled(
-      this.sources.map(source => source.load({ workspacePath: query.workspacePath })),
+      this.sources.map(source => source.load({
+        workspacePath: query.workspacePath,
+        executionPolicy: query.executionPolicy,
+      })),
     );
     const entries = new Map<string, CapabilityCatalogEntry>();
     const sources: CatalogSourceState[] = [];

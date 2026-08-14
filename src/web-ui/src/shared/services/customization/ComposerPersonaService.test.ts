@@ -27,7 +27,7 @@ const customAgent = mapSubagentToCatalogEntry({
     showInGlobalRegistry: true,
     allowedParentAgentIds: ['agentic'],
   },
-} as SubagentInfo & { promptCacheScopeKey: string });
+});
 
 const builtinAgent = mapSubagentToCatalogEntry({
   key: 'builtin::void::Explore',

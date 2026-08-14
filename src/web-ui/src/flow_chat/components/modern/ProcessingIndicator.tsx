@@ -1,13 +1,14 @@
 /**
  * Processing indicator.
- * After 1s of continuous processing, shows a 3×3 Rubik-style dot matrix and
- * rotating fun hint text together (matrix on the left).
+ * After 1s of continuous processing, shows the Beautiful UI loading state
+ * with a rotating live hint and elapsed time.
  * reserveSpace keeps layout height even when hidden.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DotMatrixLoader } from '@/component-library';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import LoadingState from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import './ProcessingIndicator.scss';
 
@@ -71,12 +72,9 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
         style={isEffectivelyVisible ? undefined : { visibility: 'hidden' as const }}
       >
         {showHint && hints.length > 0 && (
-          <>
-            <DotMatrixLoader size="medium" />
-            <span key={hintIndex} className="processing-indicator__hint">
-              {hints[hintIndex]}
-            </span>
-          </>
+          <BeautifulUIStage mode="inline">
+            <LoadingState label={hints[hintIndex]} variant="Drive" />
+          </BeautifulUIStage>
         )}
       </div>
     </div>

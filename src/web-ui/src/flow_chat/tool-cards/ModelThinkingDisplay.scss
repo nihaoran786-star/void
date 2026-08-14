@@ -2,9 +2,8 @@
  * ModelThinking tool styles.
  * Shows internal model reasoning.
  *
- * Single DOM structure for both streaming and completed states.
- * Expanded: max-height with scroll; streaming uses slightly brighter muted text.
- * Completed: auto-collapses via CSS grid-template-rows animation.
+ * Shared prompt/markdown scroll styles retained for TaskToolDisplay.
+ * ModelThinkingDisplay itself now renders the Beautiful UI source component.
  */
 
 @use './_tool-card-common.scss';
@@ -30,73 +29,6 @@
   transition: padding 0.2s ease;
 }
 
-.thinking-collapsed-header {
-  display: flex;
-  align-items: center;
-  gap: var(--flowchat-inline-gap, 0.35rem);
-  padding: 0;
-  border-radius: 4px;
-  cursor: pointer;
-  background: transparent;
-  font-size: var(--flowchat-font-size-sm);
-  line-height: var(--flowchat-support-line-height, 1.45);
-
-  &:hover {
-    .thinking-label {
-      color: var(--text-secondary, #9ca3af);
-      opacity: 1;
-    }
-
-    .thinking-chevron {
-      opacity: 1;
-    }
-  }
-
-  .thinking-chevron {
-    flex-shrink: 0;
-    color: var(--text-tertiary, #6b7280);
-    opacity: 0.6;
-    display: block;
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
-    transform: rotate(0deg);
-  }
-
-  .thinking-orb {
-    display: block;
-    flex: 0 0 64px;
-    width: 64px;
-    height: 64px;
-  }
-
-  .thinking-label {
-    font-size: var(--flowchat-font-size-sm);
-    font-weight: normal;
-    color: var(--text-tertiary, #6b7280);
-    opacity: 0.8;
-    line-height: var(--flowchat-support-line-height, 1.45);
-  }
-}
-
-/* Rotate chevron when expanded */
-.flow-thinking-item.expanded .thinking-chevron {
-  transform: rotate(90deg);
-}
-
-/* Expand container with animation */
-.thinking-expand-container {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s ease-out;
-
-  &--open {
-    grid-template-rows: 1fr;
-  }
-
-  > .thinking-content-wrapper {
-    overflow: hidden;
-  }
-}
-
 .thinking-content {
   font-size: var(--flowchat-font-size-base);
   line-height: var(--flowchat-text-line-height, 1.58);
@@ -105,21 +37,18 @@
     sans-serif);
   word-break: break-word;
   color: var(--tool-card-text-muted);
-  padding: var(--flowchat-card-expanded-pad-y, 0.5rem) var(--flowchat-card-expanded-pad-x, 0.625rem);
+  margin: 4px 0 0 5px;
+  padding: 8px 10px 8px 20px;
   background: transparent;
-  border: none;
+  border: 0;
+  border-left: 1px solid var(--workspace-border-subtle);
   border-radius: 6px;
-  margin-top: 0;
   /* Cap height when expanded so long thinking stays compact; scroll inside */
   max-height: 300px;
   overflow-y: auto;
   min-height: 0;
   cursor: text;
   user-select: text;
-}
-
-.flow-thinking-item.streaming .thinking-content {
-  color: #9ca3af;
 }
 
 /* Content wrapper with fade gradients */

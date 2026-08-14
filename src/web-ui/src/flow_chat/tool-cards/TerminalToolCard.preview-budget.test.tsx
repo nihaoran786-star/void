@@ -22,7 +22,6 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('../../component-library', () => ({
-  DotMatrixLoader: () => <span data-testid="dot-matrix-loader" />,
   IconButton: ({
     children,
     tooltip,
@@ -36,6 +35,14 @@ vi.mock('../../component-library', () => ({
       {children}
     </button>
   ),
+}));
+
+vi.mock('@/component-library/components/BeautifulUI', () => ({
+  BeautifulUIStage: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/component-library/preview/beautiful-ui-original/components/loading-state', () => ({
+  PixelGrid: () => <span data-testid="beautiful-pixel-grid" />,
 }));
 
 vi.mock('@/tools/terminal/components/LazyTerminalOutputRenderer', () => ({

@@ -1,17 +1,16 @@
 /**
  * Streaming text block component.
- * Applies a typewriter effect during streaming to smooth out
- * the batched content updates from EventBatcher (~100ms).
- * Supports a streaming cursor indicator.
+ * Renders the real streamed content without replaying a second typewriter
+ * animation over provider updates.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MarkdownRenderer } from '@/component-library';
-import { DotMatrixLoader } from '@/component-library';
+import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
+import LoadingState from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import type { FlowTextItem } from '../types/flow-chat';
 import { useFlowChatContext } from './modern/FlowChatContext';
-import { useTypewriter } from '../hooks/useTypewriter';
 import {
   autoPreviewOrchestrator,
   detectAutoPreviewCandidates,
@@ -44,9 +43,13 @@ const RuntimeStatusBlock: React.FC<Pick<FlowTextBlockProps, 'textItem' | 'classN
   const hint = hints[hintIndex] ?? '';
 
   return (
-    <div className={`flow-text-block flow-text-block--runtime-status ${className}`}>
-      <DotMatrixLoader size="medium" className="flow-text-block__runtime-status-icon" />
-      {hint && <span className="flow-text-block__runtime-status-text">{hint}</span>}
+    <div
+      data-beautiful-component="loading-state"
+      className={`flow-text-block flow-text-block--runtime-status ${className}`}
+    >
+      <BeautifulUIStage mode="inline">
+        <LoadingState label={hint || 'Working'} variant="Drive" />
+      </BeautifulUIStage>
     </div>
   );
 };
@@ -58,7 +61,6 @@ const RuntimeStatusBlock: React.FC<Pick<FlowTextBlockProps, 'textItem' | 'classN
 export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
   textItem,
   className = '',
-  replayStreamingOnMount = true
 }) => {
   const {
     activeSessionOverride,
@@ -76,9 +78,7 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
 
   const isStreaming = textItem.isStreaming &&
     (textItem.status === 'streaming' || textItem.status === 'running');
-  const displayContent = useTypewriter(content, isStreaming, {
-    replayOnMount: replayStreamingOnMount,
-  });
+  const displayContent = content;
   const hasMountedRef = useRef(false);
   const wasStreamingRef = useRef(isStreaming);
 
@@ -155,7 +155,10 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
   const flowTextBlockContent = textItem.runtimeStatus ? (
     <RuntimeStatusBlock textItem={textItem} className={className} />
   ) : (
-    <div className={`flow-text-block ${className} ${isActivelyStreaming ? 'streaming flow-text-block--streaming' : ''}`}>
+    <div
+      data-beautiful-component="streaming-text"
+      className={`flow-text-block ${className} ${isActivelyStreaming ? 'streaming flow-text-block--streaming' : ''}`}
+    >
       {textItem.isMarkdown ? (
         <MarkdownRenderer
           content={displayContent}

@@ -584,8 +584,16 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
           ) : (
             <EmptyState
               icon={<CircleUserRound />}
-              title={t('teamWorkspace.memberConversation.notStartedTitle')}
-              description={t('teamWorkspace.memberConversation.notStartedDescription')}
+              title={t(
+                selectedMember.state.status === 'failed'
+                  ? 'teamWorkspace.memberConversation.failedTitle'
+                  : 'teamWorkspace.memberConversation.notStartedTitle',
+              )}
+              description={t(
+                selectedMember.state.status === 'failed'
+                  ? 'teamWorkspace.memberConversation.failedDescription'
+                  : 'teamWorkspace.memberConversation.notStartedDescription',
+              )}
             />
           )}
         </div>

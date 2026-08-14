@@ -12,6 +12,8 @@ import { createLogger } from '@/shared/utils/logger';
 import { FlowToolCardErrorBoundary } from './FlowToolCardErrorBoundary';
 import { useTranslation } from 'react-i18next';
 import { getToolInterruptionNote } from '../utils/toolInterruption';
+import { getBeautifulUIToolComponent } from '../beautifulUiProductionMap';
+import '../BeautifulUIFlowBindings.scss';
 
 const log = createLogger('FlowToolCard');
 
@@ -44,6 +46,7 @@ export const FlowToolCard: React.FC<FlowToolCardProps> = React.memo(({
   const CardComponent = getToolCardComponent(toolItem.toolName);
   const interruptionNote = getToolInterruptionNote(toolItem, t);
   const cardHandlesInterruptionNote = toolItem.toolName === 'Task';
+  const beautifulComponent = getBeautifulUIToolComponent(toolItem.toolName);
 
   const handleConfirm = React.useCallback((updatedInput?: any, permissionOptionId?: string, approve?: boolean) => {
     log.debug('handleConfirm called', {
@@ -66,7 +69,10 @@ export const FlowToolCard: React.FC<FlowToolCardProps> = React.memo(({
   }, [toolItem.id, onExpand]);
 
   return (
-    <div className={`flow-tool-card-wrapper ${className}`}>
+    <div
+      className={`flow-tool-card-wrapper ${className}`}
+      data-beautiful-component={beautifulComponent}
+    >
       <FlowToolCardErrorBoundary
         toolItem={toolItem}
         displayName={config.displayName}

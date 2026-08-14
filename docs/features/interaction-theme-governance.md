@@ -67,6 +67,13 @@ Allowed in this phase:
 - accessibility names, keyboard navigation, focus restoration, reduced motion,
   and full-window visual evidence.
 
+Flow Chat activity baseline amendment (2026-08-14): the user selected all 19
+Beautiful UI source components for production Flow Chat presentation. Bindings
+connect them to existing explicit Flow Chat state and must not synthesize
+hidden reasoning or replace typed tool events. Model summaries and grouped
+activity stay mounted and visible; do not add another auto-collapse, typewriter,
+loader, completion-ring, or hidden-region animation around the source motion.
+
 Not allowed without a separate architecture review:
 
 - moving runtime or persistence logic into pages, routes, `ChatInput.tsx`,

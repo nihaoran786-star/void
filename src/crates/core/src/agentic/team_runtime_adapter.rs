@@ -343,7 +343,10 @@ impl PromptTeamRuntimeAdapter {
             .launch_authority
             .as_ref()
             .is_some_and(|authority| authority.kind == SubagentLaunchAuthorityKind::TeamMember);
-        if launch.allow_subagent_spawn != requested_delegation.allow_subagent_spawn
+        // `allow_subagent_spawn` is a legacy compatibility field and remains
+        // fail-closed for every new durable launch. Typed launch authority is
+        // the source of truth for bounded Team-member delegation.
+        if launch.allow_subagent_spawn
             || persisted_is_member != requested_delegation.allow_subagent_spawn
         {
             return Err(Self::rejected(
@@ -869,7 +872,9 @@ mod tests {
             context: PromptTeamRuntimeAdapter::durable_team_context(&request)
                 .into_iter()
                 .collect(),
-            allow_subagent_spawn: true,
+            // Typed launch authority below owns Team-member delegation. The
+            // legacy bit intentionally remains fail-closed.
+            allow_subagent_spawn: false,
             nesting_depth: 1,
             timeout_seconds: Some(30),
             team_member_skill_policy: Some(
@@ -972,13 +977,22 @@ mod tests {
     fn linked_task_requires_agent_identity_and_exact_typed_delegation_policy() {
         let mut value = request();
         let mut linked = task();
+        assert!(!linked.launch_spec.as_ref().unwrap().allow_subagent_spawn);
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_ok());
 
         value.agent_id = Some("other-agent".into());
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
 
         value.agent_id = Some("agent".into());
-        linked.launch_spec.as_mut().unwrap().allow_subagent_spawn = false;
+        value.team_member_delegation_policy = Some(
+            crate::agentic::team_definitions::TeamMemberDelegationPolicy::Disabled,
+        );
+        assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
+
+        value.team_member_delegation_policy = Some(
+            crate::agentic::team_definitions::TeamMemberDelegationPolicy::bounded_default(),
+        );
+        linked.launch_spec.as_mut().unwrap().allow_subagent_spawn = true;
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
     }
 

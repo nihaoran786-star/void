@@ -1,0 +1,28 @@
+.beautiful-ui-stage {
+  min-width: 0;
+}
+
+.beautiful-ui-stage--preview,
+.beautiful-ui-stage--surface {
+  display: block;
+  width: 100%;
+}
+
+.beautiful-ui-stage--preview {
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--workspace-surface-canvas);
+}
+
+.beautiful-ui-stage--inline,
+.beautiful-ui-stage--icon {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  overflow: visible;
+  vertical-align: middle;
+}
+
+.beautiful-ui-stage--icon {
+  justify-content: center;
+}

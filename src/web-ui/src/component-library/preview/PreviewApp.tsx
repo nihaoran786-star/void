@@ -9,23 +9,38 @@ import { FullPageLayout, LargeCardLayout, GridLayout, DemoLayout, ColumnLayout }
 import { Select } from '@components/Select';
 import type { SelectOption } from '@components/Select';
 import { useI18n } from '@/infrastructure/i18n';
-import { useTheme } from '@/infrastructure/theme';
-import type { ThemeId } from '@/infrastructure/theme';
+import { builtinThemes, themeService } from '@/infrastructure/theme';
+import type { ThemeConfig, ThemeId } from '@/infrastructure/theme';
+import { flowChatDynamicCategory } from './FlowChatDynamicCategory';
 import './preview.css';
+
+const previewRegistry = [...componentRegistry, flowChatDynamicCategory];
+
+const getInitialCategory = (): string => {
+  const requestedCategory = new URLSearchParams(window.location.search).get('category');
+  if (requestedCategory && previewRegistry.some((category) => category.id === requestedCategory)) {
+    return requestedCategory;
+  }
+  return previewRegistry[0]?.id || '';
+};
 
 export const PreviewApp: React.FC = () => {
   const { t } = useI18n('components');
-  const { themes, themeId, themeType, setTheme, loading } = useTheme();
-  const [selectedCategory, setSelectedCategory] = useState<string>(
-    componentRegistry[0]?.id || ''
-  );
+  const [themeId, setThemeId] = useState<ThemeId>('void-light');
+  const themes = builtinThemes;
+  const themeType = themes.find((theme) => theme.id === themeId)?.type ?? 'light';
+  const loading = false;
+  const [selectedCategory, setSelectedCategory] = useState<string>(getInitialCategory);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
+    const url = new URL(window.location.href);
+    url.searchParams.set('category', categoryId);
+    window.history.replaceState(null, '', url);
   };
 
-  const currentCategory = componentRegistry.find(
+  const currentCategory = previewRegistry.find(
     (cat) => cat.id === selectedCategory
   );
   const themeTypeLabel = themeType === 'light'
@@ -65,7 +80,13 @@ export const PreviewApp: React.FC = () => {
                   if (Array.isArray(value)) {
                     return;
                   }
-                  void setTheme(value as ThemeId);
+                  const nextTheme = themes.find((theme) => theme.id === value);
+                  if (!nextTheme) return;
+                  setThemeId(value as ThemeId);
+                  (themeService as unknown as { injectCSSVariables: (theme: ThemeConfig) => void })
+                    .injectCSSVariables(nextTheme);
+                  document.documentElement.dataset.theme = String(nextTheme.id);
+                  document.documentElement.dataset.themeType = nextTheme.type;
                 }}
                 disabled={loading || themes.length === 0}
                 placement="bottom"
@@ -105,7 +126,7 @@ export const PreviewApp: React.FC = () => {
             </button>
           </div>
           <nav className="preview-nav">
-            {componentRegistry.map((category: ComponentCategory) => (
+            {previewRegistry.map((category: ComponentCategory) => (
               <div key={category.id} className="category-section">
                 <button
                   className={`category-button ${
@@ -146,7 +167,10 @@ export const PreviewApp: React.FC = () => {
               ) : currentCategory.layoutType === 'large-card' ? (
                 <LargeCardLayout components={currentCategory.components} />
               ) : currentCategory.layoutType === 'demo' ? (
-                <DemoLayout components={currentCategory.components} />
+                <DemoLayout
+                  components={currentCategory.components}
+                  containerWidthControl={currentCategory.id === 'flowchat-dynamic-ui'}
+                />
               ) : currentCategory.layoutType === 'column' ? (
                 <ColumnLayout components={currentCategory.components} />
               ) : currentCategory.layoutType === 'grid-2' ? (

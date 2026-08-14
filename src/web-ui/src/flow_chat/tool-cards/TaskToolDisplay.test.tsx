@@ -36,6 +36,18 @@ vi.mock('@/component-library/components/Markdown', () => ({
   Markdown: ({ content }: { content: string }) => <div>{content}</div>,
 }));
 
+vi.mock('@/component-library/components/BeautifulUI', () => ({
+  BeautifulUIStage: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/component-library/preview/beautiful-ui-original/components/task-rows', () => ({
+  SpinnerRing: ({ active, children }: { active?: boolean; children?: React.ReactNode }) => (
+    <span data-testid="beautiful-task-spinner" data-active={String(Boolean(active))}>
+      {children}
+    </span>
+  ),
+}));
+
 vi.mock('@/shared/services/reviewTeamService', () => ({
   getReviewerContextBySubagentId: () => null,
 }));
@@ -207,7 +219,7 @@ describeWithJsdom('TaskToolDisplay', () => {
     expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(true);
   });
 
-  it('keeps Deep Review reviewer task cards collapsed when they start running', async () => {
+  it('keeps Deep Review reviewer task cards visible when they start running', async () => {
     await act(async () => {
       root.render(
         <TaskToolDisplay
@@ -218,7 +230,7 @@ describeWithJsdom('TaskToolDisplay', () => {
       );
     });
 
-    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(true);
+    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(false);
 
     await act(async () => {
       root.render(
@@ -230,10 +242,10 @@ describeWithJsdom('TaskToolDisplay', () => {
       );
     });
 
-    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(true);
+    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(false);
   });
 
-  it('keeps extra Deep Review reviewer task cards collapsed from packet metadata', async () => {
+  it('keeps extra Deep Review reviewer task cards visible from packet metadata', async () => {
     await act(async () => {
       root.render(
         <TaskToolDisplay
@@ -244,7 +256,7 @@ describeWithJsdom('TaskToolDisplay', () => {
       );
     });
 
-    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(true);
+    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(false);
 
     await act(async () => {
       root.render(
@@ -256,10 +268,10 @@ describeWithJsdom('TaskToolDisplay', () => {
       );
     });
 
-    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(true);
+    expect(taskCollapseStateManager.isCollapsed('task-tool-1')).toBe(false);
   });
 
-  it('renders the quiet status ring and step narrative while a subagent runs', async () => {
+  it('renders the original task spinner and step narrative while a subagent runs', async () => {
     await act(async () => {
       root.render(
         <TaskToolDisplay
@@ -270,7 +282,7 @@ describeWithJsdom('TaskToolDisplay', () => {
       );
     });
 
-    expect(container.querySelector('.task-status-ring--active')).toBeTruthy();
+    expect(container.querySelector('[data-testid="beautiful-task-spinner"]')?.getAttribute('data-active')).toBe('true');
     const steps = Array.from(container.querySelectorAll('.task-steps__step'));
     expect(steps).toHaveLength(3);
     expect(steps[2]?.classList.contains('task-steps__step--now')).toBe(true);
@@ -289,12 +301,11 @@ describeWithJsdom('TaskToolDisplay', () => {
       );
     });
 
-    expect(container.querySelector('.task-status-ring--done')).toBeTruthy();
-    expect(container.querySelector('.task-status-ring--animate')).toBeNull();
+    expect(container.querySelector('[data-testid="beautiful-task-spinner"]')?.getAttribute('data-active')).toBe('false');
     expect(container.querySelector('.task-steps')).toBeNull();
   });
 
-  it('animates completion once after this mount observes the task running', async () => {
+  it('does not add a completion animation after the original running spinner', async () => {
     const renderStatus = async (status: FlowToolItem['status']) => {
       await act(async () => {
         root.render(
@@ -308,17 +319,17 @@ describeWithJsdom('TaskToolDisplay', () => {
     };
 
     await renderStatus('pending');
-    expect(container.querySelector('.task-status-ring--animate')).toBeNull();
+    expect(container.querySelector('[data-testid="beautiful-task-spinner"]')?.getAttribute('data-active')).toBe('false');
 
     await renderStatus('running');
-    expect(container.querySelector('.task-status-ring--active')).toBeTruthy();
+    expect(container.querySelector('[data-testid="beautiful-task-spinner"]')?.getAttribute('data-active')).toBe('true');
 
     await renderStatus('completed');
-    expect(container.querySelector('.task-status-ring--animate')).toBeTruthy();
+    expect(container.querySelector('[data-testid="beautiful-task-spinner"]')?.getAttribute('data-active')).toBe('false');
 
     await renderStatus('running');
     await renderStatus('completed');
-    expect(container.querySelector('.task-status-ring--animate')).toBeNull();
+    expect(container.querySelector('[data-testid="beautiful-task-spinner"]')?.getAttribute('data-active')).toBe('false');
   });
 
   it('opens the real subagent session in the aux pane when the task card rail is clicked', async () => {

@@ -32,6 +32,10 @@
       box-shadow: none;
     }
 
+    &__activity-border {
+      display: block;
+    }
+
     &__box--capsule {
       min-height: calc(
         var(--workspace-control-height) + var(--workspace-space-8)
