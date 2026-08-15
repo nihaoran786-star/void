@@ -303,6 +303,13 @@ impl PathManager {
         self.user_data_dir().join("teams")
     }
 
+    /// Get the user-level immutable Agent revision catalog.
+    pub fn user_agent_revision_catalog_file(&self) -> PathBuf {
+        self.user_data_dir()
+            .join("agent-definitions")
+            .join("catalog.json")
+    }
+
     /// Root for per-host, per-remote-path workspace mirrors: `~/.void/remote_ssh/`.
     ///
     /// Session/chat persistence for SSH workspaces lives under
@@ -361,6 +368,13 @@ impl PathManager {
     /// Get project-level Team definitions directory: {project}/.void/teams/
     pub fn project_team_definitions_dir(&self, workspace_path: &Path) -> PathBuf {
         self.project_root(workspace_path).join("teams")
+    }
+
+    /// Get the project-level immutable Agent revision catalog.
+    pub fn project_agent_revision_catalog_file(&self, workspace_path: &Path) -> PathBuf {
+        self.project_root(workspace_path)
+            .join("agent-definitions")
+            .join("catalog.json")
     }
 
     /// Get the shared runtime projects root directory: ~/.void/projects/
@@ -700,6 +714,26 @@ mod tests {
         assert_eq!(
             pm.project_team_definitions_dir(workspace),
             workspace.join(".void").join("teams")
+        );
+    }
+
+    #[test]
+    fn agent_revision_catalogs_are_isolated_by_storage_level() {
+        let pm = PathManager::default();
+        let workspace = Path::new(r"E:\Projects\Example");
+
+        assert_eq!(
+            pm.user_agent_revision_catalog_file(),
+            pm.user_data_dir()
+                .join("agent-definitions")
+                .join("catalog.json")
+        );
+        assert_eq!(
+            pm.project_agent_revision_catalog_file(workspace),
+            workspace
+                .join(".void")
+                .join("agent-definitions")
+                .join("catalog.json")
         );
     }
 

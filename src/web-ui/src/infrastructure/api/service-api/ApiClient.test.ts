@@ -79,4 +79,24 @@ describe('ApiClient startup trace classification', () => {
       2 * 1024 * 1024
     );
   });
+
+  it('preserves structured Tauri command errors for typed domain extraction', async () => {
+    const structuredError = {
+      code: 'revision_conflict',
+      message: 'The draft revision changed.',
+      retryable: false,
+      conflictKind: 'draft_revision',
+      expectedRevisionId: 'draft-revision-1',
+      actualRevisionId: 'draft-revision-2',
+    };
+    adapterMocks.request.mockRejectedValueOnce(structuredError);
+    const client = new ApiClient({ enableLogging: false, retries: 0 });
+
+    await expect(client.invoke('publish_agent_revision', {
+      request: { idempotencyKey: 'publish-command-1' },
+    })).rejects.toMatchObject({
+      code: 'COMMAND_FAILED',
+      details: { originalError: structuredError },
+    });
+  });
 });

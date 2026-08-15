@@ -4,8 +4,9 @@ Updated: 2026-08-15
 
 ## Product state
 
-- Active implementation branch: `codex/canvas-plugin-kernel-p0b` (P0-A/P0-B
-  complete and locally verified; not pushed).
+- Active implementation branch: `codex/agent-revision-core-p1a1` (P0-A/P0-B
+  complete; P1-A1 Agent Revision Core implemented and locally verified; not
+  pushed).
 - Void is the primary product and implementation repository. BitFun is an
   upstream capability/fix reference, while DeepSeek Harness is a rapidly
   evolving plugin-architecture and ecosystem reference; neither reference
@@ -32,8 +33,19 @@ Updated: 2026-08-15
   contribution registry, migrates Workspace Media and AI Short Drama opening,
   restore, composer, rail and renderer paths off business DOM events/central
   switches, and rejects stale Team restore deliveries with typed
-  `scopeId + revision + activationId`. P1-A still requires explicit user
-  approval.
+  `scopeId + revision + activationId`. P1-A1 now adds the platform-neutral
+  Agent revision core: user and authoritative local-project catalogs,
+  generated opaque definition/draft/revision identities, exact draft/base/default
+  compare-and-swap, bounded idempotency receipts, revision-bound validation
+  evidence, separate publish/default commands, atomic recovery, and exact
+  runtime resolution for legacy aliases and catalog-only Agents. Legacy Agent
+  source files are imported non-destructively and remain a compatibility
+  authority; if the old source changes after import, catalog authoring fails
+  closed instead of dual-writing. Remote project authoring remains explicitly
+  unavailable. P1-A1 does not add Agent Studio presentation, issue real
+  `agent_debug` evidence, fork sessions, or make the current composer consume
+  the new default pointer; those activation paths belong to P1-A2 and still
+  require explicit user approval.
 - The Quiet Directory design system is the current entity-glyph and catalog
   language: Agent orbs (animated when selected/running), Skill sigils (static
   runes), and Connector link glyphs (route state: solid/broken/pulse/error)

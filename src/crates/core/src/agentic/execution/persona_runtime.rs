@@ -437,7 +437,12 @@ pub async fn resolve_persona_turn_runtime(
     ) = match snapshot.kind {
         PersonaSnapshotKind::Agent => {
             let definition = registry
-                .resolve_persona_definition(&snapshot.persona_key, workspace_root, agent_type)
+                .resolve_persona_definition_at_revision(
+                    &snapshot.persona_key,
+                    &snapshot.persona_revision,
+                    workspace,
+                    agent_type,
+                )
                 .await?;
             if definition.revision != snapshot.persona_revision {
                 return Err(VoidError::validation(format!(

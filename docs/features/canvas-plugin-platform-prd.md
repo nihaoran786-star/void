@@ -982,6 +982,39 @@ P0-B 已在 `codex/canvas-plugin-kernel-p0b` 工作分支完成，当前尚未�
 退出门：在同一主会话中完成 v3 运行、v4 编辑、隔离试聊和发布后，重启应用仍能证明
 主会话固定 v3、新分叉固定 v4、未来默认指向 v4，三者没有共享错误的历史或权限事实。
 
+#### P1-A1 已实现检查点：Agent Revision Core
+
+P1-A1 只建立后续 Agent Studio 依赖的稳定内核，不提前交付 UI 或会话激活：
+
+- Customization Module 提供 `get/openDraft/saveDraft/recordValidation/publish/setDefault`
+  六个命令，Web 通过 Gateway/Service/Desktop Adapter 调用，页面不直接访问 Tauri 或
+  文件系统。
+- user 与 authoritative local-project scope 分目录持久化；project workspace ID、路径和
+  backend 必须由 Desktop workspace registry 共同确认，remote project 显式 fail-closed。
+- definition、draft、draft revision、published revision 和 validation 使用生成的 opaque
+  ID；`draftFingerprint` 当前等于 draft revision ID，只是版本令牌，不是内容哈希。
+- save、publish、set-default 分别执行精确 draft/base/default CAS；所有写命令带独立
+  idempotency key，replay window 有界。发布只追加 immutable revision 并更新 latest，
+  不暗改 default；default 是独立原子命令。
+- catalog 使用单 scope 聚合、进程间锁和精确 recovery sidecar 原子替换。旧 Agent `.md`
+  只读导入，保留原始文档快照和旧 runtime revision alias，不覆盖或删除旧文件；导入后
+  若旧文件发生外部变化，authoring fail-closed，等待兼容入口迁到同一 Module Interface。
+- Persona runtime 可按 session 已冻结的精确 generated revision 或 legacy alias 解析；
+  catalog-only Agent 不依赖临时 `.md` 才能运行。revision 记录 prompt、tool、model、
+  readonly/review 和 parent visibility 数据；本批 resolver 应用 prompt、tool、readonly 与
+  parent visibility，当前禁用 override 仍可立即阻断运行。
+
+P1-A1 明确没有完成：`agent-studio` Canvas contribution、真实 `agent_debug` 会话与 evidence
+发行、source-bound fork、旧创建页迁移、当前 composer/default 激活，以及 Agent Skill
+策略的 revision/runtime 接入。它们属于 P1-A2；在此之前，本批命令接口没有新的生产 UI
+调用方，且 model/review/Skill 的完整激活仍属后续边界；不能把“可存储 validation
+evidence”描述成“已验证真实 debug run”。
+
+本地退出门证据：Agent Revision Core 19/19、exact runtime policy 5/5、Web 跨层聚焦
+41/41 通过；`cargo check -p void-desktop`、Web type-check、core boundaries、repo hygiene
+均通过。Desktop lib-test 仍被本批未修改的四处既有 Team fixture 缺
+`delegation_policy` 阻断，生产 Desktop 编译不受影响；不得把该基线阻断误写成本批通过。
+
 ### P1-B：短剧与媒体成为旗舰业务包
 
 目标：证明“Canvas Surface + Team + Workflow + Domain Module + Provider”可以稳定组合。
@@ -1120,6 +1153,7 @@ P0-B 已在 `codex/canvas-plugin-kernel-p0b` 工作分支完成，当前尚未�
 
 ## 15. 当前下一步
 
-当前停在已验证的 P0-B。下一次实现必须由用户单独批准 P1-A，再开发 Agent Studio 与
-revision 发布闭环；不得因 P0-B 已通过而自动跨阶段接入 DSH 插件、迁移更多业务表面
-或修改领域持久化。
+当前停在已实现并本地验证的 P1-A1 Agent Revision Core 检查点。下一次实现必须由用户
+单独批准 P1-A2，再接入 `agent-studio` Canvas、真实隔离 debug、source-bound fork 与
+future-default activation；不得因 revision 内核已存在就自动修改当前会话绑定、旧 Agent
+创建页、更多业务表面或 DSH 兼容层。

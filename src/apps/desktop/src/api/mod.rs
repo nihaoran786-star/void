@@ -3,6 +3,7 @@
 pub mod account_usage_api;
 pub mod acp_client_api;
 pub mod agent_memory_api;
+pub mod agent_revision_api;
 pub mod agentic_api;
 pub mod announcement_api;
 pub mod app_state;

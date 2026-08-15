@@ -28,8 +28,9 @@ automatically the current source of truth.
   collapsible Content Canvas, typed surface/domain/Agent/Team/Workflow
   contribution boundaries, Canvas-based Agent Studio, hot configuration versus
   revision-frozen execution, the verified P0-A/P0-B Canvas registry and typed
-  command migration for Workspace Media/AI Short Drama, staged first-party
-  expansion, stability gates, and bounded DeepSeek Harness compatibility
+  command migration for Workspace Media/AI Short Drama, the P1-A1 immutable
+  Agent revision/catalog/runtime core, staged first-party expansion, stability
+  gates, and bounded DeepSeek Harness compatibility
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
   responsive layout, accessibility, full-window evidence, and performance;

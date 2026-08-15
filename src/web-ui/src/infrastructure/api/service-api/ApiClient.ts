@@ -411,7 +411,10 @@ export class ApiClient implements IApiClient {
     
     if (originalError) {
       apiError.details = {
-        originalError: originalError.message || originalError,
+        originalError:
+          typeof originalError === 'object'
+            ? originalError
+            : String(originalError),
         stack: originalError.stack
       };
     }
