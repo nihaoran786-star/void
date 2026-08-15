@@ -1,10 +1,34 @@
 # Current collaboration context
 
-Updated: 2026-08-13
+Updated: 2026-08-15
 
 ## Product state
 
-- Active customization integration branch: `codex/minimal-workspace-ui`.
+- Active implementation branch: `codex/canvas-plugin-kernel-p0a` (P0-A
+  complete and locally verified; not pushed).
+- Void is the primary product and implementation repository. BitFun is an
+  upstream capability/fix reference, while DeepSeek Harness is a rapidly
+  evolving plugin-architecture and ecosystem reference; neither reference
+  replaces Void's product identity or stable runtime contracts.
+- The product north star is a conversation-centered workspace: the main AI
+  conversation remains in the center and the existing right Content Canvas is
+  the stable collapsible/expandable host for typed plugin surfaces such as AI
+  Short Drama, Workspace Media, Agent Studio, AI Customer Service, and a future
+  Infinite Canvas. Scenario presets and installable business bundles may
+  compose Agent, Team, Workflow, Skill, Tool, Provider, and Canvas
+  contributions, but they must reuse the existing session, permission,
+  workspace, Team, and tool runtimes. Canvas owns presentation layout and
+  references only; every domain still writes through its own Module Interface.
+  The active staged contract is
+  [docs/features/canvas-plugin-platform-prd.md](docs/features/canvas-plugin-platform-prd.md).
+- Canvas plugin P0-A is implemented: a pure typed registry/service/workspace
+  facts layer opens one real first-party Workspace Media surface through a
+  context-bound host adapter and renderer registry. Stable workspace identity
+  uses `WorkspaceInfo.id`; delivery idempotency is separate from surface
+  instance identity. Restore intent requires workspace/session facts and cannot
+  replay across workspaces. Workspace Media remains deliberately unavailable
+  for remote workspaces until `remoteConnectionId` is carried through its real
+  file IO Module Interface. P0-B still requires explicit user approval.
 - The Quiet Directory design system is the current entity-glyph and catalog
   language: Agent orbs (animated when selected/running), Skill sigils (static
   runes), and Connector link glyphs (route state: solid/broken/pulse/error)
@@ -47,8 +71,11 @@ Updated: 2026-08-13
   conversation; its capsule becomes read-only, and using another Agent or Team
   requires a new conversation. Scenario, execution policy, workspace,
   permissions, Canvas, and top-level history remain separate from this binding.
-  A trusted fixed Team may still upgrade its own pinned revision in place; it
-  cannot be replaced by a different persona. The active contract is
+  The target contract also freezes the semantic Team definition revision for a
+  running Team instance/run: member, Lead, workflow, policy, or stop-semantics
+  changes require a new run. The current trusted-fixed-Team in-place revision
+  compatibility path is migration debt and must not be generalized. The active
+  contract is
   [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
 - The Desktop/Tauri customization slice now provides one localized
   Agent/Team/Skill catalog, per-parent Agent or Team-lead selection in the
@@ -165,22 +192,37 @@ Updated: 2026-08-13
   empty state still explains local-command and remote-URL paths and preserves
   the JSON add action. Connector loading and installation failures are explicit
   and retryable. This is not an online or arbitrary remote connector store.
-- Agent authoring now includes a live draft debug chat beside the configuration
-  form. A typed runtime service installs a temporary user Agent, creates a
-  persona-bound temporary session, sends through the existing Flow Chat path,
-  and disposes or sweeps orphaned debug artifacts. Draft replacement is
-  fail-closed: the composer is available only when the current fingerprint and
-  temporary session are ready, so a stale persona cannot receive the next
-  message. Replacement notices clear after the first successful send. This is
-  a real Agent conversation path, not a local prompt preview; per-Agent model
-  override and Agent-level Skill/MCP selection remain outside the current
-  contract.
+- Agent authoring currently includes a live draft debug chat beside the
+  configuration form. A typed runtime service installs a temporary user Agent,
+  creates a persona-bound temporary session, sends through the existing Flow
+  Chat path, and disposes or sweeps orphaned debug artifacts. Draft replacement
+  is fail-closed: the composer is available only when the current fingerprint
+  and temporary session are ready, so a stale persona cannot receive the next
+  message. The approved target moves this same real debug path into a
+  first-party `agent-studio` Content Canvas Tab. The left source conversation
+  remains pinned to its running revision while the right Studio edits and tests
+  the next draft revision in an isolated `agent_debug` session. Publication is
+  atomic and never rewrites the source binding: the user may continue the old
+  revision, fork from an explicit boundary into a new session on the published
+  revision, or set it as the default for future sessions. The current page is a
+  compatibility presentation until that staged migration is implemented.
+- Void's plugin contract is **stable core + open capability layer**. The
+  configuration plane supports hot editing, but started session/Team execution
+  is revision-frozen. Only low-risk layout, theme, tab, surface-display, and
+  presentation metadata changes may apply hot. Agent prompt/Skills/tools/model
+  policy and Team/workflow semantics require a published revision and a new
+  session/run; permission expansion requires confirmation. Permission
+  revocation, emergency stop, and plugin quarantine apply immediately. Session
+  logs, agent loop, lineage, recovery, checkpoints, plugin isolation, and
+  domain write boundaries are not runtime-replaceable plugins.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.
 - The session owns one stable Canvas toggle and one Team Workspace control.
   Team binding opens the right workspace by default; a persisted AI Short Drama
-  binding also restores the short-drama Canvas automatically. Both controls are
+  binding restores its Canvas content in the background while the Canvas stays
+  collapsed. Canvas tabs and restored content do not expand the right pane;
+  only an explicit Canvas or capability control does. Both controls are
   presentation-only and never cancel a run, delete a child, or clear Canvas
   state.
 - Runtime, persistence, Skill policy, media tool routing, session history, and
@@ -231,7 +273,12 @@ UI / route -> Module Interface -> Adapter / service -> external system
 - **Module:** Flow Chat owns chat state and conversation behavior.
   **Interface:** typed Flow Chat services, selectors, and view state.
 - **Module:** Content Canvas owns tabs and layout state.
-  **Interface:** canvas store actions and presentation selectors.
+  **Interface:** `CanvasSurfaceRegistry`, `CanvasSurfaceService`, typed workspace
+  facts and `CanvasHostPort`; the Zustand-backed host adapter alone translates
+  those requests into canvas store actions. Surface runtime and renderers load
+  behind the right-pane boundary; SessionScene keeps the central conversation
+  independent and queues typed capability/restore intent until AuxPane reports
+  ready.
 - **Module:** Team Workspace owns reusable team definitions, session-bound team
   instances, workflow/member projections, and coordination presentation state.
   **Interface:** team catalog, orchestration, and workspace projection
@@ -269,7 +316,7 @@ stronger evidence than their apparent convenience.
 
 ## Current quality state
 
-Current verified baseline on 2026-08-14:
+Repository-wide verified baseline on 2026-08-14:
 
 - the default parallel Web suite passes 536/536 files and 3117/3117 tests with
   zero unhandled errors;
@@ -288,6 +335,22 @@ Exact historical commands and checkpoint evidence belong in
 [design QA](design-qa.md), and the active feature specifications, not in this
 collaboration summary.
 
+Canvas plugin P0-A checkpoint on 2026-08-15:
+
+- 14 focused Canvas/Session/Store/Renderer/performance test files pass 134/134;
+- Web type checking, core boundaries, repository hygiene, targeted production
+  ESLint, production build, Monaco assets and Web performance budgets pass;
+- the production entry measures 2,270,306 raw JS bytes and 667,513 gzip bytes,
+  leaving 129,262 raw bytes below budget and 33,141 gzip bytes below reference;
+- no Media/Short Drama runtime, FlowChatStore, ChatInput, Rust, persistence or
+  dependency changes are part of P0-A.
+- the Canvas host rejects stale async plugin loads after workspace route changes
+  or unmount; inactive Session scenes queue bounded capability intents and only
+  drain them after AuxPane readiness with matching session/workspace facts.
+- the final full Web suite has 546 files / 3183 tests passing; its remaining
+  three failures are outside P0-A in the user's in-progress SessionCapabilityRail
+  visual contract and ScrollAnchor font-size debt changes.
+
 Open baseline debt:
 
 - the E2E project currently has strict TypeScript failures and CI does not type
@@ -297,6 +360,10 @@ Open baseline debt:
 - test files are excluded from Web UI ESLint and TypeScript project checks;
 - `ChatInput` remains a high-coupling orchestration hotspot;
 - Browser UI still contains registered direct-Tauri lifecycle exceptions.
+- Workspace Media remote IO is intentionally fail-closed: its Canvas identity
+  already carries the typed remote route, but the real Media file adapter is
+  still path-only and must not be described as remote-safe until a later
+  Module Interface slice propagates `remoteConnectionId` end to end.
 - legacy non-Team short-drama stage-agent binding persistence and bounded retry
   still have a confirmed async state gap; Team-bound short-drama sessions no
   longer use that bootstrap path.

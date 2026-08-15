@@ -58,12 +58,14 @@ const PanelViewScene = lazy(loadPanelViewScene);
 
 
 interface SceneViewportProps {
+  workspaceId?: string;
   workspacePath?: string;
   isEntering?: boolean;
 }
 
 interface SceneSlotProps {
   id: SceneTabId;
+  workspaceId?: string;
   workspacePath?: string;
   isEntering: boolean;
   isActive: boolean;
@@ -73,6 +75,7 @@ interface SceneSlotProps {
 
 const SceneSlot = React.memo(function SceneSlot({
   id,
+  workspaceId,
   workspacePath,
   isEntering,
   isActive,
@@ -103,12 +106,13 @@ const SceneSlot = React.memo(function SceneSlot({
           ) : null
         }
       >
-        {renderScene(id, workspacePath, isEntering, isPresentationActive)}
+        {renderScene(id, workspaceId, workspacePath, isEntering, isPresentationActive)}
       </Suspense>
     </div>
   );
 }, (previous, next) => (
   previous.id === next.id
+  && previous.workspaceId === next.workspaceId
   && previous.workspacePath === next.workspacePath
   && previous.isEntering === next.isEntering
   && previous.isActive === next.isActive
@@ -118,7 +122,11 @@ const SceneSlot = React.memo(function SceneSlot({
   ))
 ));
 
-const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering = false }) => {
+const SceneViewport: React.FC<SceneViewportProps> = ({
+  workspaceId,
+  workspacePath,
+  isEntering = false,
+}) => {
   const openTabs = useSceneStore((state) => state.openTabs);
   const activeTabId = useSceneStore((state) => state.activeTabId);
   const { t } = useI18n('common');
@@ -143,6 +151,7 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
           <SceneSlot
             key={tab.id}
             id={tab.id}
+            workspaceId={workspaceId}
             workspacePath={workspacePath}
             isEntering={isEntering}
             isActive={tab.id === activeTabId}
@@ -157,6 +166,7 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
 
 function renderScene(
   id: SceneTabId,
+  workspaceId?: string,
   workspacePath?: string,
   isEntering?: boolean,
   isActive: boolean = false
@@ -165,7 +175,14 @@ function renderScene(
     case 'welcome':
       return <WelcomeScene />;
     case 'session':
-      return <SessionScene workspacePath={workspacePath} isEntering={isEntering} isActive={isActive} />;
+      return (
+        <SessionScene
+          workspaceId={workspaceId}
+          workspacePath={workspacePath}
+          isEntering={isEntering}
+          isActive={isActive}
+        />
+      );
     case 'terminal':
       return <TerminalScene isActive={isActive} />;
     case 'git':

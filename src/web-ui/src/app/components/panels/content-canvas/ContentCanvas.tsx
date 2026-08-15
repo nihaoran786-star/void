@@ -3,7 +3,7 @@
  * Core component for the right panel, aggregating submodules.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EditorArea } from './editor-area';
 import { AnchorZone } from './anchor-zone';
@@ -16,6 +16,13 @@ import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import { isSamePath } from '@/shared/utils/pathUtils';
 import { notificationService } from '@/shared/notification-system/services/NotificationService';
+import type {
+  CanvasHostOpenRequest,
+  CanvasSurfaceOpenResult,
+  CanvasSurfaceSource,
+  CanvasWorkspaceFacts,
+} from '@/shared/services/canvas/CanvasSurfaceContracts';
+import { areCanvasWorkspacePathsEquivalent } from '@/shared/services/canvas/CanvasWorkspaceFacts';
 import { createShortDramaWorkspaceManifestAdapter } from '@/shared/services/short-drama/ShortDramaWorkspaceManifestAdapter';
 import { isShortDramaMediaSession } from '@/shared/services/short-drama/ShortDramaWorkspaceMode';
 import { readShortDramaStageAgentBindings } from '@/shared/services/short-drama/ShortDramaStageAgentSessionBinding';
@@ -25,11 +32,40 @@ import {
   workspaceMediaLibraryService,
   type WorkspaceMediaLibraryService,
 } from '@/shared/services/workspace-media';
+import type { CanvasStoreHostActions } from './registry/CanvasStoreHostAdapter';
+import { WORKSPACE_MEDIA_SURFACE_ID } from './registry/CanvasSurfaceIds';
+import {
+  readWorkspaceMediaOpenEventDetail,
+  WORKSPACE_MEDIA_OPEN_EVENT,
+  type WorkspaceMediaOpenEventDetail,
+} from './registry/WorkspaceMediaOpenEvent';
+import { useCanvasWorkspaceFacts } from './registry/useCanvasWorkspaceFacts';
 import './ContentCanvas.scss';
 
-const WORKSPACE_MEDIA_OPEN_EVENT = 'void:open-workspace-media';
 const SHORT_DRAMA_OPEN_EVENT = 'void:open-short-drama-center';
 const MEDIA_AUTO_OPEN_CHECK_INTERVAL_MS = 5000;
+
+function isCanvasSurfaceMutationSuccess(result: CanvasSurfaceOpenResult): boolean {
+  return result.status === 'opened'
+    || result.status === 'focused'
+    || result.status === 'updated';
+}
+
+function isSameCanvasWorkspaceRoute(
+  current: CanvasWorkspaceFacts,
+  requested: CanvasHostOpenRequest['workspace'],
+): boolean {
+  if (
+    current.status !== 'ready'
+    || current.workspaceId !== requested.workspaceId
+    || current.backend !== requested.backend
+  ) {
+    return false;
+  }
+  if (current.backend === 'local') return true;
+  return requested.backend === 'remote'
+    && current.remoteConnectionId === requested.remoteConnectionId;
+}
 
 export interface ContentCanvasProps {
   /** Workspace path */
@@ -66,6 +102,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     findTabByMetadata,
     switchToTab,
     updateTabContent,
+    showTab,
     setAnchorPosition,
     setAnchorSize,
     closeMissionControl,
@@ -78,20 +115,26 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   const activeBtwSessionShortDramaStage = activeBtwSessionTab?.content.metadata?.shortDramaStage;
   const lastSyncedBtwTabIdRef = useRef<string | null>(null);
   const defaultMediaOpenedSessionIdsRef = useRef<Set<string>>(new Set());
-  const autoOpenedMediaWorkspacePathsRef = useRef<Set<string>>(new Set());
+  const defaultMediaOpeningSessionIdsRef = useRef<Set<string>>(new Set());
+  const autoOpenedMediaWorkspaceIdsRef = useRef<Set<string>>(new Set());
   const autoRestoredShortDramaWorkspacePathsRef = useRef<Set<string>>(new Set());
+  const mediaOpenDeliverySequenceRef = useRef(0);
   const [activeSession, setActiveSession] = useState(() => {
     const state = flowChatStore.getState();
     return state.activeSessionId ? state.sessions.get(state.activeSessionId) : undefined;
   });
+  const [pendingMediaRestore, setPendingMediaRestore] = useState<
+    Extract<WorkspaceMediaOpenEventDetail, { source: 'restore' }> | undefined
+  >();
   const [shortDramaRestoreCheckedWorkspace, setShortDramaRestoreCheckedWorkspace] = useState<string>();
   // Initialize hooks
   const { handleCloseWithDirtyCheck, handleCloseAllWithDirtyCheck } = useTabLifecycle({ mode });
   useKeyboardShortcuts({ enabled: isSceneActive, handleCloseWithDirtyCheck });
-  // Panel/tab state coordinator (auto manage expand/collapse)
+  // Tabs may restore or open in the background, but visibility belongs to the
+  // explicit session Canvas control. An empty Canvas may still collapse.
   const { collapsePanel } = usePanelTabCoordinator({
     autoCollapseOnEmpty: true,
-    autoExpandOnTabOpen: true,
+    autoExpandOnTabOpen: false,
   });
 
   useEffect(() => {
@@ -154,6 +197,36 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
 
   const canOpenShortDramaCenter = isShortDramaMediaSession(activeSession);
 
+  const canvasWorkspaceFacts = useCanvasWorkspaceFacts(workspacePath);
+  const canvasWorkspaceFactsRef = useRef(canvasWorkspaceFacts);
+  const canvasHostMountedRef = useRef(true);
+  useLayoutEffect(() => {
+    canvasWorkspaceFactsRef.current = canvasWorkspaceFacts;
+    canvasHostMountedRef.current = true;
+    return () => {
+      canvasHostMountedRef.current = false;
+    };
+  }, [canvasWorkspaceFacts]);
+  const isCanvasHostRequestCurrent = useCallback((request: CanvasHostOpenRequest) => (
+    canvasHostMountedRef.current
+    && isSameCanvasWorkspaceRoute(canvasWorkspaceFactsRef.current, request.workspace)
+  ), []);
+  const canvasHostActions = useMemo<CanvasStoreHostActions>(() => ({
+    isRequestCurrent: isCanvasHostRequestCurrent,
+    addTab,
+    findTabByMetadata,
+    switchToTab,
+    updateTabContent,
+    showTab,
+  }), [
+    addTab,
+    findTabByMetadata,
+    isCanvasHostRequestCurrent,
+    showTab,
+    switchToTab,
+    updateTabContent,
+  ]);
+
   // Handle anchor close
   const handleAnchorClose = useCallback(() => {
     setAnchorPosition('hidden');
@@ -179,27 +252,53 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     closeMissionControl();
   }, [closeMissionControl]);
 
-  const handleOpenWorkspaceMedia = useCallback(() => {
-    if (!workspacePath) {
-      return;
+  const openWorkspaceMedia = useCallback(async (
+    source: CanvasSurfaceSource,
+    idempotencyKey: string,
+    sourceSessionId?: string,
+  ): Promise<CanvasSurfaceOpenResult> => {
+    let result: CanvasSurfaceOpenResult;
+    try {
+      const { openFirstPartyCanvasSurface } = await import('./registry/FirstPartyCanvasSurfaceRuntime');
+      result = await openFirstPartyCanvasSurface(canvasHostActions, {
+        surfaceId: WORKSPACE_MEDIA_SURFACE_ID,
+        source,
+        input: undefined,
+        idempotencyKey,
+        workspace: canvasWorkspaceFacts,
+        ...(sourceSessionId ? { sourceSessionId } : {}),
+      });
+    } catch (cause) {
+      result = {
+        status: 'error',
+        error: {
+          code: 'definition-failed',
+          message: 'The Workspace Media Canvas plugin could not be loaded.',
+          cause,
+        },
+      };
     }
-
-    const duplicateCheckKey = `workspace-media:${workspacePath}`;
-    const existing = findTabByMetadata({ duplicateCheckKey });
-    if (existing) {
-      switchToTab(existing.tab.id, existing.groupId);
-      return;
+    if (
+      (source === 'canvas-control' || source === 'capability-rail')
+      && canvasHostMountedRef.current
+      && canvasWorkspaceFactsRef.current === canvasWorkspaceFacts
+      && !isCanvasSurfaceMutationSuccess(result)
+    ) {
+      notificationService.warning(t('workspaceMedia.states.openUnavailable', {
+        defaultValue: 'Workspace Media is unavailable for this workspace.',
+      }), { duration: 4000 });
     }
+    return result;
+  }, [canvasHostActions, canvasWorkspaceFacts, t]);
 
-    addTab({
-      type: 'workspace-media-gallery',
-      title: 'Media',
-      data: { workspacePath },
-      metadata: {
-        duplicateCheckKey,
-      },
-    }, 'active', 'primary');
-  }, [addTab, findTabByMetadata, switchToTab, workspacePath]);
+  const openWorkspaceMediaFromCanvasControl = useCallback(() => {
+    mediaOpenDeliverySequenceRef.current += 1;
+    void openWorkspaceMedia(
+      'canvas-control',
+      `canvas-control:${mediaOpenDeliverySequenceRef.current}`,
+      activeSession?.sessionId,
+    );
+  }, [activeSession?.sessionId, openWorkspaceMedia]);
 
   const handleOpenShortDramaCenter = useCallback(() => {
     if (!workspacePath) {
@@ -261,9 +360,11 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     if (
       !sessionId
       || !workspacePath
+      || canvasWorkspaceFacts.status !== 'ready'
       || !isSceneActive
       || !canOpenShortDramaCenter
       || defaultMediaOpenedSessionIdsRef.current.has(sessionId)
+      || defaultMediaOpeningSessionIdsRef.current.has(sessionId)
     ) {
       return;
     }
@@ -272,15 +373,26 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
       if (defaultMediaOpenedSessionIdsRef.current.has(sessionId)) {
         return;
       }
-      defaultMediaOpenedSessionIdsRef.current.add(sessionId);
-      handleOpenWorkspaceMedia();
+      defaultMediaOpeningSessionIdsRef.current.add(sessionId);
+      void openWorkspaceMedia(
+        'session-default',
+        `session-default:${sessionId}`,
+        sessionId,
+      ).then(result => {
+        if (isCanvasSurfaceMutationSuccess(result)) {
+          defaultMediaOpenedSessionIdsRef.current.add(sessionId);
+        }
+      }).finally(() => {
+        defaultMediaOpeningSessionIdsRef.current.delete(sessionId);
+      });
     });
 
     return () => window.cancelAnimationFrame(frameId);
   }, [
     activeSession,
     canOpenShortDramaCenter,
-    handleOpenWorkspaceMedia,
+    canvasWorkspaceFacts,
+    openWorkspaceMedia,
     isSceneActive,
     workspacePath,
   ]);
@@ -289,9 +401,85 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     if (!isSceneActive) {
       return;
     }
-    window.addEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleOpenWorkspaceMedia);
-    return () => window.removeEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleOpenWorkspaceMedia);
-  }, [handleOpenWorkspaceMedia, isSceneActive]);
+    const handleCapabilityRailOpen = (event: Event) => {
+      const detail = readWorkspaceMediaOpenEventDetail(event);
+      if (!detail) {
+        return;
+      }
+      if (
+        canvasWorkspaceFacts.status === 'ready'
+        && (
+          (detail.workspaceId && detail.workspaceId !== canvasWorkspaceFacts.workspaceId)
+          || (
+            detail.workspacePath
+            && !areCanvasWorkspacePathsEquivalent(
+              detail.workspacePath,
+              canvasWorkspaceFacts.workspacePath,
+              canvasWorkspaceFacts.backend,
+            )
+          )
+        )
+      ) {
+        return;
+      }
+      mediaOpenDeliverySequenceRef.current += 1;
+      void openWorkspaceMedia(
+        detail.source,
+        `${detail.source}:${mediaOpenDeliverySequenceRef.current}`,
+        detail.sourceSessionId ?? activeSession?.sessionId,
+      ).then(result => {
+        if (
+          detail.source === 'restore'
+          && !isCanvasSurfaceMutationSuccess(result)
+          && canvasWorkspaceFacts.status !== 'ready'
+        ) {
+          setPendingMediaRestore(detail);
+        }
+      });
+    };
+    window.addEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleCapabilityRailOpen);
+    return () => window.removeEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleCapabilityRailOpen);
+  }, [
+    activeSession?.sessionId,
+    canvasWorkspaceFacts,
+    isSceneActive,
+    openWorkspaceMedia,
+  ]);
+
+  useEffect(() => {
+    if (
+      !pendingMediaRestore
+      || !isSceneActive
+      || canvasWorkspaceFacts.status !== 'ready'
+    ) {
+      return;
+    }
+
+    const matchesPendingWorkspace = (
+      pendingMediaRestore.workspaceId === canvasWorkspaceFacts.workspaceId
+      && areCanvasWorkspacePathsEquivalent(
+        pendingMediaRestore.workspacePath,
+        canvasWorkspaceFacts.workspacePath,
+        canvasWorkspaceFacts.backend,
+      )
+    );
+    if (!matchesPendingWorkspace) {
+      setPendingMediaRestore(undefined);
+      return;
+    }
+
+    mediaOpenDeliverySequenceRef.current += 1;
+    const restore = pendingMediaRestore;
+    void openWorkspaceMedia(
+      'restore',
+      `restore-retry:${mediaOpenDeliverySequenceRef.current}`,
+      restore.sourceSessionId,
+    ).then(result => {
+      if (isCanvasSurfaceMutationSuccess(result)) {
+        setPendingMediaRestore(current => current === restore ? undefined : current);
+      }
+    });
+  }, [canvasWorkspaceFacts, isSceneActive, openWorkspaceMedia, pendingMediaRestore]);
 
   useEffect(() => {
     if (!isSceneActive) {
@@ -302,14 +490,21 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   }, [handleOpenShortDramaCenter, isSceneActive]);
 
   useEffect(() => {
-    if (!workspacePath || hasPrimaryVisibleTabs || !isSceneActive) {
+    if (
+      !workspacePath
+      || canvasWorkspaceFacts.status !== 'ready'
+      || canvasWorkspaceFacts.backend === 'remote'
+      || hasPrimaryVisibleTabs
+      || !isSceneActive
+    ) {
       return;
     }
 
     let cancelled = false;
     let isChecking = false;
     const workspaceKey = workspacePath.trim();
-    if (!workspaceKey || autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)) {
+    const workspaceScopeKey = canvasWorkspaceFacts.workspaceId;
+    if (!workspaceKey || autoOpenedMediaWorkspaceIdsRef.current.has(workspaceScopeKey)) {
       return;
     }
     if (canOpenShortDramaCenter && shortDramaRestoreCheckedWorkspace !== workspaceKey) {
@@ -326,12 +521,17 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
         if (
           cancelled ||
           availability.status !== 'available' ||
-          autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)
+          autoOpenedMediaWorkspaceIdsRef.current.has(workspaceScopeKey)
         ) {
           return;
         }
-        autoOpenedMediaWorkspacePathsRef.current.add(workspaceKey);
-        handleOpenWorkspaceMedia();
+        const result = await openWorkspaceMedia(
+          'background-discovery',
+          `background-discovery:${workspaceScopeKey}`,
+        );
+        if (isCanvasSurfaceMutationSuccess(result)) {
+          autoOpenedMediaWorkspaceIdsRef.current.add(workspaceScopeKey);
+        }
       } catch {
         return;
       } finally {
@@ -350,12 +550,13 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     };
   }, [
     canOpenShortDramaCenter,
-    handleOpenWorkspaceMedia,
+    canvasWorkspaceFacts,
     hasPrimaryVisibleTabs,
     isSceneActive,
     shortDramaRestoreCheckedWorkspace,
     workspaceMediaService,
     workspacePath,
+    openWorkspaceMedia,
   ]);
 
   useEffect(() => {
@@ -428,7 +629,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
         <EmptyState
           onClose={disablePopOut ? undefined : collapsePanel}
           workspacePath={workspacePath}
-          onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
+          onOpenWorkspaceMedia={openWorkspaceMediaFromCanvasControl}
           onOpenShortDramaCenter={canOpenShortDramaCenter ? handleOpenShortDramaCenter : undefined}
         />
       );

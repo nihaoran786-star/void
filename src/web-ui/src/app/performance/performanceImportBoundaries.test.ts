@@ -290,6 +290,13 @@ describe('Web UI startup import boundaries', () => {
     const flexiblePanel = readSource(
       '../components/panels/base/FlexiblePanel.tsx',
     );
+    const contentCanvas = readSource(
+      '../components/panels/content-canvas/ContentCanvas.tsx',
+    );
+    const sessionScene = readSource('../scenes/session/SessionScene.tsx');
+    const workspaceMediaSurfaceRenderer = readSource(
+      '../components/panels/content-canvas/registry/WorkspaceMediaSurfaceRenderer.tsx',
+    );
     const app = readSource('../App.tsx');
     const chatInput = readSource('../../flow_chat/components/ChatInput.tsx');
     const gitEventService = readSource(
@@ -326,12 +333,24 @@ describe('Web UI startup import boundaries', () => {
       expect(consumer).not.toContain("from '../workspace-media'");
     }
 
-    expect(flexiblePanel).toContain(
-      "import('@/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery')",
+    expect(workspaceMediaSurfaceRenderer).toContain(
+      "import('../workspace-media/WorkspaceMediaGallery')",
     );
+    expect(flexiblePanel).toContain(
+      "import('../content-canvas/registry/CanvasSurfaceRenderer')",
+    );
+    expect(flexiblePanel).not.toContain('WorkspaceMediaGallery');
+    expect(flexiblePanel).not.toContain('ensureFirstPartyCanvasSurfacesRegistered');
     expect(flexiblePanel).not.toContain(
       "import('@/app/components/panels/content-canvas/workspace-media')",
     );
+    expect(contentCanvas).toContain(
+      "import('./registry/FirstPartyCanvasSurfaceRuntime')",
+    );
+    expect(contentCanvas).not.toContain('new CanvasSurfaceService');
+    expect(contentCanvas).not.toContain('ensureFirstPartyCanvasSurfacesRegistered');
+    expect(sessionScene).toContain("const AuxPane = React.lazy(() => import('./AuxPane'))");
+    expect(sessionScene).not.toContain("import AuxPane from './AuxPane'");
     expect(chatInput).toContain("from '@/infrastructure/event-bus'");
     expect(chatInput).not.toMatch(/from ['"]@\/infrastructure['"]/);
     expect(app).toContain(

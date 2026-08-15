@@ -1102,6 +1102,7 @@ export const usePanelViewCanvasStore = createCanvasStoreHook();
 const AGENT_CANVAS_SNAPSHOT_MAX = 12;
 const agentWorkspaceSnapshots = new Map<string, CanvasStoreState>();
 const agentSnapshotLruOrder: string[] = [];
+const removedAgentWorkspaceKeys = new Set<string>();
 /** Dedupes React Strict Mode double-invoke when `prev` is null (ref reset on remount). */
 let lastAgentCanvasSwitchTargetKey: string | null = null;
 
@@ -1171,13 +1172,23 @@ export function switchAgentCanvasWorkspace(
   if (from === null && lastAgentCanvasSwitchTargetKey === to) {
     return;
   }
+  if (from === to && !removedAgentWorkspaceKeys.has(to)) {
+    lastAgentCanvasSwitchTargetKey = to;
+    return;
+  }
 
-  const rawNext = agentWorkspaceSnapshots.get(to);
+  const rawNext = removedAgentWorkspaceKeys.has(to)
+    ? undefined
+    : agentWorkspaceSnapshots.get(to);
   const nextSnapshotClone = rawNext ? structuredClone(rawNext) : null;
 
   if (from !== null) {
-    const current = extractAgentPersistableState(useAgentCanvasStore.getState() as CanvasStore);
-    rememberAgentSnapshot(from, current);
+    if (removedAgentWorkspaceKeys.has(from)) {
+      removedAgentWorkspaceKeys.delete(from);
+    } else {
+      const current = extractAgentPersistableState(useAgentCanvasStore.getState() as CanvasStore);
+      rememberAgentSnapshot(from, current);
+    }
   }
 
   if (nextSnapshotClone) {
@@ -1197,6 +1208,9 @@ export function switchAgentCanvasWorkspace(
     applyEmptyAgentCanvas();
   }
 
+  // Selecting a removed workspace starts a fresh live canvas. Future switches
+  // may persist this new state normally.
+  removedAgentWorkspaceKeys.delete(to);
   lastAgentCanvasSwitchTargetKey = to;
 }
 
@@ -1206,6 +1220,20 @@ export function removeAgentCanvasSnapshot(workspaceId: string): void {
   agentWorkspaceSnapshots.delete(key);
   const idx = agentSnapshotLruOrder.indexOf(key);
   if (idx >= 0) agentSnapshotLruOrder.splice(idx, 1);
+  if (lastAgentCanvasSwitchTargetKey === key) {
+    removedAgentWorkspaceKeys.add(key);
+    lastAgentCanvasSwitchTargetKey = null;
+  } else {
+    removedAgentWorkspaceKeys.delete(key);
+  }
+}
+
+/** Clears module-level snapshot state so tests cannot leak workspace state. */
+export function resetAgentCanvasWorkspaceSnapshotsForTests(): void {
+  agentWorkspaceSnapshots.clear();
+  agentSnapshotLruOrder.splice(0, agentSnapshotLruOrder.length);
+  removedAgentWorkspaceKeys.clear();
+  lastAgentCanvasSwitchTargetKey = null;
 }
 
 const selectWholeCanvasStore = (state: CanvasStore) => state;

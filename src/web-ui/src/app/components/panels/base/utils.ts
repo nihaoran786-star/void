@@ -242,6 +242,14 @@ export const PANEL_CONTENT_CONFIGS: Record<PanelContentType, PanelContentConfig>
     supportsDownload: false,
     showHeader: false
   },
+  'canvas-surface': {
+    type: 'canvas-surface',
+    displayName: 'Canvas Surface',
+    icon: Network,
+    supportsCopy: false,
+    supportsDownload: false,
+    showHeader: false
+  },
   'workspace-media-gallery': {
     type: 'workspace-media-gallery',
     displayName: 'Media',

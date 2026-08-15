@@ -31,6 +31,7 @@ export type PanelContentType =
   | 'review-platform-pr-detail'
   | 'terminal'
   | 'generative-widget'
+  | 'canvas-surface'
   | 'workspace-media-gallery'
   | 'short-drama-center'
   | 'browser';

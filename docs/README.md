@@ -23,6 +23,13 @@ automatically the current source of truth.
 - [Team Workspace product and architecture specification](features/team-workspace-prd.md)
   — current reusable-Team definition/runtime status, bounded member-to-worker
   delegation, recursive conversation projection, and staged expansion contract
+- [Canvas plugin platform product and architecture specification](features/canvas-plugin-platform-prd.md)
+  — current product north star for the central conversation plus right
+  collapsible Content Canvas, typed surface/domain/Agent/Team/Workflow
+  contribution boundaries, Canvas-based Agent Studio, hot configuration versus
+  revision-frozen execution, the verified P0-A Workspace Media registry slice,
+  staged first-party migration, stability gates, and bounded DeepSeek Harness
+  compatibility
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
   responsive layout, accessibility, full-window evidence, and performance;

@@ -139,6 +139,7 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
           isMaximized={isMaximized}
         />
         <SceneViewport
+          workspaceId={currentWorkspace?.id}
           workspacePath={currentWorkspace?.rootPath}
           isEntering={isEntering}
         />

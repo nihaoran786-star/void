@@ -32,10 +32,11 @@ export interface AuxPaneRef {
 interface AuxPaneProps {
   workspacePath?: string;
   isSceneActive?: boolean;
+  onReady?: () => void;
 }
 
 const AuxPane = forwardRef<AuxPaneRef, AuxPaneProps>(
-  ({ workspacePath, isSceneActive = true }, ref) => {
+  ({ workspacePath, isSceneActive = true, onReady }, ref) => {
     const { workspace } = useCurrentWorkspace();
     const workspaceId = workspace?.id;
 
@@ -120,6 +121,10 @@ const AuxPane = forwardRef<AuxPaneRef, AuxPaneProps>(
       });
       return () => removeListener();
     }, []);
+
+    useEffect(() => {
+      onReady?.();
+    }, [onReady]);
 
     const handleInteraction = useCallback(async (itemId: string, userInput: string) => {
       log.debug('Panel interaction', { itemId, userInput });

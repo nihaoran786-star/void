@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { PanelContent } from '../types';
-import { useProjectCanvasStore } from './canvasStore';
+import {
+  removeAgentCanvasSnapshot,
+  resetAgentCanvasWorkspaceSnapshotsForTests,
+  switchAgentCanvasWorkspace,
+  useAgentCanvasStore,
+  useProjectCanvasStore,
+} from './canvasStore';
 
 const createContent = (title: string): PanelContent => ({
   type: 'workspace-media-gallery',
@@ -88,5 +94,79 @@ describe('canvasStore tertiary group operations', () => {
     expect(moved.layout.splitMode).toBe('grid');
     expect(moved.tertiaryGroup.tabs.map(tab => tab.id)).toContain(secondaryTabId);
     expect(moved.activeGroupId).toBe('tertiary');
+  });
+});
+
+describe('agent canvas workspace snapshots', () => {
+  beforeEach(() => {
+    resetAgentCanvasWorkspaceSnapshotsForTests();
+    useAgentCanvasStore.getState().reset();
+  });
+
+  it('restores each workspace independently and clears transient interaction state', () => {
+    switchAgentCanvasWorkspace(null, 'workspace-a');
+    const canvasA = useAgentCanvasStore.getState();
+    canvasA.addTab(createContent('a'), 'active', 'primary');
+    const tabA = useAgentCanvasStore.getState().primaryGroup.tabs[0];
+    canvasA.startDrag(tabA.id, 'primary');
+    canvasA.openMissionControl();
+
+    switchAgentCanvasWorkspace('workspace-a', 'workspace-b');
+    useAgentCanvasStore.getState().addTab(createContent('b'), 'active', 'primary');
+    switchAgentCanvasWorkspace('workspace-b', 'workspace-a');
+
+    const restored = useAgentCanvasStore.getState();
+    expect(restored.primaryGroup.tabs.map(tab => tab.title)).toEqual(['a']);
+    expect(restored.draggingTabId).toBeNull();
+    expect(restored.draggingFromGroupId).toBeNull();
+    expect(restored.isMissionControlOpen).toBe(false);
+  });
+
+  it('uses workspace ids, so remote workspaces with the same path remain isolated', () => {
+    switchAgentCanvasWorkspace(null, 'remote-a');
+    useAgentCanvasStore.getState().addTab(createContent('/srv/app:a'), 'active', 'primary');
+    switchAgentCanvasWorkspace('remote-a', 'remote-b');
+    useAgentCanvasStore.getState().addTab(createContent('/srv/app:b'), 'active', 'primary');
+
+    switchAgentCanvasWorkspace('remote-b', 'remote-a');
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs.map(tab => tab.title)).toEqual([
+      '/srv/app:a',
+    ]);
+
+    switchAgentCanvasWorkspace('remote-a', 'remote-b');
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs.map(tab => tab.title)).toEqual([
+      '/srv/app:b',
+    ]);
+  });
+
+  it('does not resurrect the live canvas after its workspace snapshot is removed', () => {
+    switchAgentCanvasWorkspace(null, 'workspace-closed');
+    useAgentCanvasStore.getState().addTab(createContent('closed'), 'active', 'primary');
+
+    removeAgentCanvasSnapshot('workspace-closed');
+    switchAgentCanvasWorkspace('workspace-closed', 'workspace-other');
+    switchAgentCanvasWorkspace('workspace-other', 'workspace-closed');
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+  });
+
+  it('does not persist the no-workspace canvas into a real workspace', () => {
+    switchAgentCanvasWorkspace(null, undefined);
+    useAgentCanvasStore.getState().addTab(createContent('no-workspace'), 'active', 'primary');
+
+    switchAgentCanvasWorkspace(undefined, 'workspace-real');
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+  });
+
+  it('keeps the live canvas when the same workspace identity is selected again', () => {
+    switchAgentCanvasWorkspace(null, 'workspace-same');
+    useAgentCanvasStore.getState().addTab(createContent('live'), 'active', 'primary');
+
+    switchAgentCanvasWorkspace('workspace-same', 'workspace-same');
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs.map(tab => tab.title)).toEqual([
+      'live',
+    ]);
   });
 });

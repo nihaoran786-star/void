@@ -19,7 +19,7 @@ function sourceBetween(source: string, startMarker: string, endMarker: string): 
 describe('ShortDramaCenterPanel presentation lifecycle contract', () => {
   it('receives the existing FlexiblePanel activity signal without conditional unmounting', () => {
     expect(flexiblePanelSource).toMatch(
-      /<WorkspaceMediaGallery[\s\S]{0,220}isActive=\{isActive\}/
+      /<CanvasSurfaceRenderer[\s\S]{0,220}isActive=\{isActive\}/
     );
     expect(flexiblePanelSource).toMatch(
       /<ShortDramaCenterPanel[\s\S]{0,320}isActive=\{isActive\}/

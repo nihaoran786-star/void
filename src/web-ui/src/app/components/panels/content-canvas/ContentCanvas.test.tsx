@@ -4,6 +4,14 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 
+interface WorkspaceFixture {
+  id: string;
+  rootPath: string;
+  workspaceKind: 'normal' | 'assistant' | 'remote';
+  connectionId?: string;
+  sshHost?: string;
+}
+
 vi.hoisted(() => {
   const matchMedia = () => ({
     matches: false,
@@ -81,9 +89,38 @@ const transportAdapterMock = vi.hoisted(() => ({
   isConnected: vi.fn(() => true),
 }));
 
+const workspaceContextMock = vi.hoisted(() => {
+  let workspace: WorkspaceFixture | null = {
+    id: 'workspace-local-1',
+    rootPath: 'C:/work',
+    workspaceKind: 'normal' as const,
+  };
+  return {
+    getWorkspace: () => workspace,
+    setWorkspace: (nextWorkspace: WorkspaceFixture | null) => {
+      workspace = nextWorkspace;
+    },
+    reset: () => {
+      workspace = {
+        id: 'workspace-local-1',
+        rootPath: 'C:/work',
+        workspaceKind: 'normal',
+      };
+    },
+  };
+});
+
+const emptyStateMock = vi.hoisted(() => ({
+  onOpenWorkspaceMedia: undefined as (() => void) | undefined,
+}));
+
 import { ContentCanvas } from './ContentCanvas';
-import { useKeyboardShortcuts } from './hooks';
-import { useAgentCanvasStore } from './stores';
+import { useKeyboardShortcuts, usePanelTabCoordinator } from './hooks';
+import {
+  CanvasStoreModeContext,
+  useAgentCanvasStore,
+  usePanelViewCanvasStore,
+} from './stores';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import { SHORT_DRAMA_TEAM_CATALOG_ID } from '@/shared/services/customization/fixedTeamIds';
@@ -91,12 +128,21 @@ import type { WorkspaceMediaAvailability, WorkspaceMediaLibraryService } from '@
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+async function waitForCanvasMutation(assertion: () => void): Promise<void> {
+  await act(async () => {
+    await vi.waitFor(assertion, { timeout: 5_000 });
+  });
+}
+
 vi.mock('./editor-area', () => ({
   EditorArea: () => <div data-testid="editor-area" />,
 }));
 
 vi.mock('./empty-state', () => ({
-  EmptyState: () => <div data-testid="empty-state" />,
+  EmptyState: (props: { onOpenWorkspaceMedia?: () => void }) => {
+    emptyStateMock.onOpenWorkspaceMedia = props.onOpenWorkspaceMedia;
+    return <div data-testid="empty-state" />;
+  },
 }));
 
 vi.mock('./anchor-zone', () => ({
@@ -113,9 +159,9 @@ vi.mock('./hooks', () => ({
     handleCloseAllWithDirtyCheck: vi.fn(),
   }),
   useKeyboardShortcuts: vi.fn(),
-  usePanelTabCoordinator: () => ({
+  usePanelTabCoordinator: vi.fn(() => ({
     collapsePanel: vi.fn(),
-  }),
+  })),
 }));
 
 vi.mock('@/flow_chat/services/openBtwSession', () => ({
@@ -129,6 +175,12 @@ vi.mock('@/flow_chat/store/FlowChatStore', () => ({
 
 vi.mock('@/infrastructure/api/adapters', () => ({
   getTransportAdapter: () => transportAdapterMock,
+}));
+
+vi.mock('@/infrastructure/contexts/WorkspaceContext', () => ({
+  useOptionalCurrentWorkspace: () => ({
+    workspace: workspaceContextMock.getWorkspace(),
+  }),
 }));
 
 vi.mock('@/shared/services/short-drama/ShortDramaWorkspaceManifestAdapter', () => ({
@@ -147,7 +199,11 @@ describe('ContentCanvas workspace media opening', () => {
     vi.mocked(openMainSession).mockClear();
     vi.mocked(selectActiveBtwSessionTab).mockReturnValue(null);
     vi.mocked(useKeyboardShortcuts).mockClear();
+    vi.mocked(usePanelTabCoordinator).mockClear();
+    workspaceContextMock.reset();
+    emptyStateMock.onOpenWorkspaceMedia = undefined;
     useAgentCanvasStore.getState().reset();
+    usePanelViewCanvasStore.getState().reset();
     flowChatStore.setState(() => ({ sessions: new Map(), activeSessionId: null }));
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -159,7 +215,19 @@ describe('ContentCanvas workspace media opening', () => {
     vi.useRealTimers();
     container.remove();
     useAgentCanvasStore.getState().reset();
+    usePanelViewCanvasStore.getState().reset();
     flowChatStore.setState(() => ({ sessions: new Map(), activeSessionId: null }));
+  });
+
+  it('keeps restored or newly added canvas tabs hidden until an explicit canvas control opens them', async () => {
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+    });
+
+    expect(usePanelTabCoordinator).toHaveBeenLastCalledWith({
+      autoCollapseOnEmpty: true,
+      autoExpandOnTabOpen: false,
+    });
   });
 
   it('opens the media tab immediately when a media session becomes active', async () => {
@@ -181,14 +249,19 @@ describe('ContentCanvas workspace media opening', () => {
       });
     });
 
-    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toEqual([
-      expect.objectContaining({
-        content: expect.objectContaining({
-          type: 'workspace-media-gallery',
-          data: { workspacePath: 'C:/work' },
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toEqual([
+        expect.objectContaining({
+          content: expect.objectContaining({
+            type: 'workspace-media-gallery',
+            data: { workspacePath: 'C:/work' },
+            metadata: expect.objectContaining({
+              canvasSurfaceSource: 'session-default',
+            }),
+          }),
         }),
-      }),
-    ]);
+      ]);
+    });
     expect(service.checkAvailability).not.toHaveBeenCalled();
   });
 
@@ -202,11 +275,17 @@ describe('ContentCanvas workspace media opening', () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
 
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
     const tabsAfterFirstRender = useAgentCanvasStore.getState().primaryGroup.tabs;
     expect(tabsAfterFirstRender).toHaveLength(1);
     expect(tabsAfterFirstRender[0].content).toMatchObject({
       type: 'workspace-media-gallery',
       data: { workspacePath: 'C:/work' },
+      metadata: {
+        canvasSurfaceSource: 'background-discovery',
+      },
     });
 
     await act(async () => {
@@ -329,6 +408,9 @@ describe('ContentCanvas workspace media opening', () => {
     expect(flowChatStoreMock.getListenerCount()).toBe(1);
     expect(vi.mocked(useKeyboardShortcuts)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true }));
     act(() => window.dispatchEvent(new CustomEvent('void:open-short-drama-center')));
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(2);
+    });
     const resumedTabTypes = useAgentCanvasStore
       .getState()
       .primaryGroup
@@ -363,7 +445,7 @@ describe('ContentCanvas workspace media opening', () => {
         },
         metadata: {},
       },
-    } as any);
+    });
 
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" isSceneActive={false} />);
@@ -388,7 +470,7 @@ describe('ContentCanvas workspace media opening', () => {
         },
         metadata: {},
       },
-    } as any);
+    });
     flowChatStore.addExternalSession('parent-session', 'Parent', 'agentic', 'C:/work');
     flowChatStore.addExternalSession('other-session', 'Other', 'agentic', 'C:/work');
     flowChatStore.switchSession('parent-session');
@@ -434,12 +516,250 @@ describe('ContentCanvas workspace media opening', () => {
       window.dispatchEvent(new CustomEvent('void:open-workspace-media'));
     });
 
+    await waitForCanvasMutation(() => {
+      const mediaTabs = useAgentCanvasStore
+        .getState()
+        .primaryGroup
+        .tabs
+        .filter(tab => tab.content.type === 'workspace-media-gallery');
+      expect(mediaTabs).toHaveLength(1);
+    });
+
     const mediaTabs = useAgentCanvasStore
       .getState()
       .primaryGroup
       .tabs
       .filter(tab => tab.content.type === 'workspace-media-gallery');
     expect(mediaTabs).toHaveLength(1);
+    expect(mediaTabs[0].content.metadata).toMatchObject({
+      canvasSurfaceId: 'workspace-media',
+      canvasSurfaceInstanceKey: 'workspace-media:workspace-local-1',
+      canvasWorkspaceId: 'workspace-local-1',
+      canvasWorkspacePath: 'C:/work',
+      canvasSurfaceSource: 'capability-rail',
+    });
+  });
+
+  it('records the empty-state Canvas control as an explicit canvas-control source', async () => {
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+    });
+
+    act(() => emptyStateMock.onOpenWorkspaceMedia?.());
+
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs[0].content.metadata).toMatchObject({
+      canvasSurfaceSource: 'canvas-control',
+    });
+  });
+
+  it('fails closed before discovery or opening when Workspace Media is remote', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+    workspaceContextMock.setWorkspace({
+      id: 'remote-workspace-a',
+      rootPath: '/srv/app',
+      workspaceKind: 'remote',
+      connectionId: 'connection-a',
+      sshHost: 'host-a',
+    });
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="/srv/app" workspaceMediaService={service} />);
+    });
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+    expect(service.checkAvailability).not.toHaveBeenCalled();
+  });
+
+  it('records restore event facts instead of treating restore as a capability click', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
+    });
+
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
+      detail: {
+        source: 'restore',
+        sourceSessionId: 'team-session-1',
+        workspaceId: 'workspace-local-1',
+        workspacePath: 'C:/work',
+      },
+    })));
+
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs[0].content.metadata).toMatchObject({
+      canvasSurfaceSource: 'restore',
+      canvasSourceSessionId: 'team-session-1',
+    });
+  });
+
+  it('ignores an incomplete restore event instead of treating it as a capability click', async () => {
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+    });
+
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
+      detail: {
+        source: 'restore',
+        sourceSessionId: 'team-session-without-workspace',
+      },
+    })));
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+  });
+
+  it('retries a restore event when workspace facts become ready', async () => {
+    workspaceContextMock.setWorkspace(null);
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
+        detail: {
+          source: 'restore',
+          sourceSessionId: 'team-session-restore',
+          workspaceId: 'workspace-local-1',
+          workspacePath: 'C:/work',
+        },
+      }));
+      await Promise.resolve();
+    });
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+
+    workspaceContextMock.reset();
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+      await Promise.resolve();
+    });
+
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs[0].content.metadata).toMatchObject({
+      canvasSurfaceSource: 'restore',
+      canvasSourceSessionId: 'team-session-restore',
+    });
+  });
+
+  it('drops a pending restore instead of replaying it into another workspace', async () => {
+    workspaceContextMock.setWorkspace(null);
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work-a" />);
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
+        detail: {
+          source: 'restore',
+          sourceSessionId: 'team-session-a',
+          workspaceId: 'workspace-a',
+          workspacePath: 'C:/work-a',
+        },
+      }));
+      await Promise.resolve();
+    });
+
+    workspaceContextMock.setWorkspace({
+      id: 'workspace-b',
+      rootPath: 'C:/work-b',
+      workspaceKind: 'normal',
+    });
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work-b" />);
+      await Promise.resolve();
+    });
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+  });
+
+  it('retries the default media open after workspace facts become available', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+    workspaceContextMock.setWorkspace(null);
+    act(() => {
+      flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
+      flowChatStore.switchSession('media-session');
+    });
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
+    });
+    await act(async () => {
+      await new Promise<void>(resolve => window.requestAnimationFrame(() => resolve()));
+    });
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+
+    workspaceContextMock.reset();
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
+    });
+    await act(async () => {
+      await new Promise<void>(resolve => window.requestAnimationFrame(() => resolve()));
+    });
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
+  });
+
+  it('accepts an equivalent workspace path with a trailing separator', async () => {
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work/" />);
+    });
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+
+    await waitForCanvasMutation(() => {
+      expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
+  });
+
+  it('opens through the Canvas store selected by the current host context', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+
+    await act(async () => {
+      root.render(
+        <CanvasStoreModeContext.Provider value="panel-view">
+          <ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />
+        </CanvasStoreModeContext.Provider>,
+      );
+    });
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+
+    await waitForCanvasMutation(() => {
+      expect(usePanelViewCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    });
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+  });
+
+  it('fails closed when presentation path disagrees with workspace facts', async () => {
+    workspaceContextMock.setWorkspace({
+      id: 'workspace-local-2',
+      rootPath: 'C:/other',
+      workspaceKind: 'normal',
+    });
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+    });
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
   });
 
   it('opens the short drama center tab from the global short drama event without duplicating existing tab', async () => {

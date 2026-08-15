@@ -14,7 +14,6 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../hooks/useApp';
 import ChatPane from './ChatPane';
-import AuxPane, { type AuxPaneRef } from './AuxPane';
 import SessionCapabilityRail from './SessionCapabilityRail';
 import { SessionCapabilityRailOutletProvider } from '@/app/presentation/sessionCapabilityRailOutlet';
 import { isTauriRuntime } from '@/infrastructure/runtime';
@@ -24,8 +23,10 @@ import {
   useCanvasStore,
 } from '@/app/components/panels/content-canvas/stores';
 import { removeDuplicateTeamMemberCanvasTabs } from '@/app/presentation/TeamMemberCanvasPresentation';
+import { dispatchWorkspaceMediaOpen } from '@/app/components/panels/content-canvas/registry/WorkspaceMediaOpenEvent';
 import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSessionCapabilities';
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
+import { isSamePath } from '@/shared/utils/pathUtils';
 import {
   TeamWorkspacePanel,
   resolveTeamCanvasCapability,
@@ -48,14 +49,49 @@ import {
 
 import './SessionScene.scss';
 
+const AuxPane = React.lazy(() => import('./AuxPane'));
+
+interface SessionCanvasCapabilityIntent {
+  capabilityId: SessionCapabilityId;
+  sourceSessionId?: string;
+  workspaceId?: string;
+  workspacePath?: string;
+}
+
+type SessionCanvasIntentState = 'current' | 'wait' | 'stale';
+
+function getSessionCanvasIntentState(
+  intent: SessionCanvasCapabilityIntent,
+  current: {
+    sourceSessionId?: string | null;
+    workspaceId?: string;
+    workspacePath?: string;
+  },
+): SessionCanvasIntentState {
+  if (intent.sourceSessionId) {
+    if (!current.sourceSessionId) return 'wait';
+    if (intent.sourceSessionId !== current.sourceSessionId) return 'stale';
+  }
+  if (intent.workspaceId) {
+    if (!current.workspaceId) return 'wait';
+    if (intent.workspaceId !== current.workspaceId) return 'stale';
+  }
+  if (intent.workspacePath) {
+    if (!current.workspacePath) return 'wait';
+    if (!isSamePath(intent.workspacePath, current.workspacePath)) return 'stale';
+  }
+  return 'current';
+}
 
 interface SessionSceneProps {
+  workspaceId?: string;
   workspacePath?: string;
   isEntering?: boolean;
   isActive?: boolean;
 }
 
 const SessionScene: React.FC<SessionSceneProps> = ({
+  workspaceId,
   workspacePath,
   isEntering = false,
   isActive = true,
@@ -80,7 +116,10 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     }
     return undefined;
   });
-  const auxPaneRef = useRef<AuxPaneRef>(null);
+  const [isAuxPaneReady, setIsAuxPaneReady] = useState(false);
+  const pendingCanvasCapabilityIntentsRef = useRef(
+    new Map<SessionCapabilityId, SessionCanvasCapabilityIntent>(),
+  );
 
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -424,6 +463,48 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     window.dispatchEvent(new CustomEvent('void:toggle-preview-first'));
   }, []);
 
+  const dispatchSessionCanvasCapability = useCallback((
+    intent: SessionCanvasCapabilityIntent,
+  ) => {
+    if (intent.capabilityId === 'short-drama') {
+      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+      return;
+    }
+    dispatchWorkspaceMediaOpen({
+      source: 'capability-rail',
+      ...(intent.sourceSessionId ? { sourceSessionId: intent.sourceSessionId } : {}),
+      ...(intent.workspaceId ? { workspaceId: intent.workspaceId } : {}),
+      ...(intent.workspacePath ? { workspacePath: intent.workspacePath } : {}),
+    });
+  }, []);
+
+  const handleAuxPaneReady = useCallback(() => {
+    setIsAuxPaneReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuxPaneReady || !isActive) return;
+    for (const [capabilityId, intent] of pendingCanvasCapabilityIntentsRef.current) {
+      const intentState = getSessionCanvasIntentState(intent, {
+        sourceSessionId: activeSessionId,
+        workspaceId,
+        workspacePath,
+      });
+      if (intentState === 'wait') continue;
+      pendingCanvasCapabilityIntentsRef.current.delete(capabilityId);
+      if (intentState === 'current') {
+        dispatchSessionCanvasCapability(intent);
+      }
+    }
+  }, [
+    activeSessionId,
+    dispatchSessionCanvasCapability,
+    isActive,
+    isAuxPaneReady,
+    workspaceId,
+    workspacePath,
+  ]);
+
   const handleOpenSessionCapability = useCallback((
     capabilityId: SessionCapabilityId,
   ) => {
@@ -431,17 +512,34 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       toggleRightPanel();
     }
 
-    const eventName = capabilityId === 'short-drama'
-      ? 'void:open-short-drama-center'
-      : 'void:open-workspace-media';
-    window.dispatchEvent(new CustomEvent(eventName));
-  }, [state.layout.rightPanelCollapsed, toggleRightPanel]);
+    const intent: SessionCanvasCapabilityIntent = {
+      capabilityId,
+      ...(activeSessionId ? { sourceSessionId: activeSessionId } : {}),
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(workspacePath ? { workspacePath } : {}),
+    };
+    if (!isAuxPaneReady || !isActive) {
+      pendingCanvasCapabilityIntentsRef.current.set(capabilityId, intent);
+      return;
+    }
+    dispatchSessionCanvasCapability(intent);
+  }, [
+    activeSessionId,
+    dispatchSessionCanvasCapability,
+    isActive,
+    isAuxPaneReady,
+    state.layout.rightPanelCollapsed,
+    toggleRightPanel,
+    workspaceId,
+    workspacePath,
+  ]);
 
   const teamCanvasCapability = resolveTeamCanvasCapability(
     activeTeamWorkspace.snapshot?.activeTeam?.teamDefinitionId,
   );
   const restoredTeamCanvasBindingRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!isActive) return;
     const activeTeam = activeTeamWorkspace.snapshot?.activeTeam;
     if (!activeTeamWorkspace.sessionId || !activeTeam) return;
     removeDuplicateTeamMemberCanvasTabs(useAgentCanvasStore.getState(), {
@@ -455,6 +553,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   }, [
     activeTeamWorkspace.sessionId,
     activeTeamWorkspace.snapshot,
+    isActive,
     teamCanvasCapability,
     workspacePath,
   ]);
@@ -463,23 +562,39 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       restoredTeamCanvasBindingRef.current = null;
       return;
     }
+    if (!isAuxPaneReady || !isActive) {
+      return;
+    }
     const restorationKey = [
       activeTeamWorkspace.teamBindingKey,
       teamCanvasCapability,
+      workspaceId ?? workspacePath ?? 'workspace-unavailable',
     ].join(':');
     if (restoredTeamCanvasBindingRef.current === restorationKey) return;
-    restoredTeamCanvasBindingRef.current = restorationKey;
 
-    if (state.layout.rightPanelCollapsed) toggleRightPanel();
-    const eventName = teamCanvasCapability === 'short-drama'
-      ? 'void:open-short-drama-center'
-      : 'void:open-workspace-media';
-    window.dispatchEvent(new CustomEvent(eventName));
+    if (teamCanvasCapability === 'short-drama') {
+      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+      restoredTeamCanvasBindingRef.current = restorationKey;
+    } else {
+      if (!activeTeamWorkspace.sessionId || !workspaceId || !workspacePath) {
+        return;
+      }
+      dispatchWorkspaceMediaOpen({
+        source: 'restore',
+        sourceSessionId: activeTeamWorkspace.sessionId,
+        workspaceId,
+        workspacePath,
+      });
+      restoredTeamCanvasBindingRef.current = restorationKey;
+    }
   }, [
+    activeTeamWorkspace.sessionId,
     activeTeamWorkspace.teamBindingKey,
-    state.layout.rightPanelCollapsed,
+    isActive,
+    isAuxPaneReady,
     teamCanvasCapability,
-    toggleRightPanel,
+    workspaceId,
+    workspacePath,
   ]);
 
   const canToggleAuxPane = newSessionDraftStatus === 'idle'
@@ -614,11 +729,13 @@ const SessionScene: React.FC<SessionSceneProps> = ({
         data-mode={rightPanelMode}
         id="void-session-aux-pane"
       >
-        <AuxPane
-          ref={auxPaneRef}
-          workspacePath={workspacePath}
-          isSceneActive={isActive}
-        />
+        <React.Suspense fallback={null}>
+          <AuxPane
+            workspacePath={workspacePath}
+            isSceneActive={isActive}
+            onReady={handleAuxPaneReady}
+          />
+        </React.Suspense>
       </div>
       {activeTeamWorkspace.hasTeamBinding && isTeamWorkspaceOpen && (
         <div

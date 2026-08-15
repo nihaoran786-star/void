@@ -5,6 +5,7 @@ import { useI18n } from '@/infrastructure/i18n';
 import { createLogger } from '@/shared/utils/logger';
 import { globalEventBus } from '@/infrastructure/event-bus';
 import { getShortDramaStageDisplayTitle } from '../content-canvas/tab-bar/canvasTabPresentation';
+import { CanvasSurfaceErrorBoundary } from '../content-canvas/registry/CanvasSurfaceErrorBoundary';
 
 const log = createLogger('FlexiblePanel');
 const PANEL_LOADING_CLASS = 'void-flexible-panel__loading';
@@ -103,12 +104,6 @@ const GenerativeWidgetPanel = React.lazy(() =>
   import('@/tools/generative-widget/GenerativeWidgetPanel')
 );
 
-const WorkspaceMediaGallery = React.lazy(() =>
-  import('@/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery').then(module => ({
-    default: module.WorkspaceMediaGallery,
-  }))
-);
-
 const ShortDramaCenterPanel = React.lazy(() =>
   import('@/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel').then(module => ({
     default: module.ShortDramaCenterPanel,
@@ -135,6 +130,12 @@ const SessionUsagePanel = React.lazy(() =>
 
 const ReviewPlatformPanel = React.lazy(() =>
   import('@/app/components/panels/review-platform/ReviewPlatformPanel')
+);
+
+const CanvasSurfaceRenderer = React.lazy(() =>
+  import('../content-canvas/registry/CanvasSurfaceRenderer').then(module => ({
+    default: module.CanvasSurfaceRenderer,
+  }))
 );
 
 // CodePreview, ChartRenderer and CodeNode removed - visualization features disabled
@@ -258,6 +259,50 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
           <h3>{t('flexiblePanel.empty.title')}</h3>
           <p>{t('flexiblePanel.empty.description')}</p>
         </div>
+      );
+    }
+
+    const unsupportedContent = (
+      <div className="void-flexible-panel__unknown-content">
+        <div className="void-flexible-panel__unknown-icon">
+          <AlertCircle size={48} />
+        </div>
+        <h3>{t('flexiblePanel.unknownContent.title')}</h3>
+        <p>{t('flexiblePanel.unknownContent.description')}</p>
+        <div className="void-flexible-panel__unknown-meta">
+          <code>{t('flexiblePanel.unknownContent.contentType', { type: content.type })}</code>
+        </div>
+      </div>
+    );
+
+    if (
+      content.type === 'canvas-surface'
+      || content.type === 'workspace-media-gallery'
+    ) {
+      const instanceKey = String(
+        content.metadata?.canvasSurfaceInstanceKey
+          ?? `${content.metadata?.canvasSurfaceId ?? content.type}:unscoped`,
+      );
+      const handleRendererError = (error: Error) => {
+        log.error('Canvas surface renderer failed', {
+          surfaceId: content.metadata?.canvasSurfaceId,
+          error,
+        });
+      };
+      return (
+        <CanvasSurfaceErrorBoundary
+          instanceKey={instanceKey}
+          fallback={unsupportedContent}
+          onError={handleRendererError}
+        >
+          <CanvasSurfaceRenderer
+            content={content}
+            isActive={isActive}
+            unavailableFallback={unsupportedContent}
+            errorFallback={unsupportedContent}
+            onRendererError={handleRendererError}
+          />
+        </CanvasSurfaceErrorBoundary>
       );
     }
 
@@ -904,16 +949,6 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
           </React.Suspense>
         );
 
-      case 'workspace-media-gallery':
-        return (
-          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>Loading media...</div>}>
-            <WorkspaceMediaGallery
-              workspacePath={content.data?.workspacePath || workspacePath}
-              isActive={isActive}
-            />
-          </React.Suspense>
-        );
-
       case 'short-drama-center':
         return (
           <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.shortDrama')}</div>}>
@@ -927,18 +962,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
         );
 
       default:
-        return (
-          <div className="void-flexible-panel__unknown-content">
-            <div className="void-flexible-panel__unknown-icon">
-              <AlertCircle size={48} />
-            </div>
-            <h3>{t('flexiblePanel.unknownContent.title')}</h3>
-            <p>{t('flexiblePanel.unknownContent.description')}</p>
-            <div className="void-flexible-panel__unknown-meta">
-              <code>{t('flexiblePanel.unknownContent.contentType', { type: content.type })}</code>
-            </div>
-          </div>
-        );
+        return unsupportedContent;
     }
   };
 
