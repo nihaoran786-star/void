@@ -1,11 +1,8 @@
 import React from 'react';
 import {
-  Clapperboard,
-  Images,
   PanelRightClose,
   PanelRightOpen,
   UsersRound,
-  type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -13,6 +10,8 @@ import type {
   SessionCapabilityPresentation,
 } from '@/flow_chat/services/sessionCapabilities';
 import { SessionCapabilityRailOutlet } from '@/app/presentation/sessionCapabilityRailOutlet';
+import { canvasCapabilityContributionRegistry } from '@/app/components/panels/content-canvas/registry/CanvasCapabilityContributionRegistry';
+import { ensureFirstPartyCanvasCapabilitiesRegistered } from '@/app/components/panels/content-canvas/registry/firstPartyCanvasCapabilities';
 import type { TeamWorkspaceRailStatus } from '@/team_workspace';
 import './SessionCapabilityRail.scss';
 
@@ -33,15 +32,7 @@ interface SessionCapabilityRailProps {
   onCanvasToggle: () => void;
 }
 
-const CAPABILITY_ICONS = {
-  'short-drama': Clapperboard,
-  'workspace-media': Images,
-} satisfies Record<SessionCapabilityId, LucideIcon>;
-
-const CAPABILITY_LABEL_KEYS = {
-  'short-drama': 'layout.sessionCapabilities.shortDrama',
-  'workspace-media': 'layout.sessionCapabilities.workspaceMedia',
-} satisfies Record<SessionCapabilityId, string>;
+ensureFirstPartyCanvasCapabilitiesRegistered();
 
 export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
   capabilities,
@@ -65,8 +56,12 @@ export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
       data-testid="session-capability-rail"
     >
       {capabilities.map(capability => {
-        const Icon = CAPABILITY_ICONS[capability.id];
-        const label = t(CAPABILITY_LABEL_KEYS[capability.id]);
+        const contribution = canvasCapabilityContributionRegistry.resolveByCapabilityId(
+          capability.id,
+        );
+        if (!contribution) return null;
+        const Icon = contribution.Icon;
+        const label = t(contribution.labelKey);
         const status = t(
           `layout.sessionCapabilities.status.${capability.status}`,
         );

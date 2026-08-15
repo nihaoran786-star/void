@@ -168,6 +168,12 @@ describe('Web UI startup import boundaries', () => {
 
   it('loads optional panel implementations from concrete module boundaries', () => {
     const source = readSource('../components/panels/base/FlexiblePanel.tsx');
+    const shortDramaSurfaceRenderer = readSource(
+      '../components/panels/content-canvas/registry/ShortDramaCanvasSurfaceRenderer.tsx',
+    );
+    const firstPartyCanvasSurfaces = readSource(
+      '../components/panels/content-canvas/registry/firstPartyCanvasSurfaces.ts',
+    );
     const componentLibraryBarrel = readSource('../../component-library/components/index.ts');
     const componentLibraryCodeEditor = readSource(
       '../../component-library/components/CodeEditor/index.ts',
@@ -184,10 +190,18 @@ describe('Web UI startup import boundaries', () => {
     expect(source).toContain(
       "import('@/tools/git/components/GitDiffEditor/GitDiffEditor')",
     );
-    expect(source).toContain(
-      "import('@/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel')",
+    expect(shortDramaSurfaceRenderer).toContain(
+      "import('../short-drama/ShortDramaCenterPanel')",
     );
-    expect(source).toContain('default: module.ShortDramaCenterPanel');
+    expect(shortDramaSurfaceRenderer).toContain('default: module.ShortDramaCenterPanel');
+    expect(firstPartyCanvasSurfaces).toContain(
+      "import('./ShortDramaCanvasOpenPolicyRuntime')",
+    );
+    expect(firstPartyCanvasSurfaces).not.toContain(
+      "from './ShortDramaCanvasOpenPolicyRuntime'",
+    );
+    expect(source).not.toContain('ShortDramaCenterPanel');
+    expect(source).not.toContain("case 'short-drama-center':");
     expect(source).toContain(
       "const PANEL_LOADING_CLASS = 'void-flexible-panel__loading'",
     );

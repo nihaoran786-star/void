@@ -125,12 +125,67 @@ import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import { SHORT_DRAMA_TEAM_CATALOG_ID } from '@/shared/services/customization/fixedTeamIds';
 import type { WorkspaceMediaAvailability, WorkspaceMediaLibraryService } from '@/shared/services/workspace-media';
+import { canvasSurfaceCommandService } from './registry/CanvasSurfaceCommandRuntime';
+import { openFirstPartyCanvasCapability } from './registry/FirstPartyCanvasCapabilityRuntime';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 async function waitForCanvasMutation(assertion: () => void): Promise<void> {
   await act(async () => {
     await vi.waitFor(assertion, { timeout: 5_000 });
+  });
+}
+
+function currentCommandTarget(hostId = 'agent') {
+  const workspace = workspaceContextMock.getWorkspace();
+  if (!workspace) return { status: 'unavailable' as const, reason: 'no-workspace' };
+  if (workspace.workspaceKind === 'remote') {
+    return workspace.connectionId
+      ? {
+          status: 'ready' as const,
+          hostId,
+          workspaceId: workspace.id,
+          workspacePath: workspace.rootPath,
+          backend: 'remote' as const,
+          remoteConnectionId: workspace.connectionId,
+          ...(workspace.sshHost ? { remoteHost: workspace.sshHost } : {}),
+        }
+      : { status: 'unavailable' as const, reason: 'invalid-workspace' };
+  }
+  return {
+        status: 'ready' as const,
+        hostId,
+        workspaceId: workspace.id,
+        workspacePath: workspace.rootPath,
+        backend: 'local' as const,
+      };
+}
+
+let commandSequence = 0;
+
+async function openWorkspaceMediaCommand(options: {
+  source?: 'capability-rail' | 'restore';
+  sourceSessionId?: string;
+  hostId?: string;
+} = {}) {
+  return await canvasSurfaceCommandService.open({
+    surfaceId: 'workspace-media',
+    source: options.source ?? 'capability-rail',
+    input: undefined,
+    idempotencyKey: `${options.source ?? 'capability-rail'}:${++commandSequence}`,
+    target: currentCommandTarget(options.hostId),
+    ...(options.sourceSessionId ? { sourceSessionId: options.sourceSessionId } : {}),
+  });
+}
+
+async function openShortDramaCommand(sourceSessionId: string) {
+  return await openFirstPartyCanvasCapability({
+    capabilityId: 'short-drama',
+    source: 'capability-rail',
+    input: undefined,
+    idempotencyKey: `short-drama:${++commandSequence}`,
+    sourceSessionId,
+    target: currentCommandTarget(),
   });
 }
 
@@ -196,6 +251,7 @@ describe('ContentCanvas workspace media opening', () => {
   let root: Root;
 
   beforeEach(() => {
+    commandSequence = 0;
     vi.mocked(openMainSession).mockClear();
     vi.mocked(selectActiveBtwSessionTab).mockReturnValue(null);
     vi.mocked(useKeyboardShortcuts).mockClear();
@@ -382,7 +438,9 @@ describe('ContentCanvas workspace media opening', () => {
 
     expect(flowChatStoreMock.getListenerCount()).toBe(0);
     expect(vi.mocked(useKeyboardShortcuts)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+    await expect(openWorkspaceMediaCommand()).resolves.toMatchObject({
+      status: 'unavailable',
+    });
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
 
     act(() => {
@@ -407,7 +465,9 @@ describe('ContentCanvas workspace media opening', () => {
 
     expect(flowChatStoreMock.getListenerCount()).toBe(1);
     expect(vi.mocked(useKeyboardShortcuts)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true }));
-    act(() => window.dispatchEvent(new CustomEvent('void:open-short-drama-center')));
+    await act(async () => {
+      await openShortDramaCommand('media-session');
+    });
     await waitForCanvasMutation(() => {
       expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(2);
     });
@@ -499,7 +559,7 @@ describe('ContentCanvas workspace media opening', () => {
     expect(openMainSession).toHaveBeenLastCalledWith('parent-session');
   });
 
-  it('opens the workspace media tab from the global media event without duplicating existing media tab', async () => {
+  it('opens the workspace media tab through the typed command port without duplicating it', async () => {
     const service: WorkspaceMediaLibraryService = {
       checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
       scanLibrary: vi.fn(),
@@ -509,11 +569,9 @@ describe('ContentCanvas workspace media opening', () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
 
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-workspace-media'));
-    });
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-workspace-media'));
+    await act(async () => {
+      await openWorkspaceMediaCommand();
+      await openWorkspaceMediaCommand();
     });
 
     await waitForCanvasMutation(() => {
@@ -572,29 +630,33 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="/srv/app" workspaceMediaService={service} />);
     });
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+    await act(async () => {
+      await openWorkspaceMediaCommand();
+    });
 
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
     expect(service.checkAvailability).not.toHaveBeenCalled();
   });
 
-  it('records restore event facts instead of treating restore as a capability click', async () => {
+  it('records typed restore facts instead of treating restore as a capability click', async () => {
     const service: WorkspaceMediaLibraryService = {
       checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
       scanLibrary: vi.fn(),
     };
+    act(() => {
+      flowChatStore.addExternalSession('team-session-1', 'Team', 'Media', 'C:/work');
+      flowChatStore.switchSession('team-session-1');
+    });
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
     });
 
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
-      detail: {
+    await act(async () => {
+      await openWorkspaceMediaCommand({
         source: 'restore',
         sourceSessionId: 'team-session-1',
-        workspaceId: 'workspace-local-1',
-        workspacePath: 'C:/work',
-      },
-    })));
+      });
+    });
 
     await waitForCanvasMutation(() => {
       expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
@@ -606,43 +668,52 @@ describe('ContentCanvas workspace media opening', () => {
     });
   });
 
-  it('ignores an incomplete restore event instead of treating it as a capability click', async () => {
+  it('rejects a restore command without a workspace target', async () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" />);
     });
 
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
-      detail: {
-        source: 'restore',
-        sourceSessionId: 'team-session-without-workspace',
-      },
-    })));
+    await expect(canvasSurfaceCommandService.open({
+      surfaceId: 'workspace-media',
+      source: 'restore',
+      input: undefined,
+      idempotencyKey: 'incomplete-restore',
+      sourceSessionId: 'team-session-without-workspace',
+      target: { status: 'unavailable', reason: 'no-workspace' },
+    })).resolves.toEqual({ status: 'unavailable', reason: 'no-workspace' });
 
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
   });
 
-  it('retries a restore event when workspace facts become ready', async () => {
+  it('accepts an explicit restore retry when workspace facts become ready', async () => {
+    act(() => {
+      flowChatStore.addExternalSession(
+        'team-session-restore',
+        'Team restore',
+        'Media',
+        'C:/work',
+      );
+      flowChatStore.switchSession('team-session-restore');
+    });
     workspaceContextMock.setWorkspace(null);
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" />);
     });
-    await act(async () => {
-      window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
-        detail: {
-          source: 'restore',
-          sourceSessionId: 'team-session-restore',
-          workspaceId: 'workspace-local-1',
-          workspacePath: 'C:/work',
-        },
-      }));
-      await Promise.resolve();
-    });
+    await expect(openWorkspaceMediaCommand({
+      source: 'restore',
+      sourceSessionId: 'team-session-restore',
+    })).resolves.toMatchObject({ status: 'unavailable' });
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
 
     workspaceContextMock.reset();
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" />);
-      await Promise.resolve();
+    });
+    await act(async () => {
+      await openWorkspaceMediaCommand({
+        source: 'restore',
+        sourceSessionId: 'team-session-restore',
+      });
     });
 
     await waitForCanvasMutation(() => {
@@ -655,22 +726,15 @@ describe('ContentCanvas workspace media opening', () => {
     });
   });
 
-  it('drops a pending restore instead of replaying it into another workspace', async () => {
+  it('does not replay an unavailable restore into another workspace', async () => {
     workspaceContextMock.setWorkspace(null);
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work-a" />);
     });
-    await act(async () => {
-      window.dispatchEvent(new CustomEvent('void:open-workspace-media', {
-        detail: {
-          source: 'restore',
-          sourceSessionId: 'team-session-a',
-          workspaceId: 'workspace-a',
-          workspacePath: 'C:/work-a',
-        },
-      }));
-      await Promise.resolve();
-    });
+    await expect(openWorkspaceMediaCommand({
+      source: 'restore',
+      sourceSessionId: 'team-session-a',
+    })).resolves.toMatchObject({ status: 'unavailable' });
 
     workspaceContextMock.setWorkspace({
       id: 'workspace-b',
@@ -719,7 +783,21 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work/" />);
     });
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+    await act(async () => {
+      await canvasSurfaceCommandService.open({
+        surfaceId: 'workspace-media',
+        source: 'capability-rail',
+        input: undefined,
+        idempotencyKey: 'equivalent-path',
+        target: {
+          status: 'ready',
+          hostId: 'agent',
+          workspaceId: 'workspace-local-1',
+          workspacePath: 'C:/work/',
+          backend: 'local',
+        },
+      });
+    });
 
     await waitForCanvasMutation(() => {
       expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
@@ -739,7 +817,9 @@ describe('ContentCanvas workspace media opening', () => {
         </CanvasStoreModeContext.Provider>,
       );
     });
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+    await act(async () => {
+      await openWorkspaceMediaCommand({ hostId: 'panel-view' });
+    });
 
     await waitForCanvasMutation(() => {
       expect(usePanelViewCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
@@ -757,12 +837,14 @@ describe('ContentCanvas workspace media opening', () => {
     await act(async () => {
       root.render(<ContentCanvas workspacePath="C:/work" />);
     });
-    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+    await expect(openWorkspaceMediaCommand()).resolves.toMatchObject({
+      status: 'unavailable',
+    });
 
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
   });
 
-  it('opens the short drama center tab from the global short drama event without duplicating existing tab', async () => {
+  it('opens the Short Drama surface through the typed capability port without duplicating it', async () => {
     const service: WorkspaceMediaLibraryService = {
       checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
       scanLibrary: vi.fn(),
@@ -776,11 +858,9 @@ describe('ContentCanvas workspace media opening', () => {
       flowChatStore.switchSession('media-session');
     });
 
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
-    });
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    await act(async () => {
+      await openShortDramaCommand('media-session');
+      await openShortDramaCommand('media-session');
     });
 
     const shortDramaTabs = useAgentCanvasStore
@@ -808,16 +888,16 @@ describe('ContentCanvas workspace media opening', () => {
       flowChatStore.addExternalSession('legacy-media-session', 'Legacy Media', 'Media', 'C:/work');
       flowChatStore.switchSession('legacy-media-session');
     });
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    await act(async () => {
+      await openShortDramaCommand('legacy-media-session');
     });
 
     act(() => {
       flowChatStore.addExternalSession('team-media-session', 'Team Media', 'Media', 'C:/work');
       flowChatStore.switchSession('team-media-session');
     });
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    await act(async () => {
+      await openShortDramaCommand('team-media-session');
     });
 
     const shortDramaTabs = useAgentCanvasStore
@@ -887,8 +967,8 @@ describe('ContentCanvas workspace media opening', () => {
       flowChatStore.switchSession('team-media-session');
     });
 
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    await act(async () => {
+      await openShortDramaCommand('team-media-session');
     });
 
     const allTabs = [
@@ -915,8 +995,9 @@ describe('ContentCanvas workspace media opening', () => {
       flowChatStore.switchSession('code-session');
     });
 
-    act(() => {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+    await expect(openShortDramaCommand('code-session')).resolves.toEqual({
+      status: 'restricted',
+      reason: 'media_session_required',
     });
 
     const shortDramaTabs = useAgentCanvasStore
@@ -925,6 +1006,24 @@ describe('ContentCanvas workspace media opening', () => {
       .tabs
       .filter(tab => tab.content.type === 'short-drama-center');
     expect(shortDramaTabs).toHaveLength(0);
+  });
+
+  it('rejects a Short Drama command from a no-longer-active session in the same workspace', async () => {
+    act(() => {
+      flowChatStore.addExternalSession('media-session-a', 'Media A', 'Media', 'C:/work');
+      flowChatStore.addExternalSession('media-session-b', 'Media B', 'Media', 'C:/work');
+      flowChatStore.switchSession('media-session-b');
+    });
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" />);
+    });
+
+    await expect(openShortDramaCommand('media-session-a')).resolves.toMatchObject({
+      status: 'unavailable',
+    });
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs.filter(
+      tab => tab.content.type === 'short-drama-center',
+    )).toHaveLength(0);
   });
 
   it('does not reopen the left main session when a short drama stage agent tab becomes active', async () => {

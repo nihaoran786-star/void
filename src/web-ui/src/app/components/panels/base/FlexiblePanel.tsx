@@ -104,12 +104,6 @@ const GenerativeWidgetPanel = React.lazy(() =>
   import('@/tools/generative-widget/GenerativeWidgetPanel')
 );
 
-const ShortDramaCenterPanel = React.lazy(() =>
-  import('@/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel').then(module => ({
-    default: module.ShortDramaCenterPanel,
-  }))
-);
-
 const TaskDetailPanel = React.lazy(() => 
   import('@/flow_chat/components/TaskDetailPanel').then(module => ({ 
     default: module.TaskDetailPanel 
@@ -275,10 +269,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       </div>
     );
 
-    if (
-      content.type === 'canvas-surface'
-      || content.type === 'workspace-media-gallery'
-    ) {
+    const renderCanvasSurface = () => {
       const instanceKey = String(
         content.metadata?.canvasSurfaceInstanceKey
           ?? `${content.metadata?.canvasSurfaceId ?? content.type}:unscoped`,
@@ -304,6 +295,13 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
           />
         </CanvasSurfaceErrorBoundary>
       );
+    };
+
+    if (
+      content.type === 'canvas-surface'
+      || typeof content.metadata?.canvasSurfaceId === 'string'
+    ) {
+      return renderCanvasSurface();
     }
 
     switch (content.type) {
@@ -949,20 +947,8 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
           </React.Suspense>
         );
 
-      case 'short-drama-center':
-        return (
-          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.shortDrama')}</div>}>
-            <ShortDramaCenterPanel
-              workspacePath={content.data?.workspacePath || workspacePath}
-              sourceSessionId={content.data?.sourceSessionId}
-              staticFixtureEpisodeCount={content.data?.staticFixtureEpisodeCount}
-              isActive={isActive}
-            />
-          </React.Suspense>
-        );
-
       default:
-        return unsupportedContent;
+        return renderCanvasSurface();
     }
   };
 

@@ -394,6 +394,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   );
   effectiveTargetSessionIdRef.current = effectiveTargetSessionId;
   const isPrimaryComposer = !isIndependentChildComposer;
+  const canvasCapabilityDeliverySequenceRef = useRef(0);
   const composerScopeId = effectiveTargetSessionId || draftId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
@@ -3634,8 +3635,55 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           : `${DEEP_REVIEW_SLASH_COMMAND}${currentDraft ? ` ${currentDraft}` : ''}`;
         await submitDeepreviewFromInput(command);
       },
-      openShortDrama: () => {
-        window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+      openCanvasCapability: async capabilityId => {
+        const sourceSessionId = effectiveTargetSessionId;
+        const targetWorkspaceId = effectiveTargetSession?.workspaceId?.trim();
+        const targetWorkspacePath = effectiveTargetSession?.workspacePath?.trim();
+        const targetRemoteConnectionId = effectiveTargetSession?.remoteConnectionId?.trim();
+        const targetRemoteHost = effectiveTargetSession?.remoteSshHost?.trim();
+        if (
+          !sourceSessionId
+          || !targetWorkspaceId
+          || !targetWorkspacePath
+          || (targetRemoteHost && !targetRemoteConnectionId)
+        ) {
+          throw new Error('canvas_scope_unavailable');
+        }
+        canvasCapabilityDeliverySequenceRef.current += 1;
+        const { openFirstPartyCanvasCapability } = await import(
+          '@/app/components/panels/content-canvas/registry/FirstPartyCanvasCapabilityRuntime'
+        );
+        const result = await openFirstPartyCanvasCapability({
+          capabilityId,
+          source: 'composer-action',
+          input: undefined,
+          idempotencyKey: `composer-action:${canvasCapabilityDeliverySequenceRef.current}`,
+          sourceSessionId,
+          target: targetRemoteConnectionId
+            ? {
+                status: 'ready',
+                hostId: 'agent',
+                workspaceId: targetWorkspaceId,
+                workspacePath: targetWorkspacePath,
+                backend: 'remote',
+                remoteConnectionId: targetRemoteConnectionId,
+                ...(targetRemoteHost ? { remoteHost: targetRemoteHost } : {}),
+              }
+            : {
+                status: 'ready',
+                hostId: 'agent',
+                workspaceId: targetWorkspaceId,
+                workspacePath: targetWorkspacePath,
+                backend: 'local',
+              },
+        });
+        if (
+          result.status !== 'opened'
+          && result.status !== 'focused'
+          && result.status !== 'updated'
+        ) {
+          throw new Error('canvas_surface_unavailable');
+        }
       },
     }).catch(() => {
       notificationService.error(
@@ -3644,6 +3692,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     });
   }, [
     inputState.value,
+    effectiveTargetSession,
+    effectiveTargetSessionId,
     isCustomizationPersistencePending,
     runComposerTeamAction,
     submitDeepreviewFromInput,

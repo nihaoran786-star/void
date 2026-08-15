@@ -27,6 +27,9 @@ export class CanvasSurfaceService {
       request.surfaceId,
       request.source,
       request.sourceSessionId ?? 'no-session',
+      request.deliveryScope?.scopeId ?? 'no-delivery-scope',
+      request.deliveryScope?.revision ?? 'no-delivery-revision',
+      request.deliveryScope?.activationId ?? 'no-delivery-activation',
       request.idempotencyKey,
     ].join('\u0000');
     const inFlight = this.inFlightDeliveries.get(deliveryKey);
@@ -50,6 +53,13 @@ export class CanvasSurfaceService {
       workspace: Extract<CanvasSurfaceOpenRequest['workspace'], { status: 'ready' }>;
     },
   ): Promise<CanvasSurfaceOpenResult> {
+
+    if (this.host.isRequestCurrent?.(request) === false) {
+      return {
+        status: 'unavailable',
+        reason: 'Canvas host no longer owns the request context.',
+      };
+    }
 
     const definition = this.registry.resolve(request.surfaceId);
     if (!definition) {
@@ -106,6 +116,12 @@ export class CanvasSurfaceService {
         source: request.source,
         sourceSessionId: request.sourceSessionId,
       } as const;
+      const preparation = definition.prepareOpen
+        ? await definition.prepareOpen(context)
+        : { status: 'ready' as const };
+      if (preparation.status !== 'ready') {
+        return preparation;
+      }
       const instanceKey = definition.createInstanceKey(context);
       const presentation = definition.createPresentation(context);
       hostRequest = {
@@ -114,11 +130,19 @@ export class CanvasSurfaceService {
         workspace: request.workspace,
         source: request.source,
         ...(request.sourceSessionId ? { sourceSessionId: request.sourceSessionId } : {}),
+        ...(request.deliveryScope ? { deliveryScope: request.deliveryScope } : {}),
         ...(definition.legacyContentType
           ? { legacyContentType: definition.legacyContentType }
           : {}),
         ...presentation,
       };
+      if (this.host.isRequestCurrent?.(hostRequest) === false) {
+        return {
+          status: 'unavailable',
+          reason: 'Canvas host no longer owns the request context.',
+        };
+      }
+      preparation.beforeHostMutation?.();
     } catch (cause) {
       return {
         status: 'error',

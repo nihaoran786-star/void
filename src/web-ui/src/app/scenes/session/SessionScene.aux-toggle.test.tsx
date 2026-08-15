@@ -26,6 +26,19 @@ const mocks = vi.hoisted(() => ({
   }>,
   auxPaneAutoReady: true,
   auxPaneReadyCallback: null as null | (() => void),
+  openCanvasCapability: vi.fn(async () => ({
+    status: 'opened' as const,
+    instanceId: 'canvas-tab',
+  })),
+  deliveryScopeActivationSequence: 0,
+  activateCanvasDeliveryScope: vi.fn((scope: { scopeId: string; revision: string }) => ({
+    deliveryScope: {
+      ...scope,
+      activationId: ++mocks.deliveryScopeActivationSequence,
+    },
+    dispose: vi.fn(),
+  })),
+  reconcileTeamCanvas: vi.fn(),
   teamWorkspace: {
     status: 'disabled' as const,
     sessionId: null as string | null,
@@ -129,6 +142,25 @@ vi.mock('@/flow_chat/hooks/useActiveSessionCapabilities', () => ({
   }),
 }));
 
+vi.mock('@/app/components/panels/content-canvas/registry/FirstPartyCanvasCapabilityRuntime', () => ({
+  activateFirstPartyCanvasDeliveryScope: mocks.activateCanvasDeliveryScope,
+  openFirstPartyCanvasCapability: mocks.openCanvasCapability,
+  reconcileFirstPartyTeamCanvasPresentation: mocks.reconcileTeamCanvas,
+  resolveCanvasCapabilityForContent: (content?: {
+    type?: string;
+    metadata?: Record<string, unknown>;
+  }) => {
+    const surfaceId = content?.metadata?.canvasSurfaceId;
+    if (surfaceId === 'short-drama' || content?.type === 'short-drama-center') {
+      return { capabilityId: 'short-drama', surfaceId: 'short-drama' };
+    }
+    if (surfaceId === 'workspace-media' || content?.type === 'workspace-media-gallery') {
+      return { capabilityId: 'workspace-media', surfaceId: 'workspace-media' };
+    }
+    return undefined;
+  },
+}));
+
 vi.mock('@/team_workspace', async () => {
   const ReactModule = await import('react');
   return {
@@ -207,6 +239,21 @@ describe('SessionScene universal canvas toggle control', () => {
   let offsetWidthSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    mocks.openCanvasCapability.mockReset();
+    mocks.openCanvasCapability.mockResolvedValue({
+      status: 'opened',
+      instanceId: 'canvas-tab',
+    });
+    mocks.activateCanvasDeliveryScope.mockReset();
+    mocks.deliveryScopeActivationSequence = 0;
+    mocks.activateCanvasDeliveryScope.mockImplementation(scope => ({
+      deliveryScope: {
+        ...scope,
+        activationId: ++mocks.deliveryScopeActivationSequence,
+      },
+      dispose: vi.fn(),
+    }));
+    mocks.reconcileTeamCanvas.mockReset();
     mocks.toggleRightPanel.mockReset();
     mocks.updateRightPanelWidth.mockReset();
     mocks.chatPaneProps = null;
@@ -252,7 +299,9 @@ describe('SessionScene universal canvas toggle control', () => {
 
   it('renders the outer canvas control outside the streaming chat surface', async () => {
     await act(async () => {
-      root.render(<SessionScene workspacePath="D:\\workspace" />);
+      root.render(
+        <SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />,
+      );
     });
 
     const toggle = container.querySelector<HTMLButtonElement>(
@@ -354,9 +403,6 @@ describe('SessionScene universal canvas toggle control', () => {
       usageCount: 2,
       latestActivityAt: 10,
     }];
-    const openShortDrama = vi.fn();
-    window.addEventListener('void:open-short-drama-center', openShortDrama);
-
     await act(async () => {
       root.render(<SessionScene workspacePath="D:\\workspace" />);
     });
@@ -371,8 +417,11 @@ describe('SessionScene universal canvas toggle control', () => {
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
-    expect(openShortDrama).toHaveBeenCalledTimes(1);
-    window.removeEventListener('void:open-short-drama-center', openShortDrama);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledWith(expect.objectContaining({
+      capabilityId: 'short-drama',
+      source: 'capability-rail',
+    }));
   });
 
   it('delivers a queued capability only after the Canvas scene becomes active', async () => {
@@ -383,9 +432,6 @@ describe('SessionScene universal canvas toggle control', () => {
       usageCount: 0,
       latestActivityAt: 0,
     }];
-    const openWorkspaceMedia = vi.fn();
-    window.addEventListener('void:open-workspace-media', openWorkspaceMedia);
-
     await act(async () => {
       root.render(
         <SessionScene
@@ -408,7 +454,7 @@ describe('SessionScene universal canvas toggle control', () => {
       );
       mocks.auxPaneReadyCallback?.();
     });
-    expect(openWorkspaceMedia).not.toHaveBeenCalled();
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
 
     await act(async () => {
       root.render(
@@ -419,8 +465,11 @@ describe('SessionScene universal canvas toggle control', () => {
         />,
       );
     });
-    expect(openWorkspaceMedia).toHaveBeenCalledTimes(1);
-    window.removeEventListener('void:open-workspace-media', openWorkspaceMedia);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledWith(expect.objectContaining({
+      capabilityId: 'workspace-media',
+      source: 'capability-rail',
+    }));
   });
 
   it('drops a queued capability when the session or workspace changes before Canvas is ready', async () => {
@@ -431,9 +480,6 @@ describe('SessionScene universal canvas toggle control', () => {
       usageCount: 1,
       latestActivityAt: 1,
     }];
-    const openShortDrama = vi.fn();
-    window.addEventListener('void:open-short-drama-center', openShortDrama);
-
     await act(async () => {
       root.render(
         <SessionScene workspaceId="workspace-a" workspacePath={'D:\\workspace-a'} />,
@@ -452,8 +498,7 @@ describe('SessionScene universal canvas toggle control', () => {
       );
       mocks.auxPaneReadyCallback?.();
     });
-    expect(openShortDrama).not.toHaveBeenCalled();
-    window.removeEventListener('void:open-short-drama-center', openShortDrama);
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
   });
 
   it('preserves one queued intent for each capability while Canvas is loading', async () => {
@@ -472,11 +517,6 @@ describe('SessionScene universal canvas toggle control', () => {
         latestActivityAt: 2,
       },
     ];
-    const openShortDrama = vi.fn();
-    const openWorkspaceMedia = vi.fn();
-    window.addEventListener('void:open-short-drama-center', openShortDrama);
-    window.addEventListener('void:open-workspace-media', openWorkspaceMedia);
-
     await act(async () => {
       root.render(
         <SessionScene workspaceId="workspace-a" workspacePath={'D:\\workspace-a'} />,
@@ -492,10 +532,10 @@ describe('SessionScene universal canvas toggle control', () => {
       mocks.auxPaneReadyCallback?.();
     });
 
-    expect(openShortDrama).toHaveBeenCalledTimes(1);
-    expect(openWorkspaceMedia).toHaveBeenCalledTimes(1);
-    window.removeEventListener('void:open-short-drama-center', openShortDrama);
-    window.removeEventListener('void:open-workspace-media', openWorkspaceMedia);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(2);
+    expect(mocks.openCanvasCapability.mock.calls.map(([request]) => (
+      request.capabilityId
+    ))).toEqual(['short-drama', 'workspace-media']);
   });
 
   it('opens a bound general team as the dedicated third column without changing the canvas', async () => {
@@ -625,20 +665,32 @@ describe('SessionScene universal canvas toggle control', () => {
       },
     };
     mocks.layout.rightPanelCollapsed = true;
-    const openShortDrama = vi.fn();
-    window.addEventListener('void:open-short-drama-center', openShortDrama);
-
     await act(async () => {
-      root.render(<SessionScene workspacePath="D:\\workspace" />);
+      root.render(
+        <SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />,
+      );
       await new Promise(resolve => requestAnimationFrame(resolve));
       await new Promise(resolve => requestAnimationFrame(resolve));
     });
 
     expect(mocks.toggleRightPanel).not.toHaveBeenCalled();
-    expect(openShortDrama).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability).toHaveBeenCalledWith(expect.objectContaining({
+      capabilityId: 'short-drama',
+      source: 'restore',
+      sourceSessionId: 'session-1',
+      deliveryScope: expect.objectContaining({
+        scopeId: 'team-canvas-restore:session-1',
+        revision: expect.stringContaining('short-drama:revision-1:instance-1'),
+        activationId: expect.any(Number),
+      }),
+    }));
+    expect(mocks.activateCanvasDeliveryScope).toHaveBeenCalledWith({
+      scopeId: 'team-canvas-restore:session-1',
+      revision: expect.stringContaining('short-drama:revision-1:instance-1'),
+    });
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
       .not.toBeNull();
-    window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
   it('waits for typed workspace identity before restoring bound media canvas content', async () => {
@@ -654,13 +706,10 @@ describe('SessionScene universal canvas toggle control', () => {
         members: [],
       },
     };
-    const openWorkspaceMedia = vi.fn();
-    window.addEventListener('void:open-workspace-media', openWorkspaceMedia);
-
     await act(async () => {
       root.render(<SessionScene workspacePath={'D:\\workspace'} />);
     });
-    expect(openWorkspaceMedia).not.toHaveBeenCalled();
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
 
     await act(async () => {
       root.render(
@@ -668,14 +717,18 @@ describe('SessionScene universal canvas toggle control', () => {
       );
     });
 
-    expect(openWorkspaceMedia).toHaveBeenCalledTimes(1);
-    expect((openWorkspaceMedia.mock.calls[0][0] as CustomEvent).detail).toEqual({
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability.mock.calls[0][0]).toMatchObject({
+      capabilityId: 'workspace-media',
       source: 'restore',
       sourceSessionId: 'team-session-1',
-      workspaceId: 'workspace-1',
-      workspacePath: 'D:\\workspace',
+      target: {
+        status: 'ready',
+        hostId: 'agent',
+        workspaceId: 'workspace-1',
+        workspacePath: 'D:\\workspace',
+      },
     });
-    window.removeEventListener('void:open-workspace-media', openWorkspaceMedia);
   });
 
   it('restores Team media once when an inactive session becomes active', async () => {
@@ -691,9 +744,6 @@ describe('SessionScene universal canvas toggle control', () => {
         members: [],
       },
     };
-    const openWorkspaceMedia = vi.fn();
-    window.addEventListener('void:open-workspace-media', openWorkspaceMedia);
-
     await act(async () => {
       root.render(
         <SessionScene
@@ -703,7 +753,7 @@ describe('SessionScene universal canvas toggle control', () => {
         />,
       );
     });
-    expect(openWorkspaceMedia).not.toHaveBeenCalled();
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
 
     await act(async () => {
       root.render(
@@ -714,14 +764,151 @@ describe('SessionScene universal canvas toggle control', () => {
         />,
       );
     });
-    expect(openWorkspaceMedia).toHaveBeenCalledTimes(1);
-    expect((openWorkspaceMedia.mock.calls[0][0] as CustomEvent).detail).toEqual({
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability.mock.calls[0][0]).toMatchObject({
+      capabilityId: 'workspace-media',
       source: 'restore',
       sourceSessionId: 'team-session-1',
-      workspaceId: 'workspace-1',
-      workspacePath: 'D:\\workspace',
+      target: {
+        status: 'ready',
+        workspaceId: 'workspace-1',
+        workspacePath: 'D:\\workspace',
+      },
     });
-    window.removeEventListener('void:open-workspace-media', openWorkspaceMedia);
+  });
+
+  it('reissues a Team restore when the first delivery is cancelled by inactive presentation', async () => {
+    let resolveFirstRestore!: (result: {
+      status: 'opened';
+      instanceId: string;
+    }) => void;
+    mocks.openCanvasCapability
+      .mockImplementationOnce(() => new Promise(resolve => {
+        resolveFirstRestore = resolve;
+      }))
+      .mockResolvedValue({ status: 'opened', instanceId: 'current-canvas-tab' });
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'short-drama:revision-1:instance-1';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+    mocks.teamWorkspace.snapshot = {
+      parentSessionId: 'session-1',
+      activeTeam: {
+        teamDefinitionId: 'custom-00000000000000000000000000000001',
+        members: [],
+      },
+    };
+
+    await act(async () => {
+      root.render(
+        <SessionScene
+          isActive
+          workspaceId="workspace-1"
+          workspacePath="D:\\workspace"
+        />,
+      );
+    });
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(
+        <SessionScene
+          isActive={false}
+          workspaceId="workspace-1"
+          workspacePath="D:\\workspace"
+        />,
+      );
+    });
+    await act(async () => {
+      root.render(
+        <SessionScene
+          isActive
+          workspaceId="workspace-1"
+          workspacePath="D:\\workspace"
+        />,
+      );
+    });
+
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(2);
+    expect(mocks.openCanvasCapability.mock.calls[0][0].deliveryScope.scopeId)
+      .toBe('team-canvas-restore:session-1');
+    expect(mocks.openCanvasCapability.mock.calls[1][0].deliveryScope.scopeId)
+      .toBe('team-canvas-restore:session-1');
+    expect(mocks.openCanvasCapability.mock.calls[0][0].deliveryScope.revision)
+      .toBe(mocks.openCanvasCapability.mock.calls[1][0].deliveryScope.revision);
+    expect(mocks.openCanvasCapability.mock.calls[0][0].deliveryScope.activationId)
+      .not.toBe(mocks.openCanvasCapability.mock.calls[1][0].deliveryScope.activationId);
+    await act(async () => {
+      resolveFirstRestore({ status: 'opened', instanceId: 'stale-canvas-tab' });
+      await Promise.resolve();
+    });
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(2);
+  });
+
+  it('revisions the restore delivery scope when the same session changes Team binding', async () => {
+    let resolveFirstRestore!: (result: {
+      status: 'opened';
+      instanceId: string;
+    }) => void;
+    mocks.openCanvasCapability
+      .mockImplementationOnce(() => new Promise(resolve => {
+        resolveFirstRestore = resolve;
+      }))
+      .mockResolvedValue({ status: 'opened', instanceId: 'binding-b-tab' });
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'short-drama:revision-1:instance-a';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+    mocks.teamWorkspace.snapshot = {
+      parentSessionId: 'session-1',
+      activeTeam: {
+        teamDefinitionId: 'custom-00000000000000000000000000000001',
+        members: [],
+      },
+    };
+
+    await act(async () => {
+      root.render(
+        <SessionScene
+          isActive
+          workspaceId="workspace-1"
+          workspacePath="D:\\workspace"
+        />,
+      );
+    });
+    const firstScope = mocks.openCanvasCapability.mock.calls[0][0].deliveryScope;
+
+    mocks.teamWorkspace.teamBindingKey = 'short-drama:revision-2:instance-b';
+    await act(async () => {
+      root.render(
+        <SessionScene
+          isActive
+          workspaceId="workspace-1"
+          workspacePath="D:\\workspace"
+        />,
+      );
+    });
+
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(2);
+    const secondScope = mocks.openCanvasCapability.mock.calls[1][0].deliveryScope;
+    expect(firstScope.scopeId).toBe(secondScope.scopeId);
+    expect(firstScope.revision).not.toBe(secondScope.revision);
+    expect(mocks.activateCanvasDeliveryScope).toHaveBeenNthCalledWith(1, {
+      scopeId: firstScope.scopeId,
+      revision: firstScope.revision,
+    });
+    expect(mocks.activateCanvasDeliveryScope).toHaveBeenNthCalledWith(2, {
+      scopeId: secondScope.scopeId,
+      revision: secondScope.revision,
+    });
+
+    await act(async () => {
+      resolveFirstRestore({ status: 'opened', instanceId: 'binding-a-tab' });
+      await Promise.resolve();
+    });
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(2);
   });
 
   it('collapses the canvas and bound team workspace as one right-side surface', async () => {
@@ -739,14 +926,13 @@ describe('SessionScene universal canvas toggle control', () => {
       },
     };
     mocks.layout.rightPanelCollapsed = false;
-    const openShortDrama = vi.fn();
-    window.addEventListener('void:open-short-drama-center', openShortDrama);
-
     await act(async () => {
-      root.render(<SessionScene workspacePath="D:\\workspace" />);
+      root.render(
+        <SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />,
+      );
     });
     mocks.toggleRightPanel.mockClear();
-    openShortDrama.mockClear();
+    mocks.openCanvasCapability.mockClear();
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>(
@@ -759,18 +945,19 @@ describe('SessionScene universal canvas toggle control', () => {
 
     mocks.layout.rightPanelCollapsed = true;
     await act(async () => {
-      root.render(<SessionScene workspacePath="D:\\workspace" />);
+      root.render(
+        <SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />,
+      );
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
-    expect(openShortDrama).not.toHaveBeenCalled();
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
       .toBeNull();
     expect(container.querySelector('[data-testid="session-team-workspace-toggle"]')
       ?.getAttribute('aria-expanded')).toBe('false');
     expect(container.querySelector('[data-testid="session-aux-pane-toggle"]')
       ?.getAttribute('aria-expanded')).toBe('false');
-    window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
   it('keeps an empty media-session capability available to reopen the media canvas', async () => {
@@ -781,9 +968,6 @@ describe('SessionScene universal canvas toggle control', () => {
       usageCount: 0,
       latestActivityAt: 0,
     }];
-    const openWorkspaceMedia = vi.fn();
-    window.addEventListener('void:open-workspace-media', openWorkspaceMedia);
-
     await act(async () => {
       root.render(
         <SessionScene workspaceId="workspace-1" workspacePath={'D:\\workspace'} />,
@@ -803,13 +987,16 @@ describe('SessionScene universal canvas toggle control', () => {
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
-    expect(openWorkspaceMedia).toHaveBeenCalledTimes(1);
-    expect((openWorkspaceMedia.mock.calls[0][0] as CustomEvent).detail).toMatchObject({
+    expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(1);
+    expect(mocks.openCanvasCapability.mock.calls[0][0]).toMatchObject({
+      capabilityId: 'workspace-media',
       source: 'capability-rail',
-      workspaceId: 'workspace-1',
-      workspacePath: 'D:\\workspace',
+      target: {
+        status: 'ready',
+        workspaceId: 'workspace-1',
+        workspacePath: 'D:\\workspace',
+      },
     });
-    window.removeEventListener('void:open-workspace-media', openWorkspaceMedia);
   });
 
   it('collapses the auxiliary preview again for a consecutive new-task draft', async () => {

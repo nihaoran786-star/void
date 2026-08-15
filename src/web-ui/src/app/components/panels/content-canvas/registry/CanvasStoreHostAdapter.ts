@@ -3,6 +3,7 @@ import type {
   CanvasHostMutationResult,
   CanvasHostOpenRequest,
   CanvasHostPort,
+  CanvasHostRequestScope,
 } from '@/shared/services/canvas';
 import type {
   CanvasTab,
@@ -18,7 +19,7 @@ interface CanvasStoreTabLocation {
 }
 
 export interface CanvasStoreHostActions {
-  isRequestCurrent: (request: CanvasHostOpenRequest) => boolean;
+  isRequestCurrent: (request: CanvasHostRequestScope) => boolean;
   addTab: (content: PanelContent, state?: TabState, groupId?: EditorGroupId) => void;
   findTabByMetadata: (
     metadata: Record<string, unknown>,
@@ -131,6 +132,7 @@ export function createCanvasStoreHostAdapter(
   };
 
   return {
+    isRequestCurrent: request => actions.isRequestCurrent(request),
     findInstance: (instanceKey, request) => (
       remember(instanceKey, findLocation(instanceKey, request), request)
     ),

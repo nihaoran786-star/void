@@ -27,7 +27,7 @@ const persistComposerPersona: NonNullable<
 
 export interface ComposerTeamActions {
   launchDeepReview: () => Promise<void>;
-  openShortDrama: () => void | Promise<void>;
+  openCanvasCapability: (capabilityId: string) => void | Promise<void>;
 }
 
 export interface DeferredComposerPersonaSelection {
@@ -391,7 +391,7 @@ export function useComposerPersonaSelection({
       if (action === 'launch_deep_review') {
         await actions.launchDeepReview();
       } else {
-        await actions.openShortDrama();
+        await actions.openCanvasCapability('short-drama');
       }
     } catch {
       setActionError('team_action_failed');
@@ -455,7 +455,7 @@ export function useComposerPersonaSelection({
     // the durable session remains usable without weakening revision checks.
     void runTeamAction(replacement, {
       launchDeepReview: async () => {},
-      openShortDrama: async () => {},
+      openCanvasCapability: async () => {},
     }).catch(() => {
       // runTeamAction exposes the classified failure through actionError.
     });

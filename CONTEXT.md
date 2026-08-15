@@ -4,7 +4,7 @@ Updated: 2026-08-15
 
 ## Product state
 
-- Active implementation branch: `codex/canvas-plugin-kernel-p0a` (P0-A
+- Active implementation branch: `codex/canvas-plugin-kernel-p0b` (P0-A/P0-B
   complete and locally verified; not pushed).
 - Void is the primary product and implementation repository. BitFun is an
   upstream capability/fix reference, while DeepSeek Harness is a rapidly
@@ -21,14 +21,19 @@ Updated: 2026-08-15
   references only; every domain still writes through its own Module Interface.
   The active staged contract is
   [docs/features/canvas-plugin-platform-prd.md](docs/features/canvas-plugin-platform-prd.md).
-- Canvas plugin P0-A is implemented: a pure typed registry/service/workspace
+- Canvas plugin P0-A and P0-B are implemented: a pure typed registry/service/workspace
   facts layer opens one real first-party Workspace Media surface through a
   context-bound host adapter and renderer registry. Stable workspace identity
   uses `WorkspaceInfo.id`; delivery idempotency is separate from surface
   instance identity. Restore intent requires workspace/session facts and cannot
   replay across workspaces. Workspace Media remains deliberately unavailable
   for remote workspaces until `remoteConnectionId` is carried through its real
-  file IO Module Interface. P0-B still requires explicit user approval.
+  file IO Module Interface. P0-B adds the typed command port and capability
+  contribution registry, migrates Workspace Media and AI Short Drama opening,
+  restore, composer, rail and renderer paths off business DOM events/central
+  switches, and rejects stale Team restore deliveries with typed
+  `scopeId + revision + activationId`. P1-A still requires explicit user
+  approval.
 - The Quiet Directory design system is the current entity-glyph and catalog
   language: Agent orbs (animated when selected/running), Skill sigils (static
   runes), and Connector link glyphs (route state: solid/broken/pulse/error)
@@ -350,6 +355,30 @@ Canvas plugin P0-A checkpoint on 2026-08-15:
 - the final full Web suite has 546 files / 3183 tests passing; its remaining
   three failures are outside P0-A in the user's in-progress SessionCapabilityRail
   visual contract and ScrollAnchor font-size debt changes.
+
+Canvas plugin P0-B checkpoint on 2026-08-15:
+
+- `CanvasSurfaceCommandService` and `CanvasCapabilityContributionRegistry` are
+  the typed opening/contribution seams; Session rail, Team restore and the
+  authorized ChatInput Short Drama action no longer emit business DOM events.
+- Workspace Media and AI Short Drama resolve through first-party definitions
+  and renderer aliases; `FlexiblePanel` has no direct import or content switch
+  for either domain panel.
+- Short Drama policy is read-only and dynamically loaded. Its Team Canvas
+  reconciliation is a two-phase commit hook executed only after the final
+  scene/session/workspace/delivery freshness gate.
+- Team restore activation facts include `scopeId`, semantic `revision` and a
+  unique `activationId`; stale promises, same-session binding switches,
+  inactive/active transitions and component remounts cannot regain mutation
+  authority or coalesce with a newer delivery.
+- 8 final focused files / 104 tests pass; Web type checking, full Web lint,
+  core boundaries, repository hygiene, production build, Monaco verification
+  and performance budgets pass. The full Web suite has 552 files / 3225 tests
+  passing, with only the same three user-owned SessionCapabilityRail/ScrollAnchor
+  presentation-debt failures outside P0-B.
+- P1 follow-up: add one real command-to-ContentCanvas delayed-prepare
+  integration test in addition to the existing service, adapter and scene
+  tests. No P0 production blocker remains.
 
 Open baseline debt:
 

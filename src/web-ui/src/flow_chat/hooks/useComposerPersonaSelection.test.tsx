@@ -279,7 +279,7 @@ describe('useComposerPersonaSelection', () => {
     await act(async () => {
       await current?.runTeamAction(reusableTeamEntry, {
         launchDeepReview: vi.fn(),
-        openShortDrama: vi.fn(),
+        openCanvasCapability: vi.fn(),
       });
     });
     expect(onChange).toHaveBeenLastCalledWith(reusableTeamEntry);
@@ -318,7 +318,7 @@ describe('useComposerPersonaSelection', () => {
       await expect(current?.selectAgent(entry)).rejects.toThrow('persona_locked');
       await expect(current?.runTeamAction(teamEntry, {
         launchDeepReview: vi.fn(),
-        openShortDrama: vi.fn(),
+        openCanvasCapability: vi.fn(),
       })).rejects.toThrow('persona_locked');
     });
     expect(persistPersona).not.toHaveBeenCalled();
@@ -597,7 +597,7 @@ describe('useComposerPersonaSelection', () => {
     });
     const actions = {
       launchDeepReview: vi.fn(),
-      openShortDrama: vi.fn(),
+      openCanvasCapability: vi.fn(),
     };
 
     await act(async () => {
@@ -612,7 +612,7 @@ describe('useComposerPersonaSelection', () => {
       persistPersona,
     });
     expect(actions.launchDeepReview).not.toHaveBeenCalled();
-    expect(actions.openShortDrama).not.toHaveBeenCalled();
+    expect(actions.openCanvasCapability).not.toHaveBeenCalled();
     expect(current?.personaPersistencePending).toBe(false);
     expect(current?.actionError).toBeUndefined();
   });
@@ -642,7 +642,7 @@ describe('useComposerPersonaSelection', () => {
     await act(async () => {
       await expect(current?.runTeamAction(reusableTeamEntry, {
         launchDeepReview: vi.fn(),
-        openShortDrama: vi.fn(),
+        openCanvasCapability: vi.fn(),
       })).rejects.toThrow('definition_revision_mismatch');
     });
 
@@ -737,7 +737,7 @@ describe('useComposerPersonaSelection', () => {
 
     const teamActions = {
       launchDeepReview: vi.fn(),
-      openShortDrama: vi.fn(),
+      openCanvasCapability: vi.fn(),
     };
     await act(async () => {
       await expect(current?.selectAgent(entry)).rejects.toThrow(
@@ -753,6 +753,6 @@ describe('useComposerPersonaSelection', () => {
 
     expect(persistPersona).not.toHaveBeenCalled();
     expect(teamActions.launchDeepReview).not.toHaveBeenCalled();
-    expect(teamActions.openShortDrama).not.toHaveBeenCalled();
+    expect(teamActions.openCanvasCapability).not.toHaveBeenCalled();
   });
 });

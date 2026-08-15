@@ -27,9 +27,9 @@ automatically the current source of truth.
   — current product north star for the central conversation plus right
   collapsible Content Canvas, typed surface/domain/Agent/Team/Workflow
   contribution boundaries, Canvas-based Agent Studio, hot configuration versus
-  revision-frozen execution, the verified P0-A Workspace Media registry slice,
-  staged first-party migration, stability gates, and bounded DeepSeek Harness
-  compatibility
+  revision-frozen execution, the verified P0-A/P0-B Canvas registry and typed
+  command migration for Workspace Media/AI Short Drama, staged first-party
+  expansion, stability gates, and bounded DeepSeek Harness compatibility
 - [Interaction and theme governance specification](features/interaction-theme-governance.md)
   — current presentation-only rules for interaction states, theme ownership,
   responsive layout, accessibility, full-window evidence, and performance;

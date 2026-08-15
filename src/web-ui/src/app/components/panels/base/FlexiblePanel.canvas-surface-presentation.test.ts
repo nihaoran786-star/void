@@ -7,7 +7,7 @@ const source = readFileSync(new URL('./FlexiblePanel.tsx', import.meta.url), 'ut
   .replace(/\r\n/g, '\n');
 
 describe('FlexiblePanel Canvas surface boundary', () => {
-  it('lazy-loads registered surfaces without importing Workspace Media or its registry eagerly', () => {
+  it('delegates typed and legacy fallbacks without importing surface implementations eagerly', () => {
     expect(source).toContain(
       "import('../content-canvas/registry/CanvasSurfaceRenderer')",
     );
@@ -16,5 +16,7 @@ describe('FlexiblePanel Canvas surface boundary', () => {
     expect(source).not.toContain("from '../content-canvas/registry/firstPartyCanvasSurfaces'");
     expect(source).not.toContain('const WorkspaceMediaGallery = React.lazy');
     expect(source).not.toContain("case 'workspace-media-gallery':");
+    expect(source).not.toContain('ShortDramaCenterPanel');
+    expect(source).not.toContain("case 'short-drama-center':");
   });
 });

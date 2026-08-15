@@ -146,6 +146,189 @@ describe('CanvasSurfaceService', () => {
     expect(host.open).not.toHaveBeenCalled();
   });
 
+  it('runs an async surface policy with validated input before mutating the host', async () => {
+    const registry = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
+    const prepareOpen = vi.fn(async () => ({
+      status: 'restricted' as const,
+      reason: 'media_session_required',
+    }));
+    registry.register({
+      surfaceId: 'short-drama',
+      pluginVersion: '1.0.0',
+      registrationKey: 'builtin.short-drama.v1',
+      validateInput: () => ({ status: 'valid', value: { episodeCount: 2 } }),
+      prepareOpen,
+      createInstanceKey: context => `short-drama:${context.workspace.workspaceId}`,
+      createPresentation: () => ({ title: 'AI Short Drama' }),
+    });
+    const host: CanvasHostPort = {
+      findInstance: vi.fn(() => undefined),
+      open: vi.fn(async () => ({ status: 'opened', instanceId: 'unexpected' })),
+      focus: vi.fn(async instanceId => ({ status: 'focused', instanceId })),
+      update: vi.fn(async instanceId => ({ status: 'updated', instanceId })),
+    };
+
+    const result = await new CanvasSurfaceService(registry, host).open({
+      surfaceId: 'short-drama',
+      source: 'capability-rail',
+      workspace,
+      sourceSessionId: 'session-1',
+      input: { episodeCount: 2 },
+      idempotencyKey: 'short-drama-policy',
+    });
+
+    expect(result).toEqual({
+      status: 'restricted',
+      reason: 'media_session_required',
+    });
+    expect(prepareOpen).toHaveBeenCalledWith({
+      workspace,
+      input: { episodeCount: 2 },
+      source: 'capability-rail',
+      sourceSessionId: 'session-1',
+    });
+    expect(host.findInstance).not.toHaveBeenCalled();
+    expect(host.open).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale host scope before running surface preparation', async () => {
+    const registry = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
+    const prepareOpen = vi.fn(async () => ({ status: 'ready' as const }));
+    registry.register({
+      surfaceId: 'short-drama',
+      pluginVersion: '1.0.0',
+      registrationKey: 'builtin.short-drama.v1',
+      validateInput: input => ({ status: 'valid', value: input }),
+      prepareOpen,
+      createInstanceKey: () => 'short-drama:workspace-1',
+      createPresentation: () => ({ title: 'AI Short Drama' }),
+    });
+    const host: CanvasHostPort = {
+      isRequestCurrent: () => false,
+      findInstance: vi.fn(() => undefined),
+      open: vi.fn(async () => ({ status: 'opened', instanceId: 'unexpected' })),
+      focus: vi.fn(async instanceId => ({ status: 'focused', instanceId })),
+      update: vi.fn(async instanceId => ({ status: 'updated', instanceId })),
+    };
+
+    await expect(new CanvasSurfaceService(registry, host).open({
+      surfaceId: 'short-drama',
+      source: 'capability-rail',
+      workspace,
+      sourceSessionId: 'session-a',
+      input: undefined,
+      idempotencyKey: 'stale-session-a',
+    })).resolves.toEqual({
+      status: 'unavailable',
+      reason: 'Canvas host no longer owns the request context.',
+    });
+    expect(prepareOpen).not.toHaveBeenCalled();
+    expect(host.findInstance).not.toHaveBeenCalled();
+    expect(host.open).not.toHaveBeenCalled();
+  });
+
+  it('does not run pre-mutation effects when an async preparation becomes stale', async () => {
+    const registry = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
+    let finishPreparation!: () => void;
+    const prepareOpen = vi.fn(() => new Promise<{
+      status: 'ready';
+      beforeHostMutation: () => void;
+    }>(resolve => {
+      finishPreparation = () => resolve({ status: 'ready', beforeHostMutation });
+    }));
+    const beforeHostMutation = vi.fn();
+    registry.register({
+      surfaceId: 'short-drama',
+      pluginVersion: '1.0.0',
+      registrationKey: 'builtin.short-drama.v1',
+      validateInput: input => ({ status: 'valid', value: input }),
+      prepareOpen,
+      createInstanceKey: () => 'short-drama:workspace-1',
+      createPresentation: () => ({ title: 'AI Short Drama' }),
+    });
+    let requestIsCurrent = true;
+    const host: CanvasHostPort = {
+      isRequestCurrent: () => requestIsCurrent,
+      findInstance: vi.fn(() => undefined),
+      open: vi.fn(async () => ({ status: 'opened', instanceId: 'unexpected' })),
+      focus: vi.fn(async instanceId => ({ status: 'focused', instanceId })),
+      update: vi.fn(async instanceId => ({ status: 'updated', instanceId })),
+    };
+    const service = new CanvasSurfaceService(registry, host);
+
+    const resultPromise = service.open({
+      surfaceId: 'short-drama',
+      source: 'restore',
+      workspace,
+      sourceSessionId: 'session-a',
+      deliveryScope: {
+        scopeId: 'team-canvas:session-a',
+        revision: 'binding-a:operation-1',
+        activationId: 1,
+      },
+      input: undefined,
+      idempotencyKey: 'stale-after-prepare',
+    });
+    requestIsCurrent = false;
+    finishPreparation();
+
+    await expect(resultPromise).resolves.toMatchObject({ status: 'unavailable' });
+    expect(beforeHostMutation).not.toHaveBeenCalled();
+    expect(host.findInstance).not.toHaveBeenCalled();
+    expect(host.open).not.toHaveBeenCalled();
+  });
+
+  it('does not coalesce equal idempotency keys across delivery revisions', async () => {
+    const registry = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
+    registry.register({
+      surfaceId: 'short-drama',
+      pluginVersion: '1.0.0',
+      registrationKey: 'builtin.short-drama.v1',
+      validateInput: input => ({ status: 'valid', value: input }),
+      createInstanceKey: () => 'short-drama:workspace-1',
+      createPresentation: () => ({ title: 'AI Short Drama' }),
+    });
+    const host: CanvasHostPort = {
+      findInstance: vi.fn(() => undefined),
+      open: vi.fn(async request => ({
+        status: 'opened',
+        instanceId: request.deliveryScope?.revision ?? 'no-revision',
+      })),
+      focus: vi.fn(async instanceId => ({ status: 'focused', instanceId })),
+      update: vi.fn(async instanceId => ({ status: 'updated', instanceId })),
+    };
+    const service = new CanvasSurfaceService(registry, host);
+    const request = {
+      surfaceId: 'short-drama',
+      source: 'restore' as const,
+      workspace,
+      sourceSessionId: 'session-a',
+      input: undefined,
+      idempotencyKey: 'same-restoration-key',
+    };
+
+    await Promise.all([
+      service.open({
+        ...request,
+        deliveryScope: {
+          scopeId: 'team-canvas:session-a',
+          revision: 'operation-1',
+          activationId: 1,
+        },
+      }),
+      service.open({
+        ...request,
+        deliveryScope: {
+          scopeId: 'team-canvas:session-a',
+          revision: 'operation-2',
+          activationId: 2,
+        },
+      }),
+    ]);
+
+    expect(host.open).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects unavailable workspace facts before resolving or mutating the host', async () => {
     const registry = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
     const host: CanvasHostPort = {

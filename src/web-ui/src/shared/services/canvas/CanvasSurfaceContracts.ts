@@ -39,6 +39,7 @@ export type CanvasWorkspaceFacts =
 export type CanvasSurfaceSource =
   | 'canvas-control'
   | 'capability-rail'
+  | 'composer-action'
   | 'session-default'
   | 'background-discovery'
   | 'tool-result'
@@ -55,7 +56,63 @@ export interface CanvasSurfaceOpenRequest<TInput = unknown>
   extends CanvasSurfaceIntent<TInput> {
   workspace: CanvasWorkspaceFacts;
   sourceSessionId?: string;
+  deliveryScope?: CanvasSurfaceDeliveryScope;
 }
+
+export interface CanvasSurfaceDeliveryScope {
+  scopeId: string;
+  revision: string;
+  activationId: number;
+}
+
+export type CanvasSurfaceCommandTarget =
+  | {
+      status: 'ready';
+      hostId: string;
+      workspaceId: string;
+      workspacePath: string;
+      backend: 'local';
+    }
+  | {
+      status: 'ready';
+      hostId: string;
+      workspaceId: string;
+      workspacePath: string;
+      backend: 'remote';
+      remoteConnectionId: string;
+      remoteHost?: string;
+    }
+  | {
+      status: 'unavailable';
+      reason: string;
+    };
+
+export interface CanvasSurfaceCommandRequest<TInput = unknown>
+  extends CanvasSurfaceIntent<TInput> {
+  sourceSessionId?: string;
+  deliveryScope?: CanvasSurfaceDeliveryScope;
+  target: CanvasSurfaceCommandTarget;
+}
+
+export interface CanvasSurfaceCommandHost {
+  hostId: string;
+  workspace: Extract<CanvasWorkspaceFacts, { status: 'ready' }>;
+  activeSessionId?: string;
+  open: (request: CanvasSurfaceOpenRequest) => Promise<CanvasSurfaceOpenResult>;
+}
+
+export type CanvasSurfaceCommandHostRegistrationResult =
+  | {
+      status: 'registered';
+      hostId: string;
+      dispose: () => void;
+    }
+  | {
+      status: 'conflict';
+      hostId: string;
+      reason: string;
+      dispose: () => void;
+    };
 
 export type CanvasSurfaceInputValidation =
   | { status: 'valid'; value: unknown }
@@ -77,6 +134,9 @@ export interface CanvasSurfacePresentation {
 export interface CanvasSurfaceDefinition extends CanvasSurfaceRegistration {
   legacyContentType?: string;
   existingInstanceStrategy?: 'focus' | 'update';
+  prepareOpen?: (
+    context: CanvasSurfaceDefinitionContext,
+  ) => Promise<CanvasSurfacePreparationResult> | CanvasSurfacePreparationResult;
   checkWorkspace?: (
     workspace: Extract<CanvasWorkspaceFacts, { status: 'ready' }>,
   ) =>
@@ -89,6 +149,10 @@ export interface CanvasSurfaceDefinition extends CanvasSurfaceRegistration {
   createInstanceKey: (context: CanvasSurfaceDefinitionContext) => string;
   createPresentation: (context: CanvasSurfaceDefinitionContext) => CanvasSurfacePresentation;
 }
+
+export type CanvasSurfacePreparationResult =
+  | { status: 'ready'; beforeHostMutation?: () => void }
+  | { status: 'unavailable' | 'restricted' | 'incompatible'; reason: string };
 
 export interface CanvasHostInstance {
   instanceId: string;
@@ -104,6 +168,7 @@ export interface CanvasHostOpenRequest extends CanvasSurfacePresentation {
   workspace: Extract<CanvasWorkspaceFacts, { status: 'ready' }>;
   source: CanvasSurfaceSource;
   sourceSessionId?: string;
+  deliveryScope?: CanvasSurfaceDeliveryScope;
   legacyContentType?: string;
 }
 
@@ -112,6 +177,8 @@ export type CanvasHostMutationResult =
   | { status: 'error'; error: CanvasSurfaceError };
 
 export interface CanvasHostPort {
+  /** Kernel host adapters use this gate to reject stale async deliveries. */
+  isRequestCurrent?: (request: CanvasHostRequestScope) => boolean;
   findInstance: (
     instanceKey: string,
     request?: CanvasHostOpenRequest,
@@ -122,6 +189,14 @@ export interface CanvasHostPort {
     instanceId: string,
     request: CanvasHostOpenRequest,
   ) => Promise<CanvasHostMutationResult>;
+}
+
+export interface CanvasHostRequestScope {
+  surfaceId: string;
+  workspace: Extract<CanvasWorkspaceFacts, { status: 'ready' }>;
+  source: CanvasSurfaceSource;
+  sourceSessionId?: string;
+  deliveryScope?: CanvasSurfaceDeliveryScope;
 }
 
 export interface CanvasSurfaceError {

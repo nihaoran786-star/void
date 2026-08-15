@@ -7,6 +7,7 @@ const panelSource = readFileSync(new URL('./ShortDramaCenterPanel.tsx', import.m
 const panelStyles = readFileSync(new URL('./ShortDramaCenterPanel.scss', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const minimalPanelStyles = readFileSync(new URL('./ShortDramaCenterPanel.minimal.scss', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const flexiblePanelSource = readFileSync(new URL('../../base/FlexiblePanel.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const surfaceRendererSource = readFileSync(new URL('../registry/ShortDramaCanvasSurfaceRenderer.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function sourceBetween(source: string, startMarker: string, endMarker: string): string {
   const start = source.indexOf(startMarker);
@@ -17,11 +18,11 @@ function sourceBetween(source: string, startMarker: string, endMarker: string): 
 }
 
 describe('ShortDramaCenterPanel presentation lifecycle contract', () => {
-  it('receives the existing FlexiblePanel activity signal without conditional unmounting', () => {
+  it('receives the existing Canvas activity signal through the registered renderer without conditional unmounting', () => {
     expect(flexiblePanelSource).toMatch(
       /<CanvasSurfaceRenderer[\s\S]{0,220}isActive=\{isActive\}/
     );
-    expect(flexiblePanelSource).toMatch(
+    expect(surfaceRendererSource).toMatch(
       /<ShortDramaCenterPanel[\s\S]{0,320}isActive=\{isActive\}/
     );
     expect(panelSource).toContain('isActive?: boolean;');

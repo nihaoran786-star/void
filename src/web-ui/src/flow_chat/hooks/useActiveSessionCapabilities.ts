@@ -9,6 +9,8 @@ import type { DialogTurn, FlowChatState } from '../types/flow-chat';
 
 interface ActiveSessionCapabilitiesSnapshot {
   sessionId: string | null;
+  remoteConnectionId?: string;
+  remoteSshHost?: string;
   capabilities: SessionCapabilityPresentation[];
 }
 
@@ -99,6 +101,10 @@ function selectSnapshot(
 
   return {
     sessionId,
+    ...(session.remoteConnectionId
+      ? { remoteConnectionId: session.remoteConnectionId }
+      : {}),
+    ...(session.remoteSshHost ? { remoteSshHost: session.remoteSshHost } : {}),
     capabilities: aggregateTurnCapabilities(
       cache.turns.values(),
       deriveSessionCapabilities({
@@ -115,6 +121,8 @@ function areSnapshotsEqual(
   right: ActiveSessionCapabilitiesSnapshot,
 ): boolean {
   return left.sessionId === right.sessionId
+    && left.remoteConnectionId === right.remoteConnectionId
+    && left.remoteSshHost === right.remoteSshHost
     && areSessionCapabilitiesEqual(left.capabilities, right.capabilities);
 }
 

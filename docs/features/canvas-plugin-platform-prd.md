@@ -1,6 +1,6 @@
 # Void Canvas 插件平台产品与架构规范
 
-状态：当前产品北极星与分阶段实施规范；P0-A 已实现并通过退出门，等待 P0-B 批准
+状态：当前产品北极星与分阶段实施规范；P0-A、P0-B 已实现并通过退出门，等待 P1-A 批准
 更新：2026-08-15
 主产品：Void
 上游参考：BitFun
@@ -387,6 +387,7 @@ interface OpenCanvasSurfaceRequest<TInput> {
   source:
     | 'canvas-control'
     | 'capability-rail'
+    | 'composer-action'
     | 'session-default'
     | 'background-discovery'
     | 'tool-result'
@@ -693,6 +694,7 @@ interface CanvasSurfaceIntent<TInput> {
   source:
     | 'canvas-control'
     | 'capability-rail'
+    | 'composer-action'
     | 'session-default'
     | 'background-discovery'
     | 'tool-result'
@@ -704,6 +706,11 @@ interface CanvasSurfaceIntent<TInput> {
 interface CanvasSurfaceOpenRequest<TInput> extends CanvasSurfaceIntent<TInput> {
   workspace: CanvasWorkspaceFacts;
   sourceSessionId?: string;
+  deliveryScope?: {
+    scopeId: string;
+    revision: string;
+    activationId: number;
+  };
 }
 
 type CanvasSurfaceOpenResult =
@@ -875,7 +882,7 @@ P0-A 已在 `codex/canvas-plugin-kernel-p0a` 工作分支完成，当前尚未�
 本检查点没有修改 Workspace Media Gallery/Media runtime、Short Drama runtime、
 FlowChatStore、ChatInput、Rust、持久化格式或依赖，也没有向任何 remote 推送。
 
-### P0-B：迁移现有入口，消除中心硬接线
+### P0-B：迁移现有入口，消除中心硬接线（已实现，2026-08-15）
 
 目标：以绞杀方式迁移 Workspace Media 与 AI Short Drama 两个已存在表面。
 
@@ -896,6 +903,57 @@ FlowChatStore、ChatInput、Rust、持久化格式或依赖，也没有向任何
 
 退出门：新增一个第一方 Canvas 表面不再修改 `PanelContentType`、`FlexiblePanel` 的中心
 switch、`ContentCanvas` 业务事件或 `SessionCapabilityRail` 中心映射。
+
+#### 2026-08-15 实现结果与证据
+
+P0-B 已在 `codex/canvas-plugin-kernel-p0b` 工作分支完成，当前尚未推送。实现结果：
+
+- 新增纯 `CanvasSurfaceCommandService`。Rail、Session restore、ChatInput composer action
+  只提交 typed capability command；当前 Canvas host 用权威 workspace route 和 active
+  session facts 接收命令。目标缺失、host 冲突、workspace/session 不匹配和 host 异常均
+  fail-closed，不再通过业务 DOM event 发现接收方。
+- 新增 `CanvasCapabilityContributionRegistry`，由 first-party contribution 提供 capability
+  ID、surface ID、legacy alias、图标、文案键和 session availability。能力栏不再维护
+  Short Drama/Workspace Media 的本地中心映射；注册冲突和 disposer 是显式、可测试的。
+- AI Short Drama 已注册为 `short-drama` surface，并以 `short-drama-center` 作为受控 legacy
+  alias。`FlexiblePanel` 不再直接导入或 switch Short Drama/Workspace Media；两个领域面板
+  均由 renderer registry 解析，未知、冲突、remote 或 workspace/session 不匹配时显示
+  显式不可用状态。
+- Short Drama 的 session/workspace policy 保持纯读取。动态 policy runtime 返回两阶段
+  commit hook；`CanvasSurfaceService` 完成 input/policy/presentation 和最终 host freshness
+  校验后才同步执行 Team 页签协调，因此过期异步请求不会提前清理 Canvas。该 runtime
+  仍在 first-party surface chunk 内按需加载，不回灌主聊天首屏。
+- ContentCanvas host 的 freshness guard 同时校验 mounted、scene active、workspace route、
+  active source session 和 Team restore delivery scope。Team restore 每次激活产生 typed
+  `scopeId + revision + activationId`；同父会话切换 Team、inactive/active、组件重挂载和
+  旧 Promise 晚返回都不能重新获得 mutation 权限。in-flight 去重也包含完整 delivery
+  scope，不会把不同交付代次合并。
+- `WorkspaceMediaOpenEvent` 和 Short Drama 打开 DOM event 已从生产源移除；Workspace
+  Media 的显式打开、默认恢复和后台发现统一走 command/service/host。两类 surface 仍不
+  拥有领域写入：Short Drama、Media 的项目数据、任务、轮询、保存和恢复继续通过各自
+  Module Interface。
+- Remote Workspace Media 与 Short Drama 继续显式 fail-closed。本批只把 typed remote
+  route 带到 Canvas command/metadata，未虚假宣称 path-only 领域 IO 已支持远程隔离。
+
+退出门证据：
+
+- P0-B 最终竞态/入口/性能聚焦测试：8 files、104 tests 全部通过；独立只读子代理复核
+  结论为 PASS，无 P0 阻断。
+- `pnpm run type-check:web`、`pnpm run check:core-boundaries`、
+  `pnpm run check:repo-hygiene`：通过。
+- `pnpm run lint:web`：通过。
+- 直接 Web production build 与 Monaco assets 校验：通过。
+- Web 性能预算：通过；entry JS raw `2,278,729 / 2,399,568`，gzip `669,640`，相对
+  参考低 `31,014`；CSS raw `563,346 / 650,806`，gzip 相对参考低 `10,830`。
+- 全量 Web 测试已执行：`552` files / `3225` tests 通过；剩余 `3` 个失败仍来自本批未
+  拥有、未暂存的用户在制样式改动：`SessionCapabilityRail.scss` 两项既有视觉合同和
+  `ScrollAnchor.scss` 三个未登记字号。P0-B 入口、命令、Short Drama renderer、恢复、
+  会话/workspace 隔离和性能边界测试全部通过。
+
+明确留给 P1 的覆盖债务：补一个不 mock command/runtime 的延迟 prepare 组合测试，直接
+证明 Team binding A 挂起、同 session 切到 B 后，A 不清理/不打开且 B 恰好打开一次。
+当前纯 service、host adapter 与 SessionScene 分层测试已分别锁住该行为；这不是 P0-B
+生产缺陷或阻断。
 
 ### P1-A：Agent Studio 与 revision 发布闭环
 
@@ -1062,6 +1120,6 @@ switch、`ContentCanvas` 业务事件或 `SessionCapabilityRail` 中心映射。
 
 ## 15. 当前下一步
 
-当前停在已验证的 P0-A。下一次实现必须由用户单独批准 P0-B，再迁移 Short Drama
-surface 与其入口；不得因 P0-A 已通过而自动跨阶段接入 DSH 插件、开发 Agent Studio
-或 Infinite Canvas。
+当前停在已验证的 P0-B。下一次实现必须由用户单独批准 P1-A，再开发 Agent Studio 与
+revision 发布闭环；不得因 P0-B 已通过而自动跨阶段接入 DSH 插件、迁移更多业务表面
+或修改领域持久化。

@@ -18,12 +18,13 @@ import SessionCapabilityRail from './SessionCapabilityRail';
 import { SessionCapabilityRailOutletProvider } from '@/app/presentation/sessionCapabilityRailOutlet';
 import { isTauriRuntime } from '@/infrastructure/runtime';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
+import { useCanvasStore } from '@/app/components/panels/content-canvas/stores';
 import {
-  useAgentCanvasStore,
-  useCanvasStore,
-} from '@/app/components/panels/content-canvas/stores';
-import { removeDuplicateTeamMemberCanvasTabs } from '@/app/presentation/TeamMemberCanvasPresentation';
-import { dispatchWorkspaceMediaOpen } from '@/app/components/panels/content-canvas/registry/WorkspaceMediaOpenEvent';
+  activateFirstPartyCanvasDeliveryScope,
+  openFirstPartyCanvasCapability,
+  reconcileFirstPartyTeamCanvasPresentation,
+  resolveCanvasCapabilityForContent,
+} from '@/app/components/panels/content-canvas/registry/FirstPartyCanvasCapabilityRuntime';
 import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSessionCapabilities';
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
 import { isSamePath } from '@/shared/utils/pathUtils';
@@ -53,9 +54,18 @@ const AuxPane = React.lazy(() => import('./AuxPane'));
 
 interface SessionCanvasCapabilityIntent {
   capabilityId: SessionCapabilityId;
+  source: 'capability-rail' | 'restore';
+  idempotencyKey: string;
   sourceSessionId?: string;
   workspaceId?: string;
   workspacePath?: string;
+  remoteConnectionId?: string;
+  remoteSshHost?: string;
+  deliveryScope?: {
+    scopeId: string;
+    revision: string;
+    activationId: number;
+  };
 }
 
 type SessionCanvasIntentState = 'current' | 'wait' | 'stale';
@@ -66,6 +76,7 @@ function getSessionCanvasIntentState(
     sourceSessionId?: string | null;
     workspaceId?: string;
     workspacePath?: string;
+    remoteConnectionId?: string;
   },
 ): SessionCanvasIntentState {
   if (intent.sourceSessionId) {
@@ -80,6 +91,7 @@ function getSessionCanvasIntentState(
     if (!current.workspacePath) return 'wait';
     if (!isSamePath(intent.workspacePath, current.workspacePath)) return 'stale';
   }
+  if (intent.remoteConnectionId !== current.remoteConnectionId) return 'stale';
   return 'current';
 }
 
@@ -101,6 +113,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const newSessionDraftStatus = useSessionModeStore(store => store.draftStatus);
   const {
     sessionId: activeSessionId,
+    remoteConnectionId: activeSessionRemoteConnectionId,
+    remoteSshHost: activeSessionRemoteSshHost,
     capabilities: activeSessionCapabilities,
   } = useActiveSessionCapabilities();
   const activeTeamWorkspace = useActiveSessionTeamWorkspace({ workspacePath });
@@ -108,18 +122,15 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     const activeTab = canvasState.primaryGroup.tabs.find(
       tab => tab.id === canvasState.primaryGroup.activeTabId,
     );
-    if (activeTab?.content.type === 'short-drama-center') {
-      return 'short-drama' as const;
-    }
-    if (activeTab?.content.type === 'workspace-media-gallery') {
-      return 'workspace-media' as const;
-    }
-    return undefined;
+    return resolveCanvasCapabilityForContent(activeTab?.content)?.capabilityId as
+      | SessionCapabilityId
+      | undefined;
   });
   const [isAuxPaneReady, setIsAuxPaneReady] = useState(false);
   const pendingCanvasCapabilityIntentsRef = useRef(
     new Map<SessionCapabilityId, SessionCanvasCapabilityIntent>(),
   );
+  const canvasCapabilityDeliverySequenceRef = useRef(0);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -463,20 +474,41 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     window.dispatchEvent(new CustomEvent('void:toggle-preview-first'));
   }, []);
 
-  const dispatchSessionCanvasCapability = useCallback((
+  const dispatchSessionCanvasCapability = useCallback(async (
     intent: SessionCanvasCapabilityIntent,
-  ) => {
-    if (intent.capabilityId === 'short-drama') {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
-      return;
-    }
-    dispatchWorkspaceMediaOpen({
-      source: 'capability-rail',
-      ...(intent.sourceSessionId ? { sourceSessionId: intent.sourceSessionId } : {}),
-      ...(intent.workspaceId ? { workspaceId: intent.workspaceId } : {}),
-      ...(intent.workspacePath ? { workspacePath: intent.workspacePath } : {}),
-    });
-  }, []);
+  ) => openFirstPartyCanvasCapability({
+    capabilityId: intent.capabilityId,
+    source: intent.source,
+    input: undefined,
+    idempotencyKey: intent.idempotencyKey,
+    target: !intent.workspaceId || !intent.workspacePath
+      || (intent.remoteSshHost && !intent.remoteConnectionId)
+      ? {
+          status: 'unavailable',
+          reason: 'Session Canvas workspace is unavailable.',
+        }
+      : intent.remoteConnectionId
+        ? {
+            status: 'ready',
+            hostId: 'agent',
+            workspaceId: intent.workspaceId,
+            workspacePath: intent.workspacePath,
+            backend: 'remote',
+            remoteConnectionId: intent.remoteConnectionId,
+            ...(intent.remoteSshHost
+              ? { remoteHost: intent.remoteSshHost }
+              : {}),
+          }
+        : {
+            status: 'ready',
+            hostId: 'agent',
+            workspaceId: intent.workspaceId,
+            workspacePath: intent.workspacePath,
+            backend: 'local',
+          },
+    ...(intent.sourceSessionId ? { sourceSessionId: intent.sourceSessionId } : {}),
+    ...(intent.deliveryScope ? { deliveryScope: intent.deliveryScope } : {}),
+  }), []);
 
   const handleAuxPaneReady = useCallback(() => {
     setIsAuxPaneReady(true);
@@ -489,15 +521,17 @@ const SessionScene: React.FC<SessionSceneProps> = ({
         sourceSessionId: activeSessionId,
         workspaceId,
         workspacePath,
+        remoteConnectionId: activeSessionRemoteConnectionId,
       });
       if (intentState === 'wait') continue;
       pendingCanvasCapabilityIntentsRef.current.delete(capabilityId);
       if (intentState === 'current') {
-        dispatchSessionCanvasCapability(intent);
+        void dispatchSessionCanvasCapability(intent);
       }
     }
   }, [
     activeSessionId,
+    activeSessionRemoteConnectionId,
     dispatchSessionCanvasCapability,
     isActive,
     isAuxPaneReady,
@@ -514,17 +548,27 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
     const intent: SessionCanvasCapabilityIntent = {
       capabilityId,
+      source: 'capability-rail',
+      idempotencyKey: `capability-rail:${++canvasCapabilityDeliverySequenceRef.current}`,
       ...(activeSessionId ? { sourceSessionId: activeSessionId } : {}),
       ...(workspaceId ? { workspaceId } : {}),
       ...(workspacePath ? { workspacePath } : {}),
+      ...(activeSessionRemoteConnectionId
+        ? { remoteConnectionId: activeSessionRemoteConnectionId }
+        : {}),
+      ...(activeSessionRemoteSshHost
+        ? { remoteSshHost: activeSessionRemoteSshHost }
+        : {}),
     };
     if (!isAuxPaneReady || !isActive) {
       pendingCanvasCapabilityIntentsRef.current.set(capabilityId, intent);
       return;
     }
-    dispatchSessionCanvasCapability(intent);
+    void dispatchSessionCanvasCapability(intent);
   }, [
     activeSessionId,
+    activeSessionRemoteConnectionId,
+    activeSessionRemoteSshHost,
     dispatchSessionCanvasCapability,
     isActive,
     isAuxPaneReady,
@@ -538,17 +582,22 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     activeTeamWorkspace.snapshot?.activeTeam?.teamDefinitionId,
   );
   const restoredTeamCanvasBindingRef = useRef<string | null>(null);
+  const restoringTeamCanvasBindingRef = useRef<{
+    restorationKey: string;
+    operationId: number;
+  } | null>(null);
+  const teamCanvasRestoreOperationSequenceRef = useRef(0);
   useEffect(() => {
     if (!isActive) return;
     const activeTeam = activeTeamWorkspace.snapshot?.activeTeam;
-    if (!activeTeamWorkspace.sessionId || !activeTeam) return;
-    removeDuplicateTeamMemberCanvasTabs(useAgentCanvasStore.getState(), {
+    if (!activeTeamWorkspace.sessionId || !activeTeam || !teamCanvasCapability) return;
+    reconcileFirstPartyTeamCanvasPresentation({
+      capabilityId: teamCanvasCapability,
       parentSessionId: activeTeamWorkspace.sessionId,
       workspacePath,
       memberChildSessionIds: activeTeam.members.flatMap(member => (
         member.childSessionId ? [member.childSessionId] : []
       )),
-      removeShortDramaWorkspaceTabs: teamCanvasCapability === 'short-drama',
     });
   }, [
     activeTeamWorkspace.sessionId,
@@ -560,6 +609,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   useEffect(() => {
     if (!activeTeamWorkspace.teamBindingKey || !teamCanvasCapability) {
       restoredTeamCanvasBindingRef.current = null;
+      restoringTeamCanvasBindingRef.current = null;
       return;
     }
     if (!isAuxPaneReady || !isActive) {
@@ -569,27 +619,70 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       activeTeamWorkspace.teamBindingKey,
       teamCanvasCapability,
       workspaceId ?? workspacePath ?? 'workspace-unavailable',
+      activeSessionRemoteConnectionId ?? 'local',
     ].join(':');
-    if (restoredTeamCanvasBindingRef.current === restorationKey) return;
-
-    if (teamCanvasCapability === 'short-drama') {
-      window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
-      restoredTeamCanvasBindingRef.current = restorationKey;
-    } else {
-      if (!activeTeamWorkspace.sessionId || !workspaceId || !workspacePath) {
-        return;
-      }
-      dispatchWorkspaceMediaOpen({
-        source: 'restore',
-        sourceSessionId: activeTeamWorkspace.sessionId,
-        workspaceId,
-        workspacePath,
-      });
-      restoredTeamCanvasBindingRef.current = restorationKey;
+    if (
+      restoredTeamCanvasBindingRef.current === restorationKey
+      || restoringTeamCanvasBindingRef.current?.restorationKey === restorationKey
+      || !activeTeamWorkspace.sessionId
+      || !workspaceId
+      || !workspacePath
+    ) {
+      return;
     }
+    const operationId = ++teamCanvasRestoreOperationSequenceRef.current;
+    restoringTeamCanvasBindingRef.current = { restorationKey, operationId };
+    const deliveryActivation = activateFirstPartyCanvasDeliveryScope({
+      scopeId: `team-canvas-restore:${activeTeamWorkspace.sessionId}`,
+      revision: restorationKey,
+    });
+    const { deliveryScope } = deliveryActivation;
+    let cancelled = false;
+    void dispatchSessionCanvasCapability({
+      capabilityId: teamCanvasCapability,
+      source: 'restore',
+      idempotencyKey: `team-restore:${restorationKey}`,
+      sourceSessionId: activeTeamWorkspace.sessionId,
+      deliveryScope,
+      workspaceId,
+      workspacePath,
+      ...(activeSessionRemoteConnectionId
+        ? { remoteConnectionId: activeSessionRemoteConnectionId }
+        : {}),
+      ...(activeSessionRemoteSshHost
+        ? { remoteSshHost: activeSessionRemoteSshHost }
+        : {}),
+    }).then(result => {
+      if (
+        !cancelled
+        && restoringTeamCanvasBindingRef.current?.operationId === operationId
+        && (
+          result.status === 'opened'
+          || result.status === 'focused'
+          || result.status === 'updated'
+        )
+      ) {
+        restoredTeamCanvasBindingRef.current = restorationKey;
+      }
+    }).finally(() => {
+      deliveryActivation.dispose();
+      if (restoringTeamCanvasBindingRef.current?.operationId === operationId) {
+        restoringTeamCanvasBindingRef.current = null;
+      }
+    });
+    return () => {
+      cancelled = true;
+      deliveryActivation.dispose();
+      if (restoringTeamCanvasBindingRef.current?.operationId === operationId) {
+        restoringTeamCanvasBindingRef.current = null;
+      }
+    };
   }, [
     activeTeamWorkspace.sessionId,
     activeTeamWorkspace.teamBindingKey,
+    activeSessionRemoteConnectionId,
+    activeSessionRemoteSshHost,
+    dispatchSessionCanvasCapability,
     isActive,
     isAuxPaneReady,
     teamCanvasCapability,
