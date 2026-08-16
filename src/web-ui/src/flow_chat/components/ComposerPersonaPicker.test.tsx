@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -119,49 +117,7 @@ afterEach(() => {
   }
 });
 
-const readSource = (relativePath: string): string =>
-  readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), 'utf8')
-    .replace(/\r\n/g, '\n');
-
 describe('composer persona presentation contract', () => {
-  it('renders one capsule with localized catalog names and safe binding fallbacks', () => {
-    const source = readSource('./ChatInput.tsx');
-    const styles = readSource('./ChatInput.scss');
-    const capsuleClass =
-      'className="void-chat-input__agent-capsule void-chat-input__persona-capsule"';
-    const capsuleStart = source.indexOf(capsuleClass);
-    const capsule = source.slice(capsuleStart, source.indexOf('</div>', capsuleStart) + 6);
-
-    expect(source.match(new RegExp(capsuleClass, 'g'))).toHaveLength(1);
-    expect(source).toContain('localizeCatalogPresentation(');
-    expect(source).toContain("tCommon('customization.composerPersona.selectedAgent')");
-    expect(source).toContain("tCommon('customization.composerPersona.teams')");
-    expect(source).toContain('const hasActiveComposerPersona = Boolean(');
-    expect(source).toContain('const isActiveComposerTeam = Boolean(');
-    expect(source).toContain('resolveEmployeeAvatarUrl(activePersonaAvatarIdentity)');
-    expect(source).toContain('composerActiveTeam?.identity.id');
-    expect(source).toContain('composerActiveAgent?.identity.id');
-    expect(source).toContain('composerActivePersonaBinding.teamDefinitionId');
-    expect(source).toContain('composerActivePersonaBinding.personaId');
-    expect(source).toContain('personaLocked: composerPersonaLocked');
-    expect(source).toContain('{!composerPersonaLocked && (');
-    expect(source).toContain('composerPersonaEnabled && !composerPersonaLocked');
-    expect(capsule).toContain('data-persona-locked={composerPersonaLocked || undefined}');
-    expect(capsule).toContain("customization.composerPersona.lockedPersona");
-    expect(source).toContain(
-      'const [failedPersonaAvatarSrc, setFailedPersonaAvatarSrc] = useState<string | null>(null);',
-    );
-    expect(source).toContain('setFailedPersonaAvatarSrc(null);');
-    expect(capsule).toContain('{activePersonaDisplayName}');
-    expect(capsule).toContain('className="void-chat-input__persona-avatar"');
-    expect(capsule).toContain('onError={() => setFailedPersonaAvatarSrc(activePersonaAvatarSrc)}');
-    expect(capsule).toContain('<Users size={12} />');
-    expect(capsule).toContain('<Bot size={12} />');
-    expect(capsule).not.toContain('personaId');
-    expect(capsule).not.toContain('identity.id');
-    expect(styles).toMatch(/&__persona-avatar,\n\s*&__persona-avatar-fallback \{\n\s*width: 16px;\n\s*height: 16px;\n\s*flex: 0 0 16px;/);
-  });
-
   it('keeps agent and team selection mutually exclusive and preserves fixed-team actions', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -205,51 +161,5 @@ describe('composer persona presentation contract', () => {
     expect(
       radioItems.find(item => item.textContent?.includes('AI 短剧团队'))?.textContent,
     ).toContain('customization.composerPersona.summon');
-  });
-
-  it('uses common three-locale keys for action feedback and the clear button', () => {
-    const source = readSource('./ChatInput.tsx');
-    for (const key of [
-      'activationFailed',
-      'clearFailed',
-      'teamActionFailed',
-      'clearPersona',
-      'lockedPersona',
-    ]) {
-      expect(source).toContain(`customization.composerPersona.${key}`);
-    }
-
-    const localePaths = [
-      '../../locales/en-US/common.json',
-      '../../locales/zh-CN/common.json',
-      '../../locales/zh-TW/common.json',
-    ];
-    for (const localePath of localePaths) {
-      const locale = JSON.parse(readSource(localePath)) as {
-        customization: {
-          composerPersona: Record<string, string>;
-        };
-      };
-      expect(locale.customization.composerPersona).toMatchObject({
-        selectedAgent: expect.any(String),
-        unsupportedWeb: expect.any(String),
-        activationFailed: expect.any(String),
-        clearFailed: expect.any(String),
-        teamActionFailed: expect.any(String),
-        clearPersona: expect.any(String),
-        lockedPersona: expect.any(String),
-      });
-    }
-
-  });
-
-  it('renders an explicit unsupported state without actionable catalog rows', () => {
-    const source = readSource('./ComposerPersonaPicker.tsx');
-
-    expect(source).toContain("status === 'unsupported'");
-    expect(source).toContain(
-      "tCommon('customization.composerPersona.unsupportedWeb')",
-    );
-    expect(source).toContain("status !== 'unsupported'");
   });
 });

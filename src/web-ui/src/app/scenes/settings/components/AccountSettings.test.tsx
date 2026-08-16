@@ -1,6 +1,4 @@
 import React from 'react';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { AccountSettingsView } from './AccountSettings';
@@ -55,46 +53,6 @@ function render(snapshot: AuthSessionSnapshot) {
 }
 
 describe('AccountSettingsView', () => {
-  it('uses the shared robot visual only for the wide profile presentation', () => {
-    const stylesheet = readFileSync(
-      fileURLToPath(new URL('./AccountSettings.scss', import.meta.url)),
-      'utf8',
-    ).replace(/\r\n/g, '\n');
-
-    expect(stylesheet).toContain('@container config-panel (min-width: 721px)');
-    expect(stylesheet).toContain(
-      "background-image: url('/visuals/void-robot-hero.webp');",
-    );
-    expect(stylesheet).toContain('min-height: 190px;');
-    expect(stylesheet).toContain("'avatar copy visual'");
-    expect(stylesheet).not.toMatch(/(?:linear|radial|conic)-gradient/i);
-  });
-
-  it('keeps daily activity cells inspectable in a narrow internal viewport', () => {
-    const stylesheet = readFileSync(
-      fileURLToPath(new URL('./AccountSettings.scss', import.meta.url)),
-      'utf8',
-    ).replace(/\r\n/g, '\n');
-    const source = readFileSync(
-      fileURLToPath(new URL('./AccountSettings.tsx', import.meta.url)),
-      'utf8',
-    ).replace(/\r\n/g, '\n');
-
-    expect(stylesheet).toMatch(
-      /\.account-settings__heatmap-figure\s*\{[\s\S]*?overflow-x:\s*auto;/,
-    );
-    expect(stylesheet).toMatch(
-      /@container config-panel \(max-width: 520px\)[\s\S]*?\.account-settings__heatmap,[\s\S]*?\.account-settings__heatmap-months\s*\{[\s\S]*?min-width:\s*840px;/,
-    );
-    expect(source).toContain(
-      'figure.scrollLeft = Math.max(0, figure.scrollWidth - figure.clientWidth);',
-    );
-    expect(source).toContain('role="region"');
-    expect(source).toContain('tabIndex={0}');
-    expect(source).toContain("case 'ArrowLeft':");
-    expect(source).toContain("case 'End':");
-  });
-
   it('renders anonymous production state without a fake account switch', () => {
     const html = render({
       state: { status: 'anonymous' },

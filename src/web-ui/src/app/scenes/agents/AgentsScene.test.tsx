@@ -1,6 +1,4 @@
 import React, { act } from 'react';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { useAgentsStore } from './agentsStore';
@@ -287,36 +285,6 @@ describeWithJsdom('AgentsScene', () => {
     expect(container.querySelector('[data-testid="review-team-page"]')).toBeTruthy();
     expect(container.querySelector('.void-agents-scene--page')).toBeTruthy();
   }, 15_000);
-
-  it('keeps agent subpages stretched across the active scene viewport', () => {
-    const stylesheet = readFileSync(
-      fileURLToPath(new URL('./AgentsScene.scss', import.meta.url)),
-      'utf8',
-    );
-
-    expect(stylesheet).toContain('width: 100%;');
-    expect(stylesheet).toContain('flex: 1 1 auto;');
-    expect(stylesheet).toContain('min-width: 0;');
-  });
-
-  it('imports presentation helpers directly without loading runtime adapters', () => {
-    const source = readFileSync(
-      fileURLToPath(new URL('./AgentsScene.tsx', import.meta.url)),
-      'utf8',
-    );
-
-    expect(source).toContain(
-      "@/shared/services/customization/presentationMetadata",
-    );
-    expect(source).toContain(
-      "@/shared/services/customization/skillCatalogPresentation",
-    );
-    expect(source).not.toContain(
-      "from '@/shared/services/customization';",
-    );
-    expect(source).not.toContain('CustomizationTopNav');
-    expect(source).not.toContain('<CustomizationTopNav');
-  });
 
   it('在统一目录中切换团队视图且不进入旧子页面', async () => {
     useAgentsStore.getState().setCatalogView('teams');

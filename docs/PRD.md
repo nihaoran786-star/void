@@ -103,15 +103,14 @@ The candidate families are not an upper bound. Any additional upstream change di
 - Subagents may investigate, plan, implement a single issue, test, review, or document.
 - The main session must synthesize subagent output before code changes.
 - Each issue must be independently testable.
-- Every issue must update `docs/PROGRESS.md` and `docs/TEST_PLAN.md`.
+- Every issue must update `CONTEXT.md`; durable contracts go to `docs/ledger-archive.md`.
 - Architecture-affecting issues must update `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`.
 - `docs/PRD.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` are the active migration consensus documents. `docs/ISSUES.md`, `docs/TEST_PLAN.md`, and `docs/PROGRESS.md` were compressed into `docs/ledger-archive.md` on 2026-08-16.
 - Failed tests must be analyzed, fixed, rerun, and recorded.
 
 ## Acceptance Criteria
 
-- `docs/ISSUES.md` contains a complete staged issue list for upstream migration.
-- `docs/ISSUES.md` includes an upstream inventory issue and records, for each candidate, upstream commit/path when available, capability description, classification, decision reason, affected Void module, protected contract, and verification.
+- The staged issue list for upstream migration was completed; its surviving protected contracts and rejected decisions live in `docs/ledger-archive.md`.
 - Each implemented issue has:
   - clear scope,
   - affected files,
@@ -131,7 +130,7 @@ The candidate families are not an upper bound. Any additional upstream change di
 
 Current closeout status is tracked in `ISSUE-999 Split Parent Closeout Audit`.
 
-- Accepted implemented / P0 verified: all concrete child issues in `docs/ISSUES.md` are marked `Done`.
+- Accepted implemented / P0 verified: all concrete child issues were completed before the ledger was archived.
 - Split with residual gated scope: `ISSUE-020D`, `ISSUE-060I`, `ISSUE-122B`, and `ISSUE-900`.
 - Rejected with reason: `ISSUE-901` installer/brand upstream changes and `ISSUE-902` whole Flow Chat replacement.
 - No direct upstream patch copying is required for the Split residuals until their gates are satisfied: browser startup/render smoke, release/Homebrew owner policy, Computer Use DTO architecture decision, or crate-layout migration plan.

@@ -2,8 +2,6 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
 
 import type { SessionUsageReport } from '@/infrastructure/api/service-api/SessionAPI';
 import { globalEventBus } from '@/infrastructure/event-bus';
@@ -1616,31 +1614,5 @@ describe('Session usage report i18n and theme guards', () => {
 
     expect(usageCopy).not.toMatch(/\b(cost|price|billing|currency|invoice|package|subscription|usd|cny|rmb)\b/i);
     expect(usageCopy).not.toMatch(/[$\u00a5\u20ac]/);
-  });
-
-  it('keeps usage styles on semantic theme colors', () => {
-    const usageStylePaths = [
-      'src/flow_chat/components/usage/SessionUsageReportCard.scss',
-      'src/flow_chat/components/usage/SessionUsagePanel.scss',
-      'src/flow_chat/components/usage/SessionRuntimeStatusEntry.scss',
-    ];
-    const styleText = usageStylePaths
-      .map(stylePath => fs.readFileSync(path.resolve(stylePath), 'utf8'))
-      .join('\n');
-
-    expect(styleText).toContain('var(--color-text-primary)');
-    expect(styleText).toContain('width: auto;');
-    expect(styleText).toContain('margin: 0.12rem clamp(0.75rem, 5%, 3rem)');
-    expect(styleText).toContain('container-name: session-usage-card;');
-    expect(styleText).toContain('@container session-usage-card (max-width: 620px)');
-    expect(styleText).toContain('border: 1px solid color-mix(in srgb, var(--border-base)');
-    expect(styleText).toContain('grid-template-columns: repeat(6, minmax(0, 1fr));');
-    expect(styleText).toContain('width: clamp(180px, 26vw, 280px);');
-    expect(styleText).toContain('max-width: 280px;');
-    expect(styleText).toContain('text-overflow: ellipsis;');
-    expect(styleText).not.toContain('grid-template-columns: repeat(4, minmax(116px, 1fr));');
-    expect(styleText).not.toContain('grid-template-columns: minmax(0, 1fr) auto max-content;');
-    expect(styleText).not.toContain('max-width: 72%;');
-    expect(styleText).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
   });
 });

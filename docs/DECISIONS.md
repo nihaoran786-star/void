@@ -50,7 +50,7 @@ Reason: Each migration wave needs a fixed comparison target and traceability for
 
 ## DEC-008: Classification Changes Must Be Recorded
 
-Decision: Every upstream candidate must be classified as `P0`, `P1`, `P2`, `P3`, or `Rejected`. Classification changes require updating `docs/ISSUES.md` and, when architecture-affecting, `docs/DECISIONS.md`.
+Decision: Every upstream candidate must be classified as `P0`, `P1`, `P2`, `P3`, or `Rejected`. Classification changes require updating `docs/ledger-archive.md` and, when architecture-affecting, `docs/DECISIONS.md`.
 
 Reason: "All upstream fixes" is only manageable if every candidate has a visible decision.
 

@@ -57,16 +57,15 @@ automatically the current source of truth.
 
 ## Historical program ledgers
 
-The following files are the frozen 2026-07 upstream migration ledger. They are
-retained because they contain unique decisions, classifications, tests, and
-protected contracts. New general project status must go in `CONTEXT.md`, not in
-these ledgers.
+The frozen 2026-07 upstream migration ledger. New general project status must go
+in `CONTEXT.md`, not in these files.
 
+- [Ledger archive](ledger-archive.md) — the durable content of the former
+  `ISSUES.md`, `TEST_PLAN.md` and `PROGRESS.md`: protected capabilities,
+  permanently rejected decisions, and the acceptance criteria still asserted by
+  live tests (every cited test path verified to exist).
 - [Migration PRD](PRD.md)
-- [Migration issues](ISSUES.md)
 - [Migration decisions](DECISIONS.md)
-- [Migration test plan](TEST_PLAN.md)
-- [Migration progress](PROGRESS.md)
 
 ## Completed capability upgrade evidence
 

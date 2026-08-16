@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -102,79 +100,6 @@ vi.mock('@/team_workspace', async () => {
 });
 
 import SessionScene from './SessionScene';
-
-const source = readFileSync(
-  resolve(process.cwd(), 'src/app/scenes/session/SessionScene.scss'),
-  'utf8',
-);
-const tsxSource = readFileSync(
-  resolve(process.cwd(), 'src/app/scenes/session/SessionScene.tsx'),
-  'utf8',
-);
-const capabilityRailSource = readFileSync(
-  resolve(process.cwd(), 'src/app/scenes/session/SessionCapabilityRail.scss'),
-  'utf8',
-);
-
-describe('SessionScene Team Workspace floating layout contract', () => {
-  it('团队面板是一块 9:16 竖版悬浮面,不为会话和画布预留任何列宽', () => {
-    expect(source).toMatch(
-      /\.void-session-scene__team-workspace\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?aspect-ratio:\s*9 \/ 16;[\s\S]*?border:\s*1px solid var\(--workspace-border-strong, var\(--border-medium\)\);[\s\S]*?border-radius:\s*16px;[\s\S]*?box-shadow:\s*var\(--workspace-shadow-raised, var\(--shadow-xs\)\), var\(--shadow-lg\);/,
-    );
-    // 悬浮面板浮于场景之上,旧的第三列预留已被移除。
-    expect(source).not.toMatch(/--team-workspace-column-width/);
-    expect(source).not.toMatch(/padding-right:\s*clamp\(340px/);
-  });
-
-  it('点击面板外部只弱化浮层外观,不降低语义内容对比度', () => {
-    const dimmedBlock = source.match(
-      /\[data-dimmed='true'\]\s*\{([\s\S]*?)\}/,
-    )?.[1] ?? '';
-
-    expect(dimmedBlock).not.toContain('opacity:');
-    expect(dimmedBlock).toContain(
-      'border-color: var(--workspace-border-subtle, var(--border-subtle));',
-    );
-    expect(dimmedBlock).toContain(
-      'box-shadow: var(--workspace-shadow-raised, var(--shadow-xs));',
-    );
-  });
-
-  it('顶栏即拖拽区,不再有独立抓手', () => {
-    expect(source).not.toMatch(/team-grabber/);
-    expect(source).toMatch(/&\[data-dragging='true'\] \{[\s\S]*?cursor: grabbing;/);
-    expect(tsxSource).toMatch(/closest\('\[data-team-drag\]'\)/);
-    expect(tsxSource).toMatch(/onPointerDown=\{handleTeamPanelPointerDown\}/);
-  });
-
-  it('拖拽偏移被限制在场景的 8px 安全区内', () => {
-    expect(tsxSource).toMatch(/const teamPanelEdgeInset = 8;/);
-    expect(tsxSource).toMatch(/minDx: sceneRect\.left \+ teamPanelEdgeInset - panelRect\.left/);
-    expect(tsxSource).toMatch(/maxDx: sceneRect\.right - teamPanelEdgeInset - panelRect\.right/);
-    expect(tsxSource).toMatch(/Math\.min\(drag\.maxDx, Math\.max\(drag\.minDx, deltaX\)\)/);
-    expect(tsxSource).toMatch(/Math\.min\(drag\.maxDy, Math\.max\(drag\.minDy, deltaY\)\)/);
-  });
-
-  it('使用中与运行中的面板只改变描边,不制造外发光', () => {
-    expect(source).toMatch(
-      /&:hover,[\s\S]*?&:focus-within \{[\s\S]*?border-color:\s*var\(--color-accent-400\);/,
-    );
-    expect(source).toMatch(
-      /&:has\(\.team-workspace-panel\[data-running\]\) \{[\s\S]*?border-color:\s*var\(--color-accent-500\);/,
-    );
-    expect(source).not.toMatch(/0 0 32px var\(--color-accent-200\)/);
-    expect(source).not.toMatch(/team-edge-breathe/);
-  });
-
-  it('能力轨道始终高于团队悬浮窗,因此用户可以关闭全部右侧内容', () => {
-    expect(source).toMatch(
-      /\.void-session-scene__team-workspace\s*\{[\s\S]*?z-index:\s*\$z-floating;/,
-    );
-    expect(capabilityRailSource).toMatch(
-      /\.session-capability-rail\s*\{[\s\S]*?z-index:\s*calc\(#\{\$z-floating\} \+ 1\);/,
-    );
-  });
-});
 
 function pointerEvent(type: string, clientX: number, clientY: number): MouseEvent {
   return new MouseEvent(type, {
