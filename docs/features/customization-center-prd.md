@@ -212,9 +212,13 @@ another meaning to those legacy fields.
 `activePersonaBinding` is editable only on an unpersisted new-session draft.
 The first successful send freezes it as the created conversation's room
 identity. A created parent cannot clear or replace that binding; using another
-Agent or Team requires a new conversation. The only in-place exception is a
-trusted fixed Team upgrading its own pinned definition revision without
-changing Team identity.
+Agent or Team revision requires a new conversation or an explicit fork. A
+running Team instance/run likewise pins its definition revision. Presentation
+metadata may refresh without changing runtime identity, but a semantic change
+to the Agent prompt, Skills, tools, model policy, Team lead/members, workflow,
+member policy, or stop semantics never upgrades an existing session/run in
+place. Any current trusted-fixed-Team compatibility path that permits an
+in-place semantic revision upgrade is migration debt, not the target contract.
 
 `StartDialogTurn` gains one structured, immutable-for-the-turn persona
 snapshot:
@@ -260,6 +264,78 @@ Message submission
 `ChatInput.tsx` only renders the selector ViewModel and invokes its commands.
 It does not own catalog queries, activation lifecycle, prompt construction,
 cache keys, Skill resolution, team launch, or persistence.
+
+### Agent Studio revision and activation boundary
+
+The target authoring experience is a first-party `agent-studio` tab inside the
+existing right Content Canvas. The source parent conversation remains visible
+and continues to run its pinned Agent revision while the Studio edits and tests
+a separate draft revision. The current standalone/two-column Agent creation
+page remains a compatibility presentation until this Canvas contribution is
+implemented; both presentations must use one Module Interface and never dual
+write.
+
+The governing rule is:
+
+```text
+hot configuration plane + isolated debug run + atomic cold publication
+frozen execution plane for every started session and Team run
+```
+
+Customization owns these target contracts:
+
+```text
+AgentRevisionDraft {
+  agentDefinitionId
+  draftRevisionId
+  baseRevisionId
+  status               // editing | validating | validated | publishing |
+                       // published | invalid | failed | stale | conflict
+  draftFingerprint
+  definition
+  validationEvidence[]
+}
+
+AgentDebugSessionFacts {
+  sessionKind          // agent_debug
+  sessionId
+  sourceSessionId
+  workspaceId
+  agentDefinitionId
+  baseRevisionId
+  draftRevisionId
+  draftFingerprint
+  testCaseId?
+}
+```
+
+- Editing a draft never changes the source session's `activePersonaBinding`.
+- Debug messages use a separate real Flow Chat/persona session and never enter
+  the source session log, prompt cache identity, or recovery stream.
+- A changed fingerprint makes the previous debug session and validation
+  evidence stale before another message can be sent.
+- Published revisions are immutable. Publication validates the base revision
+  and updates definition/index state atomically; failure preserves the previous
+  default.
+- Pure display metadata may refresh catalog presentation without changing the
+  runtime revision badge. Prompt, persona, Skill, tool, model policy, and
+  workflow changes require a new revision.
+- Permission expansion or wider workspace scope requires a new confirmation.
+  Revocation, emergency stop, and quarantine may take effect immediately.
+
+Publication offers exactly three activation commands:
+
+1. Continue the source conversation on its existing pinned revision.
+2. Fork from an explicit source-session boundary into a new parent session
+   bound to the published revision, carrying only an approved summary reference,
+   domain references, and typed lineage.
+3. Atomically set the published revision as the default for future sessions.
+
+The Canvas surface calls the Agent Authoring Interface. It must not install a
+temporary Agent, persist persona state, delete sessions, or mutate the default
+revision directly. Detailed Canvas behavior, hot/cold activation matrix, and
+staged migration are governed by
+[the Canvas plugin platform specification](canvas-plugin-platform-prd.md).
 
 ## Canonical runtime composition
 
@@ -1234,15 +1310,19 @@ As of this specification update:
 - Agent and Skill authoring are implemented behind typed services, including
   validation, immutable runtime IDs, installation/removal rollback, scenario
   eligibility, and structured errors;
-- Agent authoring includes a real draft-persona debug conversation beside the
-  form. The page delegates temporary Agent installation, persona-bound session
-  creation, sending, replacement, disposal, and orphan sweeping to typed
-  services and the existing Flow Chat runtime. A draft fingerprint binds the
-  visible composer to the active temporary persona; while replacement is in
-  progress, sending is disabled and the stale session is never reused. The
-  composer appears only after the current temporary session is ready, and the
-  replacement notice clears after a successful send. This does not create a
-  second chat transport or move runtime lifecycle into the page;
+- Agent authoring currently includes a real draft-persona debug conversation
+  beside the form. The page delegates temporary Agent installation,
+  persona-bound session creation, sending, replacement, disposal, and orphan
+  sweeping to typed services and the existing Flow Chat runtime. A draft
+  fingerprint binds the visible composer to the active temporary persona;
+  while replacement is in progress, sending is disabled and the stale session
+  is never reused. The composer appears only after the current temporary
+  session is ready, and the replacement notice clears after a successful send.
+  This does not create a second chat transport or move runtime lifecycle into
+  the page. Moving this capability into the first-party `agent-studio` Canvas
+  tab, adding immutable publication/default-pointer contracts, and supporting
+  source-session fork activation are approved target work, not current
+  implementation status;
 - Team definition management is implemented for Desktop/Tauri behind the Team
   Interface: user/project isolation, validated create/edit/install/delete,
   optimistic revision checks, atomic replacement/recovery, bounded packages,

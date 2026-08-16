@@ -14,6 +14,16 @@
 > The task-by-task instructions below are retained as implementation evidence;
 > they are not an active execution queue.
 
+> **Product successor (2026-08-14):** the real Flow Chat/persona debug path and
+> fingerprint replacement guarantees remain the compatibility foundation, but
+> the approved target presentation is now the first-party `agent-studio` Tab in
+> Content Canvas. It edits a durable draft revision beside a source conversation
+> that remains pinned to its running revision, uses an isolated `agent_debug`
+> session, and publishes atomically for an explicit fork or future default. The
+> historical two-column page and cleanup-on-page-unmount steps do not override
+> the current [Canvas plugin platform](../features/canvas-plugin-platform-prd.md)
+> or [Customization Center](../features/customization-center-prd.md) contracts.
+
 **Goal:** Turn the agent creation page into a two-column "character lab": a real streaming debug chat on the left that runs the current draft (prompt + tools) as a live persona, with the config editor (name / prompt / tools tabs) on the right.
 
 **Architecture:** Reuse the existing custom-subagent runtime end-to-end. A debug "test" saves the current draft as a throwaway `user` subagent (`user::void::<id>`), reads back its content revision (`promptCacheScopeKey`), creates a normal chat session bound to that persona via the existing persona-binding path, and streams turns through the shared chat primitives. The runtime has one hard constraint discovered during research: the persona revision is content-derived and validated per turn (`persona_runtime.rs:442`), so editing the draft invalidates the current session. The panel therefore re-creates the debug session whenever the draft changes (replace semantics) and cleans up the subagent + session on unmount.
