@@ -1015,6 +1015,32 @@ evidence”描述成“已验证真实 debug run”。
 均通过。Desktop lib-test 仍被本批未修改的四处既有 Team fixture 缺
 `delegation_policy` 阻断，生产 Desktop 编译不受影响；不得把该基线阻断误写成本批通过。
 
+#### P1-A2-1 已实现检查点：agent-studio Canvas 贡献（只读）
+
+P1-A2 拆为四个垂直切片，本片只交付第一片：
+
+- `AGENT_STUDIO_SURFACE_ID = 'agent-studio'` 加入 `CanvasSurfaceIds.ts`；surface 定义与
+  renderer 在 `registerFirstPartyCanvasSurfaces` 中与短剧、媒体同批注册，冲突时整批回滚，
+  `dispose` 顺序对称。
+- 该表面**不声明 `legacyContentType`**：它是新表面而非迁移面板，不得解析任何既有 panel
+  content type，因此不会劫持现有页签。
+- `validateInput` 要求非空 `definitionId` 与 `sourceSessionId`；`checkWorkspace` 对 remote
+  workspace 返回 unavailable，与 P1-A1 的 authoring fail-closed 一致。
+- `createInstanceKey` 按 `surface:workspaceId:definitionId` 隔离，`existingInstanceStrategy`
+  为 `focus`：两个 Agent 各占一个页签，同一 Agent 重复打开只聚焦，不新建。
+- renderer 只读：经 `AgentRevisionService.get` 读取 definition，懒加载 service 与 Desktop
+  adapter，页面不直接访问 Tauri 或文件系统；渲染 default/latest revision 指针、已发布
+  revision 列表与草稿状态。
+
+本片明确没有完成：真实 `agent_debug` 隔离会话与 evidence 发行（A2-2）、source-bound fork
+与三动作绑定（A2-3）、旧创建页迁移与双写消除（A2-4）。本片**不修改任何会话绑定、不改
+default、不打开草稿**；revision 六命令中只有 `get` 有了生产调用方，其余五个仍无 UI 调用方。
+P1-A 退出门要到 A2-3 完成后才可能达成，本片不得被描述为已达成退出门。
+
+本地证据：`agentStudioCanvasSurface.test.tsx` 9/9；Web 全量 test:run、`type-check:web`、
+`check:core-boundaries`、`check:repo-hygiene` 均通过。Desktop lib-test 仍被本片未修改的四处
+既有 Team fixture 缺 `delegation_policy` 阻断，属既有基线问题，不计为本片通过。
+
 ### P1-B：短剧与媒体成为旗舰业务包
 
 目标：证明“Canvas Surface + Team + Workflow + Domain Module + Provider”可以稳定组合。
@@ -1153,7 +1179,12 @@ evidence”描述成“已验证真实 debug run”。
 
 ## 15. 当前下一步
 
-当前停在已实现并本地验证的 P1-A1 Agent Revision Core 检查点。下一次实现必须由用户
-单独批准 P1-A2，再接入 `agent-studio` Canvas、真实隔离 debug、source-bound fork 与
-future-default activation；不得因 revision 内核已存在就自动修改当前会话绑定、旧 Agent
-创建页、更多业务表面或 DSH 兼容层。
+当前停在已实现并本地验证的 P1-A2-1 检查点：`agent-studio` Canvas 贡献已注册并只读渲染
+revision 与草稿状态，但尚无入口把它开出来，会话绑定与 default 未被触碰。
+
+下一次实现必须由用户单独批准 P1-A2-2（真实 `agent_debug` 隔离会话与 validation evidence
+发行）。在此之前不得：接入 source-bound fork 或三动作绑定、迁移旧 Agent 创建页、修改
+当前会话绑定或 default、扩展到更多业务表面或 DSH 兼容层。
+
+`agent-studio` 的开启入口（SessionCapabilityRail 或 Agent 场景）尚未接线，属 A2-2 范围；
+在批准前不要为了“让它可见”而在中心组件加硬编码入口——那会撤销 P0-B 的成果。

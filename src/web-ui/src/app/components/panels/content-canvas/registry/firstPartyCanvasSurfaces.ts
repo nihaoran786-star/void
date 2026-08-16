@@ -9,13 +9,16 @@ import {
   CanvasSurfaceRendererRegistry,
 } from './CanvasSurfaceRendererRegistry';
 import {
+  AGENT_STUDIO_SURFACE_ID,
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
+import { AgentStudioCanvasSurfaceRenderer } from './AgentStudioCanvasSurfaceRenderer';
 import { ShortDramaCanvasSurfaceRenderer } from './ShortDramaCanvasSurfaceRenderer';
 import { WorkspaceMediaSurfaceRenderer } from './WorkspaceMediaSurfaceRenderer';
 
 export {
+  AGENT_STUDIO_SURFACE_ID,
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
@@ -26,6 +29,10 @@ interface WorkspaceMediaSurfaceInput {
 
 interface ShortDramaSurfaceInput {
   staticFixtureEpisodeCount?: number;
+}
+
+interface AgentStudioSurfaceInput {
+  definitionId: string;
 }
 
 const shortDramaSurfaceDefinition: CanvasSurfaceDefinition = {
@@ -141,6 +148,72 @@ const workspaceMediaSurfaceDefinition: CanvasSurfaceDefinition = {
   }),
 };
 
+/**
+ * Agent Studio inspects one agent definition at a time.
+ *
+ * It deliberately declares no legacyContentType: it is a new surface rather than
+ * a migrated panel, so it must never resolve an existing panel content type.
+ * Authoring is local-only, matching the authoring fail-closed rule for remote
+ * projects, and this surface is read-only in P1-A2-1 — it neither opens drafts
+ * nor changes the session's pinned revision.
+ */
+const agentStudioSurfaceDefinition: CanvasSurfaceDefinition = {
+  surfaceId: AGENT_STUDIO_SURFACE_ID,
+  pluginVersion: '1.0.0',
+  registrationKey: 'builtin.agent-studio.surface.v1',
+  existingInstanceStrategy: 'focus',
+  checkWorkspace: workspace => workspace.backend === 'remote'
+    ? {
+        status: 'unavailable',
+        reason: 'Agent authoring is not available on a remote workspace.',
+      }
+    : { status: 'available' },
+  validateInput: (input, context) => {
+    if (!context.sourceSessionId?.trim()) {
+      return {
+        status: 'invalid',
+        reason: 'Agent Studio requires a source session.',
+      };
+    }
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      return {
+        status: 'invalid',
+        reason: 'Agent Studio surface input is invalid.',
+      };
+    }
+    const definitionId = (input as Partial<AgentStudioSurfaceInput>).definitionId;
+    if (typeof definitionId !== 'string' || !definitionId.trim()) {
+      return {
+        status: 'invalid',
+        reason: 'Agent Studio requires an agent definition ID.',
+      };
+    }
+    return {
+      status: 'valid',
+      value: { definitionId: definitionId.trim() } satisfies AgentStudioSurfaceInput,
+    };
+  },
+  createInstanceKey: context => {
+    const input = context.input as AgentStudioSurfaceInput;
+    return `${AGENT_STUDIO_SURFACE_ID}:${context.workspace.workspaceId}:${input.definitionId}`;
+  },
+  createPresentation: context => {
+    const input = context.input as AgentStudioSurfaceInput;
+    const sourceSessionId = context.sourceSessionId as string;
+    return {
+      title: 'Agent Studio',
+      data: {
+        definitionId: input.definitionId,
+        workspacePath: context.workspace.workspacePath,
+      },
+      metadata: {
+        duplicateCheckKey: `agent-studio:${context.workspace.workspaceId}:${input.definitionId}`,
+        sourceSessionId,
+      },
+    };
+  },
+};
+
 export type FirstPartyCanvasSurfaceActivation =
   | { status: 'active'; dispose: () => void }
   | { status: 'conflict'; reason: string; dispose: () => void };
@@ -203,12 +276,47 @@ export function registerFirstPartyCanvasSurfaces(
     };
   }
 
+  const agentStudioSurfaceRegistration = surfaces.register(agentStudioSurfaceDefinition);
+  if (agentStudioSurfaceRegistration.status === 'conflict') {
+    rendererRegistration.dispose();
+    surfaceRegistration.dispose();
+    shortDramaRendererRegistration.dispose();
+    shortDramaSurfaceRegistration.dispose();
+    return {
+      status: 'conflict',
+      reason: agentStudioSurfaceRegistration.reason ?? 'Agent Studio surface registration conflict.',
+      dispose: () => undefined,
+    };
+  }
+
+  const agentStudioRendererRegistration = renderers.register({
+    surfaceId: AGENT_STUDIO_SURFACE_ID,
+    pluginVersion: '1.0.0',
+    registrationKey: 'builtin.agent-studio.renderer.v1',
+    legacyContentTypes: [],
+    Renderer: AgentStudioCanvasSurfaceRenderer,
+  });
+  if (agentStudioRendererRegistration.status === 'conflict') {
+    agentStudioSurfaceRegistration.dispose();
+    rendererRegistration.dispose();
+    surfaceRegistration.dispose();
+    shortDramaRendererRegistration.dispose();
+    shortDramaSurfaceRegistration.dispose();
+    return {
+      status: 'conflict',
+      reason: agentStudioRendererRegistration.reason ?? 'Agent Studio renderer registration conflict.',
+      dispose: () => undefined,
+    };
+  }
+
   let disposed = false;
   return {
     status: 'active',
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      agentStudioRendererRegistration.dispose();
+      agentStudioSurfaceRegistration.dispose();
       rendererRegistration.dispose();
       surfaceRegistration.dispose();
       shortDramaRendererRegistration.dispose();
