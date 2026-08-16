@@ -1041,6 +1041,33 @@ P1-A 退出门要到 A2-3 完成后才可能达成，本片不得被描述为已
 `check:core-boundaries`、`check:repo-hygiene` 均通过。Desktop lib-test 仍被本片未修改的四处
 既有 Team fixture 缺 `delegation_policy` 阻断，属既有基线问题，不计为本片通过。
 
+#### P1-A2-2 已实现检查点：debug 会话绑定与 evidence 发行
+
+`AgentDebugSessionBinding` 把隔离 debug 会话绑定到**唯一一个 draft revision**，复用既有
+`createAgentDebugRuntime`，不新建第二套聊天传输。
+
+补上的真实缺口：既有运行时的 `prepareForSend` 会在草稿内容变化时换掉会话，但调用方手里
+的旧 handle 仍能 `sendMessage` 出去。绑定层令其 fail-closed —— 草稿 revision 前进或绑定
+被释放后，`send` 与 `recordOutcome` 一律返回 `stale`，旧 debug session 收不到新消息，
+也无法再发行 evidence。
+
+- validation evidence 始终归属**实际运行过的** `draftRevisionId`，不会记到用户后来敲的新草稿上。
+- `capabilitySnapshot` 在 bind 时快照，与该次运行绑定。
+- 失败运行同样发行 evidence，失败不能被静默丢弃。
+- 所有失败以类型化状态返回（`bound`/`failed`/`stale`/`sent`/`recorded`），不抛异常。
+- 释放 debug 会话只处置 debug 会话本身，不触及 source session。
+
+变异测试记录：`resolveLive` 原本同时检查 `draftRevisionId` 与 `debugSessionId`。逐个摘除后
+测试仍全绿，摘除两者才有两条不变量测试变红——证明二者等价冗余，故只保留一条身份检查。
+
+本片明确没有完成：`agent-studio` 表面的开启入口、debug 会话与 A2-1 表面的接线、
+source-bound fork 与三动作绑定（A2-3）、旧创建页迁移（A2-4）。本片**仍不修改任何会话
+绑定、不改 default、不发布 revision**。
+
+本地证据：`AgentDebugSessionBinding.test.ts` 15/15；Web 全量 464 文件 / 2756 用例、
+`type-check:web` 通过。Desktop lib-test 仍被本片未修改的四处既有 Team fixture 缺
+`delegation_policy` 阻断，属既有基线问题。
+
 ### P1-B：短剧与媒体成为旗舰业务包
 
 目标：证明“Canvas Surface + Team + Workflow + Domain Module + Provider”可以稳定组合。
@@ -1179,12 +1206,14 @@ P1-A 退出门要到 A2-3 完成后才可能达成，本片不得被描述为已
 
 ## 15. 当前下一步
 
-当前停在已实现并本地验证的 P1-A2-1 检查点：`agent-studio` Canvas 贡献已注册并只读渲染
-revision 与草稿状态，但尚无入口把它开出来，会话绑定与 default 未被触碰。
+当前停在已实现并本地验证的 P1-A2-2 检查点：`agent-studio` Canvas 贡献（只读）与
+debug 会话绑定层都已就位并各自通过测试，但**两者尚未接线**，也没有入口把表面打开。
+会话绑定与 default 全程未被触碰。
 
-下一次实现必须由用户单独批准 P1-A2-2（真实 `agent_debug` 隔离会话与 validation evidence
-发行）。在此之前不得：接入 source-bound fork 或三动作绑定、迁移旧 Agent 创建页、修改
-当前会话绑定或 default、扩展到更多业务表面或 DSH 兼容层。
+下一次实现必须由用户单独批准 P1-A2-3（source-bound fork 与三动作绑定：继续当前 /
+从节点分叉 / 设为未来默认）。在此之前不得：修改当前会话绑定或 default、迁移旧 Agent
+创建页、扩展到更多业务表面或 DSH 兼容层。
 
-`agent-studio` 的开启入口（SessionCapabilityRail 或 Agent 场景）尚未接线，属 A2-2 范围；
-在批准前不要为了“让它可见”而在中心组件加硬编码入口——那会撤销 P0-B 的成果。
+剩余接线工作（表面 ↔ 绑定层、开启入口）属 A2-3 的第一步；不要为了“让它可见”而在
+`FlexiblePanel`、`ContentCanvas` 或 `SessionCapabilityRail` 加硬编码入口——那会撤销 P0-B
+的成果，正确做法是走 Canvas capability contribution。
