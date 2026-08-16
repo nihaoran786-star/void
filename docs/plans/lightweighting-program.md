@@ -11,10 +11,13 @@ Baseline measured: 2026-08-16, branch `codex/agent-revision-core-p1a1` @ f421aab
 
 | # | 批次 | 删除/压缩量 | 风险 | 依赖 |
 |---|---|---|---|---|
-| **B1** | 删除孤儿文档目录 + 压缩三大流水账 | **-23,500 行 md（-92 个文件）** | 低 | 无 |
-| **B2** | 删除 101 个「读 SCSS 文本做正则断言」的测试 | **-14,001 行测试** | 低 | 无 |
-| **B3** | 完成 `.minimal.scss` 迁移，删掉死掉的那一半 | **-15,000~40,000 行 SCSS（待定）** | 中 | 需先做 B2，否则测试会阻挡 |
+| **B1** | ✅ 已完成 — 删除孤儿文档目录 + 压缩三大流水账 | **-23,044 行 md（148→57 文件）** | 低 | — |
+| **B2** | ✅ 已完成 — 删除读 SCSS 文本做断言的测试 | **-11,198 行测试（557→461 文件）** | 低 | — |
+| **B3** | ⚠️ 原设想被推翻 — 那不是重复代码，是主题覆盖层 | 实得 -77 行；余下是产品决策 | — | 见 §4 B3 |
 | B4 | 把 `core/src/agentic/` 按上游分层拆成 `execution/` 层 | 不减行，但根治稳定性 | 高 | 长期 |
+
+执行记录：`171e0ff2d`（B1-a/B1-d）、`3dc7c55a4`（B2 主批）、`991b81e2e`（B1-c + B2 收尾）。
+每批提交后 `pnpm --dir src/web-ui run test:run` 全绿。
 
 **一个反直觉的负面结论**：Rust 侧的「过度防御」不是真问题，见 §3.3。不要在那上面花时间。
 
@@ -300,20 +303,49 @@ pnpm --dir src/web-ui run test:run
 
 ---
 
-### B3 — SCSS 单一化（风险：中，必须在 B2 之后）
+### B3 — SCSS ⚠️ 原设想已被推翻，这里不是重复代码
 
-对 43 组 `X.scss` / `X.minimal.scss` 逐组处理：
+**最初的判断「43 组重复样式，删掉死掉的一半」是错的。** 实测后的真实架构：
 
-1. 确认 `X.minimal.scss` 是否已被 `app/presentation/minimalWorkspacePresentation.scss` 收录
-2. 确认对应组件是否仍 `import './X.scss'`
-3. 已完成迁移的：删掉旧 `X.scss`，并从组件移除 import
-4. 未完成迁移的：把旧文件里仍生效的规则并入 minimal 版，然后删旧文件
-5. 重命名：`X.minimal.scss` → `X.scss`（迁移结束后 "minimal" 这个后缀应当消失）
+`minimal` 不是一次未完成的迁移，而是一个**主题覆盖层**。
+`workspacePresentation.ts:4` 定义 `type WorkspacePresentation = 'classic' | 'minimal'`，
+两种模式都受支持，可通过 `?void-ui=classic`、`VITE_VOID_WORKSPACE_PRESENTATION`
+或 localStorage 切换；`minimal` 只是默认值。
 
-优先顺序按体量：`SkillsScene`(1,611+1,493) → `AutomationScene`(1,956+1,042) →
-`ShortDramaCenterPanel`(1,414+…) → `NavPanel`(2,369+…) → 其余。
+`*.minimal.scss` 的内容全部作用域在 `.void-ui--minimal` 之下，例如
+`AppLayout.minimal.scss:2` 是 `.void-app-layout.void-ui--minimal { … }`。
+经典 `.scss` 提供基础样式，minimal 在其之上覆盖。
 
-每屏一个独立 commit，便于回滚。
+51 个 `*.minimal.scss` 的真实归属（逐文件 grep 实测）：
+
+| 类别 | 数量 | 说明 |
+|---|---|---|
+| 由 `minimalWorkspacePresentation.scss` barrel 加载 | 28 | minimal 模式下的覆盖层 |
+| 被同名经典 `.scss` 用 `@use` 引入 | 21 | 经典文件把 minimal 当 partial 用，**已经是单一来源** |
+| 真正无引用 | **1** | `ExploreRegion.minimal.scss`（77 行，已删） |
+| 其他 | 1 | `BrowserChrome.minimal.scss` — 被 `BrowserPanel.scss` 和 `BrowserScene.scss` `@use`，不是死文件 |
+
+**因此不存在「6,494 行死 minimal 样式」，只有 77 行。**
+子代理报告里的那张 19 文件清单是错的：它漏掉了经典 `.scss` 通过 `@use` 引入 minimal 这一层，
+按它执行会直接构建失败（例如 `SkillsScene.scss:3` 就是 `@use './SkillsScene.minimal'`）。
+
+同样，「删掉 21 个重复的经典 `.scss`（11,538 行）」也不能做：
+- 会彻底删掉 `classic` 模式
+- minimal 覆盖层远小于基础层（`ChatInput` 是 455 行覆盖 1,871 行基础），
+  它不是完整替代品，删掉基础层会让 minimal 模式本身也塌掉
+
+**真正的问题不是重复，而是「是否还需要双模式」——这是产品决策，不是重构决策。**
+
+两条路，需要所有者选择：
+
+- **保留双模式**：SCSS 体量就是合理成本，B3 到此为止（净收益 77 行）。
+- **放弃 `classic` 模式**：把 28 个 barrel 覆盖层的规则合并回各自基础文件，
+  删除 `workspacePresentation.ts` 的模式机制、`minimalWorkspacePresentation.scss` barrel、
+  `void-ui--classic` 分支和全部 `.void-ui--minimal` 作用域选择器。
+  这是一次真实的简化（约 15k 行 SCSS + presentation 机制），但它是逐屏的视觉重构，
+  不是删除操作，且现在没有样式测试兜底，每屏都需要人工验收。
+
+在所有者明确选择之前不要推进 B3。
 
 ---
 
