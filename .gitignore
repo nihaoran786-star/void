@@ -1,5 +1,6 @@
 .agent-loop/
 .codex-artifacts/
+.omc/
 .void/
 tests/e2e/media/generated/media_batch_*/
 
