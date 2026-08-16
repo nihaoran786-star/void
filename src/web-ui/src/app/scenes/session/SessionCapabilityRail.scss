@@ -17,16 +17,6 @@
   border-radius: 11px;
   background: var(--workspace-surface-raised, var(--color-bg-elevated));
   box-shadow: var(--workspace-shadow-raised, var(--shadow-lg));
-  transition:
-    width $motion-fast $easing-standard,
-    padding $motion-fast $easing-standard,
-    border-radius $motion-fast $easing-standard;
-
-  &:hover {
-    width: 148px;
-    padding: 5px;
-    border-radius: 13px;
-  }
 }
 
 .session-capability-rail__capability,
@@ -324,50 +314,12 @@
 }
 
 .session-capability-rail__toggle {
+  width: 26px;
   justify-content: center;
   min-height: 26px;
   padding: 3px;
-  gap: 5px;
   border-top-color: var(--workspace-border-subtle, var(--border-subtle));
   border-radius: 7px;
-  font-size: var(--workspace-font-size-micro);
-  font-weight: 500;
-
-  span {
-    display: none;
-  }
-}
-
-.session-capability-rail:hover {
-  .session-capability-rail__capability,
-  .session-capability-rail__team,
-  .short-drama-team-panel-controls__summary {
-    min-height: 40px;
-    padding: 6px 7px;
-    justify-content: flex-start;
-  }
-
-  .session-capability-rail__copy {
-    display: flex;
-  }
-
-  .session-capability-rail__status-dot,
-  .short-drama-team-panel-controls__status-dot {
-    position: static;
-  }
-
-  .short-drama-team-panel-controls__copy {
-    display: flex;
-  }
-
-  .session-capability-rail__toggle {
-    min-height: 28px;
-    padding: 4px 6px;
-
-    span {
-      display: inline;
-    }
-  }
 }
 
 // The rail is a floating control, but transcript content remains readable and
@@ -379,45 +331,7 @@
   }
 }
 
-// Compact chat panes cannot afford a 148px hover surface. Tooltips retain the
-// labels while the rail stays icon-only and never expands across the transcript.
-@container session-chat-pane (max-width: 960px) {
-  .session-capability-rail:hover {
-    width: 36px;
-    padding: 4px;
-    border-radius: 11px;
-
-    .session-capability-rail__capability,
-    .session-capability-rail__team,
-    .short-drama-team-panel-controls__summary {
-      min-height: 28px;
-      padding: 2px;
-      justify-content: center;
-    }
-
-    .session-capability-rail__copy,
-    .short-drama-team-panel-controls__copy {
-      display: none;
-    }
-
-    .session-capability-rail__status-dot,
-    .short-drama-team-panel-controls__status-dot {
-      position: absolute;
-    }
-
-    .session-capability-rail__toggle {
-      min-height: 26px;
-      padding: 3px;
-
-      span {
-        display: none;
-      }
-    }
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .session-capability-rail,
   .session-capability-rail__capability,
   .session-capability-rail__team,
   .session-capability-rail__toggle,

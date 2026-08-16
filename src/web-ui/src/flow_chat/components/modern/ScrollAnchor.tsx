@@ -1,209 +1,187 @@
 /**
- * Scroll anchor component.
- * Shows user message markers with hover preview and jump navigation.
+ * Conversation turn rail.
+ * Shows quiet turn ticks with preview and jump navigation.
  */
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { i18nService } from '@/infrastructure/i18n';
 import { usePresentationVirtualItems } from './useFlowChatPresentationStore';
 import './ScrollAnchor.scss';
 
 interface ScrollAnchorProps {
-  onAnchorNavigate: (turnId: string) => void;
-  scrollerRef?: React.RefObject<HTMLElement | null>;
+  activeTurnId?: string | null;
+  onAnchorNavigate: (turnId: string, behavior: ScrollBehavior) => void;
 }
 
 interface AnchorPoint {
   id: string;
   turnId: string;
-  index: number;
-  position: number;
   content: string;
+  responsePreview: string;
   timestamp: number;
   turnNumber: number;
 }
 
+const cleanPreviewText = (content: string): string => content
+  .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+  .replace(/`([^`]+)`/g, '$1')
+  .replace(/^\s*>\s?/gm, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const truncateContent = (content: string, maxLength: number): string => {
+  if (content.length <= maxLength) return content;
+  return `${content.substring(0, maxLength).trimEnd()}…`;
+};
+
+const prefersReducedMotion = (): boolean => (
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+);
 
 export const ScrollAnchor: React.FC<ScrollAnchorProps> = ({
+  activeTurnId,
   onAnchorNavigate,
-  scrollerRef,
 }) => {
+  const { t } = useTranslation('flow-chat');
   const virtualItems = usePresentationVirtualItems();
-  const [hoveredAnchor, setHoveredAnchor] = useState<AnchorPoint | null>(null);
+  const [previewedAnchor, setPreviewedAnchor] = useState<AnchorPoint | null>(null);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 });
-  const [isScrolling, setIsScrolling] = useState(false);
-  
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isHovering, setIsHovering] = useState(false);
-
-  useEffect(() => {
-    const scroller = scrollerRef?.current;
-    if (!scroller) return;
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 800);
-    };
-
-    scroller.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      scroller.removeEventListener('scroll', handleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [scrollerRef]);
-
-  useEffect(() => {
-    const scroller = scrollerRef?.current;
-    if (!scroller) return;
-
-    if (isHovering) {
-      scroller.classList.add('anchor-hovering');
-    } else {
-      scroller.classList.remove('anchor-hovering');
-    }
-
-    return () => {
-      scroller.classList.remove('anchor-hovering');
-    };
-  }, [scrollerRef, isHovering]);
 
   const anchorPoints = useMemo<AnchorPoint[]>(() => {
     if (virtualItems.length === 0) return [];
 
-    const userMessageItems = virtualItems
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.type === 'user-message');
+    const responsePreviewByTurn = new Map<string, string>();
+    virtualItems.forEach(item => {
+      if (item.type !== 'model-round') return;
 
-    if (userMessageItems.length === 0) return [];
-
-    return userMessageItems.map(({ item, index }, turnIndex) => {
-      const userMessage = (item as any).data;
-      const position = 2 + (index / virtualItems.length) * 96;
-
-      return {
-        id: userMessage.id,
-        turnId: item.turnId,
-        index,
-        position,
-        content: userMessage.content || '',
-        timestamp: userMessage.timestamp || Date.now(),
-        turnNumber: turnIndex + 1,
-      };
+      item.data.items.forEach(flowItem => {
+        if (flowItem.type !== 'text') return;
+        const content = cleanPreviewText(flowItem.content || '');
+        if (content) responsePreviewByTurn.set(item.turnId, content);
+      });
     });
+
+    const anchors: AnchorPoint[] = [];
+    virtualItems.forEach(item => {
+      if (item.type !== 'user-message') return;
+      anchors.push({
+        id: item.data.id,
+        turnId: item.turnId,
+        content: cleanPreviewText(item.data.content || ''),
+        responsePreview: responsePreviewByTurn.get(item.turnId) || '',
+        timestamp: item.data.timestamp || Date.now(),
+        turnNumber: anchors.length + 1,
+      });
+    });
+
+    return anchors;
   }, [virtualItems]);
 
   const handleAnchorClick = useCallback((anchor: AnchorPoint) => {
-    onAnchorNavigate(anchor.turnId);
-
-    setHoveredAnchor(null);
+    onAnchorNavigate(anchor.turnId, prefersReducedMotion() ? 'auto' : 'smooth');
+    setPreviewedAnchor(null);
   }, [onAnchorNavigate]);
 
-  const handleAnchorMouseEnter = useCallback((anchor: AnchorPoint, event: React.MouseEvent) => {
-    setHoveredAnchor(anchor);
-    setPreviewPosition({ x: event.clientX, y: event.clientY });
+  const showPreview = useCallback((anchor: AnchorPoint, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    const viewportHeight = typeof window === 'undefined' ? rect.bottom : window.innerHeight;
+    const centerY = rect.top + rect.height / 2;
+    setPreviewedAnchor(anchor);
+    setPreviewPosition({
+      x: rect.right + 14,
+      y: Math.min(Math.max(centerY, 104), Math.max(104, viewportHeight - 104)),
+    });
   }, []);
 
-  const handleAnchorMouseLeave = useCallback(() => {
-    setHoveredAnchor(null);
+  const hidePreview = useCallback(() => {
+    setPreviewedAnchor(null);
   }, []);
 
-  const formatTimestamp = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes} min ago`;
-    if (hours < 24) return `${hours} hr ago`;
-    if (days < 7) return `${days} days ago`;
-    
-    return i18nService.formatDate(date, { 
-      month: 'short', 
+  const formatTimestamp = useCallback((timestamp: number) => {
+    return i18nService.formatDate(new Date(timestamp), {
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
-  };
-
-  const truncateContent = (content: string, maxLength: number = 100) => {
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
-  };
-
-  const handleContainerMouseEnter = useCallback(() => {
-    setIsHovering(true);
-  }, []);
-
-  const handleContainerMouseLeave = useCallback(() => {
-    setIsHovering(false);
   }, []);
 
   if (anchorPoints.length === 0) return null;
 
   return (
     <>
-      <div 
-        className={`scroll-anchor ${isScrolling ? 'scrolling' : ''} ${isHovering ? 'hovering' : ''}`}
-        onMouseEnter={handleContainerMouseEnter}
-        onMouseLeave={handleContainerMouseLeave}
+      <nav
+        className="scroll-anchor"
+        aria-label={t('scroll.anchorNavigation')}
+        style={{
+          '--anchor-step': `${Math.max(4, Math.min(14, 320 / anchorPoints.length))}px`,
+        } as React.CSSProperties}
       >
         <div className="scroll-anchor__track">
-          {anchorPoints.map((anchor, idx) => (
-            <div
-              key={anchor.id}
-              className={`scroll-anchor__point ${hoveredAnchor?.id === anchor.id ? 'active' : ''}`}
-              style={{ 
-                top: `${anchor.position}%`,
-                '--delay': `${idx * 0.03}s`
-              } as React.CSSProperties}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAnchorClick(anchor);
-              }}
-              onMouseEnter={(e) => handleAnchorMouseEnter(anchor, e)}
-              onMouseLeave={handleAnchorMouseLeave}
-            />
-          ))}
-        </div>
-      </div>
+          {anchorPoints.map((anchor, index) => {
+            const isCurrent = activeTurnId === anchor.turnId;
+            const isPreviewed = previewedAnchor?.id === anchor.id;
+            const previewId = `scroll-anchor-preview-${anchor.id}`;
 
-      {hoveredAnchor && (
+            return (
+              <button
+                key={anchor.id}
+                type="button"
+                className={`scroll-anchor__point${isCurrent ? ' is-current' : ''}${isPreviewed ? ' is-previewed' : ''}`}
+                style={{
+                  '--anchor-delay': `${Math.min(index * 18, 180)}ms`,
+                } as React.CSSProperties}
+                aria-label={t('scroll.anchorJumpLabel', {
+                  current: anchor.turnNumber,
+                  content: truncateContent(anchor.content, 60),
+                })}
+                aria-current={isCurrent ? 'step' : undefined}
+                aria-describedby={isPreviewed ? previewId : undefined}
+                onClick={() => handleAnchorClick(anchor)}
+                onMouseEnter={event => showPreview(anchor, event.currentTarget)}
+                onMouseLeave={hidePreview}
+                onFocus={event => showPreview(anchor, event.currentTarget)}
+                onBlur={hidePreview}
+              >
+                <span className="scroll-anchor__tick" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {previewedAnchor ? (
         <div
+          id={`scroll-anchor-preview-${previewedAnchor.id}`}
           className="scroll-anchor__preview"
+          role="tooltip"
           style={{
-            left: `${previewPosition.x - 20}px`,
+            left: `${previewPosition.x}px`,
             top: `${previewPosition.y}px`,
           }}
         >
-          <div className="scroll-anchor__preview-indicator">
-            <span className="scroll-anchor__preview-turn">
-              {hoveredAnchor.turnNumber}/{anchorPoints.length}
+          <div className="scroll-anchor__preview-meta">
+            <span>
+              {t('scroll.anchorTurn', {
+                current: previewedAnchor.turnNumber,
+                total: anchorPoints.length,
+              })}
             </span>
+            <span>{formatTimestamp(previewedAnchor.timestamp)}</span>
           </div>
-          <div className="scroll-anchor__preview-header">
-            <span className="scroll-anchor__preview-label">User message</span>
-            <span className="scroll-anchor__preview-time">
-              {formatTimestamp(hoveredAnchor.timestamp)}
-            </span>
+          <div className="scroll-anchor__preview-title">
+            {truncateContent(previewedAnchor.content, 92)}
           </div>
           <div className="scroll-anchor__preview-content">
-            {truncateContent(hoveredAnchor.content, 150)}
+            {previewedAnchor.responsePreview
+              ? truncateContent(previewedAnchor.responsePreview, 150)
+              : t('scroll.anchorNoResponse')}
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 };

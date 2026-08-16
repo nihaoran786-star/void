@@ -7,7 +7,13 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Trash2, Check, X, Bot, Code2, ClipboardList, Sparkles, MoreHorizontal, Loader2, Archive, CalendarClock, Images } from 'lucide-react';
+import { Pencil, Trash2, Check, X, MoreHorizontal, Loader2, Archive, CalendarClock } from 'lucide-react';
+import {
+  NavTechClawIcon,
+  NavTechCodeIcon,
+  NavTechCoworkIcon,
+  NavTechMediaIcon,
+} from '../../components/NavTechIcons';
 import { IconButton, Input, Tooltip } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
 import { flowChatStore } from '../../../../../flow_chat/store/FlowChatStore';
@@ -673,14 +679,12 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           );
           const SessionIcon =
             sessionModeKey === 'cowork'
-              ? ClipboardList
+              ? NavTechCoworkIcon
               : sessionModeKey === 'media'
-                ? Images
+                ? NavTechMediaIcon
               : sessionModeKey === 'claw'
-                ? showAssistantInTooltip
-                  ? Sparkles
-                  : Bot
-                : Code2;
+                ? NavTechClawIcon
+                : NavTechCodeIcon;
           const isRunning = runningSessionIds.has(session.sessionId);
           const isRowActive = isSessionNavRowActive({
             rowSessionId: session.sessionId,

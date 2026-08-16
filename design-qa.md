@@ -374,4 +374,58 @@
 - 自动化覆盖桌面宽、中、窄容器及 760px 页面视口；没有文字遮挡、组件裁切、
   控件重叠或页面横向滚动。
 
+## 左栏选中态对齐（2026-08-14）
+
+### 对照证据
+
+- 设计真值：用户在当前任务中提供的自动化选中态截图（图二）。
+- 同尺寸同状态对照：
+  `.codex-artifacts/nav-active-state/reference-vs-implementation.png`；左侧为参考图，
+  右侧为真实桌面窗口在自动化激活、定制折叠状态下的对应区域。
+- 真实全窗口证据：
+  `.codex-artifacts/nav-active-state/automation-reference-state.png` 与
+  `.codex-artifacts/nav-active-state/current-session-active.png`。捕获使用
+  Per-Monitor-V2 DPI 感知和 DWM 物理边界，输出 `2560 × 1368`，完整包含左栏、
+  顶部、最右侧、底部和窗口控制键。
+
+### 结论与修正
+
+- 删除下方会话选中行的灰蓝填充、内嵌蓝色阴影和整行蓝色文字。
+- 会话选中态改为与自动化入口一致的层级：透明背景、2px Pulse Blue 左侧定位线、
+  Pulse Blue 图标、深色加粗标题；悬停与键盘焦点反馈继续独立保留。
+- 浅色 Glass Air 投影不再把活动会话整行覆盖为 accent-800，避免主题规则重新引入
+  蓝色标题。
+- 同图检查未发现 P0、P1 或 P2 视觉差异；自动化入口与会话行的选中语义、颜色和
+  节奏一致，参考状态通过。
+
+## 会话轮次刻度导航（2026-08-14）
+
+- 参考来源：用户提供的左侧短刻度轨道、当前轮次深色刻度与悬停拉长摘要浮层截图。
+- 实现证据：`.codex-artifacts/scroll-anchor/clustered-short-current.png` 与
+  `.codex-artifacts/scroll-anchor/clustered-current-hover-verified.png`；静止态同图对照：
+  `.codex-artifacts/scroll-anchor/reference-vs-static-rail.png`。
+- 默认状态已移除右侧 Pulse Blue 圆点，轮次定位迁至聊天内容左缘；非活动轮次为低对比短刻度，
+  当前可见轮次只变为深色，长度仍与其他刻度一致。所有轮次按实际数量聚集在可视区域垂直中部，
+  不再按消息内容高度铺满整页。
+- 仅鼠标悬停或键盘聚焦的刻度平滑拉长，离开后恢复短刻度；当前轮次的深色状态不改变该规则。
+- 悬停或键盘聚焦显示轮次、时间、用户消息与已有助手文本摘要；点击继续复用现有轮次置顶路径，
+  默认平滑滚动，`prefers-reduced-motion` 下改为即时定位。
+- 全窗口实测点击第二轮后，顶部轮次与深色活动刻度同步切换；未发现 P0、P1 或 P2 视觉、
+  交互及可访问性差异。
+
+## 画布入口固定缩略态（2026-08-14）
+
+- 参考来源：用户提供的右侧紧凑画布入口截图；同图对照位于
+  `.codex-artifacts/canvas-toggle/reference-default-hover.png`。
+- 画布入口及其能力轨道固定为 36px 紧凑宽度，按钮保持 26px 方形；已删除整条轨道在
+  鼠标悬浮时扩展到 148px、显示文字并改变内部间距的交互。
+- 悬浮只保留轻微的背景与前景色反馈，键盘 `focus-visible`、ARIA 标签、展开状态和点击切换
+  功能保持不变。
+- 默认态与悬浮态全窗口证据分别为 `.codex-artifacts/canvas-toggle/default.png` 和
+  `.codex-artifacts/canvas-toggle/hover.png`；点击后真实画布仍可展开，证据为
+  `.codex-artifacts/canvas-toggle/expanded-after-click.png`。
+- 三张全窗口截图均使用 Per-Monitor-V2 DPI 感知和 DWM 物理边界捕获，输出
+  `2560 × 1368`，包含左侧栏、完整顶部、最右内容、底部区域和窗口控制键；未发现按钮位移、
+  宽度变化、内容遮挡或功能回退。
+
 final result: passed

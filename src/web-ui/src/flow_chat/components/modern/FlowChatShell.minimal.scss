@@ -27,11 +27,20 @@
       min-height: 57px;
     }
 
-    :where(.model-round-item, .user-message-item) {
+    :where(.model-round-item, .user-message-item),
+    .virtual-item-wrapper > :where(.explore-region, .turn-failure-notice),
+    .processing-indicator {
       box-sizing: border-box;
       width: min(var(--workspace-content-max), calc(100% - 32px));
       max-width: var(--workspace-content-max);
       margin-inline: auto;
+    }
+
+    // The loading footer owns legacy 1200/1000/900px constraints and padding.
+    // Reset those here so live activity shares the same physical left edge as
+    // restored activity groups and the final assistant reply.
+    .processing-indicator {
+      padding-inline: 0;
     }
 
     .model-round-item {
@@ -183,7 +192,9 @@
     }
 
     @media (max-width: 768px) {
-      :where(.model-round-item, .user-message-item) {
+      :where(.model-round-item, .user-message-item),
+      .virtual-item-wrapper > :where(.explore-region, .turn-failure-notice),
+      .processing-indicator {
         width: calc(100% - 20px);
       }
     }

@@ -68,3 +68,49 @@ export const NavTechExtensionsIcon: React.FC<NavTechIconProps> = (props) => (
     <circle cx="8" cy="16.5" r="1.4" fill="currentColor" stroke="none" />
   </NavTechIcon>
 );
+
+/** Workspace — geometric folder hull with a tab notch and one solder joint. */
+export const NavTechFolderIcon: React.FC<NavTechIconProps> = (props) => (
+  <NavTechIcon {...props}>
+    <path d="M3.5 6.8h6.4l2.1 3h8.5v7.4h-17z" />
+    <circle cx="16.9" cy="14.4" r="1.4" fill="currentColor" stroke="none" />
+  </NavTechIcon>
+);
+
+/** Code session — angle brackets converging on a solid core node. */
+export const NavTechCodeIcon: React.FC<NavTechIconProps> = (props) => (
+  <NavTechIcon {...props}>
+    <path d="M9.2 7.5 4.7 12l4.5 4.5M14.8 7.5l4.5 4.5-4.5 4.5" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+  </NavTechIcon>
+);
+
+/** Claw session — orb ring gripped by three solder joints, solid core. */
+export const NavTechClawIcon: React.FC<NavTechIconProps> = (props) => (
+  <NavTechIcon {...props}>
+    <circle cx="12" cy="12" r="6.6" />
+    <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="5.4" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="6.3" cy="15.3" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="17.7" cy="15.3" r="1.4" fill="currentColor" stroke="none" />
+  </NavTechIcon>
+);
+
+/** Cowork session — two tall modules linked by a horizontal trace. */
+export const NavTechCoworkIcon: React.FC<NavTechIconProps> = (props) => (
+  <NavTechIcon {...props}>
+    <rect x="3.5" y="6.5" width="7" height="11" />
+    <rect x="13.5" y="6.5" width="7" height="11" />
+    <path d="M10.5 12h3" />
+    <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+  </NavTechIcon>
+);
+
+/** Media session — film frame with dashed sprocket rails and a play core. */
+export const NavTechMediaIcon: React.FC<NavTechIconProps> = (props) => (
+  <NavTechIcon {...props}>
+    <rect x="3.5" y="5.5" width="17" height="13" />
+    <path d="M8 5.5v13M16 5.5v13" strokeDasharray="2 2.6" />
+    <path d="M11 9.8v4.4l4-2.2z" fill="currentColor" stroke="none" />
+  </NavTechIcon>
+);

@@ -2843,10 +2843,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       ) : null}
 
       <ScrollAnchor
-        onAnchorNavigate={(turnId) => {
-          pinTurnToTop(turnId, { behavior: 'smooth' });
+        activeTurnId={visibleTurnInfo?.turnId ?? null}
+        onAnchorNavigate={(turnId, behavior) => {
+          pinTurnToTop(turnId, { behavior });
         }}
-        scrollerRef={presentationScrollerRef}
       />
 
       <ScrollToTurnHeaderButton

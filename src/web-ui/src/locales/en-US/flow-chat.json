@@ -46,8 +46,6 @@
           "error": "Needs attention"
         }
       },
-      "expand": "Show canvas",
-      "collapse": "Hide canvas",
       "usageCount": "{{count}} items",
       "status": {
         "running": "Running",
@@ -378,7 +376,11 @@
     "toBottomWithCount": "Back to bottom ({{count}} new messages)",
     "toLatest": "Jump to latest message",
     "clickToLatest": "Click to jump to latest",
-    "toCurrentTurn": "Jump to current turn"
+    "toCurrentTurn": "Jump to current turn",
+    "anchorNavigation": "Conversation turn navigation",
+    "anchorTurn": "Turn {{current}} of {{total}}",
+    "anchorJumpLabel": "Jump to turn {{current}}: {{content}}",
+    "anchorNoResponse": "No assistant response yet"
   },
   "message": {
     "user": "User",

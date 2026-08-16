@@ -174,13 +174,6 @@ export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
         {isCanvasExpanded
           ? <PanelRightClose size={15} aria-hidden="true" />
           : <PanelRightOpen size={15} aria-hidden="true" />}
-        <span>
-          {t(
-            isCanvasExpanded
-              ? 'layout.sessionCapabilities.collapse'
-              : 'layout.sessionCapabilities.expand',
-          )}
-        </span>
       </button>
     </aside>
   );

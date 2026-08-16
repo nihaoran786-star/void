@@ -46,8 +46,6 @@
           "error": "需要处理"
         }
       },
-      "expand": "展开画布",
-      "collapse": "收起画布",
       "usageCount": "{{count}} 项",
       "status": {
         "running": "运行中",
@@ -378,7 +376,11 @@
     "toBottomWithCount": "回到底部 ({{count}} 条新消息)",
     "toLatest": "跳转到最新消息",
     "clickToLatest": "点击跳转到最新",
-    "toCurrentTurn": "跳转到当前轮次"
+    "toCurrentTurn": "跳转到当前轮次",
+    "anchorNavigation": "会话轮次导航",
+    "anchorTurn": "第 {{current}} 轮，共 {{total}} 轮",
+    "anchorJumpLabel": "跳转到第 {{current}} 轮：{{content}}",
+    "anchorNoResponse": "这一轮尚无助手回复"
   },
   "message": {
     "user": "用户",

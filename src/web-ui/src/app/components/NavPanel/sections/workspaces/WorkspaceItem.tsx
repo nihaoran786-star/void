@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Folder, FolderOpen, MoreHorizontal, FolderSearch, Plus, ChevronDown, Trash2, RotateCcw, Copy, FileText, GitBranch, Bot, Link2, Archive, Images, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DotMatrixArrowRightIcon } from './DotMatrixArrowRightIcon';
+import { NavTechFolderIcon } from '../../components/NavTechIcons';
 import { Button, ConfirmDialog, Modal, Tooltip } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
 import { aiExperienceConfigService } from '@/infrastructure/config/services/AIExperienceConfigService';
@@ -923,7 +924,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                   <DotMatrixArrowRightIcon size={14} />
                 </span>
               ) : (
-                <FolderOpen size={14} />
+                <NavTechFolderIcon size={14} />
               )}
             </span>
             <span className={`void-nav-panel__workspace-item-icon-toggle${sessionsCollapsed ? ' is-collapsed' : ''}`}>
