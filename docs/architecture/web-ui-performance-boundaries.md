@@ -1,6 +1,6 @@
 # Web UI 性能边界
 
-本文定义 Web UI 可选功能的依赖与生命周期边界。详细背景见 [Web UI Performance Phase 1 设计](../superpowers/specs/2026-07-14-web-ui-performance-phase1-design.md)，实施步骤见 [Web UI Performance Phase 1 计划](../superpowers/plans/2026-07-14-web-ui-performance-phase1.md)。
+本文定义 Web UI 可选功能的依赖与生命周期边界，是该主题唯一的当前规格。
 
 ## 依赖边界
 

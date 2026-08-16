@@ -4,6 +4,12 @@
 配套设计：[2026-07-22-ai-customer-service-design.md](../specs/2026-07-22-ai-customer-service-design.md)
 交互样机（用户已确认）：Widget `widget_3d90c948-8ed5-4217-9527-f098d0b9bed1`（极简定稿）；`widget_00ffe78e-5cf9-4688-b948-d6225d905b9e`（三主态样机间）
 
+> 状态说明（2026-08-14）：本文的客服产品、交互、状态和 Cowork 门控契约仍有效；
+> 其中直接扩展 `PanelContentType`、`FlexiblePanel` switch 和 `ContentCanvas` 全局事件的
+> 硬接线步骤已由当前
+> [Canvas 插件平台规范](../../features/canvas-plugin-platform-prd.md)替代。未来实现应在
+> Canvas 注册表基础阶段完成后，以 Canvas contribution 接入，不再新增中心硬编码。
+
 ## 目标
 
 把 AI 客服面板落地为 Content Canvas **一级面板**（surface pill：媒体 / 短剧 / 客服），**仅 cowork 会话可开启**，随软件 void-light 主题，复刻已确认的极简信息架构：HERO 大环 → 今日节奏流线 → 回复范围 → 知识库细带 → 规则行。

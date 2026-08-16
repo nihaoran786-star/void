@@ -19,11 +19,17 @@ historical evidence.
   not current status.
 - When implementation supersedes a plan, update its status and link the merge
   or result evidence instead of silently leaving contradictory claims.
-- Delete a document or prototype only after confirming it has no runtime
-  consumer or inbound link, extracting any unique contract into a current
-  specification, and recording the deletion decision in `docs/README.md`.
-- Do not create a new dated plan or audit when an existing current document can
-  be updated without losing checkpoint evidence.
+- A document is current **only if it is linked from `docs/README.md`**. Unlinked
+  documents are deletable by default. The burden of proof is on retaining a
+  document, not on deleting it.
+- Before deleting, extract any unique contract into a current specification and
+  confirm no runtime consumer. Then record the deletion in the `docs/README.md`
+  cleanup record — record the decision, not the document.
+- Keep **one append-only ledger per domain**. Never create a new dated plan,
+  audit, or result file when an existing current document can be updated.
+- Dated evidence is deleted once merged into a current specification. Stale
+  documents cost every future agent session context and mislead it; that cost is
+  real and recurring, while the evidence value of a completed checkbox is not.
 
 ## Change discipline
 
@@ -43,9 +49,6 @@ historical evidence.
   `ShortDramaCenterPanel.tsx` as orchestration hotspots; do not add unrelated
   business rules to them.
 - Generated files are changed only by their owning generator.
-- Never delete a dated plan, audit, result, decision, or migration ledger merely
-  because it is old. First prove it has no unique contract or evidence, update
-  inbound links, and record the archival decision.
 
 ## Protected capabilities
 
@@ -57,6 +60,20 @@ historical evidence.
   revisions, change requests, media/image/video tools, and final preview.
 - Desktop windows, compact chat, desktop pet, terminal, Computer Use,
   WebDriver, tray, updater, installer, and Void identity.
+
+## Test policy
+
+- Never write a test that reads a `.scss`, `.css`, or `.tsx` file as **text**
+  and asserts on its contents. Reading a stylesheet with `readFileSync` /
+  `readSource` / `readSibling` and matching class names, selectors, or tokens
+  tests nothing: it restates the source, breaks on every refactor, and blocks
+  style consolidation. 101 such files (14,001 lines) were deleted on 2026-08-16.
+- Test rendered output and behaviour, not source strings. If a visual property
+  genuinely needs a guard, use a rendering assertion or a screenshot test — and
+  keep the number of screenshot tests in the single digits.
+- Do not add a test whose failure would not indicate a real defect. Assertions
+  on constants, i18n key existence, CSS class names, barrel exports, and
+  "renders without crashing" are not coverage.
 
 ## Verification
 

@@ -431,5 +431,6 @@ Open baseline debt:
 - The disposable aggressive-Minimal A/B/C prototype was removed on 2026-07-28
   after its accepted constraints were incorporated into the current Minimal
   workspace and Team Workspace specifications.
-- `docs/obsidian/` is a tracked historical snapshot, not a live external source.
+- `docs/obsidian/` was deleted on 2026-08-16; its accepted constraints already
+  live in the current specifications.
 - Untracked prototypes are user-owned until explicitly accepted or discarded.

@@ -97,8 +97,6 @@ dated implementation and decision evidence; they are not active work queues.
   evidence.
 - [Account and session usage design QA](qa/design-qa-account-session-usage-2026-07-24.md)
 - [Theme normalization audit](qa/theme-normalization-audit-2026-07-25.md)
-- `docs/superpowers/specs/` records accepted design specifications.
-- `docs/superpowers/plans/` records implementation plans.
 - `docs/plans/` records longer-lived engineering plans.
 - [Agent draft debug chat implementation plan](plans/2026-08-07-agent-debug-chat.md)
   is completed implementation evidence; its current product contract is folded
@@ -109,14 +107,29 @@ dated implementation and decision evidence; they are not active work queues.
   current interaction/theme governance specification; old Media, Automation,
   compact-chat, usage, and branding documents do not override `CONTEXT.md` or
   a newer current specification.
-- `docs/obsidian/` is a historical 2026-06 collaboration snapshot.
+
+## Retention rule
+
+A document is current **only if it is linked from this file**. Unlinked
+documents are deletable by default — the burden of proof is on retaining a
+document, not on deleting it.
+
+Each domain keeps **one append-only ledger**. Do not create a new dated plan,
+audit, or result file when an existing current document can be updated.
+
+Evidence documents are deleted once their unique contract has been merged into
+a current specification. Record the deletion here, not the document.
 
 ## Cleanup record
 
-The 2026-07-28 documentation review found no exact duplicate among 357 tracked
-Markdown files. Dated plans, audits, results, decisions, completed issue
-contracts, and migration ledgers were retained because they contain unique
-acceptance criteria or evidence.
+- **2026-08-16** — `docs/superpowers/` (43 files), `docs/issues/` (44 files) and
+  `docs/obsidian/` (5 files) were deleted: 92 files / ~7,800 lines, of which 79
+  had zero inbound links from any governance document. The AI-customer-service
+  design and presentation plan were held back in `docs/features/_incoming/`
+  pending a contract merge into the Canvas plugin platform specification. See
+  [the lightweighting program](plans/lightweighting-program.md).
+- The 2026-07-28 review's retain-everything conclusion is superseded by the
+  retention rule above; it was the direct cause of the orphan accumulation.
 
 The disposable `docs/prototypes/aggressive-minimal-workspace/` prototype was
 deleted after confirming it had no inbound link or runtime consumer. Its

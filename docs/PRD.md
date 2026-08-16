@@ -105,8 +105,7 @@ The candidate families are not an upper bound. Any additional upstream change di
 - Each issue must be independently testable.
 - Every issue must update `docs/PROGRESS.md` and `docs/TEST_PLAN.md`.
 - Architecture-affecting issues must update `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`.
-- `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/TEST_PLAN.md`, and `docs/PROGRESS.md` are the active migration consensus documents.
-- `docs/obsidian/*` remains historical context unless explicitly updated by a documentation issue.
+- `docs/PRD.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` are the active migration consensus documents. `docs/ISSUES.md`, `docs/TEST_PLAN.md`, and `docs/PROGRESS.md` were compressed into `docs/ledger-archive.md` on 2026-08-16.
 - Failed tests must be analyzed, fixed, rerun, and recorded.
 
 ## Acceptance Criteria
