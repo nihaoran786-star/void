@@ -336,16 +336,20 @@ pnpm --dir src/web-ui run test:run
 
 **真正的问题不是重复，而是「是否还需要双模式」——这是产品决策，不是重构决策。**
 
-两条路，需要所有者选择：
+**决策（2026-08-16，所有者）：保留双模式。**
 
-- **保留双模式**：SCSS 体量就是合理成本，B3 到此为止（净收益 77 行）。
-- **放弃 `classic` 模式**：把 28 个 barrel 覆盖层的规则合并回各自基础文件，
-  删除 `workspacePresentation.ts` 的模式机制、`minimalWorkspacePresentation.scss` barrel、
-  `void-ui--classic` 分支和全部 `.void-ui--minimal` 作用域选择器。
-  这是一次真实的简化（约 15k 行 SCSS + presentation 机制），但它是逐屏的视觉重构，
-  不是删除操作，且现在没有样式测试兜底，每屏都需要人工验收。
+`classic` / `minimal` 双 presentation 是刻意保留的能力，不是待清理的技术债。
+因此：
 
-在所有者明确选择之前不要推进 B3。
+- `*.minimal.scss` 覆盖层与其经典基础文件**都不得删除**。
+- 110,625 行 SCSS 中属于双模式的部分是这项能力的合理成本，不计入冗余。
+- B3 到此结束，净收益 77 行（`ExploreRegion.minimal.scss`）。
+
+被否决的方案（不要再提）：合并覆盖层、删除 `workspacePresentation.ts` 的模式机制、
+删除 `minimalWorkspacePresentation.scss` barrel、删除 `void-ui--classic` 分支。
+
+后续任何 agent 若再次把 `.scss` / `.minimal.scss` 配对判定为「重复代码」，
+先读本节——那是覆盖层关系，不是重复。
 
 ---
 

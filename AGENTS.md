@@ -60,6 +60,15 @@ historical evidence.
   revisions, change requests, media/image/video tools, and final preview.
 - Desktop windows, compact chat, desktop pet, terminal, Computer Use,
   WebDriver, tray, updater, installer, and Void identity.
+- Both workspace presentations. `WorkspacePresentation` is `'classic' |
+  'minimal'` and both are supported; `minimal` is only the default. A
+  `*.minimal.scss` file is an **overlay** scoped under `.void-ui--minimal` on top
+  of its classic base, not a duplicate of it, and neither side may be deleted as
+  "duplicated CSS". Do not merge the overlays, remove the presentation mode
+  machinery in `app/presentation/workspacePresentation.ts`, drop the
+  `minimalWorkspacePresentation.scss` aggregator, or delete the `void-ui--classic`
+  branch. See the SCSS section of
+  [the lightweighting program](docs/plans/lightweighting-program.md).
 
 ## Test policy
 
