@@ -113,6 +113,11 @@
     "placeholder": "Search servers..."
   },
   "catalog": {
+    "title": "Connectors",
+    "chips": {
+      "installed": "Installed",
+      "market": "Market"
+    },
     "filters": {
       "all": "All",
       "connected": "Connected",

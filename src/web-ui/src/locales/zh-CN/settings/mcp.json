@@ -113,6 +113,11 @@
     "placeholder": "搜索服务器..."
   },
   "catalog": {
+    "title": "连接器",
+    "chips": {
+      "installed": "已安装",
+      "market": "市场"
+    },
     "filters": {
       "all": "全部",
       "connected": "已连接",

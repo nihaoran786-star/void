@@ -13,90 +13,7 @@
 
     // ── Top bar ──────────────────────────────────────────────────────────────
 
-    .void-mcp-tools__topbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: var(--workspace-space-2) var(--workspace-space-3);
-      min-height: 52px;
-      padding: var(--workspace-space-2) 0;
-      border-bottom: 1px solid var(--workspace-border-subtle);
-      background: var(--workspace-surface-canvas);
-    }
-
-    .void-mcp-tools__topbar-title {
-      color: var(--workspace-text-primary);
-      font-size: var(--workspace-font-size-lead);
-      font-weight: var(--workspace-font-weight-medium);
-    }
-
-    .void-mcp-tools__topbar-count {
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .void-mcp-tools__chip {
-      height: 24px;
-      padding: 0 var(--workspace-space-3);
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--workspace-text-secondary);
-      font-size: var(--workspace-font-size-label);
-      font-weight: var(--workspace-font-weight-regular);
-
-      &:hover:not(.is-active) {
-        background: var(--workspace-surface-hover);
-        color: var(--workspace-text-primary);
-      }
-
-      &.is-active {
-        background: var(--workspace-text-primary);
-        color: var(--workspace-surface-canvas);
-        font-weight: var(--workspace-font-weight-medium);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: 2px;
-      }
-    }
-
     // Quiet search: a hairline, not a filled box.
-    .void-mcp-tools__topbar-search {
-      flex: 0 1 190px;
-      min-width: 120px;
-
-      .search__wrapper {
-        min-height: var(--workspace-control-height);
-        border: 0;
-        border-bottom: 1px solid var(--workspace-border-subtle);
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-      }
-
-      &.search--focused:not(.search--disabled) .search__wrapper {
-        border-bottom-color: var(--workspace-focus-ring);
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: 2px;
-        box-shadow: none;
-      }
-    }
-
-    .void-mcp-tools__topbar-primary {
-      border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-primary);
-
-      &:hover {
-        border-color: var(--workspace-border-strong);
-        background: var(--workspace-surface-hover);
-      }
-    }
-
     // ── Card grid ────────────────────────────────────────────────────────────
 
     .void-mcp-tools__catalog-grid {
@@ -296,10 +213,6 @@
 
   @container connector-catalog (max-width: 620px) {
     .void-ui--minimal .void-mcp-tools--catalog {
-      .void-mcp-tools__topbar-search {
-        flex: 1 1 100%;
-      }
-
       .void-mcp-tools__catalog-grid,
       .void-connector-market__grid {
         grid-template-columns: 1fr;
@@ -317,8 +230,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .void-mcp-tools--catalog {
-      .void-mcp-tools__chip,
-      .void-mcp-tools__topbar-primary,
       .void-mcp-tools__catalog-card,
       .void-mcp-tools__catalog-card-actions,
       .void-mcp-tools__catalog-card-chevron,

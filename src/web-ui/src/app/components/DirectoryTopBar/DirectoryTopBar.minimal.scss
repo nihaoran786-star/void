@@ -1,0 +1,172 @@
+@use '../../../component-library/styles/customization-market' as market;
+
+// Minimal projection of the shared directory top bar. One definition, so the
+// employee, skill and connector catalogs cannot drift apart.
+@mixin styles {
+  .void-ui--minimal .directory-topbar {
+    @include market.content-frame;
+
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--workspace-space-2) var(--workspace-space-3);
+    min-height: 52px;
+    margin-inline: auto;
+    padding: var(--workspace-space-2) 0;
+    border-bottom: 1px solid var(--workspace-border-subtle);
+    background: var(--workspace-surface-canvas);
+    font-family: var(--workspace-font-family);
+
+    &__title {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-lead);
+      font-weight: var(--workspace-font-weight-medium);
+    }
+
+    &__count {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      font-variant-numeric: tabular-nums;
+    }
+
+    &__chips {
+      gap: var(--workspace-space-3);
+    }
+
+    &__chip-group {
+      gap: var(--workspace-space-1);
+    }
+
+    &__search {
+      flex: 0 1 180px;
+      min-width: 108px;
+    }
+
+    // Quiet search: a hairline and its icon, no filled box.
+    &__search .search__wrapper {
+      min-height: var(--workspace-control-height);
+      gap: var(--workspace-space-1);
+      padding: 0 var(--workspace-space-1);
+      border: 0;
+      border-bottom: 1px solid var(--workspace-border-subtle);
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      transition: border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    &__search .search__input {
+      min-width: 0;
+      color: var(--workspace-text-primary);
+      font-family: var(--workspace-font-family);
+      font-size: var(--workspace-font-size-label);
+      opacity: 1;
+    }
+
+    &__search .search:focus-within .search__wrapper,
+    &__search .search--focused:not(.search--disabled) .search__wrapper {
+      border-bottom-color: var(--workspace-focus-ring);
+      background: transparent;
+      box-shadow: none;
+    }
+
+    &__search .search__clear {
+      color: var(--workspace-text-muted);
+      background: transparent;
+      animation: none;
+    }
+
+    &__utilities {
+      gap: 2px;
+    }
+
+    &__primary {
+      width: var(--workspace-icon-target);
+      height: var(--workspace-icon-target);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
+      color: var(--workspace-text-primary);
+
+      &:hover:not(:disabled) {
+        border-color: var(--workspace-border-strong);
+        background: var(--workspace-surface-hover);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: -2px;
+      }
+    }
+  }
+
+  .void-ui--minimal .directory-chip {
+    height: 24px;
+    padding: 0 var(--workspace-space-3);
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--workspace-text-secondary);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-label);
+    font-weight: var(--workspace-font-weight-regular);
+
+    &:hover:not(.is-active) {
+      background: var(--workspace-surface-hover);
+      color: var(--workspace-text-primary);
+    }
+
+    &.is-active {
+      background: var(--workspace-text-primary);
+      color: var(--workspace-surface-canvas);
+      font-weight: var(--workspace-font-weight-medium);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: 2px;
+    }
+  }
+
+  .void-ui--minimal .directory-topbar__utility {
+    width: var(--workspace-icon-target);
+    height: var(--workspace-icon-target);
+    border-radius: var(--workspace-radius-control);
+    color: var(--workspace-text-muted);
+
+    &:hover:not(:disabled) {
+      background: var(--workspace-surface-hover);
+      color: var(--workspace-text-primary);
+    }
+
+    &.is-active {
+      background: var(--workspace-surface-active);
+      color: var(--workspace-text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: -2px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .void-ui--minimal .directory-topbar__search {
+      flex: 1 1 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .directory-topbar {
+      &__primary,
+      &__utility,
+      &__search .search__wrapper {
+        transition: none;
+      }
+    }
+
+    .void-ui--minimal .directory-chip {
+      transition: none;
+    }
+  }
+}

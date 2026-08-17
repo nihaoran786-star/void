@@ -113,6 +113,11 @@
     "placeholder": "搜索服務器..."
   },
   "catalog": {
+    "title": "連接器",
+    "chips": {
+      "installed": "已安裝",
+      "market": "市場"
+    },
     "filters": {
       "all": "全部",
       "connected": "已連接",

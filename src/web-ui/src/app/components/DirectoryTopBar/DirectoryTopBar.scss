@@ -1,0 +1,195 @@
+@use '../../../component-library/styles/tokens' as *;
+@use './DirectoryTopBar.minimal' as minimal;
+
+// One bar, three catalogs. Classic keeps its own weights here; the Minimal
+// projection lives in DirectoryTopBar.minimal.scss.
+.directory-topbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 52px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--color-bg-primary);
+
+  &__title {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+    font-weight: $font-weight-medium;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  &__count {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: $font-weight-normal;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__chips {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  &__chip-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__spacer {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__search {
+    flex: 0 1 180px;
+    min-width: 108px;
+  }
+
+  &__utilities {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  // The one loud verb is a bare `+`; its name lives in the accessible label.
+  &__primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-medium);
+    border-radius: $size-radius-base;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition:
+      background $motion-fast $easing-standard,
+      border-color $motion-fast $easing-standard;
+
+    &:hover:not(:disabled) {
+      border-color: var(--border-strong);
+      background: var(--element-bg-subtle);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.directory-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
+  border: none;
+  border-radius: $size-radius-full;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background $motion-fast $easing-standard,
+    color $motion-fast $easing-standard;
+
+  &:hover:not(.is-active) {
+    background: var(--element-bg-subtle);
+    color: var(--color-text-primary);
+  }
+
+  &.is-active {
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+    font-weight: $font-weight-medium;
+  }
+
+  &.is-empty:not(.is-active) {
+    opacity: 0.5;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent-500);
+    outline-offset: 2px;
+  }
+}
+
+// Icon-only utility control, shared by every catalog that needs one.
+.directory-topbar__utility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: $size-radius-base;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background $motion-fast $easing-standard,
+    color $motion-fast $easing-standard;
+
+  &:hover:not(:disabled) {
+    background: var(--element-bg-subtle);
+    color: var(--color-text-primary);
+  }
+
+  &.is-active {
+    background: var(--element-bg-medium);
+    color: var(--color-text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent-500);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 720px) {
+  .directory-topbar {
+    padding: 10px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .directory-chip,
+  .directory-topbar__primary,
+  .directory-topbar__utility {
+    transition: none;
+  }
+}
+
+@include minimal.styles;

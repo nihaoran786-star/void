@@ -68,119 +68,7 @@
     --agents-orb-ink-alt: color-mix(in srgb, var(--color-purple-600) 58%, var(--workspace-text-primary));
 
     // ── Directory top bar ───────────────────────────────────────────────────
-    .agents-topbar {
-      @include market.content-frame;
-
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: var(--workspace-space-2) var(--workspace-space-3);
-      min-height: 52px;
-      margin: 0 auto;
-      padding: var(--workspace-space-2) 0;
-      border-bottom: 1px solid var(--workspace-border-subtle);
-      background: var(--workspace-surface-canvas);
-    }
-
-    .agents-topbar__title {
-      color: var(--workspace-text-primary);
-      font-size: var(--workspace-font-size-lead);
-      font-weight: var(--workspace-font-weight-medium);
-    }
-
-    .agents-topbar__count {
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .agents-chip {
-      height: 24px;
-      padding: 0 var(--workspace-space-3);
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--workspace-text-secondary);
-      font-size: var(--workspace-font-size-label);
-      font-weight: var(--workspace-font-weight-regular);
-
-      &:hover:not(.is-active) {
-        background: var(--workspace-surface-hover);
-        color: var(--workspace-text-primary);
-      }
-
-      &.is-active {
-        background: var(--workspace-text-primary);
-        color: var(--workspace-surface-canvas);
-        font-weight: var(--workspace-font-weight-medium);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: 2px;
-      }
-    }
-
-    .agents-topbar__primary {
-      min-height: var(--workspace-control-height);
-      height: auto;
-      border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-primary);
-      font-size: var(--workspace-font-size-label);
-
-      &:hover {
-        border-color: var(--workspace-border-strong);
-        background: var(--workspace-surface-hover);
-      }
-    }
-
     /* Quiet search: a hairline, not a filled box */
-    .agents-topbar__search {
-      flex: 0 1 190px;
-      min-width: 120px;
-      height: var(--workspace-control-height);
-      max-width: none;
-    }
-
-    .agents-topbar__search .search__wrapper {
-      width: 100%;
-      min-height: var(--workspace-control-height);
-      height: var(--workspace-control-height);
-      gap: var(--workspace-space-1);
-      padding: 0 var(--workspace-space-1);
-      color: var(--workspace-text-muted);
-      background: transparent;
-      border: 0;
-      border-bottom: 1px solid var(--workspace-border-subtle);
-      border-radius: 0;
-      box-shadow: none;
-      transition:
-        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
-        color var(--workspace-motion-fast) var(--workspace-easing-standard);
-    }
-
-    .agents-topbar__search .search__input {
-      min-width: 0;
-      color: var(--workspace-text-primary);
-      font-family: var(--workspace-font-family);
-      font-size: var(--workspace-font-size-label);
-      opacity: 1;
-    }
-
-    .agents-topbar__search:focus-within .search__wrapper {
-      background: transparent;
-      border-bottom-color: var(--workspace-focus-ring-subtle);
-    }
-
-    .agents-topbar__search .search__clear {
-      color: var(--workspace-text-muted);
-      background: transparent;
-      animation: none;
-      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
-    }
-
     .gallery-zones {
       @include market.content-frame;
 
@@ -671,7 +559,6 @@
     }
 
     .void-ui--minimal .void-agents-scene {
-      .agents-topbar,
       .gallery-zones {
         width: calc(100% - (2 * var(--workspace-space-3)));
       }
@@ -716,10 +603,6 @@
 
   @media (max-width: 560px) {
     .void-ui--minimal .void-agents-scene {
-      .agents-topbar__search {
-        flex: 1 1 100%;
-      }
-
       .gallery-zone__header {
         flex-wrap: wrap;
       }
@@ -753,11 +636,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .void-agents-scene {
-      .agents-topbar__search,
-      .agents-topbar__search .search__wrapper,
-      .agents-topbar__search .search__input,
-      .agents-topbar__search .search__clear,
-      .agents-chip,
       .agent-card,
       .core-agent-card,
       .agent-team-card,

@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, IconButton, Search, Switch, confirmDanger } from '@/component-library';
 import {
+  DirectoryTopBar,
   GalleryDetailModal,
   GalleryEmpty,
   GalleryGrid,
@@ -692,70 +693,50 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
 
   return (
     <GalleryLayout className="void-agents-scene">
-      <header className="agents-topbar">
-        <h2 className="agents-topbar__title">
-          <span className="agents-topbar__title-text">{t('nav.agents')}</span>
-          <span className="agents-topbar__count">{visibleAgents.length}</span>
-        </h2>
-
-        <div className="agents-topbar__chips">
-          <div
-            className="agents-topbar__chip-group"
-            role="group"
-            aria-label={t('filters.source')}
-          >
-            {levelFilters.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                className={`agents-chip ${agentFilterLevel === key ? 'is-active' : ''}`}
-                onClick={() => setAgentFilterLevel(agentFilterLevel === key ? 'all' : key)}
-                aria-pressed={agentFilterLevel === key}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div
-            className="agents-topbar__chip-group"
-            role="group"
-            aria-label={t('filters.kind')}
-          >
-            {typeFilters.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                className={`agents-chip ${agentFilterType === key ? 'is-active' : ''}`}
-                onClick={() => setAgentFilterType(agentFilterType === key ? 'all' : key)}
-                aria-pressed={agentFilterType === key}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <span className="agents-topbar__spacer" aria-hidden="true" />
-
-        <Search
-          className="agents-topbar__search"
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder={t('page.searchPlaceholder')}
-          size="small"
-          clearable
-          prefixIcon={<SearchIcon size={14} />}
-        />
-
-        <button
-          type="button"
-          className="agents-topbar__primary"
-          onClick={openCreateAgent}
-        >
-          <Plus size={14} />
-          <span>{t('page.newAgent')}</span>
-        </button>
-      </header>
+      <DirectoryTopBar
+        title={t('page.title')}
+        count={visibleAgents.length}
+        groups={[
+          {
+            id: 'source',
+            label: t('filters.source'),
+            mode: 'filters',
+            chips: levelFilters.map(({ key, label, count }) => ({
+              id: key,
+              label,
+              active: agentFilterLevel === key,
+              empty: count === 0,
+              onSelect: () => setAgentFilterLevel(agentFilterLevel === key ? 'all' : key),
+            })),
+          },
+          {
+            id: 'kind',
+            label: t('filters.kind'),
+            mode: 'filters',
+            chips: typeFilters.map(({ key, label, count }) => ({
+              id: key,
+              label,
+              active: agentFilterType === key,
+              empty: count === 0,
+              onSelect: () => setAgentFilterType(agentFilterType === key ? 'all' : key),
+            })),
+          },
+        ]}
+        search={(
+          <Search
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t('page.searchPlaceholder')}
+            size="small"
+            clearable
+            prefixIcon={<SearchIcon size={14} />}
+          />
+        )}
+        primary={{
+          label: t('page.newAgent'),
+          onClick: openCreateAgent,
+        }}
+      />
 
       <div className="gallery-zones">
         <GalleryZone

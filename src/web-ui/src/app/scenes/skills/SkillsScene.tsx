@@ -9,7 +9,6 @@ import {
   FolderOpen,
   Pencil,
   Package,
-  Plus,
   Puzzle,
   ShieldAlert,
   Trash2,
@@ -17,7 +16,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, ConfirmDialog, Input, Modal, Search, Select } from '@/component-library';
-import { GalleryDetailModal } from '@/app/components';
+import {
+  DirectoryTopBar,
+  GalleryDetailModal,
+  type DirectoryChipGroup,
+} from '@/app/components';
 import type { SkillInfo, SkillLevel, SkillMarketItem } from '@/infrastructure/config/types';
 import { workspaceAPI } from '@/infrastructure/api';
 import { workspaceManager } from '@/infrastructure/services/business/workspaceManager';
@@ -242,6 +245,44 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
     tabs[nextIndex]?.focus();
   }, [setActiveTab]);
 
+  const topbarGroups: DirectoryChipGroup[] = [
+    {
+      id: 'catalog',
+      label: t('nav.title'),
+      mode: 'tabs',
+      onChipKeyDown: handleCatalogTabKeyDown,
+      chips: [
+        {
+          id: 'installed',
+          label: t('filters.installed'),
+          active: isInstalledTab,
+          onSelect: () => setActiveTab('installed'),
+        },
+        {
+          id: 'market',
+          label: t('filters.market'),
+          active: !isInstalledTab,
+          onSelect: () => setActiveTab('discover'),
+        },
+      ],
+    },
+    ...(isInstalledTab ? [{
+      id: 'level',
+      label: t('installed.titleAll'),
+      mode: 'filters' as const,
+      chips: CATEGORIES
+        .filter(category => canManage || category.id !== 'suite')
+        .map(category => ({
+          id: category.id,
+          label: t(category.labelKey),
+          title: t(category.descKey),
+          active: installedFilter === category.id,
+          empty: installed.counts[category.id] === 0,
+          onSelect: () => setInstalledFilter(category.id),
+        })),
+    }] : []),
+  ];
+
   if (authoringTarget) {
     return (
       <div className="void-skills-scene" data-customization-market="skills">
@@ -264,73 +305,12 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
   return (
     <div className="void-skills-scene" data-customization-market="skills">
-      <header className="skills-topbar">
-        <h2 className="skills-topbar__title">
-          <span className="skills-topbar__title-text">{t('nav.title')}</span>
-          <span className="skills-topbar__count">{topbarCount}</span>
-        </h2>
-
-        <div className="skills-topbar__chips">
-          <div
-            className="skills-topbar__tabs"
-            role="tablist"
-            aria-label={t('nav.title')}
-          >
-            <button
-              type="button"
-              className={`skills-chip ${isInstalledTab ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('installed')}
-              onKeyDown={handleCatalogTabKeyDown}
-              role="tab"
-              aria-selected={isInstalledTab}
-              tabIndex={isInstalledTab ? 0 : -1}
-            >
-              {t('filters.installed')}
-            </button>
-            <button
-              type="button"
-              className={`skills-chip ${!isInstalledTab ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('discover')}
-              onKeyDown={handleCatalogTabKeyDown}
-              role="tab"
-              aria-selected={!isInstalledTab}
-              tabIndex={!isInstalledTab ? 0 : -1}
-            >
-              {t('filters.market')}
-            </button>
-          </div>
-
-          {isInstalledTab && (
-            <div
-              className="skills-topbar__filters"
-              role="group"
-              aria-label={t('installed.titleAll')}
-            >
-              {CATEGORIES.filter((cat) => canManage || cat.id !== 'suite').map((cat) => {
-                const count = installed.counts[cat.id];
-                const isEmpty = count === 0;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    className={`skills-chip ${installedFilter === cat.id ? 'is-active' : ''} ${isEmpty ? 'is-empty' : ''}`}
-                    onClick={() => setInstalledFilter(cat.id)}
-                    aria-pressed={installedFilter === cat.id}
-                    title={t(cat.descKey)}
-                  >
-                    {t(cat.labelKey)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <span className="skills-topbar__spacer" aria-hidden="true" />
-
-        {!isSuiteFilter && (isInstalledTab ? (
+      <DirectoryTopBar
+        title={t('page.title')}
+        count={topbarCount}
+        groups={topbarGroups}
+        search={!isSuiteFilter && (isInstalledTab ? (
           <Search
-            className="skills-topbar__search"
             value={installedSearch}
             onChange={setInstalledSearch}
             onClear={() => setInstalledSearch('')}
@@ -340,7 +320,6 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
           />
         ) : (
           <Search
-            className="skills-topbar__search"
             value={searchDraft}
             onChange={setSearchDraft}
             onSearch={submitMarketQuery}
@@ -351,22 +330,21 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
             enterToSearch
           />
         ))}
-
-        {isInstalledTab && !isSuiteFilter && (
+        utilities={isInstalledTab && !isSuiteFilter ? (
           <>
             <button
               type="button"
-              className={`skills-topbar__ghost${hideDuplicates ? ' is-active' : ''}`}
+              className={`directory-topbar__utility${hideDuplicates ? ' is-active' : ''}`}
               onClick={() => setHideDuplicates(!hideDuplicates)}
               aria-pressed={hideDuplicates}
               aria-label={t('toolbar.hideDuplicates')}
               title={t('toolbar.hideDuplicates')}
             >
-              <Filter size={14} />
+              <Filter size={15} aria-hidden="true" />
             </button>
             <button
               type="button"
-              className="skills-topbar__ghost"
+              className="directory-topbar__utility"
               onClick={toggleAddForm}
               disabled={!canManage}
               aria-expanded={isAddFormOpen}
@@ -374,21 +352,16 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
               aria-label={t('toolbar.importTooltip')}
               title={t('toolbar.importTooltip')}
             >
-              <FolderOpen size={14} />
+              <FolderOpen size={15} aria-hidden="true" />
             </button>
           </>
-        )}
-
-        <button
-          type="button"
-          className="skills-topbar__primary"
-          onClick={() => setAuthoringTarget({ mode: 'create' })}
-          disabled={!canManage}
-        >
-          <Plus size={14} />
-          <span>{t('toolbar.createTooltip')}</span>
-        </button>
-      </header>
+        ) : null}
+        primary={{
+          label: t('toolbar.createTooltip'),
+          onClick: () => setAuthoringTarget({ mode: 'create' }),
+          disabled: !canManage,
+        }}
+      />
       {!canManage && (
         <div className="skills-runtime-readonly" role="status">
           {t('runtimeReadOnly')}

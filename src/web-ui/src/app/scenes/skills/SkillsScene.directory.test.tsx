@@ -26,7 +26,10 @@ vi.mock('@/component-library', () => ({
   Select: () => null,
 }));
 
-vi.mock('@/app/components', () => ({
+vi.mock('@/app/components', async () => ({
+  // The shared directory top bar is the thing under test here, so use the
+  // real component rather than a stand-in that could drift from it.
+  DirectoryTopBar: (await import('@/app/components/DirectoryTopBar/DirectoryTopBar')).default,
   GalleryDetailModal: () => null,
 }));
 
@@ -237,10 +240,10 @@ describeWithJsdom('SkillsScene directory presentation', () => {
 
     expect(container.querySelectorAll('input[type="search"]')).toHaveLength(1);
 
-    const primary = Array.from(
-      container.querySelectorAll('button'),
-    ).filter(button => button.textContent?.includes('toolbar.createTooltip'));
+    // The one loud verb is an icon; its name lives in the accessible label.
+    const primary = container.querySelectorAll('.directory-topbar__primary');
     expect(primary).toHaveLength(1);
+    expect(primary[0]?.getAttribute('aria-label')).toBe('toolbar.createTooltip');
   });
 
   it('每张卡片显式说明自己的状态，被覆盖的技能可被区分', async () => {

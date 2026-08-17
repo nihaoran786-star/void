@@ -117,7 +117,10 @@ vi.mock('@/component-library', () => ({
   confirmDanger: vi.fn(async () => false),
 }));
 
-vi.mock('@/app/components', () => ({
+vi.mock('@/app/components', async () => ({
+  // The shared directory top bar is the thing under test here, so use the
+  // real component rather than a stand-in that could drift from it.
+  DirectoryTopBar: (await import('@/app/components/DirectoryTopBar/DirectoryTopBar')).default,
   GalleryDetailModal: ({
     children,
     title,
@@ -464,14 +467,14 @@ describeWithJsdom('AgentsScene', () => {
       root.render(<AgentsScene />);
     });
 
-    const topbar = container.querySelector('.agents-topbar');
+    const topbar = container.querySelector('.directory-topbar');
     expect(topbar).toBeTruthy();
-    expect(topbar!.querySelector('.agents-topbar__count')?.textContent).toBe('25');
+    expect(topbar!.querySelector('.directory-topbar__count')?.textContent).toBe('25');
     expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(24);
-    expect(container.textContent).toContain('nav.agents');
+    expect(topbar!.textContent).toContain('page.title');
     expect(container.querySelector('[aria-label="page.searchPlaceholder"]')).toBeTruthy();
     // Exactly one primary action lives in the top bar.
-    expect(topbar!.querySelectorAll('.agents-topbar__primary')).toHaveLength(1);
+    expect(topbar!.querySelectorAll('.directory-topbar__primary')).toHaveLength(1);
 
     const next = container.querySelector<HTMLButtonElement>('[aria-label="pagination.next"]');
     expect(next).toBeTruthy();
