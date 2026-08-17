@@ -16,14 +16,13 @@ vi.mock('@/app/hooks/useDocumentVisibilityState', () => ({
 
 vi.mock('./SessionsSection', () => {
   harness.moduleLoads += 1;
-  return {
-    default: ({ isVisible }: { isVisible?: boolean }) => {
-      useEffect(() => {
-        harness.mounts += 1;
-      }, []);
-      return <div data-testid="sessions" data-visible={String(isVisible)} />;
-    },
+  const MockSessionsSection = ({ isVisible }: { isVisible?: boolean }) => {
+    useEffect(() => {
+      harness.mounts += 1;
+    }, []);
+    return <div data-testid="sessions" data-visible={String(isVisible)} />;
   };
+  return { default: MockSessionsSection };
 });
 
 import DeferredSessionsSection from './DeferredSessionsSection';

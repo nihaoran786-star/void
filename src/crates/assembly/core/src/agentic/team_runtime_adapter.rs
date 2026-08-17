@@ -984,14 +984,12 @@ mod tests {
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
 
         value.agent_id = Some("agent".into());
-        value.team_member_delegation_policy = Some(
-            crate::agentic::team_definitions::TeamMemberDelegationPolicy::Disabled,
-        );
+        value.team_member_delegation_policy =
+            Some(crate::agentic::team_definitions::TeamMemberDelegationPolicy::Disabled);
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
 
-        value.team_member_delegation_policy = Some(
-            crate::agentic::team_definitions::TeamMemberDelegationPolicy::bounded_default(),
-        );
+        value.team_member_delegation_policy =
+            Some(crate::agentic::team_definitions::TeamMemberDelegationPolicy::bounded_default());
         linked.launch_spec.as_mut().unwrap().allow_subagent_spawn = true;
         assert!(PromptTeamRuntimeAdapter::validate_linked_task(&value, "task", &linked).is_err());
     }

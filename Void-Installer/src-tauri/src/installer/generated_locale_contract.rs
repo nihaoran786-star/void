@@ -18,7 +18,7 @@ pub const INSTALLER_GENERATED_LOCALES: &[InstallerGeneratedLocaleEntry] = &[
     InstallerGeneratedLocaleEntry {
         code: "zh-TW",
         aliases: &["zh-TW", "zh-Hant", "zh-HK", "zh-MO"],
-    }
+    },
 ];
 
 #[cfg(test)]
@@ -27,8 +27,14 @@ mod tests {
 
     #[test]
     fn generated_installer_contract_keeps_canonical_aliases() {
-        assert!(INSTALLER_GENERATED_LOCALES.iter().any(|locale| locale.code == "zh-CN" && locale.aliases.contains(&"zh")));
-        assert!(INSTALLER_GENERATED_LOCALES.iter().any(|locale| locale.code == "zh-TW" && locale.aliases.contains(&"zh-Hant")));
-        assert!(INSTALLER_GENERATED_LOCALES.iter().any(|locale| locale.code == "en-US" && locale.aliases.contains(&"en")));
+        assert!(INSTALLER_GENERATED_LOCALES
+            .iter()
+            .any(|locale| locale.code == "zh-CN" && locale.aliases.contains(&"zh")));
+        assert!(INSTALLER_GENERATED_LOCALES
+            .iter()
+            .any(|locale| locale.code == "zh-TW" && locale.aliases.contains(&"zh-Hant")));
+        assert!(INSTALLER_GENERATED_LOCALES
+            .iter()
+            .any(|locale| locale.code == "en-US" && locale.aliases.contains(&"en")));
     }
 }

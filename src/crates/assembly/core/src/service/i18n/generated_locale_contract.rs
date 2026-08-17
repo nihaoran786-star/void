@@ -63,7 +63,7 @@ pub const GENERATED_LOCALE_CONTRACT: &[GeneratedLocaleContractEntry] = &[
         short_model_instruction: "Use English",
         aliases: &["en", "en-US"],
         content_fallbacks: &[LocaleId::ZhCN],
-    }
+    },
 ];
 
 pub const GENERATED_SHARED_TERMS: &[GeneratedSharedTermEntry] = &[
@@ -576,7 +576,7 @@ pub const GENERATED_SHARED_TERMS: &[GeneratedSharedTermEntry] = &[
         locale: LocaleId::EnUS,
         key: "tools.write",
         value: "Write",
-    }
+    },
 ];
 
 pub fn generated_locale_entry(id: LocaleId) -> &'static GeneratedLocaleContractEntry {
@@ -586,7 +586,9 @@ pub fn generated_locale_entry(id: LocaleId) -> &'static GeneratedLocaleContractE
         .expect("LocaleId missing from generated locale contract")
 }
 
-pub fn generated_locale_entry_from_code(code: &str) -> Option<&'static GeneratedLocaleContractEntry> {
+pub fn generated_locale_entry_from_code(
+    code: &str,
+) -> Option<&'static GeneratedLocaleContractEntry> {
     let normalized = code.trim().to_ascii_lowercase();
     if normalized.is_empty() {
         return None;
@@ -627,16 +629,31 @@ mod tests {
 
     #[test]
     fn generated_contract_order_matches_runtime_locale_order() {
-        let generated_ids: Vec<_> = GENERATED_LOCALE_CONTRACT.iter().map(|entry| entry.id).collect();
+        let generated_ids: Vec<_> = GENERATED_LOCALE_CONTRACT
+            .iter()
+            .map(|entry| entry.id)
+            .collect();
         assert_eq!(generated_ids, LocaleId::all());
     }
 
     #[test]
     fn generated_contract_resolves_aliases_like_runtime_locale_contract() {
-        assert_eq!(generated_locale_entry_from_code("zh-Hant-TW").map(|entry| entry.id), Some(LocaleId::ZhTW));
-        assert_eq!(generated_locale_entry_from_code("  ZH-hans-CN  ").map(|entry| entry.id), Some(LocaleId::ZhCN));
-        assert_eq!(generated_locale_entry_from_code("en").map(|entry| entry.id), Some(LocaleId::EnUS));
-        assert_eq!(generated_locale_entry_from_code("fr-FR").map(|entry| entry.id), None);
+        assert_eq!(
+            generated_locale_entry_from_code("zh-Hant-TW").map(|entry| entry.id),
+            Some(LocaleId::ZhTW)
+        );
+        assert_eq!(
+            generated_locale_entry_from_code("  ZH-hans-CN  ").map(|entry| entry.id),
+            Some(LocaleId::ZhCN)
+        );
+        assert_eq!(
+            generated_locale_entry_from_code("en").map(|entry| entry.id),
+            Some(LocaleId::EnUS)
+        );
+        assert_eq!(
+            generated_locale_entry_from_code("fr-FR").map(|entry| entry.id),
+            None
+        );
     }
 
     #[test]

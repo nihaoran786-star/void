@@ -230,13 +230,13 @@ describe('CanvasSurfaceService', () => {
   it('does not run pre-mutation effects when an async preparation becomes stale', async () => {
     const registry = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
     let finishPreparation!: () => void;
+    const beforeHostMutation = vi.fn();
     const prepareOpen = vi.fn(() => new Promise<{
       status: 'ready';
       beforeHostMutation: () => void;
     }>(resolve => {
       finishPreparation = () => resolve({ status: 'ready', beforeHostMutation });
     }));
-    const beforeHostMutation = vi.fn();
     registry.register({
       surfaceId: 'short-drama',
       pluginVersion: '1.0.0',

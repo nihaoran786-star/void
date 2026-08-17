@@ -220,11 +220,11 @@ vi.mock('./ChatPane', () => ({
 vi.mock('./AuxPane', async () => {
   const { forwardRef, useEffect } = await import('react');
   return {
-    default: forwardRef<HTMLDivElement, { onReady?: () => void }>((props, ref) => {
-      mocks.auxPaneReadyCallback = props.onReady ?? null;
+    default: forwardRef<HTMLDivElement, { onReady?: () => void }>(({ onReady }, ref) => {
+      mocks.auxPaneReadyCallback = onReady ?? null;
       useEffect(() => {
-        if (mocks.auxPaneAutoReady) props.onReady?.();
-      }, [props.onReady]);
+        if (mocks.auxPaneAutoReady) onReady?.();
+      }, [onReady]);
       return <div ref={ref} data-testid="aux-pane" />;
     }),
   };

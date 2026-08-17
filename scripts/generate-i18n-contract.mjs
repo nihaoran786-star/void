@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -584,6 +585,20 @@ function generateRelayHomepageSharedTerms(contract, sharedTermsByLocale) {
   return `${JSON.stringify(output, null, 2)}\n`;
 }
 
+// Generated Rust must satisfy `cargo fmt --check`; format at generation time
+// so the fmt gate never depends on hand edits to a generated file. Falls back
+// to the raw emission when rustfmt is unavailable.
+function rustfmtContent(content) {
+  const result = childProcess.spawnSync('rustfmt', ['--edition', '2021'], {
+    input: content,
+    encoding: 'utf8',
+  });
+  if (result.status === 0 && typeof result.stdout === 'string' && result.stdout.length > 0) {
+    return result.stdout;
+  }
+  return content;
+}
+
 function main() {
   const contract = readJson(contractPath);
   validateContract(contract);
@@ -591,7 +606,10 @@ function main() {
 
   const changedFiles = [];
   for (const output of outputs) {
-    const nextContent = output.generate(contract, sharedTermsByLocale);
+    let nextContent = output.generate(contract, sharedTermsByLocale);
+    if (output.path.endsWith('.rs')) {
+      nextContent = rustfmtContent(nextContent);
+    }
     if (checkOnly) {
       const currentContent = fs.existsSync(output.path) ? fs.readFileSync(output.path, 'utf8') : null;
       if (currentContent !== nextContent) {
