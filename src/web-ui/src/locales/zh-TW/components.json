@@ -918,5 +918,32 @@
     "fallback": {
       "noCodeContent": "無代碼內容"
     }
+  },
+  "agentStudio": {
+    "empty": "開啟一個智慧體開始編輯。",
+    "fields": {
+      "displayName": "名稱",
+      "description": "描述",
+      "prompt": "提示詞",
+      "readonly": "唯讀",
+      "review": "評審模式",
+      "tools": "工具",
+      "noTools": "無"
+    },
+    "actions": {
+      "save": "儲存草稿",
+      "startTrial": "開始試聊",
+      "restartTrial": "重新試聊"
+    },
+    "trial": {
+      "title": "試聊會話"
+    },
+    "publish": {
+      "title": "發布",
+      "continue": "發布並繼續用目前版本",
+      "fork": "發布並分叉出新會話",
+      "futureDefault": "發布並設為未來預設",
+      "untriedHint": "先在試聊會話裡試過這份草稿，才能發布。"
+    }
   }
 }

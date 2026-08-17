@@ -918,5 +918,32 @@
     "fallback": {
       "noCodeContent": "无代码内容"
     }
+  },
+  "agentStudio": {
+    "empty": "打开一个智能体开始编辑。",
+    "fields": {
+      "displayName": "名称",
+      "description": "描述",
+      "prompt": "提示词",
+      "readonly": "只读",
+      "review": "评审模式",
+      "tools": "工具",
+      "noTools": "无"
+    },
+    "actions": {
+      "save": "保存草稿",
+      "startTrial": "开始试聊",
+      "restartTrial": "重新试聊"
+    },
+    "trial": {
+      "title": "试聊会话"
+    },
+    "publish": {
+      "title": "发布",
+      "continue": "发布并继续用当前版本",
+      "fork": "发布并分叉出新会话",
+      "futureDefault": "发布并设为未来默认",
+      "untriedHint": "先在试聊会话里试过这份草稿，才能发布。"
+    }
   }
 }

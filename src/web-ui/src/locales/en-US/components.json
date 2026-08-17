@@ -918,5 +918,32 @@
     "fallback": {
       "noCodeContent": "No code content available"
     }
+  },
+  "agentStudio": {
+    "empty": "Open an agent to author it.",
+    "fields": {
+      "displayName": "Name",
+      "description": "Description",
+      "prompt": "Prompt",
+      "readonly": "Read-only",
+      "review": "Review mode",
+      "tools": "Tools",
+      "noTools": "none"
+    },
+    "actions": {
+      "save": "Save draft",
+      "startTrial": "Start trial",
+      "restartTrial": "Restart trial"
+    },
+    "trial": {
+      "title": "Trial conversation"
+    },
+    "publish": {
+      "title": "Publish",
+      "continue": "Publish and continue here",
+      "fork": "Publish and fork a conversation",
+      "futureDefault": "Publish and make it the future default",
+      "untriedHint": "Try this draft in the trial conversation before publishing it."
+    }
   }
 }
