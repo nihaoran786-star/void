@@ -1,7 +1,9 @@
 import React from 'react';
 import { resolveConnectorCatalogIcon } from './connectorCatalogIcons';
-import type { ConnectorLinkState } from './linkGlyph';
 import './ConnectorCatalogAvatar.scss';
+
+/** The four channel states a connector glyph can present. */
+export type ConnectorLinkState = 'connected' | 'idle' | 'connecting' | 'error';
 
 /**
  * Connector glyph avatar: a deterministic open-source Lucide mark per

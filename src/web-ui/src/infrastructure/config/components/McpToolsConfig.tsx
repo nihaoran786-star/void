@@ -39,8 +39,7 @@ import {
   MCPServerInfo,
 } from '../../api/service-api/MCPAPI';
 import { systemAPI } from '../../api/service-api/SystemAPI';
-import ConnectorCatalogAvatar from './ConnectorCatalogAvatar';
-import type { ConnectorLinkState } from './linkGlyph';
+import ConnectorCatalogAvatar, { type ConnectorLinkState } from './ConnectorCatalogAvatar';
 import ConnectorMarketplacePanel from './ConnectorMarketplacePanel';
 import './McpToolsConfig.scss';
 
