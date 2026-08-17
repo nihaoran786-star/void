@@ -2277,25 +2277,43 @@
   },
   "teamWorkspace": {
     "ariaLabel": "團隊工作區",
-    "actions": { "close": "關閉團隊工作區", "backToTeam": "返回團隊", "retry": "重試" },
+    "actions": {
+      "close": "關閉團隊工作區",
+      "backToTeam": "返回團隊",
+      "retry": "重試"
+    },
     "states": {
-      "disabledTitle": "尚未進入會話", "disabledDescription": "選擇一個會話後可查看團隊。",
-      "unsupportedTitle": "目前環境暫不支援團隊", "unsupportedDescription": "請在桌面版中使用通用團隊。",
-      "loadingTitle": "正在讀取團隊", "loadingDescription": "正在還原成員和流程狀態。",
-      "errorTitle": "團隊狀態載入失敗", "errorDescription": "暫時無法讀取這個團隊，可稍後重試。",
-      "emptyTitle": "尚未召喚團隊", "emptyDescription": "從輸入框選擇一個團隊即可開始。"
+      "disabledTitle": "尚未進入會話",
+      "disabledDescription": "選擇一個會話後可查看團隊。",
+      "unsupportedTitle": "目前環境暫不支援團隊",
+      "unsupportedDescription": "請在桌面版中使用通用團隊。",
+      "loadingTitle": "正在讀取團隊",
+      "loadingDescription": "正在還原成員和流程狀態。",
+      "errorTitle": "團隊狀態載入失敗",
+      "errorDescription": "暫時無法讀取這個團隊，可稍後重試。",
+      "emptyTitle": "尚未召喚團隊",
+      "emptyDescription": "從輸入框選擇一個團隊即可開始。"
     },
     "issueTitle": "需要處理",
     "issues": {
-      "unsupported_transport": "目前環境不支援團隊工作區。", "runtime_read_failed": "團隊執行狀態讀取失敗。",
-      "runtime_diagnostic": "部分團隊執行記錄無法讀取。", "runtime_scope_mismatch": "團隊記錄不屬於目前會話。",
-      "runtime_record_ambiguous": "發現重複的團隊執行記錄。", "definition_read_failed": "團隊資料讀取失敗。",
-      "definition_diagnostic": "部分團隊資料存在問題。", "definition_missing": "找不到這個團隊的資料。",
-      "definition_revision_mismatch": "團隊資料版本與執行記錄不一致。", "definition_ambiguous": "發現重複的團隊資料。",
-      "active_run_missing": "找不到目前團隊任務。", "active_run_ambiguous": "發現重複的目前團隊任務。",
-      "latest_run_ambiguous": "無法確定最近一次團隊任務。", "member_run_ambiguous": "無法確定成員的最新狀態。",
-      "phase_run_ambiguous": "無法確定階段的最新狀態。", "workflow_missing": "找不到目前任務使用的流程。",
-      "unknown_member_run": "執行記錄包含未知成員。", "unknown_phase_run": "執行記錄包含未知階段。",
+      "unsupported_transport": "目前環境不支援團隊工作區。",
+      "runtime_read_failed": "團隊執行狀態讀取失敗。",
+      "runtime_diagnostic": "部分團隊執行記錄無法讀取。",
+      "runtime_scope_mismatch": "團隊記錄不屬於目前會話。",
+      "runtime_record_ambiguous": "發現重複的團隊執行記錄。",
+      "definition_read_failed": "團隊資料讀取失敗。",
+      "definition_diagnostic": "部分團隊資料存在問題。",
+      "definition_missing": "找不到這個團隊的資料。",
+      "definition_revision_mismatch": "團隊資料版本與執行記錄不一致。",
+      "definition_ambiguous": "發現重複的團隊資料。",
+      "active_run_missing": "找不到目前團隊任務。",
+      "active_run_ambiguous": "發現重複的目前團隊任務。",
+      "latest_run_ambiguous": "無法確定最近一次團隊任務。",
+      "member_run_ambiguous": "無法確定成員的最新狀態。",
+      "phase_run_ambiguous": "無法確定階段的最新狀態。",
+      "workflow_missing": "找不到目前任務使用的流程。",
+      "unknown_member_run": "執行記錄包含未知成員。",
+      "unknown_phase_run": "執行記錄包含未知階段。",
       "active_team_ambiguous": "目前會話存在多個活動團隊。",
       "active_team_binding_incomplete": "目前會話的團隊綁定資訊不完整，請重新選擇該團隊。",
       "bound_team_runtime_missing": "目前會話綁定的團隊執行記錄不存在，請重試或重新選擇團隊。",
@@ -2303,24 +2321,99 @@
       "bound_team_projection_missing": "目前團隊暫時無法還原完整狀態，請重試。",
       "delegated_task_read_failed": "部分委派的 Worker 任務無法還原。"
     },
-    "overview": { "title": "目前工作", "workflowUnavailable": "流程資料不可用", "waiting": "已召喚，等待任務" },
-    "members": { "title": "團隊成員", "count": "{{count}} 人", "empty": "暫無成員", "open": "查看{{name}}的會話" },
+    "overview": {
+      "title": "目前工作",
+      "workflowUnavailable": "流程資料不可用",
+      "waiting": "已召喚，等待任務"
+    },
+    "members": {
+      "title": "團隊成員",
+      "count": "{{count}} 人",
+      "empty": "暫無成員",
+      "open": "查看{{name}}的會話"
+    },
     "delegation": {
       "open": "打開{{name}}的 Worker 會話",
       "loading": "正在載入委派工作…",
       "partial": "部分委派工作暫不可用",
       "error": "委派工作不可用",
-      "status": { "created": "已建立", "running": "工作中", "blocked": "受阻", "completed": "已完成", "failed": "失敗", "cancelled": "已取消", "interrupted": "已中斷" }
+      "status": {
+        "created": "已建立",
+        "running": "工作中",
+        "blocked": "受阻",
+        "completed": "已完成",
+        "failed": "失敗",
+        "cancelled": "已取消",
+        "interrupted": "已中斷"
+      }
     },
-    "map": { "resetView": "復位視圖" },
-    "phases": { "title": "工作階段", "count": "{{count}} 個", "empty": "目前沒有階段任務" },
-    "roles": { "lead": "主理人", "specialist": "專業成員", "quality_gate": "品質把關" },
-    "lifecycle": { "provisioning": "準備中", "ready": "已就緒", "unavailable": "不可用", "archived": "已歸檔" },
-    "runStatus": { "queued": "排隊中", "running": "執行中", "waiting_user": "等待你確認", "blocked": "遇到阻塞", "completed": "已完成", "failed": "失敗", "interrupted": "已中斷", "cancelled": "已取消" },
-    "memberStatus": { "idle": "閒置", "queued": "排隊中", "running": "工作中", "waiting": "等待中", "completed": "已完成", "failed": "失敗", "interrupted": "已中斷", "cancelled": "已取消", "not_started": "待命", "unavailable": "狀態不可用" },
-    "phaseStatus": { "pending": "待開始", "ready": "可開始", "running": "進行中", "blocked": "已阻塞", "completed": "已完成", "failed": "失敗", "skipped": "已略過", "cancelled": "已取消", "not_started": "未開始", "unavailable": "狀態不可用" },
-    "phaseKinds": { "serial": "依序進行", "parallel": "平行處理", "decision": "需要決策", "review": "品質審查" },
+    "map": {
+      "resetView": "復位視圖"
+    },
+    "phases": {
+      "title": "工作階段",
+      "count": "{{count}} 個",
+      "empty": "目前沒有階段任務"
+    },
+    "roles": {
+      "lead": "主理人",
+      "specialist": "專業成員",
+      "quality_gate": "品質把關"
+    },
+    "lifecycle": {
+      "provisioning": "準備中",
+      "ready": "已就緒",
+      "unavailable": "不可用",
+      "archived": "已歸檔"
+    },
+    "runStatus": {
+      "queued": "排隊中",
+      "running": "執行中",
+      "waiting_user": "等待你確認",
+      "blocked": "遇到阻塞",
+      "completed": "已完成",
+      "failed": "失敗",
+      "interrupted": "已中斷",
+      "cancelled": "已取消"
+    },
+    "memberStatus": {
+      "idle": "閒置",
+      "queued": "排隊中",
+      "running": "工作中",
+      "waiting": "等待中",
+      "completed": "已完成",
+      "failed": "失敗",
+      "interrupted": "已中斷",
+      "cancelled": "已取消",
+      "not_started": "待命",
+      "unavailable": "狀態不可用"
+    },
+    "phaseStatus": {
+      "pending": "待開始",
+      "ready": "可開始",
+      "running": "進行中",
+      "blocked": "已阻塞",
+      "completed": "已完成",
+      "failed": "失敗",
+      "skipped": "已略過",
+      "cancelled": "已取消",
+      "not_started": "未開始",
+      "unavailable": "狀態不可用"
+    },
+    "phaseKinds": {
+      "serial": "依序進行",
+      "parallel": "平行處理",
+      "decision": "需要決策",
+      "review": "品質審查"
+    },
     "updatedAt": "更新於 {{value}}",
-    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。", "notStartedTitle": "成員正在待命", "notStartedDescription": "這位成員已屬於目前團隊。前置階段完成或左側主理人派發任務後，會在這裡顯示完整對話。", "failedTitle": "成員任務啟動失敗", "failedDescription": "本次派發未建立成員會話。請返回左側主會話重新派發；團隊綁定不會解除。" }
+    "memberConversation": {
+      "loadingTitle": "正在開啟成員會話",
+      "loadingDescription": "正在還原這位成員的工作記錄。",
+      "notStartedTitle": "成員正在待命",
+      "notStartedDescription": "這位成員已屬於目前團隊。前置階段完成或左側主理人派發任務後，會在這裡顯示完整對話。",
+      "failedTitle": "成員任務啟動失敗",
+      "failedDescription": "本次派發未建立成員會話。請返回左側主會話重新派發；團隊綁定不會解除。"
+    }
   }
 }

@@ -35,6 +35,12 @@ historical evidence.
 
 - Preserve user-owned and unrelated working-tree changes.
 - Make one small, independently reviewable change at a time.
+- Sub-agent evidence must be re-verified before acting on it:
+  directory-level and statistical conclusions are usually reliable, but
+  per-file claims ("orphan", "dead", "verified") from a delegated agent must
+  be independently re-checked (inbound links, real consumers, runtime use)
+  before any deletion or rewrite. A 2026-08 audit found every one of 14
+  delegated per-file "orphan" verdicts to be false on recheck.
 - Do not replace a working Module or bypass its Interface for presentation
   convenience.
 - Keep dependency direction:

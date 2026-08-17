@@ -2277,25 +2277,43 @@
   },
   "teamWorkspace": {
     "ariaLabel": "Team workspace",
-    "actions": { "close": "Close team workspace", "backToTeam": "Back to team", "retry": "Retry" },
+    "actions": {
+      "close": "Close team workspace",
+      "backToTeam": "Back to team",
+      "retry": "Retry"
+    },
     "states": {
-      "disabledTitle": "No conversation selected", "disabledDescription": "Select a conversation to view its team.",
-      "unsupportedTitle": "Teams are unavailable here", "unsupportedDescription": "Use the desktop app to run reusable teams.",
-      "loadingTitle": "Loading team", "loadingDescription": "Restoring members and workflow status.",
-      "errorTitle": "Team status failed to load", "errorDescription": "This team cannot be read right now. Try again later.",
-      "emptyTitle": "No team summoned yet", "emptyDescription": "Choose a team from the composer to get started."
+      "disabledTitle": "No conversation selected",
+      "disabledDescription": "Select a conversation to view its team.",
+      "unsupportedTitle": "Teams are unavailable here",
+      "unsupportedDescription": "Use the desktop app to run reusable teams.",
+      "loadingTitle": "Loading team",
+      "loadingDescription": "Restoring members and workflow status.",
+      "errorTitle": "Team status failed to load",
+      "errorDescription": "This team cannot be read right now. Try again later.",
+      "emptyTitle": "No team summoned yet",
+      "emptyDescription": "Choose a team from the composer to get started."
     },
     "issueTitle": "Needs attention",
     "issues": {
-      "unsupported_transport": "The current environment does not support the team workspace.", "runtime_read_failed": "Team runtime status could not be read.",
-      "runtime_diagnostic": "Some team runtime records could not be read.", "runtime_scope_mismatch": "A team record does not belong to this conversation.",
-      "runtime_record_ambiguous": "Duplicate team runtime records were found.", "definition_read_failed": "Team details could not be read.",
-      "definition_diagnostic": "Some team details contain errors.", "definition_missing": "The team definition could not be found.",
-      "definition_revision_mismatch": "The team definition version does not match its runtime record.", "definition_ambiguous": "Duplicate team definitions were found.",
-      "active_run_missing": "The active team task could not be found.", "active_run_ambiguous": "Duplicate active team tasks were found.",
-      "latest_run_ambiguous": "The latest team task could not be determined.", "member_run_ambiguous": "The latest member status could not be determined.",
-      "phase_run_ambiguous": "The latest phase status could not be determined.", "workflow_missing": "The workflow used by this task could not be found.",
-      "unknown_member_run": "The runtime record contains an unknown member.", "unknown_phase_run": "The runtime record contains an unknown phase.",
+      "unsupported_transport": "The current environment does not support the team workspace.",
+      "runtime_read_failed": "Team runtime status could not be read.",
+      "runtime_diagnostic": "Some team runtime records could not be read.",
+      "runtime_scope_mismatch": "A team record does not belong to this conversation.",
+      "runtime_record_ambiguous": "Duplicate team runtime records were found.",
+      "definition_read_failed": "Team details could not be read.",
+      "definition_diagnostic": "Some team details contain errors.",
+      "definition_missing": "The team definition could not be found.",
+      "definition_revision_mismatch": "The team definition version does not match its runtime record.",
+      "definition_ambiguous": "Duplicate team definitions were found.",
+      "active_run_missing": "The active team task could not be found.",
+      "active_run_ambiguous": "Duplicate active team tasks were found.",
+      "latest_run_ambiguous": "The latest team task could not be determined.",
+      "member_run_ambiguous": "The latest member status could not be determined.",
+      "phase_run_ambiguous": "The latest phase status could not be determined.",
+      "workflow_missing": "The workflow used by this task could not be found.",
+      "unknown_member_run": "The runtime record contains an unknown member.",
+      "unknown_phase_run": "The runtime record contains an unknown phase.",
       "active_team_ambiguous": "This conversation has more than one active team.",
       "active_team_binding_incomplete": "This conversation's team binding is incomplete. Choose the team again.",
       "bound_team_runtime_missing": "The team runtime bound to this conversation is missing. Retry or choose the team again.",
@@ -2303,24 +2321,99 @@
       "bound_team_projection_missing": "The current team's full state could not be restored. Try again.",
       "delegated_task_read_failed": "Some delegated worker tasks could not be restored."
     },
-    "overview": { "title": "Current work", "workflowUnavailable": "Workflow details unavailable", "waiting": "Summoned and waiting for a task" },
-    "members": { "title": "Team members", "count": "{{count}} people", "empty": "No members", "open": "Open {{name}}'s conversation" },
+    "overview": {
+      "title": "Current work",
+      "workflowUnavailable": "Workflow details unavailable",
+      "waiting": "Summoned and waiting for a task"
+    },
+    "members": {
+      "title": "Team members",
+      "count": "{{count}} people",
+      "empty": "No members",
+      "open": "Open {{name}}'s conversation"
+    },
     "delegation": {
       "open": "Open {{name}}'s worker conversation",
       "loading": "Loading delegated work…",
       "partial": "Some delegated work is unavailable",
       "error": "Delegated work unavailable",
-      "status": { "created": "Created", "running": "Working", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "cancelled": "Cancelled", "interrupted": "Interrupted" }
+      "status": {
+        "created": "Created",
+        "running": "Working",
+        "blocked": "Blocked",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "interrupted": "Interrupted"
+      }
     },
-    "map": { "resetView": "Reset view" },
-    "phases": { "title": "Workflow phases", "count": "{{count}} phases", "empty": "No workflow phases for this task" },
-    "roles": { "lead": "Lead", "specialist": "Specialist", "quality_gate": "Quality gate" },
-    "lifecycle": { "provisioning": "Preparing", "ready": "Ready", "unavailable": "Unavailable", "archived": "Archived" },
-    "runStatus": { "queued": "Queued", "running": "Running", "waiting_user": "Waiting for you", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "interrupted": "Interrupted", "cancelled": "Cancelled" },
-    "memberStatus": { "idle": "Idle", "queued": "Queued", "running": "Working", "waiting": "Waiting", "completed": "Completed", "failed": "Failed", "interrupted": "Interrupted", "cancelled": "Cancelled", "not_started": "Standing by", "unavailable": "Status unavailable" },
-    "phaseStatus": { "pending": "Pending", "ready": "Ready", "running": "In progress", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "skipped": "Skipped", "cancelled": "Cancelled", "not_started": "Not started", "unavailable": "Status unavailable" },
-    "phaseKinds": { "serial": "Sequential", "parallel": "Parallel", "decision": "Decision", "review": "Quality review" },
+    "map": {
+      "resetView": "Reset view"
+    },
+    "phases": {
+      "title": "Workflow phases",
+      "count": "{{count}} phases",
+      "empty": "No workflow phases for this task"
+    },
+    "roles": {
+      "lead": "Lead",
+      "specialist": "Specialist",
+      "quality_gate": "Quality gate"
+    },
+    "lifecycle": {
+      "provisioning": "Preparing",
+      "ready": "Ready",
+      "unavailable": "Unavailable",
+      "archived": "Archived"
+    },
+    "runStatus": {
+      "queued": "Queued",
+      "running": "Running",
+      "waiting_user": "Waiting for you",
+      "blocked": "Blocked",
+      "completed": "Completed",
+      "failed": "Failed",
+      "interrupted": "Interrupted",
+      "cancelled": "Cancelled"
+    },
+    "memberStatus": {
+      "idle": "Idle",
+      "queued": "Queued",
+      "running": "Working",
+      "waiting": "Waiting",
+      "completed": "Completed",
+      "failed": "Failed",
+      "interrupted": "Interrupted",
+      "cancelled": "Cancelled",
+      "not_started": "Standing by",
+      "unavailable": "Status unavailable"
+    },
+    "phaseStatus": {
+      "pending": "Pending",
+      "ready": "Ready",
+      "running": "In progress",
+      "blocked": "Blocked",
+      "completed": "Completed",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "cancelled": "Cancelled",
+      "not_started": "Not started",
+      "unavailable": "Status unavailable"
+    },
+    "phaseKinds": {
+      "serial": "Sequential",
+      "parallel": "Parallel",
+      "decision": "Decision",
+      "review": "Quality review"
+    },
     "updatedAt": "Updated at {{value}}",
-    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history.", "notStartedTitle": "Member standing by", "notStartedDescription": "This member already belongs to the active team. Its full conversation appears after prerequisites finish or the lead dispatches a task.", "failedTitle": "Member task failed to start", "failedDescription": "This dispatch did not establish a member conversation. Return to the lead conversation and dispatch again; the Team binding stays intact." }
+    "memberConversation": {
+      "loadingTitle": "Opening member conversation",
+      "loadingDescription": "Restoring this member's work history.",
+      "notStartedTitle": "Member standing by",
+      "notStartedDescription": "This member already belongs to the active team. Its full conversation appears after prerequisites finish or the lead dispatches a task.",
+      "failedTitle": "Member task failed to start",
+      "failedDescription": "This dispatch did not establish a member conversation. Return to the lead conversation and dispatch again; the Team binding stays intact."
+    }
   }
 }
