@@ -1196,8 +1196,25 @@ Web 全量 466 文件 / 2785 用例、`cargo check -p void-desktop`、`type-chec
 A2-4c 按所有者决定拆为三小片，顺序即依赖顺序：
 
 - **4c-2a 草稿编辑器** — ✅ 已完成（见上）。
-- **4c-2b 隔离调试聊天**：复用已完成的 A2-2 绑定层与旧页面验证过的调试服务，不造新轮子。
-  这是风险最高的一片（涉及真实会话生命周期），单独做、单独验。
+- **4c-2b 隔离调试聊天** — ✅ 已完成。`AgentStudioDebugController` 只补「编辑器草稿生命周期
+  ↔ A2-2 绑定层」之间缺的那层，不自带任何会话机制：绑定、失效与 evidence 仍归
+  `AgentDebugSessionBinding`，会话本身仍由旧创建页验证过的 `createAgentDebugRuntime` 创建。
+
+  锁死的不变量：
+  - 每次 save 推进 draft revision，`attach` 随之重绑；试聊永远不会跑用户已替换掉的 prompt。
+  - debug persona 只映射运行时真正会应用的字段（displayName/description/prompt/tools/
+    readonly/review）。model、personaKey、parent visibility 留在 catalog 草稿里——
+    试聊不得比即将发布的 revision 拥有更宽的能力。
+  - bind 失败会清空当前绑定，而不是留着旧的继续用；面板不会静默对着一个已被取代的 Agent 说话。
+  - 未 attach 或已 detach 时 send/recordOutcome 返回 `detached`，不落到 source session。
+  - 失败的试聊同样发行 evidence，不能被静默丢弃。
+  - `dispose` 释放全部绑定，不泄漏临时 Agent。
+
+  变异测试：bind 失败后不清空绑定、send 不检查 detached、debug persona 混入 model/personaKey、
+  dispose 不释放全部，四次变异分别令 1/3/1/1 条测试变红。
+
+  本地证据：`AgentStudioDebugController.test.ts` 13/13；Web 全量 469 文件 / 2812 用例、
+  `type-check:web`、`check:core-boundaries` 通过。
 - **4c-2c 发布三动作 UI**：必须排最后——发布的前提是「针对该草稿的试聊通过记录」，
   而该记录由 2b 产生；2b 不完成，2c 没有真实数据可驱动。
 - **4c-3 旧创建页迁移与退出门**：消除双写，然后跑 P1-A 退出门——同一主会话 v3 运行 →
