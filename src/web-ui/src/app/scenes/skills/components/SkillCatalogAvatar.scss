@@ -1,4 +1,4 @@
-.skill-sigil {
+.skill-glyph {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -23,7 +23,7 @@
   }
 }
 
-.gallery-detail-modal__icon:has(.skill-sigil) {
+.gallery-detail-modal__icon:has(.skill-glyph) {
   width: 30px;
   height: 30px;
   border: 0;
@@ -32,7 +32,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skill-sigil {
+  .skill-glyph {
     transition: none;
   }
 }

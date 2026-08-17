@@ -139,7 +139,7 @@ vi.mock('./components/SkillAuthoringPage', () => ({ default: () => null }));
 vi.mock('./components/SkillCard', () => ({ default: () => null }));
 vi.mock('./components/SkillsSuiteView', () => ({ default: () => null }));
 vi.mock('./components/SkillCatalogAvatar', () => ({
-  default: () => <span data-testid="skill-sigil" />,
+  default: () => <span data-testid="skill-glyph" />,
 }));
 
 vi.mock('./skillsSceneStore', () => ({
@@ -250,7 +250,7 @@ describeWithJsdom('SkillsScene directory presentation', () => {
     expect(cards).toHaveLength(2);
 
     for (const card of cards) {
-      expect(card.querySelector('[data-testid="skill-sigil"]')).toBeTruthy();
+      expect(card.querySelector('[data-testid="skill-glyph"]')).toBeTruthy();
       expect(card.getAttribute('data-state')).toBeTruthy();
     }
 

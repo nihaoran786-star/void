@@ -1,19 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { resolveSigilCells } from './skillSigil';
+import { resolveSkillCatalogIcon } from './skillCatalogIcons';
 
-describe('resolveSigilCells', () => {
-  it('uses immutable skill identity to produce a stable rune', () => {
-    expect(resolveSigilCells('user::home.codex::arrange'))
-      .toEqual(resolveSigilCells('user::home.codex::arrange'));
-    expect(resolveSigilCells('user::home.codex::arrange'))
-      .not.toEqual(resolveSigilCells('user::home.codex::agent-app-architecture'));
+describe('resolveSkillCatalogIcon', () => {
+  it('keeps one stable mark per immutable skill identity', () => {
+    expect(resolveSkillCatalogIcon('user::home.codex::arrange'))
+      .toBe(resolveSkillCatalogIcon('user::home.codex::arrange'));
   });
 
-  it('never returns an empty or solid rune', () => {
-    for (const identity of ['', 'market::unknown-package', 'builtin::xlsx']) {
-      const filled = resolveSigilCells(identity).filter(Boolean).length;
-      expect(filled).toBeGreaterThan(0);
-      expect(filled).toBeLessThan(8);
-    }
+  it('reads what the skill does before falling back to the identity hash', () => {
+    const script = resolveSkillCatalogIcon('user::a', 'screenplay drafting');
+    const review = resolveSkillCatalogIcon('user::a', 'code review');
+    expect(script).not.toBe(review);
+
+    // The runtime identity carries the same signal when the display name is
+    // localized away from English.
+    expect(resolveSkillCatalogIcon('user::screenplay-tool', '')).toBe(script);
+  });
+
+  it('spreads unnamed skills across the fallback pool', () => {
+    const marks = new Set(
+      Array.from({ length: 24 }, (_, index) =>
+        resolveSkillCatalogIcon(`market::package-${index}`)),
+    );
+    expect(marks.size).toBeGreaterThan(3);
   });
 });
