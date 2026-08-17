@@ -3,7 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ScrollAnchor } from './ScrollAnchor';
+import {
+  computeAnchorStep,
+  MAX_ANCHOR_STEP,
+  MIN_ANCHOR_STEP,
+  ScrollAnchor,
+} from './ScrollAnchor';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -126,5 +131,30 @@ describe('ScrollAnchor', () => {
     });
     act(() => buttons[1]?.click());
     expect(onAnchorNavigate).toHaveBeenLastCalledWith('turn-2', 'auto');
+  });
+
+  it('keeps every tick clickable in a long conversation', () => {
+    // Asserted against the hit-target requirement rather than MIN_ANCHOR_STEP,
+    // so lowering the constant back toward the old 4px floor fails here.
+    // A normal window leaves the rail roughly 700px between its insets.
+    expect(computeAnchorStep(700, 80)).toBeGreaterThanOrEqual(8);
+    expect(computeAnchorStep(700, 200)).toBeGreaterThanOrEqual(8);
+    expect(MIN_ANCHOR_STEP).toBeGreaterThanOrEqual(8);
+  });
+
+  it('scales the step to the measured rail instead of a fixed budget', () => {
+    // The same turn count must not yield the same step on rails of different
+    // heights; the fixed 320px budget was the defect.
+    expect(computeAnchorStep(700, 40)).toBeGreaterThan(computeAnchorStep(360, 40));
+  });
+
+  it('never exceeds the resting tick size for a short conversation', () => {
+    expect(computeAnchorStep(700, 2)).toBe(MAX_ANCHOR_STEP);
+    expect(computeAnchorStep(700, 0)).toBe(MAX_ANCHOR_STEP);
+  });
+
+  it('falls back to a usable step before the rail has been measured', () => {
+    expect(computeAnchorStep(0, 30)).toBeGreaterThanOrEqual(MIN_ANCHOR_STEP);
+    expect(computeAnchorStep(0, 30)).toBeLessThanOrEqual(MAX_ANCHOR_STEP);
   });
 });

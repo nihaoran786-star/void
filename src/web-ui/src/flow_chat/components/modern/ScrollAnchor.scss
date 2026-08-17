@@ -155,19 +155,13 @@
   }
 }
 
-@media (max-width: 720px) {
+// The rail is 44px wide and takes pointer events, so in a narrow chat pane it
+// would sit on top of the message text and swallow clicks and selection. Turn
+// navigation is still reachable from the header's turn list, so hiding the rail
+// costs nothing and keeps the reading column intact.
+@container session-chat-pane (max-width: 900px) {
   .scroll-anchor {
-    left: 3px;
-    width: 40px;
-
-    &__point {
-      width: 38px;
-    }
-
-    &__tick {
-      left: 6px;
-      width: 30px;
-    }
+    display: none;
   }
 }
 
