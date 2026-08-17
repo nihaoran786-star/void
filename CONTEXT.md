@@ -11,6 +11,7 @@ Updated: 2026-08-17
   upstream capability/fix reference, while DeepSeek Harness is a rapidly
   evolving plugin-architecture and ecosystem reference; neither reference
   replaces Void's product identity or stable runtime contracts.
+- Local DeepSeek Harness clone: `D:\codex\DSH`.
 - The product north star is a conversation-centered workspace: the main AI
   conversation remains in the center and the existing right Content Canvas is
   the stable collapsible/expandable host for typed plugin surfaces such as AI

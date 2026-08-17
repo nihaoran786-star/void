@@ -4,7 +4,7 @@
 更新：2026-08-15
 主产品：Void
 上游参考：BitFun
-前沿参考：DeepSeek Harness（DSH）
+前沿参考：DeepSeek Harness（DSH）；本地源码 `D:\codex\DSH`
 
 > 本文固化用户确认的最终产品方向，用于跨会话续作和阶段验收。
 > 本文不授权直接开始源码实现；每个实现阶段仍需用户明确批准。
@@ -494,8 +494,16 @@ Canvas Host 直接读取 MiniApp 存储或调用其 worker。
 官方来源：
 
 - [DeepSeek Harness repository](https://github.com/deepseek-ai/deepseek-harness)
+- 本地 clone：`D:\codex\DSH`（2026-08-17，HEAD `47f943859b`）
 - [DeepSeek Harness architecture](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md)
 - [DeepSeek Harness capability seams](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/capability-seams.md)
+
+2026-08-17 已用该本地克隆逐条核实 §8.1 的六项机制主张（Cordis 可逆贡献、
+profile/bundle/patch、全插件化贡献点、seam 的 definition/provider/consumer
+三角、session log 重放投影、`ctx.subagents/subprocess/sandbox/skills/
+workflowEngine` 等能力接缝均实存于 `docs/architecture.md` 与
+`docs/capability-seams.md`）。P2-B 兼容桥动工时必须重新固定当时的契约版本；
+在那之前，本地克隆仅作阅读参考，不得从中复制实现。
 
 ### 8.2 Void 采用什么
 

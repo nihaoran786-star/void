@@ -419,6 +419,10 @@ src/crates/
 `scripts/dev.cjs` 里与 `prepare-flashgrep-resource.mjs` 不一致的重复平台名单
 （dev.cjs 只认 linux-gnu，helper 是 musl 优先双候选），dev 桌面流程改走 helper。
 
-「dsh（deepseek harness）」的本地源码在 `D:\` 全盘未找到（已搜 `*deepseek*` / `dsh` / `*harness*`）。
-上游 BitFun 有 `execution/harness` crate，若 dsh 指的是它，本文 §2 已覆盖；
-否则需要提供路径后单独补一节。
+「dsh（deepseek harness）」本地源码已就位（2026-08-17）：`D:\codex\DSH`，
+克隆自 `deepseek-ai/deepseek-harness`，HEAD `47f943859b`。此前"全盘未找到"的
+记录已过时。PRD §8.1 的六项机制主张已逐条对照该源码的
+`docs/architecture.md` 与 `docs/capability-seams.md` 核实为真；P2-B 兼容桥
+所需的"固定契约版本与官方仓库基线"以该提交为第一个候选基线。
+注意：DSH 是 pnpm monorepo（packages/ 下按能力分包），与本文 §2 的
+BitFun `execution/harness` crate 是两回事，互不替代。
