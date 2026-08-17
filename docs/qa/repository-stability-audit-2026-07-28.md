@@ -126,6 +126,16 @@ Remeasured 2026-08-17 (append-only update to this ledger):
   tsconfig cannot resolve, and strict-null violations in older specs.
 - i18n audit passes with the existing grandfathered CJK warning budget
   (26 lines).
+- Desktop `cargo test -p void-desktop --lib` is restored: four Team fixtures
+  missing `delegation_policy` had blocked compilation since the bounded
+  member delegation change. Reviving the gate exposed a real
+  backward-compatibility defect that the compile break had masked: the
+  delegation change added `memberRunId` to the expected durable member launch
+  context, so every pre-delegation interrupted member task failed recovery
+  preflight with `InvalidLaunchSpec`. The adapter now requires `memberRunId`
+  exactly when the persisted record carries it and tolerates its absence only
+  for records without typed launch authority. Desktop 199/199 (1 ignored) and
+  void-core 1433/0 pass.
 
 ## Verification snapshot
 

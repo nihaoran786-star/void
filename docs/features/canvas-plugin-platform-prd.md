@@ -1037,7 +1037,7 @@ P1-A2 拆为四个垂直切片，本片只交付第一片：
 default、不打开草稿**；revision 六命令中只有 `get` 有了生产调用方，其余五个仍无 UI 调用方。
 P1-A 退出门要到 A2-3 完成后才可能达成，本片不得被描述为已达成退出门。
 
-本地证据：`agentStudioCanvasSurface.test.tsx` 9/9；Web 全量 test:run、`type-check:web`、
+本地证据（提交 `4508c743f`）：`agentStudioCanvasSurface.test.tsx` 9/9；Web 全量 test:run、`type-check:web`、
 `check:core-boundaries`、`check:repo-hygiene` 均通过。Desktop lib-test 仍被本片未修改的四处
 既有 Team fixture 缺 `delegation_policy` 阻断，属既有基线问题，不计为本片通过。
 
@@ -1064,7 +1064,7 @@ P1-A 退出门要到 A2-3 完成后才可能达成，本片不得被描述为已
 source-bound fork 与三动作绑定（A2-3）、旧创建页迁移（A2-4）。本片**仍不修改任何会话
 绑定、不改 default、不发布 revision**。
 
-本地证据：`AgentDebugSessionBinding.test.ts` 15/15；Web 全量 464 文件 / 2756 用例、
+本地证据（提交 `d019d4d48`）：`AgentDebugSessionBinding.test.ts` 15/15；Web 全量 464 文件 / 2756 用例、
 `type-check:web` 通过。Desktop lib-test 仍被本片未修改的四处既有 Team fixture 缺
 `delegation_policy` 阻断，属既有基线问题。
 
@@ -1092,7 +1092,7 @@ source-bound fork 与三动作绑定（A2-3）、旧创建页迁移（A2-4）。
 旧创建页迁移与双写消除属 A2-4。本片**没有任何生产 UI 调用方**，因此尚未真正改动过
 任何一个真实会话的绑定。
 
-本地证据：`AgentRevisionActivation.test.ts` 15/15、四次变异验证；`type-check:web` 与
+本地证据（提交 `d2f5586af`）：`AgentRevisionActivation.test.ts` 15/15、四次变异验证；`type-check:web` 与
 `check:core-boundaries` 通过。Desktop lib-test 仍被本片未修改的四处既有 Team fixture 缺
 `delegation_policy` 阻断，属既有基线问题。
 

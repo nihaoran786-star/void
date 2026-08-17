@@ -1,12 +1,12 @@
 # Current collaboration context
 
-Updated: 2026-08-15
+Updated: 2026-08-17
 
 ## Product state
 
 - Active implementation branch: `codex/agent-revision-core-p1a1` (P0-A/P0-B
-  complete; P1-A1 Agent Revision Core implemented and locally verified; not
-  pushed).
+  complete; P1-A1 Agent Revision Core and the three P1-A2 parts A2-1/A2-2/A2-3
+  implemented and locally verified; not pushed).
 - Void is the primary product and implementation repository. BitFun is an
   upstream capability/fix reference, while DeepSeek Harness is a rapidly
   evolving plugin-architecture and ecosystem reference; neither reference
@@ -42,10 +42,18 @@ Updated: 2026-08-15
   source files are imported non-destructively and remain a compatibility
   authority; if the old source changes after import, catalog authoring fails
   closed instead of dual-writing. Remote project authoring remains explicitly
-  unavailable. P1-A1 does not add Agent Studio presentation, issue real
-  `agent_debug` evidence, fork sessions, or make the current composer consume
-  the new default pointer; those activation paths belong to P1-A2 and still
-  require explicit user approval.
+  unavailable. P1-A2 has since landed its three parts as isolated, individually
+  tested checkpoints: A2-1 a read-only `agent-studio` Canvas contribution
+  (`4508c743f`), A2-2 `AgentDebugSessionBinding` pinning an isolated debug
+  session to one exact draft revision (`d019d4d48`), and A2-3
+  `AgentRevisionActivation` publishing a validated draft and applying exactly
+  one activation action — continue, fork, or future-default — none of which
+  rebinds the source conversation (`d2f5586af`). The three parts are
+  deliberately unwired and have no production UI caller, so no real session
+  binding or default pointer has changed yet. Wiring them together, the Canvas
+  opening entry, legacy creation-page migration, and the P1-A exit gate
+  (including post-restart binding recovery) are A2-4 and still require
+  explicit user approval.
 - The Quiet Directory design system is the current entity-glyph and catalog
   language: Agent orbs (animated when selected/running), Skill sigils (static
   runes), and Connector link glyphs (route state: solid/broken/pulse/error)
@@ -333,19 +341,21 @@ stronger evidence than their apparent convenience.
 
 ## Current quality state
 
-Repository-wide verified baseline on 2026-08-14:
+Repository-wide verified baseline on 2026-08-17:
 
-- the default parallel Web suite passes 536/536 files and 3117/3117 tests with
-  zero unhandled errors;
-- the Flow Chat Beautiful UI production binding, standalone 19-case/26-mode
-  preview, responsive widths, pause/replay, keyboard behavior, and reduced
-  motion pass the final interaction and full-window visual review;
-- Desktop Rust tests pass 197 tests with one explicit manual smoke ignored;
-- Web type checking, theme contracts, core boundaries, repository hygiene,
-  production build, Monaco assets, and performance budgets pass;
-- the 1690×900 physical DWM evidence uses Per-Monitor-V2 awareness at 144 DPI
-  and covers the complete window boundary;
-- measured scene switching remains within the current performance budgets.
+- the default parallel Web suite passes 465/465 files and 2771/2771 tests
+  (test counts dropped from the 2026-08-14 baseline because 101 stylesheet-text
+  test files were deliberately deleted, not because coverage regressed);
+- `cargo check --workspace` and `cargo test --locked -p void-core` pass on the
+  new `src/crates/<layer>/<crate>` layout (B4 step 1, `0c8104f8f`);
+- `cargo fmt --check` is clean; the i18n contract generator formats its
+  generated Rust at emission time;
+- Web test files are inside the ESLint gate; full `lint:web` passes with zero
+  errors;
+- Web type checking, core boundaries, repository hygiene, i18n contract
+  (15/15) and i18n audit pass;
+- the Flow Chat Beautiful UI production binding and the 2026-08-14 full-window
+  visual review remain the accepted presentation baseline.
 
 Exact historical commands and checkpoint evidence belong in
 [the repository stability audit](docs/qa/repository-stability-audit-2026-07-28.md),
@@ -394,11 +404,12 @@ Canvas plugin P0-B checkpoint on 2026-08-15:
 
 Open baseline debt:
 
-- the E2E project currently has strict TypeScript failures and CI does not type
-  check it;
-- Rust format and Clippy gates are not clean and are not fully represented in
-  CI;
-- test files are excluded from Web UI ESLint and TypeScript project checks;
+- the E2E project has 127 strict TypeScript errors (measured 2026-08-17) and
+  CI does not type check it;
+- Clippy reports 326 warnings / 0 errors workspace-wide and is not enforced in
+  CI; Rust formatting is clean as of 2026-08-17;
+- test files are inside Web UI ESLint but still excluded from TypeScript
+  project checks;
 - `ChatInput` remains a high-coupling orchestration hotspot;
 - Browser UI still contains registered direct-Tauri lifecycle exceptions.
 - Workspace Media remote IO is intentionally fail-closed: its Canvas identity
