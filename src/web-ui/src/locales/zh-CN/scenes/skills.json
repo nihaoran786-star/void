@@ -236,7 +236,9 @@
     "builtin": "内置",
     "user": "用户级",
     "project": "项目级",
-    "suite": "套件"
+    "suite": "套件",
+    "installed": "已安装",
+    "market": "市场"
   },
   "categories": {
     "all": "查看所有已安装的技能，包含内置、用户和项目级。",
@@ -398,7 +400,9 @@
       "shadowed": "重复",
       "shadowedTooltip": "该技能被更高优先级的同名技能覆盖，不会生效。",
       "shadowedLabel": "被覆盖自:",
-      "shadowedDetail": "技能 key {{key}}"
+      "shadowedDetail": "技能 key {{key}}",
+      "statusActive": "已启用",
+      "statusShadowed": "已覆盖"
     }
   },
   "deleteModal": {

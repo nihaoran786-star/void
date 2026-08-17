@@ -228,7 +228,9 @@
     "builtin": "Built-in",
     "user": "User",
     "project": "Project",
-    "suite": "Suites"
+    "suite": "Suites",
+    "installed": "Installed",
+    "market": "Market"
   },
   "categories": {
     "all": "All installed skills, including built-in, user-level, and project-level.",
@@ -390,7 +392,9 @@
       "shadowed": "Duplicate",
       "shadowedTooltip": "This skill is shadowed by a higher-priority skill with the same name and will not be used.",
       "shadowedLabel": "Shadowed by:",
-      "shadowedDetail": "Skill key {{key}}"
+      "shadowedDetail": "Skill key {{key}}",
+      "statusActive": "Enabled",
+      "statusShadowed": "Overridden"
     }
   },
   "deleteModal": {

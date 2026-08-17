@@ -7,17 +7,13 @@ import {
   Download,
   Filter,
   FolderOpen,
-  Layers,
   Pencil,
   Package,
   Plus,
   Puzzle,
   ShieldAlert,
-  ShieldCheck,
   Trash2,
   TrendingUp,
-  User,
-  Zap,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button, ConfirmDialog, Input, Modal, Search, Select } from '@/component-library';
@@ -56,17 +52,16 @@ const SKILLS_PAGE_SIZE = 20;
 
 interface CategoryInfo {
   id: InstalledFilter;
-  icon: React.ReactNode;
   labelKey: string;
   descKey: string;
 }
 
 const CATEGORIES: CategoryInfo[] = [
-  { id: 'all', icon: <Layers size={15} strokeWidth={1.6} />, labelKey: 'filters.all', descKey: 'categories.all' },
-  { id: 'builtin', icon: <ShieldCheck size={15} strokeWidth={1.6} />, labelKey: 'filters.builtin', descKey: 'categories.builtin' },
-  { id: 'user', icon: <User size={15} strokeWidth={1.6} />, labelKey: 'filters.user', descKey: 'categories.user' },
-  { id: 'project', icon: <FolderOpen size={15} strokeWidth={1.6} />, labelKey: 'filters.project', descKey: 'categories.project' },
-  { id: 'suite', icon: <Zap size={15} strokeWidth={1.6} />, labelKey: 'filters.suite', descKey: 'categories.suite' },
+  { id: 'all', labelKey: 'filters.all', descKey: 'categories.all' },
+  { id: 'builtin', labelKey: 'filters.builtin', descKey: 'categories.builtin' },
+  { id: 'user', labelKey: 'filters.user', descKey: 'categories.user' },
+  { id: 'project', labelKey: 'filters.project', descKey: 'categories.project' },
+  { id: 'suite', labelKey: 'filters.suite', descKey: 'categories.suite' },
 ];
 
 interface SupportedSkillsSceneProps {
@@ -200,6 +195,14 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
     (currentInstalledPage + 1) * SKILLS_PAGE_SIZE,
   );
 
+  const isInstalledTab = activeTab === 'installed';
+  const isSuiteFilter = isInstalledTab && installedFilter === 'suite';
+  const topbarCount = !isInstalledTab
+    ? market.totalLoaded
+    : isSuiteFilter
+      ? (installed.counts.suite ?? 0)
+      : installedFiltered.length;
+
   useEffect(() => {
     setInstalledListPage(0);
   }, [installedFilter, installedSearch, hideDuplicates]);
@@ -261,33 +264,131 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
   return (
     <div className="void-skills-scene" data-customization-market="skills">
-      <div className="skills-tabs-bar">
-        <div
-          className="skills-tabs-bar__tabs"
-          role="tablist"
-          aria-label={t('nav.title')}
-        >
-          <button
-            type="button"
-            className={`skills-tabs-bar__tab ${activeTab === 'installed' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('installed')}
-            onKeyDown={handleCatalogTabKeyDown}
-            role="tab"
-            aria-selected={activeTab === 'installed'}
-            tabIndex={activeTab === 'installed' ? 0 : -1}
-          ><span>{t('installed.titleAll')}</span><span className="skills-tabs-bar__tab-count">{String(installed.skills.length).padStart(2, '0')}</span></button>
-          <span className="skills-tabs-bar__divider" aria-hidden="true" />
-          <button
-            type="button"
-            className={`skills-tabs-bar__tab ${activeTab === 'discover' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('discover')}
-            onKeyDown={handleCatalogTabKeyDown}
-            role="tab"
-            aria-selected={activeTab === 'discover'}
-            tabIndex={activeTab === 'discover' ? 0 : -1}
-          ><span>{t('market.title')}</span><span className="skills-tabs-bar__tab-count">{String(market.totalLoaded).padStart(2, '0')}</span></button>
+      <header className="skills-topbar">
+        <h2 className="skills-topbar__title">
+          <span className="skills-topbar__title-text">{t('nav.title')}</span>
+          <span className="skills-topbar__count">{topbarCount}</span>
+        </h2>
+
+        <div className="skills-topbar__chips">
+          <div
+            className="skills-topbar__tabs"
+            role="tablist"
+            aria-label={t('nav.title')}
+          >
+            <button
+              type="button"
+              className={`skills-chip ${isInstalledTab ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('installed')}
+              onKeyDown={handleCatalogTabKeyDown}
+              role="tab"
+              aria-selected={isInstalledTab}
+              tabIndex={isInstalledTab ? 0 : -1}
+            >
+              {t('filters.installed')}
+            </button>
+            <button
+              type="button"
+              className={`skills-chip ${!isInstalledTab ? 'is-active' : ''}`}
+              onClick={() => setActiveTab('discover')}
+              onKeyDown={handleCatalogTabKeyDown}
+              role="tab"
+              aria-selected={!isInstalledTab}
+              tabIndex={!isInstalledTab ? 0 : -1}
+            >
+              {t('filters.market')}
+            </button>
+          </div>
+
+          {isInstalledTab && (
+            <div
+              className="skills-topbar__filters"
+              role="group"
+              aria-label={t('installed.titleAll')}
+            >
+              {CATEGORIES.filter((cat) => canManage || cat.id !== 'suite').map((cat) => {
+                const count = installed.counts[cat.id];
+                const isEmpty = count === 0;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className={`skills-chip ${installedFilter === cat.id ? 'is-active' : ''} ${isEmpty ? 'is-empty' : ''}`}
+                    onClick={() => setInstalledFilter(cat.id)}
+                    aria-pressed={installedFilter === cat.id}
+                    title={t(cat.descKey)}
+                  >
+                    {t(cat.labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </div>
+
+        <span className="skills-topbar__spacer" aria-hidden="true" />
+
+        {!isSuiteFilter && (isInstalledTab ? (
+          <Search
+            className="skills-topbar__search"
+            value={installedSearch}
+            onChange={setInstalledSearch}
+            onClear={() => setInstalledSearch('')}
+            placeholder={t('toolbar.searchPlaceholder')}
+            size="small"
+            clearable
+          />
+        ) : (
+          <Search
+            className="skills-topbar__search"
+            value={searchDraft}
+            onChange={setSearchDraft}
+            onSearch={submitMarketQuery}
+            onClear={submitMarketQuery}
+            placeholder={t('market.searchPlaceholder')}
+            size="small"
+            clearable
+            enterToSearch
+          />
+        ))}
+
+        {isInstalledTab && !isSuiteFilter && (
+          <>
+            <button
+              type="button"
+              className={`skills-topbar__ghost${hideDuplicates ? ' is-active' : ''}`}
+              onClick={() => setHideDuplicates(!hideDuplicates)}
+              aria-pressed={hideDuplicates}
+              aria-label={t('toolbar.hideDuplicates')}
+              title={t('toolbar.hideDuplicates')}
+            >
+              <Filter size={14} />
+            </button>
+            <button
+              type="button"
+              className="skills-topbar__ghost"
+              onClick={toggleAddForm}
+              disabled={!canManage}
+              aria-expanded={isAddFormOpen}
+              aria-haspopup="dialog"
+              aria-label={t('toolbar.importTooltip')}
+              title={t('toolbar.importTooltip')}
+            >
+              <FolderOpen size={14} />
+            </button>
+          </>
+        )}
+
+        <button
+          type="button"
+          className="skills-topbar__primary"
+          onClick={() => setAuthoringTarget({ mode: 'create' })}
+          disabled={!canManage}
+        >
+          <Plus size={14} />
+          <span>{t('toolbar.createTooltip')}</span>
+        </button>
+      </header>
       {!canManage && (
         <div className="skills-runtime-readonly" role="status">
           {t('runtimeReadOnly')}
@@ -298,75 +399,11 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
         {activeTab === 'installed' && (
           <div className="skills-installed">
-            <nav
-              className="skills-filter-bar"
-              aria-label={t('installed.titleAll')}
-            >
-                {CATEGORIES.filter((cat) => canManage || cat.id !== 'suite').map((cat) => {
-                  const count = installed.counts[cat.id];
-                  const isEmpty = count === 0;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      className={`skills-filter-bar__item ${installedFilter === cat.id ? 'is-active' : ''} ${isEmpty ? 'is-empty' : ''}`}
-                      onClick={() => setInstalledFilter(cat.id)}
-                      aria-pressed={installedFilter === cat.id}
-                    >
-                      <span className="skills-filter-bar__item-icon">{cat.icon}</span>
-                      <span className="skills-filter-bar__item-label">{t(cat.labelKey)}</span>
-                      <span className="skills-filter-bar__item-count">{isEmpty ? '—' : count}</span>
-                    </button>
-                  );
-                })}
-            </nav>
-
             <div className="skills-main">
               {installedFilter === 'suite' ? (
                 <SkillsSuiteView />
               ) : (
                 <>
-                  <div className="skills-main__toolbar">
-                    <Search
-                      className="skills-main__toolbar-search"
-                      value={installedSearch}
-                      onChange={setInstalledSearch}
-                      onClear={() => setInstalledSearch('')}
-                      placeholder={t('toolbar.searchPlaceholder')}
-                      size="small"
-                      clearable
-                    />
-                    <button
-                      type="button"
-                      className={`skills-main__chip-btn${hideDuplicates ? ' is-active' : ''}`}
-                      onClick={() => setHideDuplicates(!hideDuplicates)}
-                      aria-pressed={hideDuplicates}
-                    >
-                      <Filter size={13} />
-                      <span>{t('toolbar.hideDuplicates')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="skills-main__add-btn"
-                      onClick={() => setAuthoringTarget({ mode: 'create' })}
-                      disabled={!canManage}
-                    >
-                      <Plus size={13} />
-                      <span>{t('toolbar.createTooltip')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="skills-main__chip-btn"
-                      onClick={toggleAddForm}
-                      disabled={!canManage}
-                      aria-expanded={isAddFormOpen}
-                      aria-haspopup="dialog"
-                    >
-                      <FolderOpen size={13} />
-                      <span>{t('toolbar.importTooltip')}</span>
-                    </button>
-                  </div>
-
                   {installed.loading && (
                     <div className="skills-main__loading" aria-busy="true" aria-label={t('list.loading')}>
                       {Array.from({ length: SKILLS_PAGE_SIZE }).map((_, i) => (
@@ -422,47 +459,34 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                             ].filter(Boolean).join(' ')}
                             style={{ '--card-index': index } as React.CSSProperties}
                             aria-label={presentation.displayName}
+                            data-state={skill.isShadowed ? 'shadowed' : 'active'}
                           >
-                            <div className="skills-card__top">
-                              <SkillCatalogAvatar
-                                identity={skill.key}
-                                name={presentation.displayName}
-                                className="skills-card__avatar"
-                              />
-                              <div className="skills-card__info">
-                                <span className="skills-card__name">{presentation.displayName}</span>
-                                {presentation.description.trim() && (
-                                  <span className="skills-card__desc">{presentation.description}</span>
-                                )}
-                              </div>
-                              {skill.isBuiltin && (
-                                <Badge variant="accent">
-                                  <ShieldCheck size={11} />
-                                  {t('list.item.builtin')}
-                                </Badge>
-                              )}
-                            </div>
-
-                            <div className="skills-card__meta">
-                              <Badge variant={skill.level === 'project' ? 'purple' : 'info'}>
-                                {skill.level === 'project' ? (
-                                  <FolderOpen size={11} />
-                                ) : (
-                                  <User size={11} />
-                                )}
-                                {skill.level === 'project'
-                                  ? t('list.item.project')
-                                  : t('list.item.user')}
-                              </Badge>
-                              {skill.isShadowed && (
-                                <span title={t('list.item.shadowedTooltip')}>
-                                  <Badge variant="warning">
-                                    <ShieldAlert size={11} />
-                                    {t('list.item.shadowed')}
-                                  </Badge>
-                                </span>
-                              )}
-                            </div>
+                            <SkillCatalogAvatar
+                              identity={skill.key}
+                              name={presentation.displayName}
+                              className="skills-card__avatar"
+                            />
+                            <p className="skills-card__name">{presentation.displayName}</p>
+                            <p className="skills-card__desc">
+                              {presentation.description.trim()}
+                            </p>
+                            <p
+                              className="skills-card__status"
+                              title={skill.isShadowed ? t('list.item.shadowedTooltip') : undefined}
+                            >
+                              <span className="skills-card__status-state">
+                                {skill.isShadowed
+                                  ? t('list.item.statusShadowed')
+                                  : t('list.item.statusActive')}
+                              </span>
+                              <span className="skills-card__status-origin">
+                                {skill.isBuiltin
+                                  ? t('list.item.builtin')
+                                  : skill.level === 'project'
+                                    ? t('list.item.project')
+                                    : t('list.item.user')}
+                              </span>
+                            </p>
 
                             <div
                               className="skills-card__actions"
@@ -549,20 +573,6 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
         {activeTab === 'discover' && (
           <div className="skills-discover">
-            <div className="skills-discover__toolbar">
-              <Search
-                className="skills-discover__search"
-                value={searchDraft}
-                onChange={setSearchDraft}
-                onSearch={submitMarketQuery}
-                onClear={submitMarketQuery}
-                placeholder={t('market.searchPlaceholder')}
-                size="small"
-                clearable
-                enterToSearch
-              />
-            </div>
-
             <div className="skills-discover__content">
               {market.marketLoading && (
                 <div className="skills-discover__grid" aria-busy="true" aria-label={t('list.loading')}>
