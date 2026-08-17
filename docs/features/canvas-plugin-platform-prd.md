@@ -1068,6 +1068,38 @@ source-bound fork 与三动作绑定（A2-3）、旧创建页迁移（A2-4）。
 `type-check:web` 通过。Desktop lib-test 仍被本片未修改的四处既有 Team fixture 缺
 `delegation_policy` 阻断，属既有基线问题。
 
+#### P1-A2-3 已实现检查点：发布与三动作激活
+
+`AgentRevisionActivation` 在一次调用内完成「发布已验证草稿」+「应用恰好一个激活动作」。
+
+压过其他一切的不变量：**source 会话始终钉在它开始时的 revision 上**。三个动作没有任何一个
+会重新绑定它——`continue` 什么都不改，`fork` 另起一个钉在新 revision 的会话，
+`future-default` 只移动一个仅被新会话读取的指针。
+
+- 未验证的草稿不能发布：必须存在**针对该 draftRevisionId 本身**的 `passed` evidence。
+  其他 revision 的 evidence、以及 `failed` 的 evidence 都不算数，且 `publish` 根本不会被调用。
+- 绑定失效（草稿已前进）时拒绝发布，返回 `stale`。
+- base revision 冲突返回 `conflict`，不会尝试任何激活动作。
+- `already_published` / `already_default` 视为成功，重放不报错。
+- 发布只追加 immutable revision，**任何动作都不会顺带改 default**；default 是独立命令。
+- 发布成功后若激活失败，返回 `published_not_activated` 并带上 revisionId。revision 不可回滚，
+  既不能谎报成功也不能谎报失败——这是该状态唯一真实的描述。
+
+变异测试记录：分别取消 stale 守卫、evidence 校验、evidence 的 revision 一致性校验，以及
+`continue` 的短路，四次变异各自令 1/3/1/2 条测试变红，无冗余守卫。
+
+本片明确没有完成：`agent-studio` 表面与绑定层、激活层三者尚未接线；开启入口未接；
+旧创建页迁移与双写消除属 A2-4。本片**没有任何生产 UI 调用方**，因此尚未真正改动过
+任何一个真实会话的绑定。
+
+本地证据：`AgentRevisionActivation.test.ts` 15/15、四次变异验证；`type-check:web` 与
+`check:core-boundaries` 通过。Desktop lib-test 仍被本片未修改的四处既有 Team fixture 缺
+`delegation_policy` 阻断，属既有基线问题。
+
+P1-A 退出门尚未达成：它要求真实跑通「同一主会话 v3 运行 → v4 编辑 → 隔离试聊 → 发布 →
+重启后主会话仍固定 v3、新分叉固定 v4、未来默认指向 v4」。三层零件已齐，但接线与重启
+恢复验证属 A2-4。
+
 ### P1-B：短剧与媒体成为旗舰业务包
 
 目标：证明“Canvas Surface + Team + Workflow + Domain Module + Provider”可以稳定组合。
@@ -1206,14 +1238,21 @@ source-bound fork 与三动作绑定（A2-3）、旧创建页迁移（A2-4）。
 
 ## 15. 当前下一步
 
-当前停在已实现并本地验证的 P1-A2-2 检查点：`agent-studio` Canvas 贡献（只读）与
-debug 会话绑定层都已就位并各自通过测试，但**两者尚未接线**，也没有入口把表面打开。
-会话绑定与 default 全程未被触碰。
+当前停在已实现并本地验证的 P1-A2-3 检查点。P1-A2 的三块零件已全部就位并各自通过测试：
 
-下一次实现必须由用户单独批准 P1-A2-3（source-bound fork 与三动作绑定：继续当前 /
-从节点分叉 / 设为未来默认）。在此之前不得：修改当前会话绑定或 default、迁移旧 Agent
-创建页、扩展到更多业务表面或 DSH 兼容层。
+1. `agent-studio` Canvas 贡献（只读表面）—— A2-1
+2. `AgentDebugSessionBinding`（隔离 debug 会话，钉死一个 draft revision）—— A2-2
+3. `AgentRevisionActivation`（发布 + 三动作激活）—— A2-3
 
-剩余接线工作（表面 ↔ 绑定层、开启入口）属 A2-3 的第一步；不要为了“让它可见”而在
-`FlexiblePanel`、`ContentCanvas` 或 `SessionCapabilityRail` 加硬编码入口——那会撤销 P0-B
-的成果，正确做法是走 Canvas capability contribution。
+**但三者互不接线，且没有任何生产 UI 调用方**，因此至今没有改动过任何一个真实会话的绑定，
+也没有移动过 default 指针。
+
+下一次实现必须由用户单独批准 P1-A2-4，内容是：把三块零件接起来、经 Canvas capability
+contribution 提供开启入口、迁移旧 Agent 创建页并消除双写，然后跑通 P1-A 退出门（含重启后
+的绑定恢复验证）。
+
+接线时不要为了“让它可见”而在 `FlexiblePanel`、`ContentCanvas` 或 `SessionCapabilityRail`
+加硬编码入口——那会撤销 P0-B 的成果。
+
+在 A2-4 获批前不得：扩展到更多业务表面、接入 DSH 兼容层、或把 revision 激活挂到短剧、
+媒体、Team 等其他领域上。
