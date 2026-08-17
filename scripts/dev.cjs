@@ -554,51 +554,6 @@ async function startDesktopPreview() {
   await new Promise(() => {});
 }
 
-function flashgrepBinaryNames() {
-  if (process.platform === 'win32' && process.arch === 'x64') {
-    return ['flashgrep-x86_64-pc-windows-msvc.exe'];
-  }
-  if (process.platform === 'win32' && process.arch === 'arm64') {
-    return ['flashgrep-aarch64-pc-windows-msvc.exe'];
-  }
-  if (process.platform === 'darwin' && process.arch === 'x64') {
-    return ['flashgrep-x86_64-apple-darwin'];
-  }
-  if (process.platform === 'darwin' && process.arch === 'arm64') {
-    return ['flashgrep-aarch64-apple-darwin'];
-  }
-  if (process.platform === 'linux' && process.arch === 'x64') {
-    return ['flashgrep-x86_64-unknown-linux-gnu'];
-  }
-  if (process.platform === 'linux' && process.arch === 'arm64') {
-    return ['flashgrep-aarch64-unknown-linux-gnu'];
-  }
-  return [process.platform === 'win32' ? 'flashgrep.exe' : 'flashgrep'];
-}
-
-function flashgrepBinaryName() {
-  return flashgrepBinaryNames()[0];
-}
-
-function ensureFlashgrepBinary() {
-  for (const binaryName of flashgrepBinaryNames()) {
-    const binaryPath = path.join(ROOT_DIR, 'resources', 'flashgrep', binaryName);
-    if (!fs.existsSync(binaryPath)) {
-      continue;
-    }
-    return { ok: true, binaryPath };
-  }
-
-  return {
-    ok: false,
-    error: new Error(
-      `flashgrep binary not found for ${process.platform}/${process.arch}. Expected one of: ${flashgrepBinaryNames()
-        .map((name) => `resources/flashgrep/${name}`)
-        .join(', ')}`
-    ),
-  };
-}
-
 async function ensureFlashgrepBundleResource() {
   const helperUrl = pathToFileURL(path.join(__dirname, 'prepare-flashgrep-resource.mjs')).href;
   const helper = await import(helperUrl);
@@ -683,7 +638,12 @@ async function main() {
     }
 
     printStep(currentStep++, totalSteps, 'Build workspace search daemon');
-    const flashgrepResult = ensureFlashgrepBinary();
+    let flashgrepResult;
+    try {
+      flashgrepResult = { ok: true, binaryPath: await ensureFlashgrepBundleResource() };
+    } catch (error) {
+      flashgrepResult = { ok: false, error };
+    }
     if (!flashgrepResult.ok) {
       printError('Workspace search daemon is missing');
       if (flashgrepResult.error && flashgrepResult.error.message) {

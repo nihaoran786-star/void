@@ -403,6 +403,14 @@ src/crates/
 - 前端死代码 / 重复抽象清单 → 补入 §3.4，可能产生 B5
 - Rust 上帝文件的具体抽取接缝（行号级）→ 补入 §4 B4 第二步
 
+**flashgrep 二进制必须留在仓库里（2026-08-17 实测）**：`resources/flashgrep/`
+的 45 MB 六平台二进制曾被评估改为构建时下载，但 `VERSION.json` 固定的上游
+`wgqqqqq/flashgrep` 在 GitHub 已 404（仓库本身不存在或已私有，v0.2.6/v0.2.7
+资产均不可达）。库内副本是当前唯一分发渠道，untrack 会让新克隆无法构建桌面端。
+维持现状；若未来上游恢复或建立自有镜像 release，再改为按需下载。同日已删除
+`scripts/dev.cjs` 里与 `prepare-flashgrep-resource.mjs` 不一致的重复平台名单
+（dev.cjs 只认 linux-gnu，helper 是 musl 优先双候选），dev 桌面流程改走 helper。
+
 「dsh（deepseek harness）」的本地源码在 `D:\` 全盘未找到（已搜 `*deepseek*` / `dsh` / `*harness*`）。
 上游 BitFun 有 `execution/harness` crate，若 dsh 指的是它，本文 §2 已覆盖；
 否则需要提供路径后单独补一节。
