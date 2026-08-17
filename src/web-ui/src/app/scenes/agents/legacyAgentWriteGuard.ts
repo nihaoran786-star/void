@@ -13,9 +13,20 @@ import type { AgentDefinitionScope } from '@/shared/services/customization/Agent
  * rule to keep its current behaviour. Refusing the write and pointing at the
  * studio keeps the rule intact.
  *
- * An unreadable catalog fails closed: not knowing whether the catalog owns an
- * agent is not the same as knowing it does not.
+ * The decision turns on whether the catalog actually answered:
+ *
+ * - It answered "no such agent": nothing owns it, so the legacy write is safe.
+ * - It could not be reached at all: the legacy write cannot reach its own
+ *   backend either, so there is no dual write to prevent and blocking would only
+ *   break editing in an environment where nothing can be saved anyway.
+ * - It answered with a real catalog failure (locked, corrupt, wrong scope): the
+ *   catalog exists and its contents are unknown, so this fails closed. Not
+ *   knowing whether it owns an agent is not the same as knowing it does not.
  */
+
+// Codes that mean the request never reached a working catalog. The legacy write
+// path shares the same transport, so it will fail on its own.
+const UNREACHABLE_CODES = new Set(['unsupported_transport']);
 
 export interface LegacyAgentWriteCheck {
   scope: AgentDefinitionScope;
@@ -54,7 +65,8 @@ export async function checkLegacyAgentWriteAllowed(
     });
     return { status: 'blocked', definitionId: definition.definitionId };
   } catch (error) {
-    if (errorCodeOf(error) === 'not_found') {
+    const code = errorCodeOf(error);
+    if (code === 'not_found' || (code && UNREACHABLE_CODES.has(code))) {
       return { status: 'allowed' };
     }
     return {

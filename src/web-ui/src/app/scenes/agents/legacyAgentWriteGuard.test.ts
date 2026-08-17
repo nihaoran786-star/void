@@ -70,4 +70,30 @@ describe('legacy agent write guard', () => {
 
     expect(result.status).toBe('unknown');
   });
+
+  it('allows the write when the catalog backend cannot be reached at all', async () => {
+    // The legacy write shares the same transport, so it will fail on its own.
+    // Blocking here would only break editing where nothing can be saved anyway.
+    const result = await checkLegacyAgentWriteAllowed({
+      scope: SCOPE,
+      personaKey: 'user::void::managed',
+      resolveByPersonaKey: vi.fn(async () => {
+        throw Object.assign(new Error('no backend'), { code: 'unsupported_transport' });
+      }),
+    });
+
+    expect(result.status).toBe('allowed');
+  });
+
+  it('still fails closed for a catalog that exists but cannot be read', async () => {
+    const result = await checkLegacyAgentWriteAllowed({
+      scope: SCOPE,
+      personaKey: 'user::void::managed',
+      resolveByPersonaKey: vi.fn(async () => {
+        throw Object.assign(new Error('catalog file is locked'), { code: 'io' });
+      }),
+    });
+
+    expect(result.status).toBe('unknown');
+  });
 });
