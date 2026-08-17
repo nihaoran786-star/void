@@ -196,6 +196,11 @@ export interface GetAgentDefinitionRequestDto {
   definitionId: string;
 }
 
+export interface ResolveAgentDefinitionByPersonaKeyRequestDto {
+  scope: AgentRevisionScopeDto;
+  personaKey: string;
+}
+
 export interface OpenAgentDraftRequestDto {
   scope: AgentRevisionScopeDto;
   definitionId?: string;
@@ -256,6 +261,15 @@ export class AgentRevisionAPI {
     return api.invoke<AgentDefinitionRecordDto>('get_agent_definition_record', {
       request,
     });
+  }
+
+  resolveByPersonaKey(
+    request: ResolveAgentDefinitionByPersonaKeyRequestDto,
+  ): Promise<AgentDefinitionRecordDto> {
+    return api.invoke<AgentDefinitionRecordDto>(
+      'resolve_agent_definition_by_persona_key',
+      { request },
+    );
   }
 
   openDraft(request: OpenAgentDraftRequestDto): Promise<AgentDraftRecordDto> {

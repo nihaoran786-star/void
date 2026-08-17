@@ -32,6 +32,13 @@ pub struct GetAgentDefinitionRecordRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ResolveAgentDefinitionByPersonaKeyRequest {
+    pub scope: AgentRevisionScope,
+    pub persona_key: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OpenAgentRevisionDraftRequest {
     pub scope: AgentRevisionScope,
     pub definition_id: Option<String>,
@@ -337,6 +344,23 @@ pub async fn get_agent_definition_record(
     let scope = trusted_scope(&state, request.scope).await?;
     service_for_scope(&state, scope)?
         .get_definition(&request.definition_id)
+        .map(Into::into)
+}
+
+/// Resolves the definition behind a running session's persona binding.
+///
+/// A session stores a persona key rather than a definition id, so this is what
+/// lets Agent Studio open the agent the conversation is actually running. It is
+/// read only: the other persona-key entry point is `open_agent_revision_draft`,
+/// which writes, and viewing an agent must not create a draft.
+#[tauri::command]
+pub async fn resolve_agent_definition_by_persona_key(
+    state: State<'_, AppState>,
+    request: ResolveAgentDefinitionByPersonaKeyRequest,
+) -> Result<AgentDefinitionRecordView, AgentRevisionError> {
+    let scope = trusted_scope(&state, request.scope).await?;
+    service_for_scope(&state, scope)?
+        .resolve_definition_by_persona_key(&request.persona_key)
         .map(Into::into)
 }
 

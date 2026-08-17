@@ -625,6 +625,7 @@ pub async fn run() {
             api::agentic_api::get_available_modes,
             api::agentic_api::get_default_review_team_definition,
             api::agent_revision_api::get_agent_definition_record,
+            api::agent_revision_api::resolve_agent_definition_by_persona_key,
             api::agent_revision_api::open_agent_revision_draft,
             api::agent_revision_api::save_agent_revision_draft,
             api::agent_revision_api::record_agent_revision_validation,

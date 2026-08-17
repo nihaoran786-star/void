@@ -572,6 +572,41 @@ impl<S: AgentRevisionCatalogStore> AgentRevisionService<S> {
         })
     }
 
+    /// Resolves the definition a running session is bound to.
+    ///
+    /// A session records a persona key, not a definition id, so opening the
+    /// studio for the agent you are talking to needs this lookup. It is read
+    /// only on purpose: the only existing persona-key entry point is
+    /// `open_draft`, and creating a draft as a side effect of looking at an
+    /// agent would be wrong. Persona keys are unique within a scope, which the
+    /// catalog already enforces.
+    pub fn resolve_definition_by_persona_key(
+        &self,
+        persona_key: &str,
+    ) -> AgentRevisionResult<AgentDefinitionRecord> {
+        self.scope().validate()?;
+        let persona_key = persona_key.trim();
+        if persona_key.is_empty() {
+            return Err(AgentRevisionError::validation(
+                "A non-empty persona key is required.",
+            ));
+        }
+        self.store.read(|catalog| {
+            let definition = catalog
+                .definitions
+                .iter()
+                .find(|definition| definition.persona_key == persona_key)
+                .cloned()
+                .ok_or_else(|| {
+                    AgentRevisionError::not_found(format!(
+                        "Agent definition was not found for persona key: {persona_key}"
+                    ))
+                })?;
+            self.verify_legacy_source(&definition)?;
+            Ok(definition)
+        })
+    }
+
     pub fn open_draft(
         &self,
         request: OpenAgentRevisionDraftRequest,
@@ -1720,5 +1755,74 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code, AgentRevisionErrorCode::ValidationFailed);
+    }
+
+    #[test]
+    fn persona_key_resolves_to_its_definition_without_creating_a_draft() {
+        let store = MemoryCatalogStore::user();
+        let service = AgentRevisionService::new(store);
+        let draft = open_new(&service, "user::void::resolver", "open-resolver");
+
+        let resolved = service
+            .resolve_definition_by_persona_key("user::void::resolver")
+            .unwrap();
+
+        assert_eq!(resolved.definition_id, draft.definition_id);
+        assert_eq!(resolved.persona_key, "user::void::resolver");
+        // Resolving is a read: it must not add a second draft to the definition.
+        assert_eq!(resolved.drafts.len(), 1);
+    }
+
+    #[test]
+    fn persona_key_resolution_ignores_surrounding_whitespace() {
+        let store = MemoryCatalogStore::user();
+        let service = AgentRevisionService::new(store);
+        open_new(&service, "user::void::trimmed", "open-trimmed");
+
+        let resolved = service
+            .resolve_definition_by_persona_key("  user::void::trimmed  ")
+            .unwrap();
+
+        assert_eq!(resolved.persona_key, "user::void::trimmed");
+    }
+
+    #[test]
+    fn persona_key_resolution_reports_an_unknown_agent_as_not_found() {
+        let store = MemoryCatalogStore::user();
+        let service = AgentRevisionService::new(store);
+        open_new(&service, "user::void::known", "open-known");
+
+        let error = service
+            .resolve_definition_by_persona_key("user::void::missing")
+            .unwrap_err();
+
+        assert_eq!(error.code, AgentRevisionErrorCode::NotFound);
+    }
+
+    #[test]
+    fn persona_key_resolution_rejects_an_empty_key() {
+        let store = MemoryCatalogStore::user();
+        let service = AgentRevisionService::new(store);
+
+        let error = service
+            .resolve_definition_by_persona_key("   ")
+            .unwrap_err();
+
+        assert_eq!(error.code, AgentRevisionErrorCode::ValidationFailed);
+    }
+
+    #[test]
+    fn persona_key_resolution_does_not_match_a_different_agent() {
+        let store = MemoryCatalogStore::user();
+        let service = AgentRevisionService::new(store);
+        let first = open_new(&service, "user::void::alpha", "open-alpha");
+        let second = open_new(&service, "user::void::beta", "open-beta");
+        assert_ne!(first.definition_id, second.definition_id);
+
+        let resolved = service
+            .resolve_definition_by_persona_key("user::void::beta")
+            .unwrap();
+
+        assert_eq!(resolved.definition_id, second.definition_id);
     }
 }

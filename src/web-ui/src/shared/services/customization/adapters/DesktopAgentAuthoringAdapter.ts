@@ -12,6 +12,7 @@ import {
   type OpenAgentDraftRequestDto,
   type PublishAgentRevisionRequestDto,
   type RecordAgentValidationRequestDto,
+  type ResolveAgentDefinitionByPersonaKeyRequestDto,
   type SaveAgentDraftRequestDto,
   type SetAgentDefaultRevisionRequestDto,
 } from '@/infrastructure/api/service-api/AgentRevisionAPI';
@@ -26,6 +27,7 @@ import {
   type AgentRevisionRecord,
   type AgentSetDefaultResult,
   type GetAgentDefinitionInput,
+  type ResolveAgentDefinitionByPersonaKeyInput,
   type OpenAgentDraftInput,
   type PublishAgentRevisionInput,
   type RecordAgentValidationInput,
@@ -75,6 +77,9 @@ async function runApi<T>(
 
 export interface AgentRevisionApiPort {
   get(request: GetAgentDefinitionRequestDto): Promise<AgentDefinitionRecordDto>;
+  resolveByPersonaKey(
+    request: ResolveAgentDefinitionByPersonaKeyRequestDto,
+  ): Promise<AgentDefinitionRecordDto>;
   openDraft(request: OpenAgentDraftRequestDto): Promise<AgentDraftRecordDto>;
   recordValidation(
     request: RecordAgentValidationRequestDto,
@@ -205,6 +210,18 @@ export class DesktopAgentAuthoringAdapter implements AgentAuthoringGateway {
       const record = await this.api.get({
         scope: toApiScope(input.scope),
         definitionId: input.definitionId,
+      });
+      return toDomainDefinition(record);
+    });
+  }
+
+  async resolveByPersonaKey(
+    input: ResolveAgentDefinitionByPersonaKeyInput,
+  ): Promise<AgentDefinitionRecord> {
+    return runApi('read_failed', async () => {
+      const record = await this.api.resolveByPersonaKey({
+        scope: toApiScope(input.scope),
+        personaKey: input.personaKey,
       });
       return toDomainDefinition(record);
     });

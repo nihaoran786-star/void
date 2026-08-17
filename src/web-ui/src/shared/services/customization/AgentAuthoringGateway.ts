@@ -105,6 +105,11 @@ export interface GetAgentDefinitionInput {
   definitionId: string;
 }
 
+export interface ResolveAgentDefinitionByPersonaKeyInput {
+  scope: ResolvedAgentDefinitionScope;
+  personaKey: string;
+}
+
 export interface OpenAgentDraftInput {
   scope: ResolvedAgentDefinitionScope;
   definitionId?: string;
@@ -162,6 +167,10 @@ export interface AgentSetDefaultResult {
 
 export interface AgentAuthoringGateway {
   get(input: GetAgentDefinitionInput): Promise<AgentDefinitionRecord>;
+  /** Read-only lookup by the persona key a running session is bound to. */
+  resolveByPersonaKey(
+    input: ResolveAgentDefinitionByPersonaKeyInput,
+  ): Promise<AgentDefinitionRecord>;
   openDraft(input: OpenAgentDraftInput): Promise<AgentDraftRecord>;
   saveDraft(input: SaveAgentDraftInput): Promise<AgentDraftRecord>;
   recordValidation(input: RecordAgentValidationInput): Promise<AgentDraftRecord>;

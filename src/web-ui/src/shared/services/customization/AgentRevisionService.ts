@@ -9,6 +9,7 @@ import {
   type AgentSetDefaultResult,
   type AgentValidationEvidenceInput,
   type GetAgentDefinitionInput,
+  type ResolveAgentDefinitionByPersonaKeyInput,
   type OpenAgentDraftInput,
   type PublishAgentRevisionInput,
   type RecordAgentValidationInput,
@@ -20,6 +21,11 @@ import {
 export interface GetAgentDefinitionRequest {
   scope: AgentDefinitionScope;
   definitionId: string;
+}
+
+export interface ResolveAgentDefinitionByPersonaKeyRequest {
+  scope: AgentDefinitionScope;
+  personaKey: string;
 }
 
 export interface OpenAgentDraftRequest {
@@ -286,6 +292,28 @@ export class AgentRevisionService {
       definitionId: normalizeRequiredId(request.definitionId, 'invalid_definition_id'),
     };
     const record = await this.gateway.get(input);
+    assertRecordScope(input.scope, record);
+    return record;
+  }
+
+  /**
+   * Resolves the definition a session's persona binding points at.
+   *
+   * Kept separate from openDraft, which also accepts a persona key but writes:
+   * opening the studio to look at an agent must not create a draft.
+   */
+  async resolveByPersonaKey(
+    request: ResolveAgentDefinitionByPersonaKeyRequest,
+  ): Promise<AgentDefinitionRecord> {
+    const scope = resolveScope(request.scope);
+    const input: ResolveAgentDefinitionByPersonaKeyInput = {
+      scope,
+      personaKey: validatePersonaKeyForScope(
+        normalizeRequiredId(request.personaKey, 'invalid_persona_key'),
+        scope,
+      ),
+    };
+    const record = await this.gateway.resolveByPersonaKey(input);
     assertRecordScope(input.scope, record);
     return record;
   }
