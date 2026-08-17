@@ -4,6 +4,17 @@
 // one top bar (title + count, filter pills, spacer, search, one action) over a
 // four-column card grid. Sigils never animate; motion belongs to the card.
 @mixin styles {
+  @keyframes skills-catalog-skeleton-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+
+    50% {
+      opacity: 0.9;
+    }
+  }
+
   .void-ui--minimal .void-skills-scene {
     @include market.scene-surface;
 
@@ -87,9 +98,6 @@
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);
       text-align: center;
-      contain: layout paint style;
-      content-visibility: auto;
-      contain-intrinsic-block-size: 132px;
       animation: none;
       box-shadow: none;
       transform: none;
@@ -348,6 +356,8 @@
 
     // ── Skeleton / empty / pagination ────────────────────────────────────────
 
+    // A loading placeholder has to read as loading. Left as a plain panel it is
+    // indistinguishable from a card whose contents failed to appear.
     .skills-card-skeleton,
     .skills-discover__skeleton-card {
       box-sizing: border-box;
@@ -356,7 +366,7 @@
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);
-      animation: none;
+      animation: skills-catalog-skeleton-pulse 1.4s ease-in-out infinite;
     }
 
     .skills-main__empty,

@@ -237,13 +237,25 @@
 .void-mcp-tools--catalog {
   @include market.scene-surface;
 
-  --config-page-content-inline-padding: var(--workspace-space-4);
+  // The catalog's own blocks carry the shared 1280px content frame, exactly as
+  // the employee and skill catalogs do. Leaving the settings page padding on
+  // top of that inset the connector page further than its siblings, so the
+  // three catalogs no longer lined up.
+  --config-page-content-inline-padding: 0;
   --config-page-content-bottom-padding: var(--workspace-space-4);
   container-name: connector-catalog;
   background: var(--workspace-surface-canvas);
 
+  // The catalog column is defined by the shared content frame alone, exactly
+  // as on the employee and skill catalogs. The settings wrappers must not add
+  // a second inset or a narrower max width on top of it.
   .void-config-page-content {
-    padding-top: 0;
+    padding: 0;
+  }
+
+  .void-config-page-content__inner {
+    width: 100%;
+    max-width: none;
   }
 
   .void-config-page-section__header {
@@ -590,6 +602,10 @@
 // 1280px content axis as Agents and Skills without changing settings pages.
 .void-ui--minimal .void-config-page-layout.void-mcp-tools--catalog {
   --config-page-content-max-width: var(--customization-market-content-max);
+
+  // Settings pages reserve a scrollbar gutter on both edges. A catalog must
+  // start at the same x as the employee and skill catalogs, which do not.
+  scrollbar-gutter: auto;
 }
 
 @container connector-catalog (max-width: 1040px) {

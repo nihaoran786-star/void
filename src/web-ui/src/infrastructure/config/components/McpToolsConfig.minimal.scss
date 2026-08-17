@@ -16,12 +16,27 @@
     // Quiet search: a hairline, not a filled box.
     // ── Card grid ────────────────────────────────────────────────────────────
 
+    // Every block sits on the same content frame as the top bar, so the page
+    // reads as one column instead of three slightly different ones.
+    .void-mcp-tools__catalog-grid,
+    .void-mcp-tools__catalog-starter,
+    .void-mcp-tools__catalog-empty,
+    .void-mcp-tools__load-error,
+    .void-connector-market,
+    .void-mcp-tools__json-editor {
+      @include market.content-frame;
+    }
+
     .void-mcp-tools__catalog-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       align-content: start;
       gap: var(--workspace-space-2);
       padding: var(--workspace-space-3) 0;
+    }
+
+    .void-mcp-tools__catalog-starter {
+      padding-top: var(--workspace-space-3);
     }
 
     .void-mcp-tools__catalog-card {
