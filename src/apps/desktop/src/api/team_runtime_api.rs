@@ -1645,6 +1645,7 @@ mod tests {
                         allowed_skill_keys: lead_skills,
                         allowed_tool_names,
                         is_readonly: readonly,
+                        delegation_policy: None,
                     },
                     TeamMemberDraft {
                         client_key: "specialist".to_string(),
@@ -1657,6 +1658,7 @@ mod tests {
                         allowed_skill_keys: Vec::new(),
                         allowed_tool_names: Vec::new(),
                         is_readonly: true,
+                        delegation_policy: None,
                     },
                 ],
                 workflows: vec![TeamWorkflowDraft {

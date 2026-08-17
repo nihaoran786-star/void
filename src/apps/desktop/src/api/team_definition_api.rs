@@ -1062,6 +1062,7 @@ mod tests {
                     allowed_skill_keys: Vec::new(),
                     allowed_tool_names: Vec::new(),
                     is_readonly: false,
+                    delegation_policy: None,
                 },
                 TeamMemberDraft {
                     client_key: "developer".to_string(),
@@ -1074,6 +1075,7 @@ mod tests {
                     allowed_skill_keys: Vec::new(),
                     allowed_tool_names: Vec::new(),
                     is_readonly: false,
+                    delegation_policy: None,
                 },
             ],
             workflows: vec![TeamWorkflowDraft {

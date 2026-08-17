@@ -365,6 +365,12 @@ impl PromptTeamRuntimeAdapter {
         let mut expected_context = Self::durable_team_context(request);
         if task.launch_authority.is_none() {
             expected_context.remove(TEAM_DELEGATION_ROOT_SESSION_CONTEXT_KEY);
+            // Pre-delegation records never carried `memberRunId`; requiring it
+            // would make every legacy interrupted member task unrecoverable.
+            // A record that does carry the key is still matched exactly.
+            if !launch.context.contains_key("memberRunId") {
+                expected_context.remove("memberRunId");
+            }
         }
         if launch.context != expected_context.into_iter().collect()
             || launch.parent_dialog_turn_id
