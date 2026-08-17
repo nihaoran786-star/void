@@ -1,0 +1,31 @@
+// Minimal projection of the global scrollbar.
+//
+// The base rules in `scrollbar.css` paint a 6px thumb that runs the full height
+// of its track, so it reads as a bar stuck to the window edge. Minimal keeps the
+// same hover-to-show behaviour but makes the mark itself smaller and inset: a
+// wider hit area, a 4px rounded thumb inside it, and breathing room at the top
+// and bottom of the track.
+@mixin styles {
+  .void-ui--minimal ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .void-ui--minimal ::-webkit-scrollbar-track {
+    margin-block: var(--workspace-space-2);
+    background: transparent;
+  }
+
+  .void-ui--minimal ::-webkit-scrollbar-track:horizontal {
+    margin-block: 0;
+    margin-inline: var(--workspace-space-2);
+  }
+
+  // The transparent border is what shrinks the visible thumb without shrinking
+  // the area the pointer can grab.
+  .void-ui--minimal ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+  }
+}

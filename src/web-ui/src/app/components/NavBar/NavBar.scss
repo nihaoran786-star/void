@@ -121,8 +121,14 @@
   display: block;
 }
 
-.void-ui--minimal .void-nav-bar--collapsed .void-nav-bar__classic-collapse-mark {
+// Collapsed Minimal shows the same line glyph as the expanded control row, not
+// a raster logo: one icon language across both states.
+.void-ui--minimal .void-nav-bar--collapsed .void-nav-bar__brand-mark {
   display: none;
+}
+
+.void-ui--minimal .void-nav-bar--collapsed .void-nav-bar__classic-collapse-mark {
+  display: block;
 }
 
 .void-ui--minimal .void-nav-bar {

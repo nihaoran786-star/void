@@ -1,3 +1,4 @@
+@use '../styles/utilities/scrollbar.minimal.scss' as scrollbar;
 @use '../layout/AppLayout.minimal.scss' as app-layout;
 @use '../components/NavPanel/NavPanel.minimal.scss' as nav-panel;
 @use '../components/GalleryLayout/GalleryLayout.minimal.scss' as gallery-layout;
@@ -27,6 +28,7 @@
 @use '../components/panels/DiffFullscreenViewer.minimal.scss' as fullscreen-diff;
 @use '../../features/ssh-remote/RemoteFileBrowser.minimal.scss' as remote-file-browser;
 
+@include scrollbar.styles;
 @include app-layout.styles;
 @include nav-panel.styles;
 @include gallery-layout.styles;
