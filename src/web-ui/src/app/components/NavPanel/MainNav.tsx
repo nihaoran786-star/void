@@ -13,7 +13,7 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Cable, Blocks, ChevronDown, Search, CalendarClock } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Cable, Blocks, ChevronDown, CalendarClock } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import {
   NavTechAssistantIcon,
@@ -44,6 +44,7 @@ import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDispl
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
 import { useSessionModeStore } from '../../stores/sessionModeStore';
+import { useNavSearchStore } from '../../stores/navSearchStore';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { shortcutManager } from '@/infrastructure/services/ShortcutManager';
 import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
@@ -122,7 +123,6 @@ const MainNav: React.FC<MainNavProps> = ({
   const [workspaceMenuClosing, setWorkspaceMenuClosing] = useState(false);
   const [workspaceMenuPos, setWorkspaceMenuPos] = useState({ top: 0, left: 0 });
   const [isExtensionsOpen, setIsExtensionsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
   const workspacePresentation = useMemo(readWorkspacePresentation, []);
 
   const toggleSection = useCallback((id: string) => {
@@ -273,9 +273,9 @@ const MainNav: React.FC<MainNavProps> = ({
     [assistantWorkspacesList]
   );
 
-  const toggleNavSearch = useCallback(() => {
-    setSearchOpen((v) => !v);
-  }, []);
+  const searchOpen = useNavSearchStore(state => state.open);
+  const closeNavSearch = useNavSearchStore(state => state.closeNavSearch);
+  const toggleNavSearch = useNavSearchStore(state => state.toggleNavSearch);
 
   useShortcut(
     NAV_TOGGLE_SEARCH_DEF.id,
@@ -551,46 +551,13 @@ const MainNav: React.FC<MainNavProps> = ({
   const skillsTooltip = t('nav.tooltips.skills');
   const connectorsTooltip = t('nav.tooltips.connectors');
   const extensionsLabel = t('nav.sections.extensions');
-  const searchShortcutHint = useMemo(() => shortcutManager.formatShortcut(
-    shortcutManager.getEffectiveConfig(NAV_TOGGLE_SEARCH_DEF.id, NAV_TOGGLE_SEARCH_DEF.config),
-  ), []);
   const createShortcutHint = useMemo(() => (NAV_NEW_SESSION_DEF
     ? shortcutManager.formatShortcut(
       shortcutManager.getEffectiveConfig(NAV_NEW_SESSION_DEF.id, NAV_NEW_SESSION_DEF.config),
     )
     : undefined), []);
-  const searchTrigger = (
-    <Tooltip content={t('nav.search.triggerTooltip')} placement="right" followCursor>
-      <button
-        type="button"
-        className="void-nav-panel__search-trigger"
-        onClick={() => setSearchOpen(true)}
-        aria-label={t('nav.search.triggerTooltip')}
-      >
-        <span className="void-nav-panel__search-trigger__icon" aria-hidden="true">
-          <span className="void-nav-panel__search-trigger__icon-inner">
-            <Search size={12} />
-          </span>
-        </span>
-        <span className="void-nav-panel__search-trigger__label">
-          {t('nav.search.triggerPlaceholder')}
-        </span>
-        <kbd className="void-nav-panel__search-trigger__kbd">{searchShortcutHint}</kbd>
-      </button>
-    </Tooltip>
-  );
-
   return (
     <>
-      {/* ── Workspace search ───────────────────────── */}
-      {workspacePresentation === 'classic' ? (
-        <div className="void-nav-panel__brand-header">
-          <div className="void-nav-panel__brand-search">
-            {searchTrigger}
-          </div>
-        </div>
-      ) : null}
-
       {/* ── Top action strip ────────────────────────── */}
       <div className="void-nav-panel__top-actions">
         <SessionCreateLauncher
@@ -616,7 +583,6 @@ const MainNav: React.FC<MainNavProps> = ({
           }}
           onSelectMode={setSessionMode}
           onCreate={handleCreateTask}
-          searchTrigger={workspacePresentation === 'minimal' ? searchTrigger : undefined}
           createShortcutHint={createShortcutHint}
         />
 
@@ -918,7 +884,7 @@ const MainNav: React.FC<MainNavProps> = ({
       )}
       {searchOpen ? (
         <React.Suspense fallback={null}>
-          <NavSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+          <NavSearchDialog open={searchOpen} onClose={closeNavSearch} />
         </React.Suspense>
       ) : null}
     </>

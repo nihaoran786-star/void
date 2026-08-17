@@ -1978,18 +1978,6 @@ $_section-header-height: 24px;
 
 // ── Nav workspace search ─────────────────────────
 
-.void-nav-panel__brand-header {
-  display: flex;
-  flex-direction: column;
-  padding: 0 $size-gap-2 $size-gap-1;
-  flex-shrink: 0;
-}
-
-.void-nav-panel__brand-search {
-  width: 100%;
-  min-width: 0;
-}
-
 // ── Top action strip ─────────────────────────────
 
 .void-nav-panel__top-actions {

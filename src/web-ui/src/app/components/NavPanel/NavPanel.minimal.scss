@@ -22,6 +22,8 @@
 
   .void-ui--minimal .void-nav-panel {
     --void-nav-status-unknown: var(--workspace-text-muted);
+    // Panel inset (8px) + row inset (8px) + half the 18px icon slot.
+    --void-nav-icon-centre: 27px;
 
     // The nav-area shell owns the Glass Air material (background + blur); the
     // panel and its footer stay transparent so the frosted treatment reads as
@@ -34,50 +36,7 @@
     font-size: var(--workspace-font-size-control);
     line-height: var(--workspace-line-height-control);
 
-    &__search-trigger {
-      display: flex;
-      align-items: center;
-      width: 100%;
-      min-width: 0;
-      height: 26px;
-      min-height: 26px;
-      justify-content: flex-start;
-      gap: var(--workspace-space-2);
-      padding: 0 var(--workspace-space-1);
-      cursor: pointer;
-    }
-
-    &__search-trigger__icon {
-      width: 12px;
-      min-width: 12px;
-      height: 12px;
-      color: var(--workspace-text-muted);
-      transform: none;
-    }
-
-    &__search-trigger__label {
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
-    }
-
-    &__search-trigger__kbd {
-      margin-left: auto;
-      color: var(--workspace-text-muted);
-      font-family: var(--font-family-mono);
-      font-size: var(--workspace-font-size-micro);
-      opacity: .7;
-    }
-
-    &__search-trigger:hover {
-      background: transparent;
-      box-shadow: none;
-    }
-
-    &__search-trigger:hover .void-nav-panel__search-trigger__label {
-      color: var(--workspace-text-secondary);
-    }
-
-    &__search-trigger,
+    // Every row in the sidebar sits on the same flat ground.
     &__top-action-btn,
     &__section-header,
     &__inline-item,
@@ -94,7 +53,6 @@
       font-weight: var(--workspace-font-weight-regular);
     }
 
-    &__search-trigger:hover,
     &__top-action-btn:hover,
     &__section-header:hover,
     &__inline-item:hover,
@@ -103,17 +61,6 @@
       color: var(--workspace-text-primary);
       box-shadow: none;
       transform: none;
-    }
-
-    &__search-trigger:hover .void-nav-panel__search-trigger__icon,
-    &__search-trigger:active .void-nav-panel__search-trigger__icon {
-      color: var(--workspace-text-primary);
-      transform: none;
-    }
-
-    &__search-trigger:focus-visible {
-      outline: 2px solid var(--workspace-focus-ring);
-      outline-offset: 1px;
     }
 
     &__inline-item.is-active {
@@ -228,25 +175,29 @@
       display: contents;
     }
 
+    // "New task" is the first row of the list, not a boxed call to action: same
+    // height, same icon column and same flat ground as the rows under it.
     &__session-create-action {
-      grid-row: 2;
+      grid-row: 1;
       grid-template-columns: 18px minmax(0, 1fr) auto;
-      gap: var(--workspace-space-1);
+      gap: 8px;
       width: 100%;
-      height: 36px;
+      height: 30px;
       padding: 0 var(--workspace-space-2);
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-panel);
-      color: var(--workspace-text-primary);
-      background: var(--workspace-surface-active);
-      font-weight: var(--workspace-font-weight-medium);
+      border: 0;
+      border-radius: var(--workspace-radius-control);
+      color: var(--workspace-text-secondary);
+      background: transparent;
+      font-weight: var(--workspace-font-weight-regular);
       transition:
         color var(--workspace-motion-fast) var(--workspace-easing-standard),
-        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
         background-color var(--workspace-motion-fast) var(--workspace-easing-standard);
     }
 
+    // The plus glyph is 14px inside an 18px column; centre it so it lands on
+    // the same vertical line as the 15px glyphs in the rows below.
     &__session-create-tech-icon {
+      justify-self: center;
       color: var(--color-accent-500);
     }
 
@@ -259,7 +210,6 @@
     }
 
     &__session-create-action:hover {
-      border-color: var(--workspace-border-subtle);
       color: var(--workspace-text-primary);
       background: var(--workspace-surface-hover);
       box-shadow: none;
@@ -267,24 +217,12 @@
     }
 
     &__session-create-action:active {
-      border-color: var(--workspace-border-subtle);
       background: var(--workspace-surface-active);
     }
 
     &__session-create-action:focus-visible {
       outline: 2px solid var(--workspace-focus-ring);
       outline-offset: 2px;
-    }
-
-    &__session-search-slot {
-      grid-row: 1;
-      display: flex;
-      align-items: center;
-      width: 100%;
-      min-width: 0;
-      height: 26px;
-      border-left: 0;
-      border-bottom: 1px solid var(--workspace-border-subtle);
     }
 
     &__section-label,
@@ -389,7 +327,11 @@
     }
 
     &__bottom-bar,
+    // The footer buttons are 28px squares, the list rows carry an 18px icon
+    // slot behind 16px of inset. Pull the footer in so both glyph columns share
+    // one centre line instead of missing each other by a few pixels.
     &__footer {
+      padding-left: calc(var(--void-nav-icon-centre) - 14px);
       border-top-color: var(--workspace-border-subtle);
       background: transparent;
       box-shadow: none;
@@ -502,13 +444,12 @@
       opacity: 1;
     }
 
+    // Collapsed to a 48px rail: only the glyphs survive.
     &__session-create-action-text,
     &__session-create-action-kbd,
     &__session-create-action-mode,
     &__session-create > [role='radiogroup'],
     &__top-action-btn > span:not(.void-nav-panel__top-action-icon-slot),
-    [class~='void-nav-panel__brand-header'],
-    &__session-search-slot,
     &__sections,
     &__bottom-bar,
     &__footer-more-wrap,
@@ -720,29 +661,6 @@
 // Inside the frosted navigation shell the search trigger reads as one quiet
 // raised field, and the selected row leans on the terracotta family so the
 // current location stays legible against the translucent backdrop.
-:root[data-theme='light'] .void-ui--minimal .void-nav-panel__session-search-slot,
-:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__session-search-slot {
-  height: 36px;
-  align-items: center;
-}
-
-:root[data-theme='light'] .void-ui--minimal .void-nav-panel__search-trigger,
-:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__search-trigger {
-  height: 28px;
-  min-height: 28px;
-  margin-inline: var(--workspace-space-2);
-  padding: 0 var(--workspace-space-2);
-  border: 1px solid var(--workspace-border-subtle);
-  border-radius: var(--workspace-radius-panel);
-  background: var(--workspace-glass-raised-bg);
-}
-
-:root[data-theme='light'] .void-ui--minimal .void-nav-panel__search-trigger:hover,
-:root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__search-trigger:hover {
-  border-color: var(--workspace-border-strong);
-  background: var(--workspace-glass-raised-bg);
-}
-
 :root[data-theme='light'] .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card,
 :root[data-theme-type='light'] .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card,
 :root[data-theme='light'] .void-ui--minimal .void-nav-panel__assistant-item.is-active .void-nav-panel__assistant-item-card,

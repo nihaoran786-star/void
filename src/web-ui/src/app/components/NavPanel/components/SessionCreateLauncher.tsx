@@ -25,7 +25,6 @@ interface SessionCreateLauncherProps {
   modeLabels: Record<SessionLauncherMode, SessionModeLabels>;
   onSelectMode: (mode: SessionLauncherMode) => void;
   onCreate: () => void;
-  searchTrigger?: React.ReactNode;
   createShortcutHint?: string;
 }
 
@@ -47,7 +46,6 @@ export const SessionCreateLauncher: React.FC<SessionCreateLauncherProps> = ({
   modeLabels,
   onSelectMode,
   onCreate,
-  searchTrigger,
   createShortcutHint,
 }) => {
   if (presentation === 'classic') {
@@ -118,11 +116,6 @@ export const SessionCreateLauncher: React.FC<SessionCreateLauncherProps> = ({
             ) : null}
           </button>
         </Tooltip>
-        {searchTrigger ? (
-          <div className="void-nav-panel__session-search-slot">
-            {searchTrigger}
-          </div>
-        ) : null}
       </div>
     </div>
   );

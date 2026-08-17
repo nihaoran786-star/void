@@ -63,7 +63,6 @@ describe('SessionCreateLauncher', () => {
           modeLabels={MODE_LABELS}
           onSelectMode={onSelectMode}
           onCreate={onCreate}
-          searchTrigger={<button type="button" aria-label="搜索">搜索</button>}
         />,
       );
     });
@@ -77,7 +76,7 @@ describe('SessionCreateLauncher', () => {
     expect(radios).toHaveLength(0);
     expect(container.querySelector('.void-nav-panel__session-mode-menu-trigger'))
       .toBeNull();
-    expect(container.querySelectorAll('button')).toHaveLength(2);
+    expect(container.querySelectorAll('button')).toHaveLength(1);
     expect(createButton?.textContent).toContain('新建任务');
     expect(createButton?.getAttribute('aria-label')).toBe('新建任务');
     expect(onSelectMode).not.toHaveBeenCalled();

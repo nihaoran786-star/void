@@ -10,9 +10,10 @@
  */
 
 import React, { useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useNavSceneStore } from '../../stores/navSceneStore';
+import { useNavSearchStore } from '../../stores/navSearchStore';
 import { useI18n } from '../../../infrastructure/i18n';
 import { PanelLeftIcon } from '../TitleBar/PanelIcons';
 import { createLogger } from '@/shared/utils/logger';
@@ -80,6 +81,9 @@ const NavBar: React.FC<NavBarProps> = ({
     onMaximize?.();
   }, [onMaximize]);
 
+  const openNavSearch = useNavSearchStore(state => state.openNavSearch);
+  const searchTooltip = t('nav.search.triggerTooltip');
+
   const rootClassName = `void-nav-bar${isCollapsed ? ' void-nav-bar--collapsed' : ''}${isMacOS ? ' void-nav-bar--macos' : ''} ${className}`;
 
   if (isCollapsed) {
@@ -118,6 +122,18 @@ const NavBar: React.FC<NavBarProps> = ({
           aria-label={t('header.collapseLeftPanel')}
         >
           <PanelLeftIcon size={13} />
+        </button>
+      </Tooltip>
+
+      {/* Search — one entry point, in the control bar rather than the sidebar */}
+      <Tooltip content={searchTooltip} placement="bottom" followCursor>
+        <button
+          type="button"
+          className="void-nav-bar__btn"
+          onClick={openNavSearch}
+          aria-label={searchTooltip}
+        >
+          <Search size={15} />
         </button>
       </Tooltip>
 
