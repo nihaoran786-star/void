@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Brain,
@@ -46,6 +46,12 @@ export interface ConnectorMarketplacePanelProps {
   installedIds: ReadonlySet<string>;
   onInstalled: () => void | Promise<void>;
   installer?: ConnectorMarketplaceInstaller;
+  /**
+   * When the catalog top bar owns the search field, it passes the query down
+   * and the panel stops rendering its own. Presentation only: filtering,
+   * paging and install behaviour are unchanged.
+   */
+  search?: string;
 }
 
 const MARKET_PAGE_SIZE = 8;
@@ -74,9 +80,12 @@ const ConnectorMarketplacePanel: React.FC<ConnectorMarketplacePanelProps> = ({
   installedIds,
   onInstalled,
   installer = mcpConnectorInstaller,
+  search: externalSearch,
 }) => {
   const { t } = useI18n('settings/mcp');
-  const [search, setSearch] = useState('');
+  const ownsSearch = externalSearch === undefined;
+  const [ownSearch, setOwnSearch] = useState('');
+  const search = ownsSearch ? ownSearch : externalSearch;
   const [category, setCategory] = useState<ConnectorMarketplaceCategory>('all');
   const [page, setPage] = useState(0);
   const [formEntry, setFormEntry] = useState<ConnectorMarketplaceEntry | null>(null);
@@ -98,9 +107,16 @@ const ConnectorMarketplacePanel: React.FC<ConnectorMarketplacePanelProps> = ({
   );
 
   const updateSearch = (value: string) => {
-    setSearch(value);
+    setOwnSearch(value);
     setPage(0);
   };
+
+  // A query typed in the catalog top bar must reset paging the same way the
+  // panel's own field does, or page 3 of the old result set survives the search.
+  useEffect(() => {
+    if (ownsSearch) return;
+    setPage(0);
+  }, [externalSearch, ownsSearch]);
 
   const updateCategory = (value: ConnectorMarketplaceCategory) => {
     setCategory(value);
@@ -193,15 +209,17 @@ const ConnectorMarketplacePanel: React.FC<ConnectorMarketplacePanelProps> = ({
   return (
     <div className="void-connector-market">
       <div className="void-connector-market__toolbar">
-        <Search
-          value={search}
-          onChange={updateSearch}
-          onClear={() => updateSearch('')}
-          placeholder={t('catalog.market.searchPlaceholder')}
-          inputAriaLabel={t('catalog.market.searchPlaceholder')}
-          size="small"
-          clearable
-        />
+        {ownsSearch && (
+          <Search
+            value={search}
+            onChange={updateSearch}
+            onClear={() => updateSearch('')}
+            placeholder={t('catalog.market.searchPlaceholder')}
+            inputAriaLabel={t('catalog.market.searchPlaceholder')}
+            size="small"
+            clearable
+          />
+        )}
         <div
           className="void-connector-market__categories"
           role="group"

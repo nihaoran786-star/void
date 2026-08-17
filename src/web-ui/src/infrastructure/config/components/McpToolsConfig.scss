@@ -271,61 +271,128 @@
     background: transparent;
   }
 
-  .void-mcp-tools__catalog-views {
-    @include market.tab-strip;
-
+  // One top bar: page name + count, filter pills, elastic gap, search, one action.
+  .void-mcp-tools__topbar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    padding-inline: 0;
+    gap: var(--workspace-space-2) var(--workspace-space-3);
+    min-height: 52px;
+    padding: var(--workspace-space-2) 0;
+    border-bottom: 1px solid var(--workspace-border-subtle);
   }
 
-  .void-mcp-tools__catalog-view {
-    @include market.tab;
+  .void-mcp-tools__topbar-title {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--workspace-space-1);
+    margin: 0;
+    color: var(--workspace-text-primary);
+    font-size: var(--workspace-font-size-lead);
+    font-weight: var(--workspace-font-weight-medium);
+    line-height: 1.3;
+  }
 
+  .void-mcp-tools__topbar-count {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    font-weight: var(--workspace-font-weight-regular);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .void-mcp-tools__topbar-chips {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-3);
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .void-mcp-tools__topbar-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .void-mcp-tools__topbar-views,
+  .void-mcp-tools__topbar-filters {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-1);
+  }
+
+  .void-mcp-tools__chip {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 var(--workspace-space-3);
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--workspace-text-secondary);
+    font: inherit;
+    font-size: var(--workspace-font-size-label);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+    &:hover:not(.is-active) {
+      background: var(--workspace-surface-hover);
+      color: var(--workspace-text-primary);
+    }
+
+    &.is-active {
+      background: var(--workspace-text-primary);
+      color: var(--workspace-surface-canvas);
+      font-weight: var(--workspace-font-weight-medium);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: 2px;
+    }
+  }
+
+  .void-mcp-tools__topbar-spacer {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .void-mcp-tools__topbar-search {
+    flex: 0 1 190px;
+    min-width: 120px;
+  }
+
+  .void-mcp-tools__topbar-primary {
     display: inline-flex;
     align-items: center;
     gap: var(--workspace-space-1);
-    align-self: stretch;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .void-mcp-tools__catalog-view::after {
-    position: absolute;
-    right: 0;
-    bottom: -1px;
-    left: 0;
-    height: 2px;
-    border-radius: 2px 2px 0 0;
-    background: transparent;
-    content: '';
-  }
-
-  .void-mcp-tools__catalog-view:hover,
-  .void-mcp-tools__catalog-view.is-active {
+    min-height: var(--workspace-control-height);
+    padding: 0 var(--workspace-space-3);
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-surface-panel);
     color: var(--workspace-text-primary);
-  }
+    font: inherit;
+    font-size: var(--workspace-font-size-label);
+    font-weight: var(--workspace-font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
-  .void-mcp-tools__catalog-view.is-active::after {
-    background: var(--workspace-accent);
-  }
+    &:hover {
+      border-color: var(--workspace-border-strong);
+      background: var(--workspace-surface-hover);
+    }
 
-  .void-mcp-tools__catalog-view:focus-visible {
-    outline: 2px solid var(--workspace-focus-ring);
-    outline-offset: -2px;
-  }
-
-  .void-mcp-tools__catalog-view-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 18px;
-    padding: 0 5px;
-    border-radius: 9px;
-    background: var(--workspace-surface-active);
-    color: var(--workspace-text-muted);
-    font-size: var(--workspace-font-size-meta);
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: -2px;
+    }
   }
 
   .void-mcp-tools__json-editor {
@@ -334,32 +401,6 @@
     background: var(--workspace-surface-panel);
   }
 
-  .void-mcp-tools__catalog-toolbar {
-    @include market.toolbar;
-
-    gap: var(--workspace-space-2);
-  }
-
-  .void-mcp-tools__catalog-search {
-    width: min(100%, 340px);
-    min-width: 220px;
-  }
-
-  .void-mcp-tools__catalog-filters {
-    display: flex;
-    align-items: center;
-    gap: var(--workspace-space-1);
-    flex: 1;
-    min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .void-mcp-tools__catalog-filters::-webkit-scrollbar {
-    display: none;
-  }
-
-  .void-mcp-tools__catalog-filter,
   .void-mcp-tools__catalog-page-button {
     display: inline-flex;
     align-items: center;
@@ -400,32 +441,50 @@
     @include market.grid;
   }
 
+  // Card: glyph over at most three lines (name / transport / status), with the
+  // server controls collected into the hovered top-right corner.
   .void-mcp-tools__catalog-card {
-    @include market.card;
-
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 148px;
+    min-height: 148px;
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-panel);
     overflow: hidden;
+    transition:
+      transform var(--workspace-motion-fast) var(--workspace-easing-standard),
+      border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
   }
 
-  .void-mcp-tools__catalog-card:hover,
+  .void-mcp-tools__catalog-card:hover {
+    border-color: var(--workspace-border-strong);
+    transform: translateY(-3px);
+  }
+
   .void-mcp-tools__catalog-card.is-expanded {
     border-color: var(--workspace-border-strong);
+    transform: none;
   }
 
   .void-mcp-tools__catalog-card-main {
-    display: grid;
-    grid-template-columns: 52px minmax(0, 1fr) auto auto;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
     align-items: center;
-    gap: var(--workspace-space-2);
+    justify-content: flex-start;
+    gap: 0;
     width: 100%;
     min-width: 0;
-    padding: var(--workspace-space-3);
+    padding: var(--workspace-space-3) var(--workspace-space-2)
+      var(--workspace-space-2);
     border: 0;
     background: transparent;
     color: inherit;
-    text-align: left;
+    text-align: center;
     cursor: pointer;
   }
 
@@ -435,28 +494,24 @@
   }
 
   .void-mcp-tools__catalog-card-avatar {
-    width: 52px;
-    height: 52px;
-  }
-
-  .void-mcp-tools__catalog-card-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    width: 36px;
+    height: 36px;
   }
 
   .void-mcp-tools__catalog-card-name {
+    max-width: 100%;
+    margin-top: var(--workspace-space-2);
     overflow: hidden;
     color: var(--workspace-text-primary);
     font-size: var(--workspace-font-size-control);
-    font-weight: var(--workspace-font-weight-strong);
-    line-height: var(--workspace-line-height-control);
+    font-weight: var(--workspace-font-weight-medium);
+    line-height: 1.35;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .void-mcp-tools__catalog-card-meta {
+    max-width: 100%;
     overflow: hidden;
     color: var(--workspace-text-muted);
     font-size: var(--workspace-font-size-meta);
@@ -465,35 +520,61 @@
     white-space: nowrap;
   }
 
+  .void-mcp-tools__catalog-card-main > .void-mcp-tools__status-badge {
+    margin-top: var(--workspace-space-2);
+  }
+
   .void-mcp-tools__catalog-card-chevron {
+    position: absolute;
+    bottom: var(--workspace-space-1);
+    left: 50%;
     color: var(--workspace-text-muted);
+    opacity: 0.5;
+    transform: translateX(-50%);
     transition: transform var(--workspace-motion-fast) var(--workspace-easing-standard);
   }
 
   .void-mcp-tools__catalog-card.is-expanded .void-mcp-tools__catalog-card-chevron {
-    transform: rotate(180deg);
+    transform: translateX(-50%) rotate(180deg);
   }
 
   .void-mcp-tools__catalog-card-actions {
+    position: absolute;
+    top: var(--workspace-space-1);
+    right: var(--workspace-space-1);
     display: flex;
     align-items: center;
-    justify-content: center;
-    min-width: 56px;
-    padding: var(--workspace-space-2);
-    border-left: 1px solid var(--workspace-border-subtle);
+    justify-content: flex-end;
+    min-width: 0;
+    padding: 0;
+    border-left: 0;
+    opacity: 0;
+    transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+  }
+
+  .void-mcp-tools__catalog-card:hover .void-mcp-tools__catalog-card-actions,
+  .void-mcp-tools__catalog-card:focus-within .void-mcp-tools__catalog-card-actions {
+    opacity: 1;
   }
 
   .void-mcp-tools__catalog-card-details {
-    grid-column: 1 / -1;
     padding: var(--workspace-space-3);
     border-top: 1px solid var(--workspace-border-subtle);
     background: var(--workspace-surface-active);
+    text-align: left;
   }
 
   .void-mcp-tools__catalog-card.is-expanded {
     grid-column: span 2;
     height: auto;
-    min-height: var(--customization-market-card-height);
+    min-height: 148px;
+    overflow: visible;
+  }
+
+  @media (hover: none) {
+    .void-mcp-tools__catalog-card-actions {
+      opacity: 1;
+    }
   }
 
   .void-mcp-tools__catalog-pagination {
@@ -651,18 +732,8 @@
   .void-mcp-tools--catalog {
     --config-page-content-inline-padding: var(--workspace-space-3);
 
-    .void-mcp-tools__catalog-toolbar {
-      flex-wrap: wrap;
-    }
-
-    .void-mcp-tools__catalog-search {
-      width: 100%;
-      min-width: 0;
-    }
-
-    .void-mcp-tools__catalog-filters {
-      flex-basis: 100%;
-      order: 3;
+    .void-mcp-tools__topbar-search {
+      flex: 1 1 100%;
     }
 
     .void-mcp-tools__catalog-grid {

@@ -1,80 +1,73 @@
 @use '../../../component-library/styles/customization-market' as market;
 
 @mixin styles {
-  // ─── Connector catalog · hairline directory rows (Minimal only) ─────────────
-  // Same layout language as the Agents and Skills minimal projections:
-  // underline search, mono filter chips, frameless rows divided by hairlines,
-  // plain monospace meta, and row operations collected into hover. Classic
-  // keeps the card grid untouched.
+  // ─── Connector catalog · approved directory language (Minimal only) ─────────
+  // Same top bar and card rhythm as the Skills catalog: page name + count,
+  // filter pills, elastic gap, quiet search, one action; then a card grid whose
+  // marks are static and whose motion belongs to the card. Classic keeps its
+  // own projection in the base stylesheet.
   .void-ui--minimal .void-mcp-tools--catalog {
+    @include market.scene-surface;
 
-    /* Big typographic switch: oversized words + accent bar, no pill */
-    .void-mcp-tools__catalog-views {
+    background: var(--workspace-surface-canvas);
+
+    // ── Top bar ──────────────────────────────────────────────────────────────
+
+    .void-mcp-tools__topbar {
       display: flex;
-      align-items: flex-end;
-      gap: var(--workspace-space-4);
-      min-height: 0;
-      margin: 0;
-      padding: var(--workspace-space-2) var(--workspace-space-4) 0;
-      border: 0;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--workspace-space-2) var(--workspace-space-3);
+      min-height: 52px;
+      padding: var(--workspace-space-2) 0;
       border-bottom: 1px solid var(--workspace-border-subtle);
-      border-radius: 0;
-      background-color: var(--workspace-surface-canvas);
+      background: var(--workspace-surface-canvas);
     }
 
-    .void-mcp-tools__catalog-view {
-      position: relative;
-      display: inline-flex;
-      align-items: baseline;
-      gap: var(--workspace-space-1);
-      min-height: 0;
-      padding: 2px 0 var(--workspace-space-2);
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      color: var(--workspace-text-muted);
+    .void-mcp-tools__topbar-title {
+      color: var(--workspace-text-primary);
       font-size: var(--workspace-font-size-lead);
       font-weight: var(--workspace-font-weight-medium);
-      line-height: 1.2;
-      letter-spacing: -0.01em;
-      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
-
-      &::after {
-        height: 3px;
-        background: var(--workspace-accent);
-        opacity: 0;
-        transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
-      }
-
-      &:hover:not(.is-active) {
-        color: var(--workspace-text-secondary);
-      }
-
-      &.is-active {
-        color: var(--workspace-text-primary);
-        font-weight: var(--workspace-font-weight-strong);
-
-        &::after {
-          opacity: 1;
-        }
-      }
     }
 
-    /* Tab count becomes plain monospace meta */
-    .void-mcp-tools__catalog-view-count {
-      min-width: 0;
-      height: auto;
-      padding: 0;
-      border-radius: 0;
-      background: transparent;
+    .void-mcp-tools__topbar-count {
       color: var(--workspace-text-muted);
-      font-family: var(--font-family-mono);
       font-size: var(--workspace-font-size-meta);
       font-variant-numeric: tabular-nums;
     }
 
-    /* Quiet search: underline only */
-    .void-mcp-tools__catalog-search {
+    .void-mcp-tools__chip {
+      height: 24px;
+      padding: 0 var(--workspace-space-3);
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-regular);
+
+      &:hover:not(.is-active) {
+        background: var(--workspace-surface-hover);
+        color: var(--workspace-text-primary);
+      }
+
+      &.is-active {
+        background: var(--workspace-text-primary);
+        color: var(--workspace-surface-canvas);
+        font-weight: var(--workspace-font-weight-medium);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: 2px;
+      }
+    }
+
+    // Quiet search: a hairline, not a filled box.
+    .void-mcp-tools__topbar-search {
+      flex: 0 1 190px;
+      min-width: 120px;
+
       .search__wrapper {
         min-height: var(--workspace-control-height);
         border: 0;
@@ -85,294 +78,231 @@
       }
 
       &.search--focused:not(.search--disabled) .search__wrapper {
-        border-color: var(--workspace-focus-ring);
+        border-bottom-color: var(--workspace-focus-ring);
         outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
+        outline-offset: 2px;
         box-shadow: none;
       }
     }
 
-    /* Mono status filter chips: no pill, active = accent dot + strong text */
-    .void-mcp-tools__catalog-filters {
-      gap: var(--workspace-space-3);
-    }
-
-    .void-mcp-tools__catalog-filter {
-      position: relative;
-      min-height: 0;
-      padding: 2px 0;
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      box-shadow: none;
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-label);
-      font-weight: var(--workspace-font-weight-medium);
-      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
-
-      &:hover:not(:disabled) {
-        color: var(--workspace-text-primary);
-        background: transparent;
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
-      }
-
-      &.is-active {
-        padding-left: 9px;
-        border-color: transparent;
-        background: transparent;
-        color: var(--workspace-text-primary);
-        font-weight: var(--workspace-font-weight-strong);
-      }
-
-      &.is-active::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        width: 4px;
-        height: 4px;
-        margin-top: -2px;
-        border-radius: 50%;
-        background: var(--workspace-accent);
-        transform: none;
-      }
-    }
-
-    /* One loud action only: add connector stays a quiet text button */
-    .void-mcp-tools__catalog-toolbar > .btn,
-    .void-mcp-tools__catalog-starter-intro > .btn {
-      border: 0;
-      background: transparent;
-      box-shadow: none;
+    .void-mcp-tools__topbar-primary {
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
       color: var(--workspace-text-primary);
-      font-weight: var(--workspace-font-weight-strong);
 
-      svg {
-        color: var(--workspace-accent);
-      }
-
-      &:hover:not(:disabled) {
-        color: var(--workspace-accent);
-        background: transparent;
-        border-color: transparent;
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
+      &:hover {
+        border-color: var(--workspace-border-strong);
+        background: var(--workspace-surface-hover);
       }
     }
 
-    /* Directory rows replace the card grid */
+    // ── Card grid ────────────────────────────────────────────────────────────
+
     .void-mcp-tools__catalog-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      padding-bottom: var(--workspace-space-3);
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-content: start;
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-3) 0;
     }
 
     .void-mcp-tools__catalog-card {
-      height: auto;
-      min-height: 0;
-      border: 0;
-      border-top: 1px solid var(--workspace-border-subtle);
-      border-radius: 0;
-      background: transparent;
+      position: relative;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      height: 148px;
+      min-height: 148px;
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-panel);
       box-shadow: none;
-      animation: none;
-      transform: none;
-      transition: none;
+      transition:
+        transform var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
-      &:hover,
+      &:hover {
+        border-color: var(--workspace-border-strong);
+        background: var(--workspace-surface-panel);
+        transform: translateY(-3px);
+      }
+
       &.is-expanded {
-        border-color: transparent;
-        border-top-color: var(--workspace-border-subtle);
-        background: transparent;
+        height: auto;
         transform: none;
-        box-shadow: none;
       }
+    }
 
-      &.is-expanded {
-        min-height: 0;
-      }
+    // A stopped connector recedes without disappearing.
+    .void-mcp-tools__catalog-card[data-state='idle'] {
+      opacity: 0.65;
     }
 
     .void-mcp-tools__catalog-card-main {
-      display: flex;
       align-items: center;
-      gap: var(--workspace-space-3);
-      padding: var(--workspace-space-2) var(--workspace-space-1);
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
-      }
+      text-align: center;
     }
 
-    /* Link glyph avatars: channel routes, no icon tile */
     .void-mcp-tools__catalog-card-avatar {
-      width: 20px;
-      height: 20px;
-      background: transparent;
-      border: 0;
-      box-shadow: none;
+      width: 36px;
+      height: 36px;
     }
 
-    .void-mcp-tools__catalog-card-copy {
-      flex: 1 1 auto;
-      gap: 2px;
+    .void-mcp-tools__catalog-card-name {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-control);
+      font-weight: var(--workspace-font-weight-medium);
     }
 
     .void-mcp-tools__catalog-card-meta {
-      font-family: var(--font-family-mono);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
     }
 
-    /* Status badge becomes plain monospace meta */
+    // Status is plain coloured text, not a filled pill.
     .void-mcp-tools__status-badge {
-      gap: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--workspace-space-1);
+      min-height: 0;
       padding: 0;
       border: 0;
       border-radius: 0;
       background: transparent;
-      font-family: var(--font-family-mono);
+      color: var(--workspace-text-muted);
       font-size: var(--workspace-font-size-meta);
-      letter-spacing: 0.08em;
+      font-weight: var(--workspace-font-weight-regular);
+
+      svg {
+        width: 10px;
+        height: 10px;
+      }
+
+      &.is-healthy {
+        color: var(--workspace-status-success-text);
+      }
+
+      &.is-pending {
+        color: var(--workspace-status-warning-text);
+      }
+
+      &.is-error {
+        color: var(--workspace-status-error-text);
+      }
+
+      &.is-neutral {
+        color: var(--workspace-text-muted);
+      }
+    }
+
+    .void-mcp-tools__catalog-card-actions {
+      gap: var(--workspace-space-1);
+      border-left: 0;
+
+      .btn,
+      .icon-button {
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        min-height: 24px;
+        border: 1px solid var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+        background: var(--workspace-surface-panel);
+      }
+    }
+
+    .void-mcp-tools__catalog-card-details {
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-meta);
+    }
+
+    // ── Marketplace panel keeps the same rhythm ──────────────────────────────
+
+    .void-connector-market__toolbar {
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-2) 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .void-connector-market__category {
+      height: 24px;
+      padding: 0 var(--workspace-space-3);
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-label);
 
       svg {
         display: none;
       }
 
-      &.is-healthy,
-      &.is-neutral {
-        border-color: transparent;
-        background: transparent;
-        color: var(--workspace-text-muted);
-      }
-
-      &.is-pending {
-        border-color: transparent;
-        background: transparent;
-        color: var(--workspace-accent);
-      }
-
-      &.is-error {
-        border-color: transparent;
-        background: transparent;
-        color: var(--workspace-status-error-text);
-      }
-    }
-
-    .void-mcp-tools__catalog-card-chevron {
-      flex: 0 0 auto;
-    }
-
-    /* Row operations are collected into hover */
-    .void-mcp-tools__catalog-card-actions {
-      min-width: 0;
-      padding: 0 var(--workspace-space-1) 0 0;
-      border-left: 0;
-      opacity: 0;
-      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
-    }
-
-    .void-mcp-tools__catalog-card:hover .void-mcp-tools__catalog-card-actions,
-    .void-mcp-tools__catalog-card:focus-within .void-mcp-tools__catalog-card-actions {
-      opacity: 1;
-    }
-
-    .void-mcp-tools__catalog-card-details {
-      padding: var(--workspace-space-2) var(--workspace-space-1) var(--workspace-space-3);
-      border-top: 1px solid var(--workspace-border-subtle);
-      background: transparent;
-    }
-
-    /* Pagination becomes quiet mono */
-    .void-mcp-tools__catalog-pagination {
-      background: transparent;
-      border: 0;
-      font-family: var(--font-family-mono);
-      letter-spacing: 0.1em;
-    }
-
-    .void-mcp-tools__catalog-page-button {
-      border: 0;
-      background: transparent;
-      color: var(--workspace-text-muted);
-
-      &:hover:not(:disabled) {
+      &:hover:not(.is-active) {
+        background: var(--workspace-surface-hover);
         color: var(--workspace-text-primary);
-        background: transparent;
+      }
+
+      &.is-active {
+        background: var(--workspace-text-primary);
+        color: var(--workspace-surface-canvas);
+        font-weight: var(--workspace-font-weight-medium);
       }
 
       &:focus-visible {
         outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
+        outline-offset: 2px;
       }
     }
 
-    /* Empty and starter states stay hairline-quiet */
-    .void-mcp-tools__catalog-empty {
+    .void-connector-market__grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--workspace-space-2);
+    }
+
+    .void-mcp-tools__catalog-pagination,
+    .void-connector-market__pagination {
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-2) 0 var(--workspace-space-3);
       border: 0;
-      border-top: 1px solid var(--workspace-border-subtle);
-      border-radius: 0;
       background: transparent;
     }
 
-    .void-mcp-tools__catalog-starter-intro {
-      border: 0;
-      border-top: 1px solid var(--workspace-border-subtle);
-      border-bottom: 1px solid var(--workspace-border-subtle);
-      border-radius: 0;
-      background: transparent;
-    }
+    .void-mcp-tools__catalog-page-button {
+      width: var(--workspace-icon-target);
+      height: var(--workspace-icon-target);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
+      color: var(--workspace-text-secondary);
 
-    .void-mcp-tools__catalog-starter-card {
-      grid-template-columns: auto minmax(0, 1fr);
-      min-height: 0;
-      border: 0;
-      border-top: 1px solid var(--workspace-border-subtle);
-      border-radius: 0;
-      background: transparent;
-    }
-
-    .void-mcp-tools__catalog-starter-icon,
-    .void-mcp-tools__catalog-starter-icon.is-local,
-    .void-mcp-tools__catalog-starter-icon.is-remote {
-      width: 20px;
-      height: 20px;
-      border-radius: 0;
-      background: transparent;
-      color: var(--workspace-text-primary);
-    }
-
-    .void-mcp-tools__json-editor {
-      border-radius: 0;
-      background: transparent;
-    }
-  }
-
-  @container connector-catalog (max-width: 720px) {
-    .void-ui--minimal .void-mcp-tools--catalog {
-      .void-mcp-tools__catalog-card-meta {
-        display: none;
+      &:not(:disabled):hover {
+        border-color: var(--workspace-border-strong);
+        background: var(--workspace-surface-hover);
       }
     }
   }
 
-  @container connector-catalog (max-width: 520px) {
+  @container connector-catalog (max-width: 1040px) {
     .void-ui--minimal .void-mcp-tools--catalog {
-      .void-mcp-tools__catalog-search {
-        min-width: 0;
+      .void-mcp-tools__catalog-grid,
+      .void-connector-market__grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  }
+
+  @container connector-catalog (max-width: 620px) {
+    .void-ui--minimal .void-mcp-tools--catalog {
+      .void-mcp-tools__topbar-search {
+        flex: 1 1 100%;
+      }
+
+      .void-mcp-tools__catalog-grid,
+      .void-connector-market__grid {
+        grid-template-columns: 1fr;
       }
     }
   }
@@ -387,13 +317,18 @@
 
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .void-mcp-tools--catalog {
-      .void-mcp-tools__catalog-view,
-      .void-mcp-tools__catalog-view::after,
-      .void-mcp-tools__catalog-filter,
-      .void-mcp-tools__catalog-toolbar > .btn,
+      .void-mcp-tools__chip,
+      .void-mcp-tools__topbar-primary,
+      .void-mcp-tools__catalog-card,
       .void-mcp-tools__catalog-card-actions,
-      .void-mcp-tools__catalog-page-button {
+      .void-mcp-tools__catalog-card-chevron,
+      .void-connector-market__category {
+        animation: none;
         transition: none;
+      }
+
+      .void-mcp-tools__catalog-card:hover {
+        transform: none;
       }
     }
   }

@@ -260,6 +260,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
   const [mcpLoading, setMcpLoading] = useState(true);
   const [mcpLoadError, setMcpLoadError] = useState<string | null>(null);
   const [catalogQuery, setCatalogQuery] = useState('');
+  const [marketQuery, setMarketQuery] = useState('');
   const [catalogView, setCatalogView] = useState<ConnectorCatalogView>('installed');
   const [catalogStatusFilter, setCatalogStatusFilter] = useState<CatalogStatusFilter>('all');
   const [catalogPage, setCatalogPage] = useState(0);
@@ -1345,6 +1346,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
       <article
         key={server.id}
         className={`void-mcp-tools__catalog-card ${isExpanded ? 'is-expanded' : ''}`}
+        data-state={getCatalogLinkState(server)}
         aria-busy={isServerControlBusy(server) || undefined}
       >
         <button
@@ -1360,12 +1362,10 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             state={getCatalogLinkState(server)}
             className="void-mcp-tools__catalog-card-avatar"
           />
-          <span className="void-mcp-tools__catalog-card-copy">
-            <strong className="void-mcp-tools__catalog-card-name">{server.name}</strong>
-            <span className="void-mcp-tools__catalog-card-meta">
-              {server.transport}
-              {server.serverType ? ` · ${server.serverType}` : ''}
-            </span>
+          <strong className="void-mcp-tools__catalog-card-name">{server.name}</strong>
+          <span className="void-mcp-tools__catalog-card-meta">
+            {server.transport}
+            {server.serverType ? ` · ${server.serverType}` : ''}
           </span>
           {renderServerBadge(server)}
           <ChevronDown
@@ -1416,77 +1416,99 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             presentation === 'catalog' && 'void-mcp-tools__section--catalog',
           ].filter(Boolean).join(' ')}
         >
-          {presentation === 'catalog'
-            && !showJsonEditor && (
-            <div
-              className="void-mcp-tools__catalog-views"
-              role="tablist"
-              aria-label={tMcp('catalog.views.label')}
-            >
-              {CATALOG_VIEWS.map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  role="tab"
-                  className={`void-mcp-tools__catalog-view ${catalogView === view ? 'is-active' : ''}`}
-                  aria-selected={catalogView === view}
-                  tabIndex={catalogView === view ? 0 : -1}
-                  onClick={() => setCatalogView(view)}
-                  onKeyDown={handleCatalogViewKeyDown}
-                >
-                  {tMcp(`catalog.views.${view}`)}
-                  {view === 'installed' && (
-                    <span className="void-mcp-tools__catalog-view-count">{servers.length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          {presentation === 'catalog' && !showJsonEditor && (
+            <header className="void-mcp-tools__topbar">
+              <h2 className="void-mcp-tools__topbar-title">
+                <span className="void-mcp-tools__topbar-title-text">
+                  {tMcp('section.serverList.title')}
+                </span>
+                {catalogView === 'installed' && (
+                  <span className="void-mcp-tools__topbar-count">
+                    {filteredCatalogServers.length}
+                  </span>
+                )}
+              </h2>
 
-          {presentation === 'catalog'
-            && catalogView === 'installed'
-            && !showJsonEditor
-            && !mcpLoading
-            && !mcpLoadError
-            && servers.length > 0 && (
-            <div className="void-mcp-tools__catalog-toolbar">
-              <Search
-                className="void-mcp-tools__catalog-search"
-                value={catalogQuery}
-                onChange={setCatalogQuery}
-                onClear={() => setCatalogQuery('')}
-                placeholder={tMcp('search.placeholder')}
-                size="small"
-                clearable
-              />
-              <div
-                className="void-mcp-tools__catalog-filters"
-                role="group"
-                aria-label={tMcp('section.serverList.description')}
-              >
-                {(['all', 'connected', 'attention', 'stopped'] as const).map((filter) => (
-                  <button
-                    key={filter}
-                    type="button"
-                    className={`void-mcp-tools__catalog-filter ${catalogStatusFilter === filter ? 'is-active' : ''}`}
-                    onClick={() => setCatalogStatusFilter(filter)}
-                    aria-pressed={catalogStatusFilter === filter}
+              <div className="void-mcp-tools__topbar-chips">
+                <div
+                  className="void-mcp-tools__topbar-views"
+                  role="tablist"
+                  aria-label={tMcp('catalog.views.label')}
+                >
+                  {CATALOG_VIEWS.map((view) => (
+                    <button
+                      key={view}
+                      type="button"
+                      role="tab"
+                      className={`void-mcp-tools__chip ${catalogView === view ? 'is-active' : ''}`}
+                      aria-selected={catalogView === view}
+                      tabIndex={catalogView === view ? 0 : -1}
+                      onClick={() => setCatalogView(view)}
+                      onKeyDown={handleCatalogViewKeyDown}
+                    >
+                      {tMcp(`catalog.views.${view}`)}
+                    </button>
+                  ))}
+                </div>
+
+                {catalogView === 'installed' && servers.length > 0 && (
+                  <div
+                    className="void-mcp-tools__topbar-filters"
+                    role="group"
+                    aria-label={tMcp('section.serverList.description')}
                   >
-                    {tMcp(`catalog.filters.${filter}`)}
-                  </button>
-                ))}
+                    {(['all', 'connected', 'attention', 'stopped'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        type="button"
+                        className={`void-mcp-tools__chip ${catalogStatusFilter === filter ? 'is-active' : ''}`}
+                        onClick={() => setCatalogStatusFilter(filter)}
+                        aria-pressed={catalogStatusFilter === filter}
+                      >
+                        {tMcp(`catalog.filters.${filter}`)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <Button
-                variant="secondary"
-                size="small"
+
+              <span className="void-mcp-tools__topbar-spacer" aria-hidden="true" />
+
+              {catalogView === 'installed' ? (
+                servers.length > 0 && (
+                  <Search
+                    className="void-mcp-tools__topbar-search"
+                    value={catalogQuery}
+                    onChange={setCatalogQuery}
+                    onClear={() => setCatalogQuery('')}
+                    placeholder={tMcp('search.placeholder')}
+                    size="small"
+                    clearable
+                  />
+                )
+              ) : (
+                <Search
+                  className="void-mcp-tools__topbar-search"
+                  value={marketQuery}
+                  onChange={setMarketQuery}
+                  onClear={() => setMarketQuery('')}
+                  placeholder={tMcp('catalog.market.searchPlaceholder')}
+                  size="small"
+                  clearable
+                />
+              )}
+
+              <button
+                type="button"
+                className="void-mcp-tools__topbar-primary"
                 onClick={() => setShowJsonEditor(true)}
                 aria-expanded={showJsonEditor}
                 aria-controls="mcp-json-editor"
               >
                 <FileJson size={14} />
-                {tMcp('actions.addConnector')}
-              </Button>
-            </div>
+                <span>{tMcp('actions.addConnector')}</span>
+              </button>
+            </header>
           )}
 
           {showJsonEditor && (
@@ -1715,6 +1737,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             && !mcpLoadError && (
             <ConnectorMarketplacePanel
               installedIds={installedConnectorIds}
+              search={marketQuery}
               onInstalled={async () => {
                 await loadServers();
                 await loadJsonConfig();

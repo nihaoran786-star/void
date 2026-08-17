@@ -1,4 +1,4 @@
-.connector-link {
+.connector-glyph {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -22,26 +22,36 @@
     height: 100%;
   }
 
-  &.is-idle {
-    opacity: 0.45;
+  // State is visual as well as written: connected reads live, connecting reads
+  // in progress, failed reads wrong, stopped recedes.
+  &.is-connected {
+    color: var(--workspace-status-success-text);
   }
 
   &.is-connecting {
-    color: var(--workspace-accent);
+    color: var(--workspace-status-warning-text);
   }
 
   &.is-error {
     color: var(--workspace-status-error-text);
-    opacity: 0.75;
+  }
+
+  &.is-idle {
+    color: var(--workspace-text-muted);
+    opacity: 0.6;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .connector-link {
-    transition: none;
-  }
+.gallery-detail-modal__icon:has(.connector-glyph) {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 
-  .connector-link__pulse {
-    display: none;
+@media (prefers-reduced-motion: reduce) {
+  .connector-glyph {
+    transition: none;
   }
 }

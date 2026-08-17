@@ -1,74 +1,55 @@
 import React from 'react';
-import { resolveLinkPath, type ConnectorLinkState } from './linkGlyph';
+import { resolveConnectorCatalogIcon } from './connectorCatalogIcons';
+import type { ConnectorLinkState } from './linkGlyph';
 import './ConnectorCatalogAvatar.scss';
 
 /**
- * Connector link avatar: two endpoints joined by a deterministic route per
- * connector identity. Connectors are channels, not living agents — the route
- * never animates except while connecting, when a single pulse travels along
- * the path. Ink comes from `currentColor`, so theme tokens stay authoritative
- * in both light and dark themes.
+ * Connector glyph avatar: a deterministic open-source Lucide mark per
+ * connector, chosen from what the connector actually is (docs, database,
+ * browser, mail…). Connectors are channels, not living agents — the mark never
+ * animates. State is still visual: the ink is the state ink, so connected,
+ * connecting, failed and stopped read differently at a glance, and the card's
+ * own status line states the same thing in words.
  */
 interface ConnectorCatalogAvatarProps {
   identity: string;
   name: string;
-  /** Kept for API compatibility; link glyphs are transport-agnostic. */
   transport?: string;
-  /** Connection state; defaults to a broken idle route. */
+  /** Connection state; defaults to a stopped channel. */
   state?: ConnectorLinkState;
   size?: 'card' | 'detail';
   className?: string;
 }
 
+const STROKE_WIDTH = 1.4;
+
 const ConnectorCatalogAvatar: React.FC<ConnectorCatalogAvatarProps> = ({
   identity,
   name,
+  transport = '',
   state = 'idle',
   size = 'card',
   className,
 }) => {
-  const path = resolveLinkPath(identity);
+  const Glyph = resolveConnectorCatalogIcon(identity, name, transport);
+
   return (
     <span
       className={[
-        'connector-link',
-        `connector-link--${size}`,
+        'connector-glyph',
+        `connector-glyph--${size}`,
         `is-${state}`,
         className,
       ].filter(Boolean).join(' ')}
       aria-hidden="true"
       title={name}
     >
-      <svg
-        className="connector-link__mark"
-        viewBox="0 0 20 20"
-        fill="currentColor"
+      <Glyph
+        className="connector-glyph__mark"
+        strokeWidth={STROKE_WIDTH}
+        absoluteStrokeWidth
         focusable="false"
-      >
-        <path
-          d={path}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={state === 'connecting' ? 1 : 1.4}
-          strokeDasharray={state === 'idle'
-            ? '4 3'
-            : state === 'error'
-              ? '2 3'
-              : undefined}
-          opacity={state === 'connecting'
-            ? 0.35
-            : state === 'idle'
-              ? 0.7
-              : undefined}
-        />
-        <circle cx={3} cy={10} r={2} />
-        <circle cx={17} cy={10} r={2} />
-        {state === 'connecting' && (
-          <circle className="connector-link__pulse" r={1.8}>
-            <animateMotion dur="1.4s" repeatCount="indefinite" path={path} />
-          </circle>
-        )}
-      </svg>
+      />
     </span>
   );
 };
