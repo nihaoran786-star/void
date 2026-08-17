@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readdirSync, readFileSync, statSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -1888,6 +1888,28 @@ const forbiddenContentRules = [
 ];
 
 const forbiddenContentUnderRules = [
+  {
+    path: 'src/web-ui/src/app/scenes/agent-studio',
+    reason:
+      'Agent Studio authors through the catalog draft interface only; the legacy Agent creation page is still live, so a second write path would dual-write the same agent',
+    patterns: [
+      {
+        regex: /SubagentAPI/,
+        message:
+          'Agent Studio must not reach the legacy subagent API; author through AgentRevisionService',
+      },
+      {
+        regex: /(?:createSubagent|updateSubagent|updateSubagentConfig|deleteSubagent)/,
+        message:
+          'legacy subagent writes bypass the revision catalog and would dual-write the legacy Agent source file',
+      },
+      {
+        regex: /writeTextFile|writeFile/,
+        message:
+          'Agent Studio must not write files directly; the catalog owns agent persistence',
+      },
+    ],
+  },
   {
     path: 'src/web-ui/src/flow_chat',
     reason:
@@ -9128,10 +9150,20 @@ function checkRequiredContent(repoPath, patterns, reason) {
   }
 }
 
+// Rules target both Rust crates and Web UI directories. Scanning only .rs made
+// every Web rule a silent no-op: the flow_chat terminal-ownership rule below has
+// never inspected a single file, because that tree contains no Rust.
+const BOUNDARY_SCAN_EXTENSIONS = ['.rs', '.ts', '.tsx'];
+
 function checkForbiddenContentUnder(repoDir, patterns, reason) {
   const dir = join(ROOT, ...repoDir.split('/'));
+  // A rule may guard a tree that does not exist yet or has been moved. That is
+  // not a violation, but it must not take the whole gate down either.
+  if (!existsSync(dir)) {
+    return;
+  }
   walkFiles(dir, (path) => {
-    if (!path.endsWith('.rs')) {
+    if (!BOUNDARY_SCAN_EXTENSIONS.some((extension) => path.endsWith(extension))) {
       return;
     }
     const repoPath = toRepoPath(path);

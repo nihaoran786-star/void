@@ -1159,13 +1159,47 @@ Web 全量 466 文件 / 2785 用例、`cargo check -p void-desktop`、`type-chec
 本地证据：`sessionCapabilities.agentStudio.test.ts` 6/6；Web 全量 467 文件 / 2791 用例、
 `type-check:web` 通过。
 
-#### P1-A2-4c 剩余范围（未开始）
+#### P1-A2-4c-2a 已实现检查点：草稿编辑器（含结构性防双写）
 
-原 PRD 把 A2-4c 写成一件事，实测它至少还有两块，且第二块体量远超一个切片：
+`AgentStudioDraftEditor` 提供 open/save 两个动作，只走 catalog 草稿接口。
 
-- **4c-2 Studio 编辑闭环**：草稿编辑器 + 隔离 debug 聊天面板 + 三动作发布 UI，
-  接线到 `AgentDebugSessionBinding` 与 `AgentRevisionActivation`。这是建一套新 UI，
-  不是接线，应当再拆。
+**验收条款：防双写靠结构堵死，不靠自觉。** 旧 Agent 创建页仍然活着、仍在写旧 `.md` 源文件，
+所以新增一条 `check:core-boundaries` 规则，禁止 `src/web-ui/src/app/scenes/agent-studio`
+出现 `SubagentAPI`、`createSubagent/updateSubagent/updateSubagentConfig/deleteSubagent`、
+以及任何 `writeTextFile/writeFile`。三条写路径各用探针验证过确实会被 CI 拦下。
+
+编辑器不变量：
+- save 使用 open 时那一版的 `expectedDraftRevisionId` 做精确 CAS，陈旧 save 由 catalog 拒绝。
+- 每次 save 用独立 idempotency key，两次编辑不会被折叠成一次。
+- persona key 不可改——它是运行会话解析所依据的身份，改了等于把草稿悄悄指向另一个 Agent。
+- 空 prompt、空 displayName 直接拒绝，不留到发布时才发现。
+- 全部失败以类型化状态返回（`open`/`saved`/`invalid`/`failed`），不抛异常。
+
+变异测试：取消 personaKey 校验、取消空 prompt 校验、CAS 改为固定值，三次变异各令 1 条测试变红。
+
+**顺带修复了一个死掉的架构门。** `checkForbiddenContentUnder` 原本只扫 `.rs`，
+导致既有的 `src/web-ui/src/flow_chat` 终端所有权规则**从写下起就在扫空气**
+（该目录下 0 个 `.rs` 文件）。现已扩展为扫 `.rs/.ts/.tsx`，修复后未暴露既有违规。
+同时给缺失目录加了容错，避免规则指向不存在的树时让整个门崩掉。
+
+已知既有基线问题（非本片引入，未修）：`VOID_BOUNDARY_CHECK_SELF_TEST=1` 在 HEAD 上即失败，
+报 `void-tool-packs` 的 owner content anchor 契约不匹配。
+
+本片没有 UI 组件，只有编辑器领域逻辑；`agent-studio` 表面仍是只读的，
+接线属 4c-2b/2c。
+
+本地证据：`AgentStudioDraftEditor.test.ts` 8/8、三次变异；Web 全量 468 文件 / 2799 用例、
+`type-check:web`、`check:core-boundaries`、`check:repo-hygiene` 均通过。
+
+#### P1-A2-4c 剩余范围
+
+A2-4c 按所有者决定拆为三小片，顺序即依赖顺序：
+
+- **4c-2a 草稿编辑器** — ✅ 已完成（见上）。
+- **4c-2b 隔离调试聊天**：复用已完成的 A2-2 绑定层与旧页面验证过的调试服务，不造新轮子。
+  这是风险最高的一片（涉及真实会话生命周期），单独做、单独验。
+- **4c-2c 发布三动作 UI**：必须排最后——发布的前提是「针对该草稿的试聊通过记录」，
+  而该记录由 2b 产生；2b 不完成，2c 没有真实数据可驱动。
 - **4c-3 旧创建页迁移与退出门**：消除双写，然后跑 P1-A 退出门——同一主会话 v3 运行 →
   v4 编辑 → 隔离试聊 → 发布 → **重启应用**后确认主会话固定 v3、新分叉固定 v4、
   未来默认指向 v4。重启后的绑定恢复必须由所有者实机验证一次，不能只靠单元测试宣称通过。
