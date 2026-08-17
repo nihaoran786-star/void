@@ -449,6 +449,10 @@
     }
   },
   "agentCard": {
+    "status": {
+      "running": "Running",
+      "idle": "Idle"
+    },
     "badges": {
       "agent": "Agent",
       "subagent": "Sub-Agent",

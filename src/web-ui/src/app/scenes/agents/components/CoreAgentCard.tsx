@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AgentWithCapabilities } from '../agentsStore';
-import { getAgentDescription, getCapabilityLabel } from '../utils';
 import AgentAvatar from './AgentAvatar';
 import './CoreAgentCard.scss';
 
@@ -47,6 +46,7 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
   return (
     <div
       className={`core-agent-card ${onDispatch ? 'core-agent-card--dispatchable' : ''}`.trim()}
+      data-state={dispatching ? 'running' : 'idle'}
       style={{
         '--card-index': index,
       } as React.CSSProperties}
@@ -60,59 +60,54 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
       onKeyDown={handleKeyDown}
       aria-label={t('agentCard.actions.viewNamed', { name: agent.displayName })}
     >
-      {onDispatch ? (
-        <button
-          type="button"
-          className="core-agent-card__dispatch"
-          aria-label={t('agentCard.actions.dispatchNamed', { name: agent.displayName })}
-          disabled={dispatching}
-          onClick={event => {
-            event.stopPropagation();
-            onDispatch(agent);
-          }}
-          onKeyDown={event => event.stopPropagation()}
-        >
-          {dispatching ? (
-            <Loader2 size={13} className="core-agent-card__dispatch-spinner" aria-hidden="true" />
-          ) : (
-            <Send size={13} aria-hidden="true" />
-          )}
-          <span>{t('agentCard.actions.dispatchTask')}</span>
-        </button>
-      ) : null}
-      <div className="core-agent-card__top">
-        <AgentAvatar
-          identity={agent.key || agent.id || agent.name}
-          name={agent.displayName}
-          state={avatarState}
-        />
-        <div className="core-agent-card__top-info">
-          <span className="core-agent-card__name">{agent.displayName}</span>
-          <span className="core-agent-card__role">
-            {meta.role}
-            <span aria-hidden="true">·</span>
-            {t('filters.builtin')}
+      <AgentAvatar
+        identity={agent.key || agent.id || agent.name}
+        name={agent.displayName}
+        state={avatarState}
+      />
+      <p className="core-agent-card__name">{agent.displayName}</p>
+      <p className="core-agent-card__role">
+        {meta.role}
+        <span aria-hidden="true">·</span>
+        {t('filters.builtin')}
+      </p>
+      <p className="core-agent-card__status">
+        {dispatching ? (
+          <span className="core-agent-card__status-running">
+            <span className="core-agent-card__status-dot" aria-hidden="true" />
+            {t('agentCard.status.running')}
           </span>
-        </div>
-      </div>
+        ) : (
+          <span className="core-agent-card__status-idle">
+            {t('agentCard.status.idle')}
+          </span>
+        )}
+      </p>
 
-      <div className="core-agent-card__body">
-        <p className="core-agent-card__desc">
-          {getAgentDescription(t, agent)}
-        </p>
-      </div>
-
-      <div className="core-agent-card__footer">
-        <div className="core-agent-card__cap-chips">
-          {agent.capabilities.slice(0, 3).map((capability) => (
-            <span key={capability.category} className="core-agent-card__cap-chip">
-              {getCapabilityLabel(t, capability.category)}
-            </span>
-          ))}
-        </div>
+      <div className="core-agent-card__actions">
+        {onDispatch ? (
+          <button
+            type="button"
+            className="core-agent-card__dispatch"
+            aria-label={t('agentCard.actions.dispatchNamed', { name: agent.displayName })}
+            disabled={dispatching}
+            onClick={event => {
+              event.stopPropagation();
+              onDispatch(agent);
+            }}
+            onKeyDown={event => event.stopPropagation()}
+          >
+            {dispatching ? (
+              <Loader2 size={12} className="core-agent-card__dispatch-spinner" aria-hidden="true" />
+            ) : (
+              <Send size={12} aria-hidden="true" />
+            )}
+            <span>{t('agentCard.actions.dispatchTask')}</span>
+          </button>
+        ) : null}
         <span className="core-agent-card__view">
           {t('agentCard.actions.view')}
-          <ChevronRight size={14} aria-hidden="true" />
+          <ChevronRight size={12} aria-hidden="true" />
         </span>
       </div>
     </div>

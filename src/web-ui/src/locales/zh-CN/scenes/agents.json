@@ -449,6 +449,10 @@
     }
   },
   "agentCard": {
+    "status": {
+      "running": "运行中",
+      "idle": "空闲"
+    },
     "badges": {
       "agent": "智能体",
       "subagent": "子智能体",

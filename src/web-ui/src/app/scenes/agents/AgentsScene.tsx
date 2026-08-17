@@ -692,24 +692,53 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
 
   return (
     <GalleryLayout className="void-agents-scene">
-      <div className="agent-market-toolbar">
-        <div className="gallery-anchor-bar">
-          <button
-            type="button"
-            className="gallery-anchor-btn"
-            onClick={() => scrollToZone('core-agents-zone')}
+      <header className="agents-topbar">
+        <h2 className="agents-topbar__title">
+          <span className="agents-topbar__title-text">{t('nav.agents')}</span>
+          <span className="agents-topbar__count">{visibleAgents.length}</span>
+        </h2>
+
+        <div className="agents-topbar__chips">
+          <div
+            className="agents-topbar__chip-group"
+            role="group"
+            aria-label={t('filters.source')}
           >
-            {t('nav.coreAgents')}
-          </button>
-          <button
-            type="button"
-            className="gallery-anchor-btn"
-            onClick={() => scrollToZone('agents-zone')}
+            {levelFilters.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                className={`agents-chip ${agentFilterLevel === key ? 'is-active' : ''}`}
+                onClick={() => setAgentFilterLevel(agentFilterLevel === key ? 'all' : key)}
+                aria-pressed={agentFilterLevel === key}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="agents-topbar__chip-group"
+            role="group"
+            aria-label={t('filters.kind')}
           >
-            {t('nav.agents')}
-          </button>
+            {typeFilters.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                className={`agents-chip ${agentFilterType === key ? 'is-active' : ''}`}
+                onClick={() => setAgentFilterType(agentFilterType === key ? 'all' : key)}
+                aria-pressed={agentFilterType === key}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <span className="agents-topbar__spacer" aria-hidden="true" />
+
         <Search
+          className="agents-topbar__search"
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder={t('page.searchPlaceholder')}
@@ -717,7 +746,16 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
           clearable
           prefixIcon={<SearchIcon size={14} />}
         />
-      </div>
+
+        <button
+          type="button"
+          className="agents-topbar__primary"
+          onClick={openCreateAgent}
+        >
+          <Plus size={14} />
+          <span>{t('page.newAgent')}</span>
+        </button>
+      </header>
 
       <div className="gallery-zones">
         <GalleryZone
@@ -761,58 +799,6 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
           id="agents-zone"
           title={t('agentsZone.title')}
           subtitle={t('agentsZone.subtitle')}
-          tools={(
-            <>
-              <div className="void-agents-scene__agent-filters">
-                <div className="void-agents-scene__agent-filter-group">
-                  <span className="void-agents-scene__agent-filter-label">
-                    {t('filters.source')}
-                  </span>
-                  {levelFilters.map(({ key, label, count }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={[
-                        'gallery-cat-chip',
-                        agentFilterLevel === key && 'gallery-cat-chip--active',
-                      ].filter(Boolean).join(' ')}
-                      onClick={() => setAgentFilterLevel(agentFilterLevel === key ? 'all' : key)}
-                    >
-                      <span>{label}</span>
-                      <span className="gallery-filter-count">{count}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="void-agents-scene__agent-filter-group">
-                  <span className="void-agents-scene__agent-filter-label">
-                    {t('filters.kind')}
-                  </span>
-                  {typeFilters.map(({ key, label, count }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={[
-                        'gallery-cat-chip',
-                        agentFilterType === key && 'gallery-cat-chip--active',
-                      ].filter(Boolean).join(' ')}
-                      onClick={() => setAgentFilterType(agentFilterType === key ? 'all' : key)}
-                    >
-                      <span>{label}</span>
-                      <span className="gallery-filter-count">{count}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="gallery-action-btn gallery-action-btn--primary"
-                onClick={openCreateAgent}
-              >
-                <Plus size={15} />
-                <span>{t('page.newAgent')}</span>
-              </button>
-            </>
-          )}
         >
           {loading ? renderSkeletons('agent') : null}
 
@@ -841,6 +827,16 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
                     active={selectedAgentKey === agent.key}
                   />
                 ))}
+                {agentPage === totalAgentPages - 1 ? (
+                  <button
+                    type="button"
+                    className="agent-card agent-card--new"
+                    onClick={openCreateAgent}
+                  >
+                    <Plus size={22} aria-hidden="true" />
+                    <span className="agent-card__new-label">{t('page.newAgent')}</span>
+                  </button>
+                ) : null}
               </GalleryGrid>
               <CatalogPagination
                 currentPage={agentPage}

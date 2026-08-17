@@ -439,7 +439,7 @@ describeWithJsdom('AgentsScene', () => {
     });
   });
 
-  it('移除可见页面标题并让全部智能体固定每页二十四张', async () => {
+  it('目录上栏承载页名与数量，全部智能体仍固定每页二十四张', async () => {
     sceneFixture.agents = Array.from({ length: 25 }, (_, index) => ({
       key: `user::void::agent-${index}`,
       id: `agent-${index}`,
@@ -464,11 +464,14 @@ describeWithJsdom('AgentsScene', () => {
       root.render(<AgentsScene />);
     });
 
-    expect(container.querySelector('header')).toBeNull();
+    const topbar = container.querySelector('.agents-topbar');
+    expect(topbar).toBeTruthy();
+    expect(topbar!.querySelector('.agents-topbar__count')?.textContent).toBe('25');
     expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(24);
-    expect(container.textContent).toContain('nav.coreAgents');
     expect(container.textContent).toContain('nav.agents');
     expect(container.querySelector('[aria-label="page.searchPlaceholder"]')).toBeTruthy();
+    // Exactly one primary action lives in the top bar.
+    expect(topbar!.querySelectorAll('.agents-topbar__primary')).toHaveLength(1);
 
     const next = container.querySelector<HTMLButtonElement>('[aria-label="pagination.next"]');
     expect(next).toBeTruthy();
