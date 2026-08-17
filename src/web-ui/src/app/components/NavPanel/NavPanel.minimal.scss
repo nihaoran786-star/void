@@ -4,6 +4,11 @@
   // same inset workspace surface.  The parent owns clipping so NavBar and
   // NavPanel cannot leak square backgrounds through the shared radius.
   .void-ui--minimal .void-workspace-body__nav-area {
+    // One icon column for the whole sidebar: the control bar's first button,
+    // every nav row and the footer buttons all centre their glyph here.
+    // Panel inset (8px) + row inset (8px) + half the 18px icon slot.
+    --void-nav-icon-centre: 27px;
+
     height: calc(100% - (2 * var(--workspace-space-2)));
     margin: var(--workspace-space-2) var(--workspace-space-2) var(--workspace-space-2) 0;
     overflow: hidden;
@@ -22,8 +27,6 @@
 
   .void-ui--minimal .void-nav-panel {
     --void-nav-status-unknown: var(--workspace-text-muted);
-    // Panel inset (8px) + row inset (8px) + half the 18px icon slot.
-    --void-nav-icon-centre: 27px;
 
     // The nav-area shell owns the Glass Air material (background + blur); the
     // panel and its footer stay transparent so the frosted treatment reads as

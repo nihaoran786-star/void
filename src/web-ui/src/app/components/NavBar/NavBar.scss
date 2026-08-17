@@ -133,7 +133,12 @@
 
 .void-ui--minimal .void-nav-bar {
   height: 36px;
-  padding-inline: $size-gap-1;
+  // Land the first control's glyph on the sidebar's icon column instead of
+  // hugging the panel edge: the column centre, less half a control.
+  padding-left: calc(
+    var(--void-nav-icon-centre, 27px) - (var(--void-topbar-control-size) / 2)
+  );
+  padding-right: $size-gap-1;
   background: transparent;
 
   &__btn,
