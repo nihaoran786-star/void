@@ -1,6 +1,6 @@
 import type { FlowToolItem, Session } from '../types/flow-chat';
 
-export type SessionCapabilityId = 'short-drama' | 'workspace-media';
+export type SessionCapabilityId = 'short-drama' | 'workspace-media' | 'agent-studio';
 
 export type SessionCapabilityStatus =
   | 'running'
@@ -16,7 +16,13 @@ export interface SessionCapabilityPresentation {
 }
 
 type SessionCapabilitySource = Pick<Session, 'dialogTurns'>
-  & Partial<Pick<Session, 'mode' | 'sessionKind'>>;
+  & Partial<Pick<Session, 'mode' | 'sessionKind'>>
+  & {
+    activePersonaBinding?: {
+      kind?: string;
+      personaId?: string;
+    } | null;
+  };
 
 const MEDIA_TOOL_NAMES = new Set([
   'GenerateImage',
@@ -118,6 +124,23 @@ export function deriveSessionCapabilities(
     });
   }
 
+  // Agent Studio authors the agent this conversation is running, so it is
+  // offered only for an explicitly selected agent persona. A scenario default
+  // has nothing authored behind it, a team lead is authored as a team, and a
+  // subagent conversation runs a persona it does not own.
+  if (
+    session.sessionKind !== 'subagent'
+    && session.activePersonaBinding?.kind === 'agent'
+    && session.activePersonaBinding.personaId?.trim()
+  ) {
+    presentations.set('agent-studio', {
+      id: 'agent-studio',
+      status: 'ready',
+      usageCount: 0,
+      latestActivityAt: 0,
+    });
+  }
+
   for (const turn of session.dialogTurns) {
     for (const round of turn.modelRounds) {
       for (const item of round.items) {
@@ -152,7 +175,7 @@ export function deriveSessionCapabilities(
     }
   }
 
-  return ['short-drama', 'workspace-media']
+  return ['short-drama', 'workspace-media', 'agent-studio']
     .map(id => presentations.get(id as SessionCapabilityId))
     .filter(
       (value): value is SessionCapabilityPresentation => Boolean(value),

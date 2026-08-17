@@ -9,6 +9,8 @@ import type { DialogTurn, FlowChatState } from '../types/flow-chat';
 
 interface ActiveSessionCapabilitiesSnapshot {
   sessionId: string | null;
+  /** Persona the conversation is bound to, for capabilities that author it. */
+  personaId?: string;
   remoteConnectionId?: string;
   remoteSshHost?: string;
   capabilities: SessionCapabilityPresentation[];
@@ -54,7 +56,7 @@ function aggregateTurnCapabilities(
     }
   }
 
-  return ['short-drama', 'workspace-media']
+  return ['short-drama', 'workspace-media', 'agent-studio']
     .map(id => aggregated.get(
       id as SessionCapabilityPresentation['id'],
     ))
@@ -99,8 +101,13 @@ function selectSnapshot(
     });
   }
 
+  const personaId = session.activePersonaBinding?.kind === 'agent'
+    ? session.activePersonaBinding.personaId?.trim()
+    : undefined;
+
   return {
     sessionId,
+    ...(personaId ? { personaId } : {}),
     ...(session.remoteConnectionId
       ? { remoteConnectionId: session.remoteConnectionId }
       : {}),
@@ -111,6 +118,7 @@ function selectSnapshot(
         dialogTurns: [],
         mode: session.mode,
         sessionKind: session.sessionKind,
+        activePersonaBinding: session.activePersonaBinding,
       }),
     ),
   };
@@ -121,6 +129,7 @@ function areSnapshotsEqual(
   right: ActiveSessionCapabilitiesSnapshot,
 ): boolean {
   return left.sessionId === right.sessionId
+    && left.personaId === right.personaId
     && left.remoteConnectionId === right.remoteConnectionId
     && left.remoteSshHost === right.remoteSshHost
     && areSessionCapabilitiesEqual(left.capabilities, right.capabilities);

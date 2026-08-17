@@ -1140,6 +1140,38 @@ binder/activator 之间仍未接线；旧创建页迁移与退出门属 A2-4c。
 Web 全量 466 文件 / 2785 用例、`cargo check -p void-desktop`、`type-check:web`、
 `i18n:contract:test` 15/15、`check:core-boundaries` 均通过。
 
+#### P1-A2-4c-1 已实现检查点：入口真正可用
+
+`personaId` 从会话贯通到能力入口，`agent-studio` 按钮第一次真的能打开表面。
+
+- `SessionCapabilityId` 增加 `'agent-studio'`；`deriveSessionCapabilities` 仅在会话
+  **显式绑定了 agent persona** 时提供该能力。场景默认背后没有被 authored 的 Agent，
+  team lead 是按 Team 来 authored 的，subagent 会话跑的是它并不拥有的 persona——
+  三者都不提供。
+- `useActiveSessionCapabilities` 暴露 `personaId`（仅 `kind === 'agent'` 时），
+  `SessionScene` 透传给 `openFirstPartyCanvasCapability`，由 4b 的 `resolveInput`
+  解析成 `definitionId`。
+- 未新增任何中心硬编码入口；能力轨仍然对具体表面无知。
+
+**此时的真实可用范围**：点开后是 A2-1 的只读表面——显示 default/latest revision 指针、
+已发布 revision 列表与草稿状态。**还不能编辑、试聊或发布**。
+
+本地证据：`sessionCapabilities.agentStudio.test.ts` 6/6；Web 全量 467 文件 / 2791 用例、
+`type-check:web` 通过。
+
+#### P1-A2-4c 剩余范围（未开始）
+
+原 PRD 把 A2-4c 写成一件事，实测它至少还有两块，且第二块体量远超一个切片：
+
+- **4c-2 Studio 编辑闭环**：草稿编辑器 + 隔离 debug 聊天面板 + 三动作发布 UI，
+  接线到 `AgentDebugSessionBinding` 与 `AgentRevisionActivation`。这是建一套新 UI，
+  不是接线，应当再拆。
+- **4c-3 旧创建页迁移与退出门**：消除双写，然后跑 P1-A 退出门——同一主会话 v3 运行 →
+  v4 编辑 → 隔离试聊 → 发布 → **重启应用**后确认主会话固定 v3、新分叉固定 v4、
+  未来默认指向 v4。重启后的绑定恢复必须由所有者实机验证一次，不能只靠单元测试宣称通过。
+
+在 4c-2 获批前，`agent-studio` 表面保持只读；不得因为入口已通就顺手加编辑能力。
+
 ### P1-B：短剧与媒体成为旗舰业务包
 
 目标：证明“Canvas Surface + Team + Workflow + Domain Module + Provider”可以稳定组合。

@@ -57,6 +57,7 @@ interface SessionCanvasCapabilityIntent {
   source: 'capability-rail' | 'restore';
   idempotencyKey: string;
   sourceSessionId?: string;
+  personaId?: string;
   workspaceId?: string;
   workspacePath?: string;
   remoteConnectionId?: string;
@@ -113,6 +114,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const newSessionDraftStatus = useSessionModeStore(store => store.draftStatus);
   const {
     sessionId: activeSessionId,
+    personaId: activeSessionPersonaId,
     remoteConnectionId: activeSessionRemoteConnectionId,
     remoteSshHost: activeSessionRemoteSshHost,
     capabilities: activeSessionCapabilities,
@@ -480,6 +482,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     capabilityId: intent.capabilityId,
     source: intent.source,
     input: undefined,
+    ...(intent.personaId ? { personaId: intent.personaId } : {}),
     idempotencyKey: intent.idempotencyKey,
     target: !intent.workspaceId || !intent.workspacePath
       || (intent.remoteSshHost && !intent.remoteConnectionId)
@@ -551,6 +554,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       source: 'capability-rail',
       idempotencyKey: `capability-rail:${++canvasCapabilityDeliverySequenceRef.current}`,
       ...(activeSessionId ? { sourceSessionId: activeSessionId } : {}),
+      ...(activeSessionPersonaId ? { personaId: activeSessionPersonaId } : {}),
       ...(workspaceId ? { workspaceId } : {}),
       ...(workspacePath ? { workspacePath } : {}),
       ...(activeSessionRemoteConnectionId
@@ -567,6 +571,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     void dispatchSessionCanvasCapability(intent);
   }, [
     activeSessionId,
+    activeSessionPersonaId,
     activeSessionRemoteConnectionId,
     activeSessionRemoteSshHost,
     dispatchSessionCanvasCapability,
