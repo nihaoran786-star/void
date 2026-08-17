@@ -4,9 +4,11 @@ Updated: 2026-08-17
 
 ## Product state
 
-- Active implementation branch: `codex/agent-revision-core-p1a1` (P0-A/P0-B
-  complete; P1-A1 Agent Revision Core and the three P1-A2 parts A2-1/A2-2/A2-3
-  implemented and locally verified; not pushed).
+- Active implementation branch: `codex/agent-revision-core-p1a1`. On
+  2026-08-17 the owner promoted this line to `origin/main` (fast-forward
+  impossible: the previous remote main was an unrelated 2026-02..05 showcase
+  history, preserved as `legacy/main-20260525`). The branch and main are
+  pushed; keep them in sync after each verified slice.
 - Void is the primary product and implementation repository. BitFun is an
   upstream capability/fix reference, while DeepSeek Harness is a rapidly
   evolving plugin-architecture and ecosystem reference; neither reference
