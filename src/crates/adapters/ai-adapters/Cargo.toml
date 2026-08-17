@@ -11,7 +11,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 anyhow = { workspace = true }
-void-core-types = { path = "../core-types" }
+void-core-types = { path = "../../contracts/core-types" }
 chrono = { workspace = true }
 eventsource-stream = { workspace = true }
 futures = { workspace = true }

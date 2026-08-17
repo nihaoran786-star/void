@@ -21,7 +21,7 @@ const outputs = [
     generate: generateInstallerLocaleContract,
   },
   {
-    path: path.join(root, 'src', 'crates', 'core', 'src', 'service', 'i18n', 'generated_locale_contract.rs'),
+    path: path.join(root, 'src', 'crates', 'assembly', 'core', 'src', 'service', 'i18n', 'generated_locale_contract.rs'),
     generate: generateCoreRustLocaleContract,
   },
   {

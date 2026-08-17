@@ -12,8 +12,8 @@ crate-type = ["rlib"]
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
-void-core-types = { path = "../core-types" }
-void-runtime-ports = { path = "../runtime-ports" }
+void-core-types = { path = "../../contracts/core-types" }
+void-runtime-ports = { path = "../../contracts/runtime-ports" }
 async-trait = { workspace = true }
 indexmap = { workspace = true }
 

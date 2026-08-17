@@ -10,7 +10,7 @@ name = "void_api_layer"
 
 [dependencies]
 # Internal crates
-void-transport = { path = "../transport" }
+void-transport = { path = "../../adapters/transport" }
 
 # Inherited from workspace
 tokio = { workspace = true }

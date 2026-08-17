@@ -85,6 +85,9 @@ const ignoredContentPaths = [
   /(^|\/).*package-lock\.json$/,
   /(^|\/)pnpm-lock\.yaml$/,
   /(^|\/)Cargo\.lock$/,
+  // Agent prompt teaching material: contains deliberate example absolute
+  // paths (good/bad link formatting samples), not real local paths.
+  /(^|\/)src\/crates\/assembly\/core\/src\/agentic\/agents\/prompts\/agentic_mode\.md$/,
 ];
 
 const testFilePattern = /(^|\/)(tests?|__tests__)\/|[._-](test|spec)\.[cm]?[jt]sx?$|_tests?\.rs$|\/tests\.rs$/;

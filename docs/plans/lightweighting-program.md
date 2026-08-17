@@ -357,7 +357,15 @@ pnpm --dir src/web-ui run test:run
 
 **目标不是减少行数，而是让编译器重新承担边界检查。**
 
-第一步（唯一建议现在做的）：把 `src/crates/` 改成上游的层目录结构，crate 内容一行不动：
+**第一步 ✅ 已完成（2026-08-17）**：`src/crates/` 已按上游层目录重组，crate 内容
+零逻辑变更。同步更新了根 `Cargo.toml` members、全部 crate/app/Void-Installer 的
+path 依赖、`check-core-boundaries.mjs`（新增 crate→层解析器 `crateDirFor`）、
+`i18n-contract.test.mjs`、i18n 契约 `locales.json`（重新生成）、Deep Review 的
+`reviewTargetClassifier.ts` 前缀与 `pathMetadata.ts` 的区域键推导（跳过层目录，
+`crate:core` 语义不变）。验证：`cargo check --workspace` 通过、core-boundaries /
+repo-hygiene / i18n 契约 15/15 通过、6 个 Deep Review web 测试文件 110/110 通过、
+`type-check:web` 通过。Rust 源码里的 `src/crates/...` 测试夹具字符串是纯示例数据，
+未改。原目标结构：
 
 ```
 src/crates/

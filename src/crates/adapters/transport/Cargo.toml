@@ -10,7 +10,7 @@ name = "void_transport"
 
 [dependencies]
 # Events layer
-void-events = { path = "../events" }
+void-events = { path = "../../contracts/events" }
 
 # Inherited from workspace
 tokio = { workspace = true }

@@ -8,6 +8,35 @@ import { dirname } from 'path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
+// Crates live under src/crates/<layer>/<name>; resolve the layer from the name.
+const crateLayerByName = {
+  'core-types': 'contracts',
+  events: 'contracts',
+  'product-domains': 'contracts',
+  'runtime-ports': 'contracts',
+  acp: 'interfaces',
+  'ai-adapters': 'adapters',
+  transport: 'adapters',
+  webdriver: 'adapters',
+  'agent-stream': 'execution',
+  'agent-tools': 'execution',
+  'tool-runtime': 'execution',
+  'tool-packs': 'execution',
+  'services-core': 'services',
+  'services-integrations': 'services',
+  terminal: 'services',
+  core: 'assembly',
+  'api-layer': 'assembly',
+};
+
+function crateDirFor(crateName) {
+  const layer = crateLayerByName[crateName];
+  if (!layer) {
+    throw new Error(`Unknown crate name (missing layer mapping): ${crateName}`);
+  }
+  return join(ROOT, 'src', 'crates', layer, crateName);
+}
+
 const noCoreDependencyCrates = [
   'core-types',
   'events',
@@ -382,17 +411,17 @@ const productCoreFeatureAssemblyRules = [
     reason: 'CLI must explicitly assemble the full void-core product runtime',
   },
   {
-    manifestPath: 'src/crates/acp/Cargo.toml',
+    manifestPath: 'src/crates/interfaces/acp/Cargo.toml',
     dependencyName: 'void-core',
     requiredFeatures: ['product-full'],
     reason: 'ACP must explicitly assemble the full void-core product runtime',
   },
 ];
 
-const productCoreFeatureAssemblyScanRoots = ['src/apps', 'src/crates/acp'];
+const productCoreFeatureAssemblyScanRoots = ['src/apps', 'src/crates/interfaces/acp'];
 
 const coreProductFullFeatureAssemblyRule = {
-  manifestPath: 'src/crates/core/Cargo.toml',
+  manifestPath: 'src/crates/assembly/core/Cargo.toml',
   featureName: 'product-full',
   requiredFeatureRefs: ['ssh-remote', 'product-domains', 'service-integrations', 'tool-packs'],
   reason: 'void-core product-full must explicitly assemble current owner feature groups',
@@ -400,7 +429,7 @@ const coreProductFullFeatureAssemblyRule = {
 
 const ownerCrateFeatureAssemblyRules = [
   {
-    manifestPath: 'src/crates/tool-packs/Cargo.toml',
+    manifestPath: 'src/crates/execution/tool-packs/Cargo.toml',
     reason: 'tool-packs must keep product feature groups explicit and default-light',
     requiredProductFullFeatures: [
       'basic',
@@ -414,7 +443,7 @@ const ownerCrateFeatureAssemblyRules = [
     ],
   },
   {
-    manifestPath: 'src/crates/services-integrations/Cargo.toml',
+    manifestPath: 'src/crates/services/services-integrations/Cargo.toml',
     reason: 'services-integrations must keep integration feature groups explicit and default-light',
     requiredProductFullFeatures: [
       'announcement',
@@ -427,7 +456,7 @@ const ownerCrateFeatureAssemblyRules = [
     ],
   },
   {
-    manifestPath: 'src/crates/product-domains/Cargo.toml',
+    manifestPath: 'src/crates/contracts/product-domains/Cargo.toml',
     reason: 'product-domains must keep product domain feature groups explicit and default-light',
     requiredProductFullFeatures: ['miniapp', 'function-agents'],
   },
@@ -435,92 +464,92 @@ const ownerCrateFeatureAssemblyRules = [
 
 const facadeOnlyFiles = [
   {
-    path: 'src/crates/core/src/infrastructure/filesystem/mod.rs',
+    path: 'src/crates/assembly/core/src/infrastructure/filesystem/mod.rs',
     importPrefix: 'void_services_core::filesystem',
     reason: 'core filesystem infrastructure facade must only re-export the services-core owner crate',
   },
   {
-    path: 'src/crates/core/src/service/filesystem/listing.rs',
+    path: 'src/crates/assembly/core/src/service/filesystem/listing.rs',
     importPrefix: 'void_services_core::filesystem',
     reason: 'core filesystem listing facade must only re-export the services-core owner crate',
   },
   {
-    path: 'src/crates/core/src/service/filesystem/types.rs',
+    path: 'src/crates/assembly/core/src/service/filesystem/types.rs',
     importPrefix: 'void_services_core::filesystem',
     reason: 'core filesystem DTO facade must only re-export the services-core owner crate',
   },
   {
-    path: 'src/crates/core/src/service/git/git_service.rs',
+    path: 'src/crates/assembly/core/src/service/git/git_service.rs',
     importPrefix: 'void_services_integrations::git',
     reason: 'core git service facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/git/git_types.rs',
+    path: 'src/crates/assembly/core/src/service/git/git_types.rs',
     importPrefix: 'void_services_integrations::git',
     reason: 'core git types facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/git/git_utils.rs',
+    path: 'src/crates/assembly/core/src/service/git/git_utils.rs',
     importPrefix: 'void_services_integrations::git',
     reason: 'core git utils facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/git/graph.rs',
+    path: 'src/crates/assembly/core/src/service/git/graph.rs',
     importPrefix: 'void_services_integrations::git',
     reason: 'core git graph facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/remote_ssh/types.rs',
+    path: 'src/crates/assembly/core/src/service/remote_ssh/types.rs',
     importPrefix: 'void_services_integrations::remote_ssh',
     reason: 'core remote SSH types facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/tool_info.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/tool_info.rs',
     importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP tool info facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/tool_name.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/tool_name.rs',
     importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP tool name facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/protocol/types.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/protocol/types.rs',
     importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP protocol types facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/protocol/transport.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/protocol/transport.rs',
     importPrefix: 'void_services_integrations::mcp::protocol',
     reason: 'core MCP stdio transport facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/protocol/transport_remote.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/protocol/transport_remote.rs',
     importPrefix: 'void_services_integrations::mcp::protocol',
     reason: 'core MCP remote transport facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/server/connection.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/server/connection.rs',
     importPrefix: 'void_services_integrations::mcp::server',
     reason: 'core MCP connection facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/config/location.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/config/location.rs',
     importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP config location facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/adapter/resource.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/adapter/resource.rs',
     importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP resource adapter facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/mcp/adapter/prompt.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/adapter/prompt.rs',
     importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP prompt adapter facade must only re-export the integrations owner crate',
   },
   {
-    path: 'src/crates/core/src/service/announcement/types.rs',
+    path: 'src/crates/assembly/core/src/service/announcement/types.rs',
     importPrefix: 'void_services_integrations::announcement',
     reason: 'core announcement types facade must only re-export the integrations owner crate',
   },
@@ -553,7 +582,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/filesystem/service.rs',
+    path: 'src/crates/assembly/core/src/service/filesystem/service.rs',
     patterns: [
       {
         regex: /\btokio::fs::/,
@@ -583,7 +612,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/runtime_detect.rs',
+    path: 'src/crates/assembly/core/src/miniapp/runtime_detect.rs',
     patterns: [
       {
         regex: /\bCoreMiniAppRuntimeProbe\b/,
@@ -608,7 +637,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/framework.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/framework.rs',
     patterns: [
       {
         regex: /\bpub struct DynamicMcpToolInfo\b/,
@@ -686,7 +715,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/pipeline/tool_pipeline.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -721,7 +750,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/subagent_runtime/mod.rs',
+    path: 'src/crates/assembly/core/src/agentic/subagent_runtime/mod.rs',
     patterns: [
       {
         regex: /\bstruct\s+DelegationPolicy\b/,
@@ -736,7 +765,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/coordination/coordinator.rs',
+    path: 'src/crates/assembly/core/src/agentic/coordination/coordinator.rs',
     patterns: [
       {
         regex: /\benum\s+DialogTriggerSource\b/,
@@ -746,7 +775,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+    path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
     patterns: [
       {
         regex: /\benum\s+DialogQueuePriority\b/,
@@ -776,7 +805,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/round_preempt.rs',
+    path: 'src/crates/assembly/core/src/agentic/round_preempt.rs',
     patterns: [
       {
         regex: /\btrait\s+DialogRoundPreemptSource\b/,
@@ -806,7 +835,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/goal_mode/types.rs',
+    path: 'src/crates/assembly/core/src/agentic/goal_mode/types.rs',
     patterns: [
       {
         regex: /\bconst\s+GOAL_MODE_METADATA_KEY\b/,
@@ -847,7 +876,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/core/message.rs',
+    path: 'src/crates/assembly/core/src/agentic/core/message.rs',
     patterns: [
       {
         regex: /\bstruct\s+CompressionContract\b/,
@@ -864,7 +893,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/workspace/manager.rs',
+    path: 'src/crates/assembly/core/src/service/workspace/manager.rs',
     patterns: [
       {
         regex: /\bstruct\s+RelatedPath\b/,
@@ -873,7 +902,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/file_read_state_runtime.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/file_read_state_runtime.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -883,7 +912,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/tool_result_storage.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/tool_result_storage.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -893,7 +922,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/post_call_hooks.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/post_call_hooks.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -903,7 +932,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/tool_adapter.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/tool_adapter.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -913,7 +942,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/product_runtime.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/product_runtime.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -923,7 +952,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/manifest_resolver.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/manifest_resolver.rs',
     patterns: [
       {
         regex: /framework::(?:\{[^}]*\bToolUseContext\b[^}]*\}|\bToolUseContext\b)/,
@@ -933,7 +962,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/manager.rs',
+    path: 'src/crates/assembly/core/src/miniapp/manager.rs',
     patterns: [
       {
         regex: /\bbuild_runtime_state\b/,
@@ -963,7 +992,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/restrictions.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/restrictions.rs',
     patterns: [
       {
         regex: /\bpub enum ToolPathOperation\b/,
@@ -986,7 +1015,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/workspace_paths.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/workspace_paths.rs',
     patterns: [
       {
         regex: /\bpub const VOID_RUNTIME_URI_PREFIX\b/,
@@ -1011,7 +1040,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/registry.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/registry.rs',
     patterns: [
       {
         regex: /\bstruct DynamicToolMetadata\b/,
@@ -1031,7 +1060,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/file_read_state_runtime.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/file_read_state_runtime.rs',
     patterns: [
       {
         regex: /\bnormalize_string\b/,
@@ -1041,7 +1070,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/tool_result_storage.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/tool_result_storage.rs',
     patterns: [
       {
         regex: /\bfn\s+generate_preview\b/,
@@ -1066,7 +1095,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/server/process.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/server/process.rs',
     patterns: [
       {
         regex: /\bpub enum MCPServerType\b/,
@@ -1103,7 +1132,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/server/manager/mod.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/server/manager/mod.rs',
     patterns: [
       {
         regex: /\benum ListChangedKind\b/,
@@ -1120,7 +1149,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/server/manager/reconnect.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/server/manager/reconnect.rs',
     patterns: [
       {
         regex: /\bfn compute_backoff_delay\b/,
@@ -1129,7 +1158,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/server/manager/interaction.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/server/manager/interaction.rs',
     patterns: [
       {
         regex: /\bfn detect_list_changed_kind\b/,
@@ -1138,7 +1167,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/adapter/tool.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/adapter/tool.rs',
     patterns: [
       {
         regex: /\bfn behavior_hints\b/,
@@ -1159,7 +1188,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/adapter/context.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/adapter/context.rs',
     patterns: [
       {
         regex: /\bpub struct ContextEnhancerConfig\b/,
@@ -1176,7 +1205,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/git-func-agent/commit_generator.rs',
+    path: 'src/crates/assembly/core/src/function_agents/git-func-agent/commit_generator.rs',
     patterns: [
       {
         regex: /\bGitService::get_status\b/,
@@ -1196,7 +1225,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/startchat-func-agent/work_state_analyzer.rs',
+    path: 'src/crates/assembly/core/src/function_agents/startchat-func-agent/work_state_analyzer.rs',
     patterns: [
       {
         regex: /\bAIWorkStateService::new_with_agent_config\b/,
@@ -1211,7 +1240,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/server/config.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/server/config.rs',
     patterns: [
       {
         regex: /\bpub enum MCPServerTransport\b/,
@@ -1244,7 +1273,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/config/cursor_format.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/config/cursor_format.rs',
     patterns: [
       {
         regex: /\bfn parse_source\b/,
@@ -1261,7 +1290,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/config/json_config.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/config/json_config.rs',
     patterns: [
       {
         regex: /\bfn normalize_source\b/,
@@ -1282,7 +1311,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/config/service.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/config/service.rs',
     patterns: [
       {
         regex: /\bconst AUTHORIZATION_KEYS\b/,
@@ -1307,7 +1336,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/auth.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/auth.rs',
     patterns: [
       {
         regex: /\bstruct VaultFile\b/,
@@ -1336,7 +1365,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/protocol/transport_remote.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/protocol/transport_remote.rs',
     patterns: [
       {
         regex: /\bfn normalize_authorization_value\b/,
@@ -1397,7 +1426,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mcp/protocol/jsonrpc.rs',
+    path: 'src/crates/assembly/core/src/service/mcp/protocol/jsonrpc.rs',
     patterns: [
       {
         regex: /\bfn serialize_params\b/,
@@ -1438,7 +1467,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_ssh/workspace_state.rs',
+    path: 'src/crates/assembly/core/src/service/remote_ssh/workspace_state.rs',
     patterns: [
       {
         regex: /\bpub const LOCAL_WORKSPACE_SSH_HOST\b/,
@@ -1511,7 +1540,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_connect/remote_server.rs',
+    path: 'src/crates/assembly/core/src/service/remote_connect/remote_server.rs',
     patterns: [
       {
         regex: /\bpub\(crate\) struct CoreRemoteDialogRuntimeHost\b/,
@@ -1819,7 +1848,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_connect/bot/mod.rs',
+    path: 'src/crates/assembly/core/src/service/remote_connect/bot/mod.rs',
     patterns: [
       {
         regex: /\bfn strip_workspace_path_prefix\b/,
@@ -1840,7 +1869,7 @@ const forbiddenContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/announcement/state_store.rs',
+    path: 'src/crates/assembly/core/src/service/announcement/state_store.rs',
     patterns: [
       {
         regex: /\btokio::fs\b/,
@@ -1882,7 +1911,7 @@ const forbiddenContentUnderRules = [
     ],
   },
   {
-    path: 'src/crates/core/src',
+    path: 'src/crates/assembly/core/src',
     reason:
       'core must use runtime-ports as the owner path for portable subagent contracts',
     patterns: [
@@ -1895,7 +1924,7 @@ const forbiddenContentUnderRules = [
     ],
   },
   {
-    path: 'src/crates/core/src',
+    path: 'src/crates/assembly/core/src',
     reason:
       'core must not own provider-specific HTTP/SSE clients; use void-ai-adapters or an explicitly reviewed service adapter',
     patterns: [
@@ -1913,13 +1942,13 @@ const forbiddenContentUnderRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src',
+    path: 'src/crates/contracts/product-domains/src',
     reason:
       'product-domains must not own IO/process/Git/AI/platform runtime behavior without an approved port/provider migration',
     patterns: [
       {
         regex: /\bCommand::new\(/,
-        allowPaths: ['src/crates/product-domains/src/miniapp/runtime.rs'],
+        allowPaths: ['src/crates/contracts/product-domains/src/miniapp/runtime.rs'],
         message:
           'product-domains must not spawn processes outside the reviewed MiniApp runtime detector owner',
       },
@@ -1976,7 +2005,7 @@ const forbiddenContentUnderRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src',
+    path: 'src/crates/execution/agent-tools/src',
     reason:
       'agent-tools may own pure tool manifest contracts, but not product manifest runtime or GetToolSpec execution without an approved provider migration',
     patterns: [
@@ -1999,7 +2028,7 @@ const forbiddenContentUnderRules = [
     ],
   },
   {
-    path: 'src/crates/tool-packs/src',
+    path: 'src/crates/execution/tool-packs/src',
     reason:
       'tool-packs may own provider group plans, but not product tool manifest/exposure or GetToolSpec runtime',
     patterns: [
@@ -2029,7 +2058,7 @@ const forbiddenContentUnderRules = [
 
 const requiredContentRules = [
   {
-    path: 'src/crates/terminal/src/api.rs',
+    path: 'src/crates/services/terminal/src/api.rs',
     reason:
       'terminal-core public API must remain the owner adapter around terminal sessions and replay facts',
     patterns: [
@@ -2052,7 +2081,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/terminal/src/session/replay.rs',
+    path: 'src/crates/services/terminal/src/session/replay.rs',
     reason:
       'terminal-core session replay module must remain the owner of replay event facts',
     patterns: [
@@ -2071,7 +2100,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/services-core/src/filesystem/mod.rs',
+    path: 'src/crates/services/services-core/src/filesystem/mod.rs',
     reason:
       'services-core filesystem owner must expose local filesystem primitives behind a single module boundary',
     patterns: [
@@ -2098,7 +2127,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/filesystem/service.rs',
+    path: 'src/crates/assembly/core/src/service/filesystem/service.rs',
     reason:
       'core filesystem service may keep remote-workspace overlay and voidError compatibility, but local filesystem owner must remain services-core',
     patterns: [
@@ -2117,7 +2146,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/session/session_manager.rs',
+    path: 'src/crates/assembly/core/src/agentic/session/session_manager.rs',
     reason:
       'core session manager must keep forked Task prompt-cache and existing-context turn baselines until session branch ownership migrates',
     patterns: [
@@ -2140,7 +2169,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/pipeline/tool_pipeline.rs',
     reason:
       'core tool pipeline must keep latest-main truncation and per-tool denial behavior until tool runtime ownership migrates',
     patterns: [
@@ -2163,7 +2192,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/restrictions.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/restrictions.rs',
     reason:
       'core tool restrictions facade must preserve per-tool denial messages while runtime restrictions live in agent-tools',
     patterns: [
@@ -2178,7 +2207,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/tool_result_storage.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/tool_result_storage.rs',
     reason:
       'core tool-result storage must keep explicit file flush until runtime artifact ownership migrates',
     patterns: [
@@ -2193,7 +2222,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/services-integrations/src/mcp/server/connection.rs',
+    path: 'src/crates/services/services-integrations/src/mcp/server/connection.rs',
     reason:
       'services-integrations MCP connection must keep initialize-scoped timeout and channel-close cleanup until MCP owner migration is reviewed',
     patterns: [
@@ -2224,7 +2253,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/services-integrations/src/mcp/protocol/transport.rs',
+    path: 'src/crates/services/services-integrations/src/mcp/protocol/transport.rs',
     reason:
       'services-integrations MCP local transport must keep explicit request ids and stdin flush semantics',
     patterns: [
@@ -2239,24 +2268,24 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/Cargo.toml',
+    path: 'src/crates/assembly/core/Cargo.toml',
     reason:
       'void-core product-full must explicitly aggregate owner crate feature groups instead of forcing them through dependency declarations',
     patterns: [
       {
         regex:
-          /void-tool-packs = \{ path = "\.\.\/tool-packs", default-features = false, optional = true \}/,
+          /void-tool-packs = \{ path = "\.\.\/\.\.\/execution\/tool-packs", default-features = false, optional = true \}/,
         message: 'void-tool-packs dependency must stay optional and not force product-full outside the core feature graph',
       },
       {
         regex:
-          /void-services-integrations = \{ path = "\.\.\/services-integrations", default-features = false, features = \["remote-ssh"\] \}/,
+          /void-services-integrations = \{ path = "\.\.\/\.\.\/services\/services-integrations", default-features = false, features = \["remote-ssh"\] \}/,
         message:
           'void-services-integrations dependency may keep remote workspace identity helpers but must not force product-full outside the core feature graph',
       },
       {
         regex:
-          /void-product-domains = \{ path = "\.\.\/product-domains", default-features = false, optional = true \}/,
+          /void-product-domains = \{ path = "\.\.\/\.\.\/contracts\/product-domains", default-features = false, optional = true \}/,
         message:
           'void-product-domains dependency must stay optional and not force product-full outside the core feature graph',
       },
@@ -2283,7 +2312,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/lib.rs',
+    path: 'src/crates/assembly/core/src/lib.rs',
     reason:
       'no-default void-core must keep product runtime surfaces behind explicit features',
     patterns: [
@@ -2306,7 +2335,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/mod.rs',
+    path: 'src/crates/assembly/core/src/service/mod.rs',
     reason:
       'service integration and agent-runtime surfaces must not compile in no-default core builds',
     patterns: [
@@ -2333,7 +2362,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/config/mod.rs',
+    path: 'src/crates/assembly/core/src/service/config/mod.rs',
     reason:
       'mode config canonicalization depends on product agent/tool registries and must stay out of no-default builds',
     patterns: [
@@ -2344,7 +2373,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/workspace/manager.rs',
+    path: 'src/crates/assembly/core/src/service/workspace/manager.rs',
     reason:
       'workspace metadata may omit git worktree enrichment when service integrations are disabled',
     patterns: [
@@ -2359,7 +2388,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/workspace_runtime/service.rs',
+    path: 'src/crates/assembly/core/src/service/workspace_runtime/service.rs',
     reason:
       'workspace runtime binding helpers may depend on agentic runtime only in full product builds',
     patterns: [
@@ -2374,7 +2403,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_ssh/mod.rs',
+    path: 'src/crates/assembly/core/src/service/remote_ssh/mod.rs',
     reason:
       'core remote SSH runtime must keep concrete SSH dependencies behind the ssh-remote feature while preserving lightweight workspace identity helpers',
     patterns: [
@@ -2401,7 +2430,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_ssh/disabled.rs',
+    path: 'src/crates/assembly/core/src/service/remote_ssh/disabled.rs',
     reason:
       'no-default core builds must expose explicit unsupported remote SSH stubs instead of compiling russh-backed runtime code',
     patterns: [
@@ -2424,7 +2453,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/runtime-ports/src/lib.rs',
+    path: 'src/crates/contracts/runtime-ports/src/lib.rs',
     reason:
       'runtime-ports must keep remote and subagent runtime boundary contracts DTO/trait-only',
     patterns: [
@@ -2627,7 +2656,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/subagent_runtime/mod.rs',
+    path: 'src/crates/assembly/core/src/agentic/subagent_runtime/mod.rs',
     reason:
       'core subagent runtime must preserve legacy import path while runtime-ports owns portable subagent contracts',
     patterns: [
@@ -2642,7 +2671,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src/framework.rs',
+    path: 'src/crates/execution/agent-tools/src/framework.rs',
     reason:
       'agent-tools may own pure and generic prompt-visible tool contracts and provider-neutral execution gate policy without owning product registry or concrete execution',
     patterns: [
@@ -2909,7 +2938,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src/file_guidance.rs',
+    path: 'src/crates/execution/agent-tools/src/file_guidance.rs',
     reason: 'agent-tools owns provider-neutral file tool guidance marker contracts',
     patterns: [
       {
@@ -2927,7 +2956,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src/file_read_freshness.rs',
+    path: 'src/crates/execution/agent-tools/src/file_read_freshness.rs',
     reason: 'agent-tools owns pure file-read freshness policy for Read/Edit/Write guardrails',
     patterns: [
       {
@@ -2949,7 +2978,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src/tool_result_storage.rs',
+    path: 'src/crates/execution/agent-tools/src/tool_result_storage.rs',
     reason:
       'agent-tools owns pure oversized tool-result storage policy and rendering without session IO',
     patterns: [
@@ -2992,7 +3021,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src/tool_execution_presentation.rs',
+    path: 'src/crates/execution/agent-tools/src/tool_execution_presentation.rs',
     reason:
       'agent-tools owns provider-neutral tool execution result and error presentation helpers',
     patterns: [
@@ -3035,7 +3064,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/coordination/coordinator.rs',
+    path: 'src/crates/assembly/core/src/agentic/coordination/coordinator.rs',
     reason:
       'core must keep current coordinator port adapters and attachment guard until remote runtime migration is reviewed',
     patterns: [
@@ -3066,7 +3095,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+    path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
     reason:
       'core scheduler must preserve legacy submission policy import path while runtime-ports owns portable dialog policy contracts',
     patterns: [
@@ -3087,7 +3116,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/round_preempt.rs',
+    path: 'src/crates/assembly/core/src/agentic/round_preempt.rs',
     reason:
       'core round preempt runtime must preserve legacy injection import path while runtime-ports owns portable injection contracts',
     patterns: [
@@ -3103,7 +3132,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/goal_mode/types.rs',
+    path: 'src/crates/assembly/core/src/agentic/goal_mode/types.rs',
     reason:
       'core goal mode types must preserve legacy import path while runtime-ports owns portable goal contracts',
     patterns: [
@@ -3119,7 +3148,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/core/message.rs',
+    path: 'src/crates/assembly/core/src/agentic/core/message.rs',
     reason:
       'core message model must preserve legacy compression contract import path while runtime-ports owns portable compaction facts',
     patterns: [
@@ -3130,7 +3159,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/workspace/manager.rs',
+    path: 'src/crates/assembly/core/src/service/workspace/manager.rs',
     reason:
       'core workspace manager must preserve legacy related-path import path while runtime-ports owns portable request-context facts',
     patterns: [
@@ -3141,7 +3170,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service_agent_runtime.rs',
+    path: 'src/crates/assembly/core/src/service_agent_runtime.rs',
     reason:
       'core service/agent runtime owner must centralize concrete remote-connect and agent runtime port bindings without moving runtime behavior',
     patterns: [
@@ -3360,7 +3389,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/services-integrations/src/remote_connect.rs',
+    path: 'src/crates/services/services-integrations/src/remote_connect.rs',
     reason:
       'services-integrations must own remote-connect wire, tracker, dialog, file, and image adapter contracts',
     patterns: [
@@ -3711,7 +3740,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/services-integrations/tests/remote_connect_contracts.rs',
+    path: 'src/crates/services/services-integrations/tests/remote_connect_contracts.rs',
     reason: 'remote-connect owner crate must keep focused behavior contracts',
     patterns: [
       {
@@ -3849,7 +3878,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_connect/remote_server.rs',
+    path: 'src/crates/assembly/core/src/service/remote_connect/remote_server.rs',
     reason:
       'core remote-connect server must remain a product runtime adapter around integrations-owned contracts',
     patterns: [
@@ -3936,7 +3965,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/remote_connect/bot/command_router.rs',
+    path: 'src/crates/assembly/core/src/service/remote_connect/bot/command_router.rs',
     reason:
       'remote-connect bot must route concrete agent runtime port bindings through the core service/agent runtime owner',
     patterns: [
@@ -3955,7 +3984,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+    path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
     reason:
       'core scheduler keeps remote queue policy semantics until agent-runtime migration is reviewed',
     patterns: [
@@ -3966,7 +3995,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/registry.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/registry.rs',
     reason:
       'core registry must stay a compatibility container that delegates product tool runtime assembly through the core owner module',
     patterns: [
@@ -4001,7 +4030,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/computer_use_host.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/computer_use_host.rs',
     reason:
       'Computer Use host seam must stay explicit while upstream tool-contract DTO extraction remains deferred',
     patterns: [
@@ -4024,7 +4053,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/implementations/computer_use_tool.rs',
     reason:
       'Computer Use describe_screen must remain a readonly core tool action using existing host seams',
     patterns: [
@@ -4063,7 +4092,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/product_runtime.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/product_runtime.rs',
     reason:
       'core product tool runtime owner keeps registry assembly, static tool materialization, catalog manifests, and GetToolSpec facades explicit until concrete tools migrate',
     patterns: [
@@ -4178,7 +4207,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/tool_adapter.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/tool_adapter.rs',
     reason:
       'core must keep the product Tool-to-agent-tools adapters explicit until ToolUseContext and concrete tools migrate',
     patterns: [
@@ -4213,7 +4242,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/agent-tools/src/framework.rs',
+    path: 'src/crates/execution/agent-tools/src/framework.rs',
     reason: 'agent-tools owns portable tool facts plus generic registry and provider contracts',
     patterns: [
       {
@@ -4279,7 +4308,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/tool-packs/src/lib.rs',
+    path: 'src/crates/execution/tool-packs/src/lib.rs',
     reason:
       'tool-packs must keep its feature-group scaffold explicit without owning concrete tools yet',
     patterns: [
@@ -4306,7 +4335,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/manifest_resolver.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/manifest_resolver.rs',
     reason:
       'core must continue owning manifest resolver wrappers while delegating product catalog access and generic manifest assembly',
     patterns: [
@@ -4337,7 +4366,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/implementations/get_tool_spec_tool.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/implementations/get_tool_spec_tool.rs',
     reason:
       'core must continue owning the GetToolSpec Tool adapter and product boundary while delegating generic runtime surface to agent-tools',
     patterns: [
@@ -4368,7 +4397,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/framework.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/framework.rs',
     reason:
       'core tool framework must keep compatibility re-exports while ToolUseContext is owned by tool_context_runtime',
     patterns: [
@@ -4383,7 +4412,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/tool_context_runtime.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/tool_context_runtime.rs',
     reason:
       'core must keep ToolUseContext runtime/service bindings centralized while ToolUseContext and concrete tools remain core-owned',
     patterns: [
@@ -4514,7 +4543,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/pipeline/tool_pipeline.rs',
     reason:
       'core must continue carrying collapsed-tool unlock state while delegating provider-neutral execution gate policy to agent-tools',
     patterns: [
@@ -4553,7 +4582,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/execution/execution_engine.rs',
+    path: 'src/crates/assembly/core/src/agentic/execution/execution_engine.rs',
     reason:
       'core execution must continue carrying collapsed-tool unlock state and DeepResearch post-turn hooks until approved runtime migrations exist',
     patterns: [
@@ -4580,7 +4609,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/agents/registry/availability.rs',
+    path: 'src/crates/assembly/core/src/agentic/agents/registry/availability.rs',
     reason:
       'core agent registry must continue owning mode-scoped subagent availability until an approved agent-runtime migration exists',
     patterns: [
@@ -4603,7 +4632,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/agents/registry/types.rs',
+    path: 'src/crates/assembly/core/src/agentic/agents/registry/types.rs',
     reason:
       'core agent registry must continue exposing subagent query and availability DTOs until registry ownership migrates with API equivalence tests',
     patterns: [
@@ -4630,7 +4659,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/agents/definitions/modes/mod.rs',
+    path: 'src/crates/assembly/core/src/agentic/agents/definitions/modes/mod.rs',
     reason:
       'core agent mode definitions must continue exposing Multitask mode until an approved agent-runtime migration preserves mode registration semantics',
     patterns: [
@@ -4645,7 +4674,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/agents/definitions/subagents/mod.rs',
+    path: 'src/crates/assembly/core/src/agentic/agents/definitions/subagents/mod.rs',
     reason:
       'core subagent definitions must continue exposing the built-in GeneralPurpose subagent until registry ownership migration has equivalence coverage',
     patterns: [
@@ -4660,7 +4689,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/agents/registry/builtin.rs',
+    path: 'src/crates/assembly/core/src/agentic/agents/registry/builtin.rs',
     reason:
       'core builtin registry must continue registering latest-main mode and subagent defaults until agent registry ownership migrates with API equivalence tests',
     patterns: [
@@ -4679,7 +4708,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/tools/implementations/task_tool.rs',
+    path: 'src/crates/assembly/core/src/agentic/tools/implementations/task_tool.rs',
     reason:
       'core Task tool must continue owning fork-aware background subagent launch semantics until a reviewed agent-runtime port preserves delivery behavior',
     patterns: [
@@ -4722,7 +4751,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+    path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
     reason:
       'core scheduler must continue owning background subagent result delivery until running-turn and idle-session routing equivalence tests exist',
     patterns: [
@@ -4799,7 +4828,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/agentic/agents/citation_renumber.rs',
+    path: 'src/crates/assembly/core/src/agentic/agents/citation_renumber.rs',
     reason:
       'core DeepResearch runtime must continue owning citation renumber post-processing until agent-runtime migration is reviewed',
     patterns: [
@@ -4822,7 +4851,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/workspace/service.rs',
+    path: 'src/crates/assembly/core/src/service/workspace/service.rs',
     reason:
       'core workspace runtime must continue owning startup remote-workspace guards until workspace service migration is reviewed',
     patterns: [
@@ -4845,7 +4874,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/search/service.rs',
+    path: 'src/crates/assembly/core/src/service/search/service.rs',
     reason:
       'core search runtime must continue owning local flashgrep fallback and preview mapping until search migration is reviewed',
     patterns: [
@@ -4868,7 +4897,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/search/remote.rs',
+    path: 'src/crates/assembly/core/src/service/search/remote.rs',
     reason:
       'core remote search runtime must continue owning remote flashgrep fallback/session behavior until search migration is reviewed',
     patterns: [
@@ -4891,7 +4920,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/search/mod.rs',
+    path: 'src/crates/assembly/core/src/service/search/mod.rs',
     reason:
       'remote workspace search must route to the real implementation only when ssh-remote is enabled',
     patterns: [
@@ -4910,7 +4939,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/service/search/remote_disabled.rs',
+    path: 'src/crates/assembly/core/src/service/search/remote_disabled.rs',
     reason:
       'no-default core builds must keep remote search unavailable with an explicit diagnostic',
     patterns: [
@@ -4929,7 +4958,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/acp/src/client/manager.rs',
+    path: 'src/crates/interfaces/acp/src/client/manager.rs',
     reason:
       'ACP surface runtime must continue owning startup timeout diagnostics until ACP migration is reviewed',
     patterns: [
@@ -5109,7 +5138,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/storage.rs',
+    path: 'src/crates/assembly/core/src/miniapp/storage.rs',
     reason:
       'core must continue owning MiniApp storage runtime adapter until storage IO migration is reviewed',
     patterns: [
@@ -5120,7 +5149,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/builtin/mod.rs',
+    path: 'src/crates/assembly/core/src/miniapp/builtin/mod.rs',
     reason:
       'core must continue owning built-in MiniApp asset includes, seeding IO, marker writes, and recompilation until builtin asset runtime migration is reviewed',
     patterns: [
@@ -5195,7 +5224,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/host_dispatch.rs',
+    path: 'src/crates/assembly/core/src/miniapp/host_dispatch.rs',
     reason:
       'core must continue owning MiniApp host-dispatch execution until host/runtime migration is reviewed',
     patterns: [
@@ -5258,7 +5287,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/services-integrations/src/remote_ssh/paths.rs',
+    path: 'src/crates/services/services-integrations/src/remote_ssh/paths.rs',
     reason:
       'services-integrations remote-ssh owns workspace path/session identity helpers that do not require concrete SSH runtime handles',
     patterns: [
@@ -5289,7 +5318,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/storage.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/storage.rs',
     reason:
       'product-domains owns MiniApp storage shape contracts while core/adapters keep filesystem IO',
     patterns: [
@@ -5340,7 +5369,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/lifecycle.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/lifecycle.rs',
     reason:
       'product-domains owns pure MiniApp lifecycle state transitions while core keeps compile, storage IO, and runtime execution',
     patterns: [
@@ -5407,7 +5436,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/draft.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/draft.rs',
     reason:
       'product-domains owns MiniApp draft DTO and response shape while core keeps draft filesystem IO',
     patterns: [
@@ -5430,7 +5459,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/runtime.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/runtime.rs',
     reason:
       'product-domains owns MiniApp runtime detection, including the reviewed concrete PATH/fs/version probe',
     patterns: [
@@ -5477,7 +5506,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/worker.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/worker.rs',
     reason:
       'product-domains owns MiniApp worker pool policy and install-deps planning while core keeps worker process execution',
     patterns: [
@@ -5516,7 +5545,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/host_routing.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/host_routing.rs',
     reason:
       'product-domains owns MiniApp host-routing and allowlist decision policy while core keeps host execution',
     patterns: [
@@ -5591,7 +5620,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/exporter.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/exporter.rs',
     reason:
       'product-domains owns MiniApp export check result policy while core keeps runtime detection',
     patterns: [
@@ -5610,7 +5639,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/exporter.rs',
+    path: 'src/crates/assembly/core/src/miniapp/exporter.rs',
     reason:
       'core MiniApp exporter must delegate export check result policy while retaining runtime detection and export skeleton',
     patterns: [
@@ -5629,7 +5658,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/customization.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/customization.rs',
     reason:
       'product-domains owns MiniApp customization metadata, built-in update policy, and permission-diff contracts while core keeps draft storage/runtime',
     patterns: [
@@ -5668,7 +5697,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/manager.rs',
+    path: 'src/crates/assembly/core/src/miniapp/manager.rs',
     reason:
       'core MiniApp manager must use product-domain policy/facade helpers while retaining compile, storage IO, and built-in source-hash lookup',
     patterns: [
@@ -5751,7 +5780,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/ports.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/ports.rs',
     reason:
       'product-domains owns MiniApp runtime-state port facade while core keeps concrete storage IO, compile, worker, and host execution',
     patterns: [
@@ -5774,7 +5803,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/git-func-agent/ai_service.rs',
+    path: 'src/crates/assembly/core/src/function_agents/git-func-agent/ai_service.rs',
     reason:
       'core must continue owning Git function-agent AI client calls while product-domains owns prompt and response policy',
     patterns: [
@@ -5801,7 +5830,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/startchat-func-agent/ai_service.rs',
+    path: 'src/crates/assembly/core/src/function_agents/startchat-func-agent/ai_service.rs',
     reason:
       'core must continue owning Startchat AI client calls while product-domains owns prompt and response policy',
     patterns: [
@@ -5828,7 +5857,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/git-func-agent/commit_generator.rs',
+    path: 'src/crates/assembly/core/src/function_agents/git-func-agent/commit_generator.rs',
     reason:
       'Git function-agent commit generation must route through the core product-domain runtime owner while core keeps concrete adapters',
     patterns: [
@@ -5851,7 +5880,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/miniapp/builtin.rs',
+    path: 'src/crates/contracts/product-domains/src/miniapp/builtin.rs',
     reason:
       'product-domains owns pure built-in MiniApp bundle, marker, hash, and seed-decision contracts while core keeps asset seeding IO and recompilation',
     patterns: [
@@ -5926,7 +5955,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/startchat-func-agent/work_state_analyzer.rs',
+    path: 'src/crates/assembly/core/src/function_agents/startchat-func-agent/work_state_analyzer.rs',
     reason:
       'Startchat work-state analysis must route through the core product-domain runtime owner while core keeps concrete adapters',
     patterns: [
@@ -5949,7 +5978,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/function_agents/ports.rs',
+    path: 'src/crates/contracts/product-domains/src/function_agents/ports.rs',
     reason:
       'product-domains owns port-backed function-agent facade orchestration while core keeps concrete Git/AI runtime calls',
     patterns: [
@@ -5980,7 +6009,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/function_agents/common.rs',
+    path: 'src/crates/contracts/product-domains/src/function_agents/common.rs',
     reason:
       'product-domains owns function-agent AI response JSON extraction while core keeps concrete AI clients',
     patterns: [
@@ -5995,7 +6024,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/function_agents/startchat_func_agent/utils.rs',
+    path: 'src/crates/contracts/product-domains/src/function_agents/startchat_func_agent/utils.rs',
     reason:
       'product-domains owns Startchat function-agent prompt and response policy while core keeps AI calls',
     patterns: [
@@ -6030,7 +6059,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/product-domains/src/function_agents/git_func_agent/utils.rs',
+    path: 'src/crates/contracts/product-domains/src/function_agents/git_func_agent/utils.rs',
     reason:
       'product-domains owns Git function-agent prompt and response policy while core keeps AI calls',
     patterns: [
@@ -6069,7 +6098,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/runtime_detect.rs',
+    path: 'src/crates/assembly/core/src/miniapp/runtime_detect.rs',
     reason:
       'core MiniApp runtime detection must be a compatibility facade over product-domain runtime detection',
     patterns: [
@@ -6084,7 +6113,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/miniapp/js_worker_pool.rs',
+    path: 'src/crates/assembly/core/src/miniapp/js_worker_pool.rs',
     reason:
       'core must continue owning MiniApp worker runtime adapter until process/runtime migration is reviewed',
     patterns: [
@@ -6111,7 +6140,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/function_agents/port_adapters.rs',
+    path: 'src/crates/assembly/core/src/function_agents/port_adapters.rs',
     reason:
       'core must continue owning function-agent Git/AI runtime adapters until Git/AI service migration is reviewed',
     patterns: [
@@ -6142,7 +6171,7 @@ const requiredContentRules = [
     ],
   },
   {
-    path: 'src/crates/core/src/product_domain_runtime.rs',
+    path: 'src/crates/assembly/core/src/product_domain_runtime.rs',
     reason:
       'core product-domain runtime owner must centralize concrete MiniApp and function-agent runtime port bindings without moving runtime behavior',
     patterns: [
@@ -6527,7 +6556,7 @@ function runManifestParserSelfTest() {
   for (const manifestPath of [
     'src/apps/desktop/Cargo.toml',
     'src/apps/cli/Cargo.toml',
-    'src/crates/acp/Cargo.toml',
+    'src/crates/interfaces/acp/Cargo.toml',
   ]) {
     if (!productCoreRulePaths.has(manifestPath)) {
       throw new Error(`product core feature assembly rule must cover ${manifestPath}`);
@@ -6554,20 +6583,20 @@ function runManifestParserSelfTest() {
       text: '[dependencies]\naxum = { workspace = true }',
     },
     {
-      manifestPath: 'src/crates/acp/Cargo.toml',
+      manifestPath: 'src/crates/interfaces/acp/Cargo.toml',
       text: '[dependencies."void-core"]\npath = "../core"\ndefault-features = false\nfeatures = ["product-full"]',
     },
   ]);
-  if (discoveredProductCoreManifests.join(',') !== 'src/apps/desktop/Cargo.toml,src/crates/acp/Cargo.toml') {
+  if (discoveredProductCoreManifests.join(',') !== 'src/apps/desktop/Cargo.toml,src/crates/interfaces/acp/Cargo.toml') {
     throw new Error('product core dependency scanner must discover only manifests that depend on void-core');
   }
   const ownerFeatureRulePaths = new Set(
     ownerCrateFeatureAssemblyRules.map((rule) => rule.manifestPath),
   );
   for (const manifestPath of [
-    'src/crates/tool-packs/Cargo.toml',
-    'src/crates/services-integrations/Cargo.toml',
-    'src/crates/product-domains/Cargo.toml',
+    'src/crates/execution/tool-packs/Cargo.toml',
+    'src/crates/services/services-integrations/Cargo.toml',
+    'src/crates/contracts/product-domains/Cargo.toml',
   ]) {
     if (!ownerFeatureRulePaths.has(manifestPath)) {
       throw new Error(`owner crate feature assembly rule must cover ${manifestPath}`);
@@ -6658,7 +6687,7 @@ function runManifestParserSelfTest() {
     throw new Error('agent-tools lightweight boundary must forbid void-ai-adapters');
   }
   const coreToolFrameworkRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/tools/framework.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/tools/framework.rs',
   );
   if (!coreToolFrameworkRule) {
     throw new Error('missing core tool framework boundary rule');
@@ -6685,7 +6714,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreToolRestrictionRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/tools/restrictions.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/tools/restrictions.rs',
   );
   if (!coreToolRestrictionRule) {
     throw new Error('missing core tool restrictions boundary rule');
@@ -6705,7 +6734,7 @@ function runManifestParserSelfTest() {
     }
   }
   const agentToolsFrameworkRule = requiredContentRules.find(
-    (rule) => rule.path === 'src/crates/agent-tools/src/framework.rs',
+    (rule) => rule.path === 'src/crates/execution/agent-tools/src/framework.rs',
   );
   if (!agentToolsFrameworkRule) {
     throw new Error('missing agent-tools framework boundary rule');
@@ -6727,7 +6756,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreWorkspacePathRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/tools/workspace_paths.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/tools/workspace_paths.rs',
   );
   if (!coreWorkspacePathRule) {
     throw new Error('missing core workspace path boundary rule');
@@ -6747,7 +6776,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreToolRegistryRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/tools/registry.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/tools/registry.rs',
   );
   if (!coreToolRegistryRule) {
     throw new Error('missing core tool registry boundary rule');
@@ -6766,7 +6795,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreSubagentRuntimeRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/subagent_runtime/mod.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/subagent_runtime/mod.rs',
   );
   if (!coreSubagentRuntimeRule) {
     throw new Error('missing core subagent runtime boundary rule');
@@ -6780,7 +6809,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreCoordinatorRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/coordination/coordinator.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/coordination/coordinator.rs',
   );
   if (!coreCoordinatorRule) {
     throw new Error('missing core coordinator boundary rule');
@@ -6792,7 +6821,7 @@ function runManifestParserSelfTest() {
     throw new Error('core coordinator boundary rule must forbid DialogTriggerSource redefinition');
   }
   const coreSchedulerRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/coordination/scheduler.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
   );
   if (!coreSchedulerRule) {
     throw new Error('missing core scheduler boundary rule');
@@ -6812,7 +6841,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreRoundPreemptRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/round_preempt.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/round_preempt.rs',
   );
   if (!coreRoundPreemptRule) {
     throw new Error('missing core round preempt boundary rule');
@@ -6832,7 +6861,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreGoalModeTypesRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/goal_mode/types.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/goal_mode/types.rs',
   );
   if (!coreGoalModeTypesRule) {
     throw new Error('missing core goal mode types boundary rule');
@@ -6853,7 +6882,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreMessageRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/agentic/core/message.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/agentic/core/message.rs',
   );
   if (!coreMessageRule) {
     throw new Error('missing core message boundary rule');
@@ -6867,7 +6896,7 @@ function runManifestParserSelfTest() {
     }
   }
   const coreWorkspaceRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/workspace/manager.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/workspace/manager.rs',
   );
   if (!coreWorkspaceRule) {
     throw new Error('missing core workspace manager boundary rule');
@@ -6881,7 +6910,7 @@ function runManifestParserSelfTest() {
     throw new Error('core workspace manager boundary rule must forbid contract: RelatedPath');
   }
   const coreSubagentRuntimeOwnerPathRule = forbiddenContentUnderRules.find(
-    (rule) => rule.path === 'src/crates/core/src',
+    (rule) => rule.path === 'src/crates/assembly/core/src',
   );
   if (!coreSubagentRuntimeOwnerPathRule) {
     throw new Error('missing core subagent runtime owner-path boundary rule');
@@ -6989,7 +7018,7 @@ function runManifestParserSelfTest() {
     }
   }
   const productDomainRuntimeRule = forbiddenContentUnderRules.find(
-    (rule) => rule.path === 'src/crates/product-domains/src',
+    (rule) => rule.path === 'src/crates/contracts/product-domains/src',
   );
   if (!productDomainRuntimeRule) {
     throw new Error('missing product-domains runtime-owner boundary rule');
@@ -7014,14 +7043,14 @@ function runManifestParserSelfTest() {
   );
   if (
     !productDomainCommandRule?.allowPaths?.includes(
-      'src/crates/product-domains/src/miniapp/runtime.rs',
+      'src/crates/contracts/product-domains/src/miniapp/runtime.rs',
     )
   ) {
     throw new Error('product-domains Command::new exception must stay scoped to MiniApp runtime detection');
   }
   const providerHttpOwnerRule = forbiddenContentUnderRules.find(
     (rule) =>
-      rule.path === 'src/crates/core/src' &&
+      rule.path === 'src/crates/assembly/core/src' &&
       rule.reason.includes('provider-specific HTTP/SSE'),
   );
   if (!providerHttpOwnerRule) {
@@ -7050,7 +7079,7 @@ function runManifestParserSelfTest() {
     throw new Error('runtime-ports dependency profile must forbid service implementations');
   }
   const agentToolsManifestRule = forbiddenContentUnderRules.find(
-    (rule) => rule.path === 'src/crates/agent-tools/src',
+    (rule) => rule.path === 'src/crates/execution/agent-tools/src',
   );
   if (!agentToolsManifestRule) {
     throw new Error('missing agent-tools manifest-owner boundary rule');
@@ -7070,7 +7099,7 @@ function runManifestParserSelfTest() {
     }
   }
   const toolPacksManifestRule = forbiddenContentUnderRules.find(
-    (rule) => rule.path === 'src/crates/tool-packs/src',
+    (rule) => rule.path === 'src/crates/execution/tool-packs/src',
   );
   if (!toolPacksManifestRule) {
     throw new Error('missing tool-packs manifest-owner boundary rule');
@@ -7093,7 +7122,7 @@ function runManifestParserSelfTest() {
 
   const requiredContentContracts = [
     {
-      path: 'src/crates/terminal/src/api.rs',
+      path: 'src/crates/services/terminal/src/api.rs',
       contracts: [
         'pub struct TerminalApi',
         'session_manager: Arc<SessionManager>',
@@ -7102,7 +7131,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/terminal/src/session/replay.rs',
+      path: 'src/crates/services/terminal/src/session/replay.rs',
       contracts: [
         'pub struct TerminalReplayEvent',
         'pub struct TerminalReplayHistory',
@@ -7110,7 +7139,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/runtime-ports/src/lib.rs',
+      path: 'src/crates/contracts/runtime-ports/src/lib.rs',
       contracts: [
         'AgentTurnCancellationPort',
         'RemoteControlStatePort',
@@ -7164,7 +7193,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/subagent_runtime/mod.rs',
+      path: 'src/crates/assembly/core/src/agentic/subagent_runtime/mod.rs',
       contracts: [
         'void_runtime_ports',
         'DelegationPolicy',
@@ -7173,7 +7202,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/session/session_manager.rs',
+      path: 'src/crates/assembly/core/src/agentic/session/session_manager.rs',
       contracts: [
         'clone_prompt_cache',
         'start_dialog_turn_with_existing_context',
@@ -7182,7 +7211,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/pipeline/tool_pipeline.rs',
       contracts: [
         'build_truncation_recovery_notice',
         'truncation_notice_for_interactive_tools_does_not_claim_file_write',
@@ -7191,15 +7220,15 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/restrictions.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/restrictions.rs',
       contracts: ['denied_tool_messages', 'custom_deny_message_overrides_generic_runtime_error'],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/tool_result_storage.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/tool_result_storage.rs',
       contracts: ['write_once', 'file\\.flush\\(\\)\\.await'],
     },
     {
-      path: 'src/crates/services-integrations/src/mcp/server/connection.rs',
+      path: 'src/crates/services/services-integrations/src/mcp/server/connection.rs',
       contracts: [
         'send_request_with_id',
         'initialize_timeout',
@@ -7210,11 +7239,11 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/services-integrations/src/mcp/protocol/transport.rs',
+      path: 'src/crates/services/services-integrations/src/mcp/protocol/transport.rs',
       contracts: ['send_request_with_id', '\\.flush\\(\\)\\s*\\.await'],
     },
     {
-      path: 'src/crates/agent-tools/src/framework.rs',
+      path: 'src/crates/execution/agent-tools/src/framework.rs',
       contracts: [
         'GET_TOOL_SPEC_TOOL_NAME',
         'ToolExposure',
@@ -7270,7 +7299,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/agent-tools/src/file_guidance.rs',
+      path: 'src/crates/execution/agent-tools/src/file_guidance.rs',
       contracts: [
         'FILE_TOOL_GUIDANCE_PREFIX',
         'file_tool_guidance_message',
@@ -7278,7 +7307,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/agent-tools/src/file_read_freshness.rs',
+      path: 'src/crates/execution/agent-tools/src/file_read_freshness.rs',
       contracts: [
         'FileReadFreshnessFacts',
         'normalize_tool_file_content',
@@ -7287,7 +7316,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/agent-tools/src/tool_result_storage.rs',
+      path: 'src/crates/execution/agent-tools/src/tool_result_storage.rs',
       contracts: [
         'ToolResultStoragePolicy',
         'PersistedToolOutput',
@@ -7301,7 +7330,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/agent-tools/src/tool_execution_presentation.rs',
+      path: 'src/crates/execution/agent-tools/src/tool_execution_presentation.rs',
       contracts: [
         'TOOL_ERROR_ARGUMENTS_PREVIEW_BYTES',
         'USER_STEERING_INTERRUPTED_MESSAGE',
@@ -7315,7 +7344,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/coordination/coordinator.rs',
+      path: 'src/crates/assembly/core/src/agentic/coordination/coordinator.rs',
       contracts: [
         'AgentSubmissionPort',
         'SessionTranscriptReader',
@@ -7326,7 +7355,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+      path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
       contracts: [
         'AgentSessionReplyRoute',
         'DialogQueuePriority',
@@ -7344,7 +7373,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/round_preempt.rs',
+      path: 'src/crates/assembly/core/src/agentic/round_preempt.rs',
       contracts: [
         'void_runtime_ports',
         'DialogRoundInjectionSource',
@@ -7356,7 +7385,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/goal_mode/types.rs',
+      path: 'src/crates/assembly/core/src/agentic/goal_mode/types.rs',
       contracts: [
         'void_runtime_ports',
         'GoalActivationResult',
@@ -7369,15 +7398,15 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/core/message.rs',
+      path: 'src/crates/assembly/core/src/agentic/core/message.rs',
       contracts: ['void_runtime_ports', 'CompressionContract', 'CompressionContractItem'],
     },
     {
-      path: 'src/crates/core/src/service/workspace/manager.rs',
+      path: 'src/crates/assembly/core/src/service/workspace/manager.rs',
       contracts: ['void_runtime_ports', 'RelatedPath'],
     },
     {
-      path: 'src/crates/core/src/service_agent_runtime.rs',
+      path: 'src/crates/assembly/core/src/service_agent_runtime.rs',
       contracts: [
         'CoreServiceAgentRuntime',
         'remote_dialog_host',
@@ -7427,7 +7456,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/services-integrations/src/remote_connect.rs',
+      path: 'src/crates/services/services-integrations/src/remote_connect.rs',
       contracts: [
         'RemoteSessionStateTracker',
         'TrackerEvent',
@@ -7501,7 +7530,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/services-integrations/tests/remote_connect_contracts.rs',
+      path: 'src/crates/services/services-integrations/tests/remote_connect_contracts.rs',
       contracts: [
         'remote_connect_command_wire_shape_lives_in_owner_contract',
         'remote_connect_response_wire_shape_lives_in_owner_contract',
@@ -7526,7 +7555,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/service/remote_connect/remote_server.rs',
+      path: 'src/crates/assembly/core/src/service/remote_connect/remote_server.rs',
       contracts: [
         'CoreServiceAgentRuntime',
         'remote_image_context',
@@ -7544,11 +7573,11 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+      path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
       contracts: ['remote_queue_policy_preserves_interactive_preempt_and_confirmation_boundary'],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/registry.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/registry.rs',
       contracts: [
         'from_inner',
         'ProductToolDecoratorRef',
@@ -7558,7 +7587,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/computer_use_host.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/computer_use_host.rs',
       contracts: [
         'ComputerUseHost',
         'computer_use_session_snapshot',
@@ -7567,7 +7596,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/implementations/computer_use_tool.rs',
       contracts: [
         'describe_screen_result',
         'computer_use_session_snapshot',
@@ -7580,7 +7609,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/product_runtime.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/product_runtime.rs',
       contracts: [
         'ProductToolRuntime',
         'SnapshotToolDecorator',
@@ -7612,7 +7641,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/agent-tools/src/framework.rs',
+      path: 'src/crates/execution/agent-tools/src/framework.rs',
       contracts: [
         'ToolContextFacts',
         'PortableToolContextProvider',
@@ -7636,7 +7665,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/tool-packs/src/lib.rs',
+      path: 'src/crates/execution/tool-packs/src/lib.rs',
       contracts: [
         'ToolPackFeatureGroup',
         'ToolProviderGroupPlan',
@@ -7646,7 +7675,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/tool_adapter.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/tool_adapter.rs',
       contracts: [
         'ToolRegistryItem',
         'ContextualToolManifestItem',
@@ -7658,7 +7687,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/manifest_resolver.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/manifest_resolver.rs',
       contracts: [
         'resolve_tool_manifest',
         'GET_TOOL_SPEC_TOOL_NAME',
@@ -7668,7 +7697,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/implementations/get_tool_spec_tool.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/implementations/get_tool_spec_tool.rs',
       contracts: [
         'GetToolSpecTool',
         'build_collapsed_tools_context_section',
@@ -7679,7 +7708,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/framework.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/framework.rs',
       contracts: [
         'ToolExposure',
         'ToolUseContext',
@@ -7687,7 +7716,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/tool_context_runtime.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/tool_context_runtime.rs',
       contracts: [
         'pub struct ToolUseContext',
         'to_tool_context_facts',
@@ -7717,7 +7746,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/pipeline/tool_pipeline.rs',
       contracts: [
         'validate_collapsed_tool_usage',
         'unlocked_collapsed_tools',
@@ -7729,7 +7758,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/execution/execution_engine.rs',
+      path: 'src/crates/assembly/core/src/agentic/execution/execution_engine.rs',
       contracts: [
         'collect_unlocked_collapsed_tools',
         'collect_unlocked_collapsed_tools_dedupes_and_filters_runtime_unlocks',
@@ -7739,27 +7768,27 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/agents/registry/availability.rs',
+      path: 'src/crates/assembly/core/src/agentic/agents/registry/availability.rs',
       contracts: ['resolve_availability', 'resolve_override_layers', 'AgentSubagentOverrideState', 'SubagentStateReason'],
     },
     {
-      path: 'src/crates/core/src/agentic/agents/registry/types.rs',
+      path: 'src/crates/assembly/core/src/agentic/agents/registry/types.rs',
       contracts: ['SubagentQueryContext', 'SubagentListScope', 'default_enabled', 'effective_enabled', 'SubagentStateReason'],
     },
     {
-      path: 'src/crates/core/src/agentic/agents/definitions/modes/mod.rs',
+      path: 'src/crates/assembly/core/src/agentic/agents/definitions/modes/mod.rs',
       contracts: ['mod multitask', 'MultitaskMode'],
     },
     {
-      path: 'src/crates/core/src/agentic/agents/definitions/subagents/mod.rs',
+      path: 'src/crates/assembly/core/src/agentic/agents/definitions/subagents/mod.rs',
       contracts: ['mod general_purpose', 'GeneralPurposeAgent'],
     },
     {
-      path: 'src/crates/core/src/agentic/agents/registry/builtin.rs',
+      path: 'src/crates/assembly/core/src/agentic/agents/registry/builtin.rs',
       contracts: ['builtin_agent_specs', 'Multitask', 'GeneralPurpose'],
     },
     {
-      path: 'src/crates/core/src/agentic/tools/implementations/task_tool.rs',
+      path: 'src/crates/assembly/core/src/agentic/tools/implementations/task_tool.rs',
       contracts: [
         'fork_context',
         'SubagentContextMode::Fork',
@@ -7773,7 +7802,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/coordination/scheduler.rs',
+      path: 'src/crates/assembly/core/src/agentic/coordination/scheduler.rs',
       contracts: [
         'deliver_background_result',
         'BackgroundResult',
@@ -7802,31 +7831,31 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/agentic/agents/citation_renumber.rs',
+      path: 'src/crates/assembly/core/src/agentic/agents/citation_renumber.rs',
       contracts: ['run_for_session_workspace', 'try_renumber_research_report', 'display_map', 'REJECTED'],
     },
     {
-      path: 'src/crates/core/src/service/workspace/service.rs',
+      path: 'src/crates/assembly/core/src/service/workspace/service.rs',
       contracts: ['prepare_startup_restored_workspaces', 'WorkspaceKind::Remote', 'ensure_remote_workspace_runtime', 'sshHost'],
     },
     {
-      path: 'src/crates/core/src/service/search/service.rs',
+      path: 'src/crates/assembly/core/src/service/search/service.rs',
       contracts: ['with_scan_fallback', 'convert_hits_to_file_search_results', 'split_preview', 'preview_inside'],
     },
     {
-      path: 'src/crates/core/src/service/search/remote.rs',
+      path: 'src/crates/assembly/core/src/service/search/remote.rs',
       contracts: ['remote_workspace_search_service_for_path', 'lookup_remote_connection_with_hint', 'allow_scan_fallback', 'fallback_query'],
     },
     {
-      path: 'src/crates/core/src/service/search/mod.rs',
+      path: 'src/crates/assembly/core/src/service/search/mod.rs',
       contracts: ['mod remote_disabled', 'feature = "ssh-remote"', 'pub use remote_disabled'],
     },
     {
-      path: 'src/crates/core/src/service/search/remote_disabled.rs',
+      path: 'src/crates/assembly/core/src/service/search/remote_disabled.rs',
       contracts: ['Remote SSH search is disabled', 'RemoteWorkspaceSearchService', 'remote_workspace_search_service_for_path'],
     },
     {
-      path: 'src/crates/core/Cargo.toml',
+      path: 'src/crates/assembly/core/Cargo.toml',
       contracts: [
         'void-tool-packs = \\{ path = "\\.\\.\\/tool-packs", default-features = false, optional = true \\}',
         'void-services-integrations = \\{ path = "\\.\\.\\/services-integrations", default-features = false, features = \\["remote-ssh"\\] \\}',
@@ -7839,7 +7868,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/lib.rs',
+      path: 'src/crates/assembly/core/src/lib.rs',
       contracts: [
         'feature = "product-full"',
         'pub mod agentic',
@@ -7851,7 +7880,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/service/mod.rs',
+      path: 'src/crates/assembly/core/src/service/mod.rs',
       contracts: [
         'feature = "service-integrations"',
         'pub mod git',
@@ -7863,19 +7892,19 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/service/config/mod.rs',
+      path: 'src/crates/assembly/core/src/service/config/mod.rs',
       contracts: ['feature = "product-full"', 'mode_config_canonicalizer'],
     },
     {
-      path: 'src/crates/core/src/service/workspace/manager.rs',
+      path: 'src/crates/assembly/core/src/service/workspace/manager.rs',
       contracts: ['feature = "service-integrations"', 'GitService', 'return None'],
     },
     {
-      path: 'src/crates/core/src/service/workspace_runtime/service.rs',
+      path: 'src/crates/assembly/core/src/service/workspace_runtime/service.rs',
       contracts: ['feature = "product-full"', 'WorkspaceBinding', 'ensure_runtime_for_workspace_binding'],
     },
     {
-      path: 'src/crates/acp/src/client/manager.rs',
+      path: 'src/crates/interfaces/acp/src/client/manager.rs',
       contracts: ['CLIENT_STARTUP_TIMEOUT_SECS', 'startup_timeout_error_message', 'formats_startup_timeout_error_message'],
     },
     {
@@ -7919,11 +7948,11 @@ function runManifestParserSelfTest() {
       contracts: ['historical_session_hydrate_request', 'Load history in the background', "historyState: 'ready'"],
     },
     {
-      path: 'src/crates/core/src/miniapp/storage.rs',
+      path: 'src/crates/assembly/core/src/miniapp/storage.rs',
       contracts: ['MiniAppStoragePort'],
     },
     {
-      path: 'src/crates/core/src/miniapp/builtin/mod.rs',
+      path: 'src/crates/assembly/core/src/miniapp/builtin/mod.rs',
       contracts: [
         'builtin-pr-review',
         'BUILTIN_APPS',
@@ -7945,7 +7974,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/builtin.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/builtin.rs',
       contracts: [
         'BuiltinMiniAppBundle',
         'BuiltinInstallMarker',
@@ -7967,7 +7996,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/miniapp/host_dispatch.rs',
+      path: 'src/crates/assembly/core/src/miniapp/host_dispatch.rs',
       contracts: [
         'dispatch_host',
         'split_host_method',
@@ -7986,7 +8015,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/miniapp/js_worker_pool.rs',
+      path: 'src/crates/assembly/core/src/miniapp/js_worker_pool.rs',
       contracts: [
         'MiniAppRuntimePort',
         'plan_install_deps',
@@ -7996,7 +8025,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/function_agents/port_adapters.rs',
+      path: 'src/crates/assembly/core/src/function_agents/port_adapters.rs',
       contracts: [
         'CoreFunctionAgentGitAdapter',
         'FunctionAgentGitPort',
@@ -8006,7 +8035,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/service/remote_connect/bot/command_router.rs',
+      path: 'src/crates/assembly/core/src/service/remote_connect/bot/command_router.rs',
       contracts: [
         'CoreServiceAgentRuntime',
         'agent_submission_port',
@@ -8014,7 +8043,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/product_domain_runtime.rs',
+      path: 'src/crates/assembly/core/src/product_domain_runtime.rs',
       contracts: [
         'CoreProductDomainRuntime',
         'miniapp_runtime_facade',
@@ -8031,15 +8060,15 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/service/remote_ssh/mod.rs',
+      path: 'src/crates/assembly/core/src/service/remote_ssh/mod.rs',
       contracts: ['mod disabled', 'pub mod manager', 'pub mod remote_fs', 'pub mod remote_terminal', 'pub mod workspace_state'],
     },
     {
-      path: 'src/crates/core/src/service/remote_ssh/disabled.rs',
+      path: 'src/crates/assembly/core/src/service/remote_ssh/disabled.rs',
       contracts: ['Remote SSH support is disabled', 'SSHConnectionManager', 'RemoteFileService', 'RemoteTerminalManager'],
     },
     {
-      path: 'src/crates/services-integrations/src/remote_ssh/paths.rs',
+      path: 'src/crates/services/services-integrations/src/remote_ssh/paths.rs',
       contracts: [
         'remote_workspace_runtime_root',
         'remote_workspace_session_mirror_dir',
@@ -8050,7 +8079,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/ports.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/ports.rs',
       contracts: [
         'MiniAppRuntimeFacade',
         'mark_deps_installed_state',
@@ -8059,7 +8088,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/storage.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/storage.rs',
       contracts: [
         'MiniAppStorageLayout',
         'META_JSON',
@@ -8075,7 +8104,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/lifecycle.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/lifecycle.rs',
       contracts: [
         'MiniAppCreateInput',
         'MiniAppUpdatePatch',
@@ -8095,11 +8124,11 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/draft.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/draft.rs',
       contracts: ['MiniAppDraftManifest', 'MiniAppDraft', 'build_draft_manifest', 'build_draft_response'],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/runtime.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/runtime.rs',
       contracts: [
         'runtime_lookup_order',
         'detect_runtime',
@@ -8114,7 +8143,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/worker.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/worker.rs',
       contracts: [
         'InstallDepsPlan',
         'plan_install_deps',
@@ -8125,7 +8154,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/host_routing.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/host_routing.rs',
       contracts: [
         'split_host_method',
         'FsAccessMode',
@@ -8143,15 +8172,15 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/exporter.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/exporter.rs',
       contracts: ['MISSING_JS_RUNTIME_MESSAGE', 'export_runtime_label', 'build_export_check_result'],
     },
     {
-      path: 'src/crates/core/src/miniapp/exporter.rs',
+      path: 'src/crates/assembly/core/src/miniapp/exporter.rs',
       contracts: ['detect_runtime', 'build_export_check_result', 'Export not yet implemented'],
     },
     {
-      path: 'src/crates/product-domains/src/miniapp/customization.rs',
+      path: 'src/crates/contracts/product-domains/src/miniapp/customization.rs',
       contracts: [
         'MiniAppCustomizationMetadata',
         'MiniAppDeclinedBuiltinUpdate',
@@ -8164,7 +8193,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/miniapp/manager.rs',
+      path: 'src/crates/assembly/core/src/miniapp/manager.rs',
       contracts: [
         'apply_draft_customization_metadata',
         'mark_builtin_update_available_metadata',
@@ -8188,7 +8217,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/function_agents/git-func-agent/ai_service.rs',
+      path: 'src/crates/assembly/core/src/function_agents/git-func-agent/ai_service.rs',
       contracts: [
         'prepare_commit_ai_prompt',
         'parse_commit_ai_response',
@@ -8198,7 +8227,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/function_agents/startchat-func-agent/ai_service.rs',
+      path: 'src/crates/assembly/core/src/function_agents/startchat-func-agent/ai_service.rs',
       contracts: [
         'build_work_state_analysis_prompt',
         'parse_work_state_analysis_response',
@@ -8208,7 +8237,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/function_agents/git-func-agent/commit_generator.rs',
+      path: 'src/crates/assembly/core/src/function_agents/git-func-agent/commit_generator.rs',
       contracts: [
         'CoreProductDomainRuntime',
         'function_agent_git_adapter',
@@ -8217,7 +8246,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/function_agents/startchat-func-agent/work_state_analyzer.rs',
+      path: 'src/crates/assembly/core/src/function_agents/startchat-func-agent/work_state_analyzer.rs',
       contracts: [
         'CoreProductDomainRuntime',
         'function_agent_git_adapter',
@@ -8226,7 +8255,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/function_agents/ports.rs',
+      path: 'src/crates/contracts/product-domains/src/function_agents/ports.rs',
       contracts: [
         'FunctionAgentRuntimeFacade',
         'generate_commit_message',
@@ -8237,11 +8266,11 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/function_agents/common.rs',
+      path: 'src/crates/contracts/product-domains/src/function_agents/common.rs',
       contracts: ['extract_json_from_ai_response', 'try_repair_json'],
     },
     {
-      path: 'src/crates/product-domains/src/function_agents/startchat_func_agent/utils.rs',
+      path: 'src/crates/contracts/product-domains/src/function_agents/startchat_func_agent/utils.rs',
       contracts: [
         'WORK_STATE_ANALYSIS_PROMPT',
         'build_work_state_analysis_prompt',
@@ -8252,7 +8281,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/product-domains/src/function_agents/git_func_agent/utils.rs',
+      path: 'src/crates/contracts/product-domains/src/function_agents/git_func_agent/utils.rs',
       contracts: [
         'COMMIT_MESSAGE_PROMPT',
         'parse_commit_analysis_value',
@@ -8264,7 +8293,7 @@ function runManifestParserSelfTest() {
       ],
     },
     {
-      path: 'src/crates/core/src/miniapp/runtime_detect.rs',
+      path: 'src/crates/assembly/core/src/miniapp/runtime_detect.rs',
       contracts: ['pub use void_product_domains::miniapp::runtime::{', 'detect_runtime'],
     },
   ];
@@ -8285,7 +8314,7 @@ function runManifestParserSelfTest() {
   }
 
   const remoteWorkspaceRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/remote_ssh/workspace_state.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/remote_ssh/workspace_state.rs',
   );
   if (!remoteWorkspaceRule) {
     throw new Error('missing remote SSH workspace_state boundary rule');
@@ -8317,14 +8346,14 @@ function runManifestParserSelfTest() {
   }
 
   const announcementStateStoreRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/announcement/state_store.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/announcement/state_store.rs',
   );
   if (!announcementStateStoreRule) {
     throw new Error('missing announcement state store boundary rule');
   }
 
   const mcpProcessRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/server/process.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/server/process.rs',
   );
   if (!mcpProcessRule) {
     throw new Error('missing MCP server process boundary rule');
@@ -8349,7 +8378,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpManagerRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/server/manager/mod.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/server/manager/mod.rs',
   );
   if (!mcpManagerRule) {
     throw new Error('missing MCP server manager boundary rule');
@@ -8369,7 +8398,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpReconnectRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/server/manager/reconnect.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/server/manager/reconnect.rs',
   );
   if (!mcpReconnectRule) {
     throw new Error('missing MCP reconnect boundary rule');
@@ -8384,7 +8413,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpInteractionRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/server/manager/interaction.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/server/manager/interaction.rs',
   );
   if (!mcpInteractionRule) {
     throw new Error('missing MCP interaction boundary rule');
@@ -8399,7 +8428,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpToolAdapterRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/adapter/tool.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/adapter/tool.rs',
   );
   if (!mcpToolAdapterRule) {
     throw new Error('missing MCP tool adapter boundary rule');
@@ -8420,7 +8449,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpContextAdapterRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/adapter/context.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/adapter/context.rs',
   );
   if (!mcpContextAdapterRule) {
     throw new Error('missing MCP context adapter boundary rule');
@@ -8440,7 +8469,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpJsonConfigRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/config/json_config.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/config/json_config.rs',
   );
   if (!mcpJsonConfigRule) {
     throw new Error('missing MCP JSON config boundary rule');
@@ -8461,7 +8490,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpConfigServiceRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/config/service.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/config/service.rs',
   );
   if (!mcpConfigServiceRule) {
     throw new Error('missing MCP config service boundary rule');
@@ -8483,7 +8512,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpAuthRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/auth.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/auth.rs',
   );
   if (!mcpAuthRule) {
     throw new Error('missing MCP auth boundary rule');
@@ -8504,7 +8533,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpRemoteTransportRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/protocol/transport_remote.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/protocol/transport_remote.rs',
   );
   if (!mcpRemoteTransportRule) {
     throw new Error('missing MCP remote transport boundary rule');
@@ -8535,7 +8564,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpJsonrpcRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/protocol/jsonrpc.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/protocol/jsonrpc.rs',
   );
   if (!mcpJsonrpcRule) {
     throw new Error('missing MCP JSON-RPC boundary rule');
@@ -8561,7 +8590,7 @@ function runManifestParserSelfTest() {
   }
 
   const mcpServerConfigRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/mcp/server/config.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/mcp/server/config.rs',
   );
   if (!mcpServerConfigRule) {
     throw new Error('missing MCP server config boundary rule');
@@ -8594,7 +8623,7 @@ function runManifestParserSelfTest() {
   }
 
   const remoteConnectRule = forbiddenContentRules.find(
-    (rule) => rule.path === 'src/crates/core/src/service/remote_connect/remote_server.rs',
+    (rule) => rule.path === 'src/crates/assembly/core/src/service/remote_connect/remote_server.rs',
   );
   if (!remoteConnectRule) {
     throw new Error('missing remote-connect remote_server boundary rule');
@@ -8674,9 +8703,9 @@ function runManifestParserSelfTest() {
 
   const facadePaths = new Set(facadeOnlyFiles.map((facade) => facade.path));
   for (const path of [
-    'src/crates/core/src/service/mcp/protocol/transport.rs',
-    'src/crates/core/src/service/mcp/protocol/transport_remote.rs',
-    'src/crates/core/src/service/mcp/server/connection.rs',
+    'src/crates/assembly/core/src/service/mcp/protocol/transport.rs',
+    'src/crates/assembly/core/src/service/mcp/protocol/transport_remote.rs',
+    'src/crates/assembly/core/src/service/mcp/server/connection.rs',
   ]) {
     if (!facadePaths.has(path)) {
       throw new Error(`missing MCP runtime facade-only rule for ${path}`);
@@ -8851,7 +8880,7 @@ function checkProductCoreFeatureAssemblyCoverage() {
 }
 
 function checkCoreDefaultProductFullFeature() {
-  const manifestPath = join(ROOT, 'src', 'crates', 'core', 'Cargo.toml');
+  const manifestPath = join(crateDirFor('core'), 'Cargo.toml');
   const features = parseManifestFeatures(readText(manifestPath).split(/\r?\n/));
   if (!featureReferencesFeature(features.get('default'), 'product-full')) {
     failures.push({
@@ -9131,27 +9160,27 @@ if (process.env.VOID_BOUNDARY_CHECK_SELF_TEST === '1') {
 }
 
 for (const crateName of noCoreDependencyCrates) {
-  const crateDir = join(ROOT, 'src', 'crates', crateName);
+  const crateDir = crateDirFor(crateName);
   checkCargoManifest(crateDir);
   checkRustImports(crateDir);
 }
 
 for (const rule of lightweightBoundaryRules) {
-  const crateDir = join(ROOT, 'src', 'crates', rule.crateName);
+  const crateDir = crateDirFor(rule.crateName);
   const messageForDep = (dep) => `${rule.reason}; forbidden dependency: ${dep}`;
   checkForbiddenManifestDeps(crateDir, rule.forbiddenDeps, messageForDep);
   checkForbiddenRustImports(crateDir, rule.forbiddenDeps, messageForDep);
 }
 
 for (const rule of dependencyProfileRules) {
-  const crateDir = join(ROOT, 'src', 'crates', rule.crateName);
+  const crateDir = crateDirFor(rule.crateName);
   const messageForDep = (dep) =>
     `${rule.reason}; ${rule.profileName} forbids non-optional dependency: ${dep}`;
   checkForbiddenNonOptionalManifestDeps(crateDir, rule.forbiddenNonOptionalDeps, messageForDep);
 }
 
 for (const rule of optionalDependencyFeatureOwnerRules) {
-  const crateDir = join(ROOT, 'src', 'crates', rule.crateName);
+  const crateDir = crateDirFor(rule.crateName);
   checkOptionalDependencyFeatureOwners(crateDir, rule);
 }
 

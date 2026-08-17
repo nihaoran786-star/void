@@ -9,8 +9,8 @@ description = "Void Agent Client Protocol integration"
 name = "void_acp"
 
 [dependencies]
-void-core = { path = "../core", default-features = false, features = ["product-full"] }
-void-events = { path = "../events" }
+void-core = { path = "../../assembly/core", default-features = false, features = ["product-full"] }
+void-events = { path = "../../contracts/events" }
 
 agent-client-protocol = { version = "=0.11.1", features = ["unstable"] }
 tokio = { workspace = true }

@@ -11,9 +11,9 @@ path = "src/main.rs"
 
 [dependencies]
 # Internal crates
-void-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
-void-events = { path = "../../crates/events" }
-void-acp = { path = "../../crates/acp" }
+void-core = { path = "../../crates/assembly/core", default-features = false, features = ["product-full"] }
+void-events = { path = "../../crates/contracts/events" }
+void-acp = { path = "../../crates/interfaces/acp" }
 
 # CLI framework
 clap = { version = "4", features = ["derive"] }

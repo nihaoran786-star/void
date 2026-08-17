@@ -83,31 +83,31 @@ rmcp = { version = "0.12.0", default-features = false, features = [
 sse-stream = { version = "0.2.1", optional = true }
 
 # Shared AI protocol adapters
-void-ai-adapters = { path = "../ai-adapters" }
+void-ai-adapters = { path = "../../adapters/ai-adapters" }
 
 # Lightweight agent stream processing
-void-agent-stream = { path = "../agent-stream" }
+void-agent-stream = { path = "../../execution/agent-stream" }
 
 # Agent tool contracts
-void-agent-tools = { path = "../agent-tools" }
+void-agent-tools = { path = "../../execution/agent-tools" }
 
 # Tool pack provider plan
-void-tool-packs = { path = "../tool-packs", default-features = false, optional = true }
+void-tool-packs = { path = "../../execution/tool-packs", default-features = false, optional = true }
 
 # Core service owner crate
-void-services-core = { path = "../services-core" }
+void-services-core = { path = "../../services/services-core" }
 
 # Integration service owner crate
-void-services-integrations = { path = "../services-integrations", default-features = false, features = ["remote-ssh"] }
+void-services-integrations = { path = "../../services/services-integrations", default-features = false, features = ["remote-ssh"] }
 
 # Product domain owner crate
-void-product-domains = { path = "../product-domains", default-features = false, optional = true }
+void-product-domains = { path = "../../contracts/product-domains", default-features = false, optional = true }
 
 # Tool runtime
-tool-runtime = { path = "../tool-runtime", optional = true }
+tool-runtime = { path = "../../execution/tool-runtime", optional = true }
 
 # terminal
-terminal-core = { path = "../terminal" }
+terminal-core = { path = "../../services/terminal" }
 
 # I18n internationalization
 fluent-bundle = { workspace = true }
@@ -138,15 +138,15 @@ shellexpand = { version = "3", optional = true }
 ssh_config = { version = "0.1", optional = true }
 
 # Relay server shared library (embedded relay reuses standalone relay logic)
-void-relay-server = { path = "../../apps/relay-server", optional = true }
+void-relay-server = { path = "../../../apps/relay-server", optional = true }
 
 # Event layer dependency (lowest layer)
-void-core-types = { path = "../core-types" }
-void-events = { path = "../events" }
-void-runtime-ports = { path = "../runtime-ports" }
+void-core-types = { path = "../../contracts/core-types" }
+void-events = { path = "../../contracts/events" }
+void-runtime-ports = { path = "../../contracts/runtime-ports" }
 
 # Transport layer dependency
-void-transport = { path = "../transport" }
+void-transport = { path = "../../adapters/transport" }
 
 # Tauri dependency (optional, enabled only when needed)
 tauri = { workspace = true, optional = true }

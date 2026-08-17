@@ -19,12 +19,12 @@ serde_json = { workspace = true }
 
 [dependencies]
 # Internal crates
-void-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
-void-core-types = { path = "../../crates/core-types" }
-void-services-integrations = { path = "../../crates/services-integrations", default-features = false, features = ["local-asr"] }
-void-transport = { path = "../../crates/transport", features = ["tauri-adapter"] }
-void-webdriver = { path = "../../crates/webdriver" }
-void-acp = { path = "../../crates/acp" }
+void-core = { path = "../../crates/assembly/core", default-features = false, features = ["product-full"] }
+void-core-types = { path = "../../crates/contracts/core-types" }
+void-services-integrations = { path = "../../crates/services/services-integrations", default-features = false, features = ["local-asr"] }
+void-transport = { path = "../../crates/adapters/transport", features = ["tauri-adapter"] }
+void-webdriver = { path = "../../crates/adapters/webdriver" }
+void-acp = { path = "../../crates/interfaces/acp" }
 
 # Tauri
 tauri = { workspace = true }

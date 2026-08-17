@@ -11,7 +11,7 @@ const expectedGeneratedFiles = [
   'src/web-ui/src/infrastructure/i18n/presets/generatedLocaleContract.ts',
   'src/mobile-web/src/i18n/generatedLocaleContract.ts',
   'Void-Installer/src/i18n/generatedLocaleContract.ts',
-  'src/crates/core/src/service/i18n/generated_locale_contract.rs',
+  'src/crates/assembly/core/src/service/i18n/generated_locale_contract.rs',
   'Void-Installer/src-tauri/src/installer/generated_locale_contract.rs',
   'src/apps/relay-server/static/homepage/i18n.shared.json',
 ];
@@ -124,7 +124,7 @@ test('shared i18n terms exist for every canonical locale with matching keys', ()
 });
 
 test('core runtime uses the generated locale contract for language identity', () => {
-  const typesSource = readText('src/crates/core/src/service/i18n/types.rs');
+  const typesSource = readText('src/crates/assembly/core/src/service/i18n/types.rs');
   assert.match(
     typesSource,
     /generated_locale_contract::\{[\s\S]*GENERATED_LOCALE_CONTRACT/,
@@ -136,7 +136,7 @@ test('core runtime uses the generated locale contract for language identity', ()
     'types.rs must not read language identity from the backend resource registry',
   );
 
-  const resourceRegistrySource = readText('src/crates/core/src/service/i18n/locale_registry.rs');
+  const resourceRegistrySource = readText('src/crates/assembly/core/src/service/i18n/locale_registry.rs');
   assert.doesNotMatch(
     resourceRegistrySource,
     /\b(name|english_name|native_name|rtl|model_language_name|short_model_instruction|aliases):/,
@@ -154,7 +154,7 @@ test('shared i18n terms are consumed by each product surface runtime', () => {
   const installerLanguagesSource = readText('Void-Installer/src/i18n/languages.ts');
   assert.match(installerLanguagesSource, /SHARED_TERMS_BY_APP_LANGUAGE/, 'installer should merge shared terms into its i18next resources');
 
-  const coreServiceSource = readText('src/crates/core/src/service/i18n/service.rs');
+  const coreServiceSource = readText('src/crates/assembly/core/src/service/i18n/service.rs');
   assert.match(coreServiceSource, /generated_shared_term/, 'core i18n service should resolve generated shared terms');
 });
 

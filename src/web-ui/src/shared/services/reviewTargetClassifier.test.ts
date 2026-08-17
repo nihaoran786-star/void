@@ -45,7 +45,7 @@ describe('reviewTargetClassifier', () => {
 
   it('classifies backend core files without frontend tags', () => {
     const target = classifyReviewTargetFromFiles(
-      ['src/crates/core/src/service/config/types.rs'],
+      ['src/crates/assembly/core/src/service/config/types.rs'],
       'session_files',
     );
 
@@ -57,7 +57,7 @@ describe('reviewTargetClassifier', () => {
     const target = classifyReviewTargetFromFiles(
       [
         'src/web-ui/src/locales/zh-TW/flow-chat.json',
-        'src/crates/core/locales/zh-TW.ftl',
+        'src/crates/assembly/core/locales/zh-TW.ftl',
         'Void-Installer/src/i18n/locales/zh-TW.json',
       ],
       'session_files',
@@ -100,7 +100,7 @@ describe('reviewTargetClassifier', () => {
 
   it('evaluates conditional reviewer applicability from registry tags', () => {
     const backendTarget = classifyReviewTargetFromFiles(
-      ['src/crates/core/src/service/config/types.rs'],
+      ['src/crates/assembly/core/src/service/config/types.rs'],
       'session_files',
     );
     const frontendTarget = classifyReviewTargetFromFiles(

@@ -12,8 +12,8 @@ crate-type = ["rlib"]
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-void-ai-adapters = { path = "../ai-adapters" }
-void-events = { path = "../events" }
+void-ai-adapters = { path = "../../adapters/ai-adapters" }
+void-events = { path = "../../contracts/events" }
 futures = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

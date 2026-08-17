@@ -16,10 +16,23 @@ export function isSecuritySensitiveReviewPath(normalizedPath: string): boolean {
   return SECURITY_SENSITIVE_PATH_PATTERN.test(normalizedPath.toLowerCase());
 }
 
+const CRATE_LAYER_DIRS = new Set([
+  'contracts',
+  'interfaces',
+  'adapters',
+  'execution',
+  'services',
+  'assembly',
+]);
+
 export function workspaceAreaForReviewPath(normalizedPath: string): string {
-  const crateMatch = normalizedPath.match(/^src\/crates\/([^/]+)/);
+  // Crates live at src/crates/<layer>/<crate>; the layer directory is not an
+  // area identity, so skip it when present.
+  const crateMatch = normalizedPath.match(/^src\/crates\/([^/]+)(?:\/([^/]+))?/);
   if (crateMatch) {
-    return `crate:${crateMatch[1]}`;
+    const [, first, second] = crateMatch;
+    const crateName = CRATE_LAYER_DIRS.has(first) && second ? second : first;
+    return `crate:${crateName}`;
   }
 
   const appMatch = normalizedPath.match(/^src\/apps\/([^/]+)/);

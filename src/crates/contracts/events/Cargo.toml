@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-void-core-types = { path = "../core-types" }
+void-core-types = { path = "../../contracts/core-types" }
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
