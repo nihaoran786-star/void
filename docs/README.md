@@ -121,6 +121,14 @@ a current specification. Record the deletion here, not the document.
 
 ## Cleanup record
 
+- **2026-08-17** — Repository-root design scaffolds `design-lab/` (26 tracked
+  files), `design-demo/` (10 files), `demos/` (1 file) and five unreferenced
+  `png/` marketing screenshots (~6 MB total) were deleted. None had inbound
+  links from governance documents or code; the only mention was an incidental
+  ignore-list example in a handoff prompt. The scaffold directories are now
+  gitignored so disposable design experiments stay out of the index.
+  `png/void-Logo.png` and `png/void_title.png` are retained as the source and
+  output of `scripts/generate-void-logo-assets.mjs`.
 - **2026-08-16** — `docs/superpowers/` (43 files), `docs/issues/` (44 files) and
   `docs/obsidian/` (5 files) were deleted: 92 files / ~7,800 lines, of which 79
   had zero inbound links from any governance document. The AI-customer-service

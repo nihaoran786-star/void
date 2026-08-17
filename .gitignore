@@ -9,8 +9,8 @@ tests/e2e/media/generated/media_batch_*/
 /target-*/
 /artifacts/
 /media/
-/design-lab/flicker/
-/design-lab/shot-*.png
-/design-lab/workbench-*.html
+/design-lab/
+/design-demo/
 /design-demos/
+/demos/
 /src/web-ui/NUL
