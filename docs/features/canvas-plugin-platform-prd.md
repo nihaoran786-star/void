@@ -1215,8 +1215,30 @@ A2-4c 按所有者决定拆为三小片，顺序即依赖顺序：
 
   本地证据：`AgentStudioDebugController.test.ts` 13/13；Web 全量 469 文件 / 2812 用例、
   `type-check:web`、`check:core-boundaries` 通过。
-- **4c-2c 发布三动作 UI**：必须排最后——发布的前提是「针对该草稿的试聊通过记录」，
-  而该记录由 2b 产生；2b 不完成，2c 没有真实数据可驱动。
+- **4c-2c 发布与三动作** — ✅ 已完成。`AgentStudioPublishController` 只负责从「工作室
+  当前打开的东西」组装请求；发布规则本身仍在 A2-3 的 `AgentRevisionActivation`。
+
+  它多守的是激活层看不到的两种状态：
+  - **完全没试过**（无绑定）→ `untried`，不发布。
+  - **试完又改了**（绑定的 draft revision 与当前草稿不一致）→ `stale`，不发布。
+    激活层本会因 evidence 不匹配拒绝，但这里能说出真正的原因。
+
+  其余不变量：
+  - `expectedBaseRevisionId` 取自草稿的 baseRevisionId，`expectedDefaultRevisionId` 现读
+    当前 default 指针——两个 CAS 都是真的，不是拿同一个值冒充。
+  - 从未有过 default 的定义（两者皆 null）可正常发布。
+  - 发布成功或 `published_not_activated` 才释放试聊会话（revision 已不可变，该会话已用尽）；
+    conflict / unvalidated 等未发布的情况保留会话，用户可以继续试。
+  - `published_not_activated` 原样上报，不冒充成功。
+
+  变异测试：取消「试完又改了」检查、取消「无绑定」检查、失败也释放会话、default CAS 用
+  baseRevisionId 冒充，四次变异分别令 1/1/2/1 条测试变红。
+
+  本地证据：`AgentStudioPublishController.test.ts` 12/12；Web 全量 470 文件 / 2824 用例、
+  `type-check:web`、`check:core-boundaries`、`check:repo-hygiene` 通过。
+
+  **注意**：4c-2a/2b/2c 三片都是领域控制器，**还没有 React 组件**。`agent-studio` 表面
+  目前仍渲染 A2-1 的只读视图；把这三个控制器接到界面上属于 4c-3 的第一步。
 - **4c-3 旧创建页迁移与退出门**：消除双写，然后跑 P1-A 退出门——同一主会话 v3 运行 →
   v4 编辑 → 隔离试聊 → 发布 → **重启应用**后确认主会话固定 v3、新分叉固定 v4、
   未来默认指向 v4。重启后的绑定恢复必须由所有者实机验证一次，不能只靠单元测试宣称通过。
