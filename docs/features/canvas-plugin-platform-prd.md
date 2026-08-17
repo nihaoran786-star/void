@@ -1108,6 +1108,38 @@ P1-A 退出门尚未达成：它要求真实跑通「同一主会话 v3 运行 �
 重启后主会话仍固定 v3、新分叉固定 v4、未来默认指向 v4」。三层零件已齐，但接线与重启
 恢复验证属 A2-4。
 
+#### P1-A2-4a / 4b 已实现检查点：persona 解析与能力入口
+
+**4a — 只读 persona 解析。** 会话记录的是 persona key，定义按 definition id 索引，
+P1-A1 之间没有读通路。新增 `resolve_definition_by_persona_key` 贯穿 core service →
+Tauri 命令 → Web API port → Gateway → Module Interface。
+
+刻意只读：原本唯一的 persona key 入口 `open_draft` 是写操作，用它会让「查看 Agent」
+产生草稿。空 key 报 ValidationFailed，未知 key 报 NotFound，绝不静默落到别的 Agent。
+persona key 在 scope 内唯一，catalog 已有测试守住该不变量。
+
+**4b — 能力入口与 input 派生。** 能力贡献新增可选 `resolveInput`：需要知道「打开什么」
+的能力自己声明如何从会话上下文派生 input，rail 与 Canvas host 保持对具体表面无知——
+这正是 P0-B 从中心组件移除的东西，不得回退。
+
+- 调用方显式传入的 input 优先于派生（restore 与深链接的决定不被解析器推翻）。
+- 解析器返回 `unavailable` 或抛错，一律转成显式 `unavailable`，不会打开一个空表面。
+- `agent-studio` 能力：无 legacyContentType（不劫持既有页签）；subagent 会话不可用
+  （它跑的是别人的 persona，没有自己的 Agent 可编辑）；未绑定 persona 时 unavailable。
+- 三语新增 `layout.sessionCapabilities.agentStudio`。
+
+变异测试：4a 把 persona key 匹配改为恒真 → 2 条测试红；4b 取消「显式 input 优先」→
+2 条红，取消「抛错转 unavailable」→ 1 条红。
+
+本片明确没有完成：`SessionScene` 尚未把 `personaId` 传给
+`openFirstPartyCanvasCapability`，因此**能力入口还不会真正打开表面**；表面与
+binder/activator 之间仍未接线；旧创建页迁移与退出门属 A2-4c。本片仍未改动任何真实会话
+绑定或 default 指针。
+
+本地证据：`agentStudioCanvasCapability.test.ts` 10/10、Rust 5/5 与 `agent_revisions` 14/14、
+Web 全量 466 文件 / 2785 用例、`cargo check -p void-desktop`、`type-check:web`、
+`i18n:contract:test` 15/15、`check:core-boundaries` 均通过。
+
 ### P1-B：短剧与媒体成为旗舰业务包
 
 目标：证明“Canvas Surface + Team + Workflow + Domain Module + Provider”可以稳定组合。

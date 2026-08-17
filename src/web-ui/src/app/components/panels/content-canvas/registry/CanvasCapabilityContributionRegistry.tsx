@@ -5,6 +5,20 @@ export interface CanvasCapabilityIconProps {
   'aria-hidden'?: boolean | 'true' | 'false';
 }
 
+export interface CanvasCapabilityInputContext {
+  sourceSessionId?: string;
+  personaId?: string;
+  workspace?: {
+    workspaceId: string;
+    workspacePath: string;
+    backend: string;
+  };
+}
+
+export type CanvasCapabilityInputResolution =
+  | { status: 'resolved'; input: unknown }
+  | { status: 'unavailable'; reason: string };
+
 export interface CanvasCapabilityContribution {
   capabilityId: string;
   surfaceId: string;
@@ -17,6 +31,14 @@ export interface CanvasCapabilityContribution {
     mode?: string;
     sessionKind?: string;
   }) => boolean;
+  /**
+   * Derives the surface input from session context when the caller supplies
+   * none. A capability that needs to know what it is opening declares that
+   * here, so the rail and the canvas host stay surface-agnostic.
+   */
+  resolveInput?: (
+    context: CanvasCapabilityInputContext,
+  ) => Promise<CanvasCapabilityInputResolution> | CanvasCapabilityInputResolution;
 }
 
 export type CanvasCapabilityContributionRegistrationResult =

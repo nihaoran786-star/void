@@ -29,6 +29,7 @@
       "ariaLabel": "Session capabilities",
       "shortDrama": "AI Short Drama",
       "workspaceMedia": "Media",
+      "agentStudio": "Agent Studio",
       "open": "Open {{name}}",
       "teamWorkspace": {
         "label": "Team",

@@ -12,11 +12,15 @@ import {
   type CanvasCapabilityContribution,
 } from './CanvasCapabilityContributionRegistry';
 import { ensureFirstPartyCanvasCapabilitiesRegistered } from './firstPartyCanvasCapabilities';
+import { resolveCanvasCapabilityInput } from './canvasCapabilityInput';
 import { SHORT_DRAMA_SURFACE_ID } from './CanvasSurfaceIds';
 
 export interface CanvasCapabilityCommandRequest
   extends Omit<CanvasSurfaceCommandRequest, 'surfaceId'> {
   capabilityId: string;
+  /** Persona the source conversation is bound to, for capabilities that derive
+   * their own input from it. */
+  personaId?: string;
 }
 
 function ensureFirstPartyCanvasRuntime(): CanvasSurfaceOpenResult | undefined {
@@ -72,9 +76,30 @@ export async function openFirstPartyCanvasCapability(
       reason: `Canvas capability "${request.capabilityId}" is not registered.`,
     };
   }
+  const resolvedInput = await resolveCanvasCapabilityInput(
+    contribution,
+    request.input,
+    {
+      ...(request.sourceSessionId ? { sourceSessionId: request.sourceSessionId } : {}),
+      ...(request.personaId ? { personaId: request.personaId } : {}),
+      ...(request.target?.status === 'ready'
+        ? {
+            workspace: {
+              workspaceId: request.target.workspaceId,
+              workspacePath: request.target.workspacePath,
+              backend: request.target.backend,
+            },
+          }
+        : {}),
+    },
+  );
+  if (resolvedInput.status === 'unavailable') {
+    return { status: 'unavailable', reason: resolvedInput.reason };
+  }
+
   return await canvasSurfaceCommandService.open({
     source: request.source,
-    input: request.input,
+    input: resolvedInput.input,
     idempotencyKey: request.idempotencyKey,
     target: request.target,
     ...(request.sourceSessionId

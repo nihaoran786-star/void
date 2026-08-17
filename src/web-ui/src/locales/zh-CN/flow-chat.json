@@ -29,6 +29,7 @@
       "ariaLabel": "当前会话专属能力",
       "shortDrama": "AI 短剧",
       "workspaceMedia": "媒体",
+      "agentStudio": "智能体工作室",
       "open": "打开{{name}}",
       "teamWorkspace": {
         "label": "团队",
