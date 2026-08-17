@@ -417,7 +417,7 @@
     "builtin": "Official",
     "user": "User",
     "project": "Project",
-    "mode": "Agent",
+    "mode": "Primary",
     "subagent": "Sub-Agent"
   },
   "coreAgentsZone": {

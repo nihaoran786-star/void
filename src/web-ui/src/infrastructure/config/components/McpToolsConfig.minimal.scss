@@ -29,8 +29,8 @@
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
-      height: 148px;
-      min-height: 148px;
+      height: 132px;
+      min-height: 132px;
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);
@@ -62,8 +62,8 @@
     }
 
     .void-mcp-tools__catalog-card-avatar {
-      width: 36px;
-      height: 36px;
+      width: 26px;
+      height: 26px;
     }
 
     .void-mcp-tools__catalog-card-name {

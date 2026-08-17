@@ -5,60 +5,6 @@
 // hover-collected actions, one loud action (new agent) only.
 
 @mixin styles {
-  .void-ui--minimal .agents-catalog-tabs {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--workspace-space-4);
-    width: 100%;
-    margin: 0;
-    padding: var(--workspace-space-2) var(--workspace-space-4) 0;
-    border: 0;
-    border-bottom: 1px solid var(--workspace-border-subtle);
-    border-radius: 0;
-    background-color: var(--workspace-surface-canvas);
-
-    button {
-      position: relative;
-      min-height: 0;
-      padding: 2px 0 var(--workspace-space-2);
-      border: 0;
-      border-radius: 0;
-      background: transparent;
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-lead);
-      font-weight: var(--workspace-font-weight-medium);
-      line-height: 1.2;
-      letter-spacing: -0.01em;
-      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
-
-      &::after {
-        content: '';
-        position: absolute;
-        right: 0;
-        bottom: -1px;
-        left: 0;
-        height: 3px;
-        border-radius: 2px 2px 0 0;
-        background: var(--workspace-accent);
-        opacity: 0;
-        transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
-      }
-
-      &:hover:not(.is-active) {
-        color: var(--workspace-text-secondary);
-      }
-
-      &.is-active {
-        color: var(--workspace-text-primary);
-        font-weight: var(--workspace-font-weight-strong);
-
-        &::after {
-          opacity: 1;
-        }
-      }
-    }
-  }
-
   .void-ui--minimal .void-agents-scene {
     @include market.scene-surface;
 
@@ -82,18 +28,20 @@
       contain-intrinsic-size: auto 220px;
     }
 
-    /* Hairline section head: small label — rule — mono count */
+    /* Quiet section caption: the top bar carries the page voice, a zone only
+       needs to say where one group ends and the next begins. */
     .gallery-zone__header {
-      min-height: 28px;
+      min-height: 0;
       gap: var(--workspace-space-2);
-      padding-bottom: var(--workspace-space-2);
-      border-bottom: 1px solid var(--workspace-border-subtle);
+      padding-bottom: var(--workspace-space-1);
+      border-bottom: 0;
     }
 
     .gallery-zone__title {
-      font-size: var(--workspace-font-size-label);
-      font-weight: var(--workspace-font-weight-strong);
-      letter-spacing: 0.12em;
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-micro);
+      font-weight: var(--workspace-font-weight-regular);
+      letter-spacing: 0.08em;
     }
 
     .gallery-zone__subtitle {
@@ -554,10 +502,6 @@
   }
 
   @media (max-width: 900px) {
-    .void-ui--minimal .agents-catalog-tabs {
-      width: calc(100% - (2 * var(--workspace-space-3)));
-    }
-
     .void-ui--minimal .void-agents-scene {
       .gallery-zones {
         width: calc(100% - (2 * var(--workspace-space-3)));
@@ -668,10 +612,10 @@
       align-items: center;
       justify-content: flex-start;
       gap: 0;
-      height: 168px;
-      min-height: 168px;
-      padding: var(--workspace-space-4) var(--workspace-space-3)
-        var(--workspace-space-3);
+      height: 150px;
+      min-height: 150px;
+      padding: var(--workspace-space-3) var(--workspace-space-3)
+        var(--workspace-space-2);
       border-color: var(--workspace-border-subtle);
       background: var(--workspace-surface-panel);
       box-shadow: none;
@@ -778,8 +722,8 @@
     }
 
     .agent-card--new {
-      height: 168px;
-      min-height: 168px;
+      height: 150px;
+      min-height: 150px;
       border: 1px dashed var(--workspace-border-strong);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);

@@ -10,22 +10,23 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--workspace-space-2) var(--workspace-space-3);
-    min-height: 52px;
+    min-height: 40px;
     margin-inline: auto;
-    padding: var(--workspace-space-2) 0;
+    padding: var(--workspace-space-1) 0;
     border-bottom: 1px solid var(--workspace-border-subtle);
     background: var(--workspace-surface-canvas);
     font-family: var(--workspace-font-family);
 
     &__title {
       color: var(--workspace-text-primary);
-      font-size: var(--workspace-font-size-lead);
+      font-size: var(--workspace-font-size-body);
       font-weight: var(--workspace-font-weight-medium);
+      letter-spacing: 0;
     }
 
     &__count {
       color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
+      font-size: var(--workspace-font-size-micro);
       font-variant-numeric: tabular-nums;
     }
 
@@ -44,7 +45,7 @@
 
     // Quiet search: a hairline and its icon, no filled box.
     &__search .search__wrapper {
-      min-height: var(--workspace-control-height);
+      min-height: 26px;
       gap: var(--workspace-space-1);
       padding: 0 var(--workspace-space-1);
       border: 0;
@@ -59,7 +60,7 @@
       min-width: 0;
       color: var(--workspace-text-primary);
       font-family: var(--workspace-font-family);
-      font-size: var(--workspace-font-size-label);
+      font-size: var(--workspace-font-size-meta);
       opacity: 1;
     }
 
@@ -81,8 +82,8 @@
     }
 
     &__primary {
-      width: var(--workspace-icon-target);
-      height: var(--workspace-icon-target);
+      width: 26px;
+      height: 26px;
       border-color: var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-control);
       background: var(--workspace-surface-panel);
@@ -101,25 +102,19 @@
   }
 
   .void-ui--minimal .directory-chip {
-    height: 24px;
-    padding: 0 var(--workspace-space-3);
+    height: 22px;
+    padding: 0 10px;
     border: 0;
     border-radius: 999px;
     background: transparent;
-    color: var(--workspace-text-secondary);
+    color: var(--workspace-text-muted);
     font-family: var(--workspace-font-family);
-    font-size: var(--workspace-font-size-label);
+    font-size: var(--workspace-font-size-meta);
     font-weight: var(--workspace-font-weight-regular);
 
     &:hover:not(.is-active) {
       background: var(--workspace-surface-hover);
       color: var(--workspace-text-primary);
-    }
-
-    &.is-active {
-      background: var(--workspace-text-primary);
-      color: var(--workspace-surface-canvas);
-      font-weight: var(--workspace-font-weight-medium);
     }
 
     &:focus-visible {
@@ -128,9 +123,23 @@
     }
   }
 
+  // Only one pill in the bar is loud: the catalog switch. Filters narrow what
+  // the chosen catalog shows, so they select quietly and never compete with it.
+  .void-ui--minimal .directory-chip--tabs.is-active {
+    background: var(--workspace-text-primary);
+    color: var(--workspace-surface-canvas);
+    font-weight: var(--workspace-font-weight-medium);
+  }
+
+  .void-ui--minimal .directory-chip--filters.is-active {
+    background: var(--workspace-surface-active);
+    color: var(--workspace-text-primary);
+    font-weight: var(--workspace-font-weight-medium);
+  }
+
   .void-ui--minimal .directory-topbar__utility {
-    width: var(--workspace-icon-target);
-    height: var(--workspace-icon-target);
+    width: 26px;
+    height: 26px;
     border-radius: var(--workspace-radius-control);
     color: var(--workspace-text-muted);
 

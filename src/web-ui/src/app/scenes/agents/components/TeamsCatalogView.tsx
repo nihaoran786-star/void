@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
   PackagePlus,
-  Plus,
   RefreshCcw,
   Users,
 } from 'lucide-react';
 import { Button, confirmDanger } from '@/component-library';
 import {
+  DirectoryTopBar,
   GalleryEmpty,
   GalleryGrid,
   GalleryLayout,
@@ -58,6 +58,9 @@ interface TeamsCatalogViewContentProps {
   installing?: boolean;
   deleting?: boolean;
   dispatchingTeamId?: string | null;
+  /** Which catalog the shared directory top bar shows as selected. */
+  catalogView?: 'agents' | 'teams';
+  onCatalogViewChange?: (view: 'agents' | 'teams') => void;
 }
 
 export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = ({
@@ -73,6 +76,8 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
   installing = false,
   deleting = false,
   dispatchingTeamId = null,
+  catalogView = 'teams',
+  onCatalogViewChange = () => undefined,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const [selectedTeam, setSelectedTeam] = useState<TeamCatalogEntry | null>(null);
@@ -101,42 +106,64 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
 
   return (
     <GalleryLayout className="void-agents-scene teams-catalog-view">
-      <div className="team-catalog-toolbar">
-        <div className="team-catalog-toolbar__actions">
-          <select
-            aria-label={t('catalog.management.installScope')}
-            value={installLevel}
-            disabled={!managementSupported}
-            onChange={event => setInstallLevel(
-              event.target.value as TeamDefinitionLevel,
-            )}
-          >
-            <option value="user">{t('catalog.management.userScope')}</option>
-            <option value="project" disabled={!projectScopeAvailable}>
-              {t('catalog.management.projectScope')}
-            </option>
-          </select>
-          <Button
-            variant="secondary"
-            size="small"
-            disabled={!managementSupported}
-            isLoading={installing}
-            onClick={() => void onInstallTeam(installLevel)}
-          >
-            <PackagePlus size={14} />
-            {t('catalog.management.install')}
-          </Button>
-          <Button
-            variant="primary"
-            size="small"
-            disabled={!managementSupported}
-            onClick={onCreateTeam}
-          >
-            <Plus size={14} />
-            {t('catalog.management.create')}
-          </Button>
-        </div>
-      </div>
+      <DirectoryTopBar
+        title={t('catalog.tabs.teams')}
+        count={catalog.entries.length}
+        groups={[
+          {
+            id: 'catalog',
+            label: t('catalog.tabs.ariaLabel'),
+            mode: 'tabs',
+            chips: [
+              {
+                id: 'agents',
+                label: t('catalog.tabs.agents'),
+                active: catalogView === 'agents',
+                onSelect: () => onCatalogViewChange('agents'),
+              },
+              {
+                id: 'teams',
+                label: t('catalog.tabs.teams'),
+                active: catalogView === 'teams',
+                onSelect: () => onCatalogViewChange('teams'),
+              },
+            ],
+          },
+        ]}
+        utilities={(
+          <>
+            <select
+              className="team-catalog-scope"
+              aria-label={t('catalog.management.installScope')}
+              value={installLevel}
+              disabled={!managementSupported}
+              onChange={event => setInstallLevel(
+                event.target.value as TeamDefinitionLevel,
+              )}
+            >
+              <option value="user">{t('catalog.management.userScope')}</option>
+              <option value="project" disabled={!projectScopeAvailable}>
+                {t('catalog.management.projectScope')}
+              </option>
+            </select>
+            <button
+              type="button"
+              className="directory-topbar__utility"
+              disabled={!managementSupported || installing}
+              onClick={() => void onInstallTeam(installLevel)}
+              aria-label={t('catalog.management.install')}
+              title={t('catalog.management.install')}
+            >
+              <PackagePlus size={15} aria-hidden="true" />
+            </button>
+          </>
+        )}
+        primary={{
+          label: t('catalog.management.create'),
+          onClick: onCreateTeam,
+          disabled: !managementSupported,
+        }}
+      />
       <div className="gallery-zones">
         <GalleryZone
           id="teams-catalog-zone"
@@ -251,6 +278,8 @@ const TeamsCatalogView: React.FC<TeamsCatalogViewProps> = ({
   const preferredScenario = useSessionModeStore(state => state.mode);
   const catalog = useTeamCatalog();
   const {
+    catalogView,
+    setCatalogView,
     openReviewTeam,
     openCreateTeam,
     openEditTeam,
@@ -365,6 +394,8 @@ const TeamsCatalogView: React.FC<TeamsCatalogViewProps> = ({
   return (
     <TeamsCatalogViewContent
       catalog={catalog}
+      catalogView={catalogView}
+      onCatalogViewChange={setCatalogView}
       onOpenReviewTeam={openReviewTeam}
       onCreateTeam={openCreateTeam}
       onEditTeam={team => {

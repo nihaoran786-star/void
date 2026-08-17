@@ -412,7 +412,7 @@
     "builtin": "官方",
     "user": "用戶",
     "project": "項目",
-    "mode": "智能體",
+    "mode": "主智能體",
     "subagent": "子智能體"
   },
   "coreAgentsZone": {

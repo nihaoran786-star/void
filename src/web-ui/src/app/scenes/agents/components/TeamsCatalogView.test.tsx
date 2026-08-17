@@ -58,7 +58,9 @@ vi.mock('@/component-library', () => ({
   confirmDanger,
 }));
 
-vi.mock('@/app/components', () => ({
+vi.mock('@/app/components', async () => ({
+  // The teams catalog now wears the shared directory top bar; use the real one.
+  DirectoryTopBar: (await import('@/app/components/DirectoryTopBar/DirectoryTopBar')).default,
   GalleryEmpty: ({ message }: { message: string }) => <div>{message}</div>,
   GalleryGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   GalleryLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
@@ -277,9 +279,12 @@ describeWithJsdom('TeamsCatalogView', () => {
     });
   }
 
+  // Icon-only controls in the shared top bar carry their name in the
+  // accessible label, so look there as well as in the visible text.
   function findButton(text: string): HTMLButtonElement {
     const button = Array.from(container.querySelectorAll('button'))
-      .find(candidate => candidate.textContent?.includes(text));
+      .find(candidate => candidate.textContent?.includes(text)
+        || candidate.getAttribute('aria-label') === text);
     expect(button).toBeTruthy();
     return button!;
   }
@@ -309,7 +314,11 @@ describeWithJsdom('TeamsCatalogView', () => {
 
     await renderView(gateway, packagePicker, capabilityFixture(true));
 
-    expect(container.querySelector('header')).toBeNull();
+    // The shared directory top bar is the only header, and it carries the
+    // catalog name and count instead of a separate page title block.
+    const topbar = container.querySelector('.directory-topbar');
+    expect(topbar).toBeTruthy();
+    expect(container.querySelectorAll('header')).toHaveLength(1);
     expect(container.textContent).not.toContain('catalog.page.title');
     expect(container.querySelectorAll('#teams-catalog-zone > div button')).toHaveLength(8);
     expect(findButton('catalog.management.install')).toBeTruthy();

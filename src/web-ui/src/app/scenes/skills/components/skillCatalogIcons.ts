@@ -2,11 +2,10 @@
  * Skill glyphs — a deterministic open-source Lucide mark per skill identity.
  *
  * Skills are tools, so their mark never animates; motion belongs to the card.
- * Matching runs over the immutable runtime identity (which Void generates in
- * English) plus the display name, so a skill that says what it does gets a
- * matching mark. Everything else falls back to a stable hash pick from a
- * curated pool, so two unmatched skills still read as different marks instead
- * of one repeated placeholder.
+ * Matching runs over the display name plus the *describing* part of the runtime
+ * identity. Everything else falls back to a stable hash pick from a curated
+ * pool, so two unmatched skills still read as different marks instead of one
+ * repeated placeholder.
  *
  * Patterns stay ASCII on purpose: the i18n governance gate treats CJK literals
  * in source as untranslated copy. Localized keyword matching would belong in
@@ -53,36 +52,39 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+// Word boundaries matter: without them a workspace folder called `codex` or a
+// skill named `notebook` pulls unrelated skills into the same glyph, and the
+// whole catalog collapses onto one mark.
 const SKILL_ICON_RULES: ReadonlyArray<readonly [RegExp, LucideIcon]> = [
   [/research|investigat|survey/i, Telescope],
-  [/search|lookup|retriev|find/i, Search],
-  [/script|screenplay|storyboard|scene/i, ScrollText],
-  [/writ|copywrit|draft|compose/i, PenLine],
+  [/\bsearch|lookup|retriev|\bfind\b/i, Search],
+  [/script|screenplay|storyboard|\bscene\b/i, ScrollText],
+  [/\bwrit|copywrit|\bdraft|compose/i, PenLine],
   [/translat|language|locale|i18n/i, Languages],
-  [/review|critique|inspect/i, ClipboardCheck],
-  [/code|coding|program|develop/i, Code2],
-  [/bug|debug|troubleshoot|diagnos/i, Bug],
-  [/pull.?request|merge|commit|branch|git/i, GitPullRequestArrow],
-  [/terminal|shell|bash|cli|command/i, Terminal],
+  [/\breview|critique|inspect/i, ClipboardCheck],
+  [/\bcode\b|coding|program|develop|refactor/i, Code2],
+  [/\bbug\b|debug|troubleshoot|diagnos/i, Bug],
+  [/pull.?request|\bmerge\b|commit|branch|\bgit\b/i, GitPullRequestArrow],
+  [/terminal|shell|bash|\bcli\b|command/i, Terminal],
   [/spreadsheet|excel|xlsx|csv/i, FileSpreadsheet],
-  [/table|dataset|tabular/i, Table2],
-  [/database|sql|query|storage/i, Database],
-  [/calculat|math|finance|account|budget/i, Calculator],
-  [/document|report|docx|pdf|manual/i, FileText],
-  [/note|memo|journal|minutes/i, Notebook],
-  [/slide|deck|present|pptx/i, Presentation],
-  [/mail|email|inbox|newsletter/i, Mail],
-  [/support|chat|conversat|reply/i, MessageSquare],
+  [/\btable\b|dataset|tabular/i, Table2],
+  [/database|\bsql\b|query|storage/i, Database],
+  [/calculat|\bmath\b|finance|account|budget/i, Calculator],
+  [/document|report|docx|\bpdf\b|manual/i, FileText],
+  [/\bnote\b|memo|journal|minutes/i, Notebook],
+  [/slide|\bdeck\b|present|pptx/i, Presentation],
+  [/\bmail|email|inbox|newsletter/i, Mail],
+  [/support|\bchat\b|conversat|reply/i, MessageSquare],
   [/design|visual|palette|brand|theme/i, Palette],
-  [/image|picture|photo|illustrat/i, Image],
-  [/video|clip|footage/i, Video],
-  [/film|movie|drama|trailer/i, Film],
-  [/audio|voice|speech|asr|tts|podcast/i, Mic],
-  [/music|song|soundtrack|melody/i, Music],
+  [/\bimage|picture|photo|illustrat/i, Image],
+  [/\bvideo|\bclip\b|footage/i, Video],
+  [/\bfilm\b|movie|drama|trailer/i, Film],
+  [/audio|voice|speech|\basr\b|\btts\b|podcast/i, Mic],
+  [/music|\bsong\b|soundtrack|melody/i, Music],
   [/security|permission|complian|audit/i, ShieldCheck],
-  [/plan|strategy|roadmap|scope/i, Compass],
-  [/idea|brainstorm|creative|concept/i, Lightbulb],
-  [/tool|ops|maintain|utility|deploy/i, Wrench],
+  [/\bplan\b|strategy|roadmap|\bscope\b/i, Compass],
+  [/\bidea\b|brainstorm|creative|concept/i, Lightbulb],
+  [/\btool\b|\bops\b|maintain|utility|deploy/i, Wrench],
   [/workflow|pipeline|orchestrat|process/i, Layers],
 ];
 
@@ -111,8 +113,18 @@ function fnv1a(input: string): number {
   return hash >>> 0;
 }
 
+/**
+ * Only the last identity segment describes the skill. The prefix carries the
+ * install scope and the workspace folder, so matching the whole string made
+ * every skill under a folder called `codex` resolve to the code glyph.
+ */
+function describingPart(identity: string): string {
+  const segments = identity.split(/::|\//).filter(Boolean);
+  return segments[segments.length - 1] ?? '';
+}
+
 export function resolveSkillCatalogIcon(identity: string, name = ''): LucideIcon {
-  const searchable = `${identity} ${name}`;
+  const searchable = `${name} ${describingPart(identity)}`;
   const matched = SKILL_ICON_RULES.find(([pattern]) => pattern.test(searchable));
   if (matched) {
     return matched[1];

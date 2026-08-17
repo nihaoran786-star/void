@@ -91,6 +91,7 @@ const DirectoryTopBar: React.FC<DirectoryTopBarProps> = ({
                 type="button"
                 className={[
                   'directory-chip',
+                  `directory-chip--${group.mode}`,
                   chip.active && 'is-active',
                   chip.empty && 'is-empty',
                 ].filter(Boolean).join(' ')}

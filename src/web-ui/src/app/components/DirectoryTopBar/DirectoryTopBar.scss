@@ -125,9 +125,16 @@
     color: var(--color-text-primary);
   }
 
-  &.is-active {
+
+  &--tabs.is-active {
     background: var(--color-text-primary);
     color: var(--color-bg-primary);
+    font-weight: $font-weight-medium;
+  }
+
+  &--filters.is-active {
+    background: var(--element-bg-medium);
+    color: var(--color-text-primary);
     font-weight: $font-weight-medium;
   }
 

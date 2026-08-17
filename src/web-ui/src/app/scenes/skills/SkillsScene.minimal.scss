@@ -79,8 +79,8 @@
       justify-content: flex-start;
       gap: 0;
       width: 100%;
-      height: 148px;
-      min-height: 148px;
+      height: 132px;
+      min-height: 132px;
       padding: var(--workspace-space-3) var(--workspace-space-2)
         var(--workspace-space-2);
       border: 1px solid var(--workspace-border-subtle);
@@ -89,7 +89,7 @@
       text-align: center;
       contain: layout paint style;
       content-visibility: auto;
-      contain-intrinsic-block-size: 148px;
+      contain-intrinsic-block-size: 132px;
       animation: none;
       box-shadow: none;
       transform: none;
@@ -124,8 +124,8 @@
     .skills-card__avatar,
     .skill-card__avatar {
       flex: 0 0 auto;
-      width: 36px;
-      height: 36px;
+      width: 26px;
+      height: 26px;
       border: 0;
       background: transparent;
       box-shadow: none;
@@ -154,8 +154,8 @@
       line-height: var(--workspace-line-height-meta);
       opacity: 1;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
       overflow: hidden;
     }
 
@@ -351,8 +351,8 @@
     .skills-card-skeleton,
     .skills-discover__skeleton-card {
       box-sizing: border-box;
-      height: 148px;
-      min-height: 148px;
+      height: 132px;
+      min-height: 132px;
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);

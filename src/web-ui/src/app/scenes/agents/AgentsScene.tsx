@@ -265,6 +265,8 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
     searchQuery,
     agentFilterLevel,
     agentFilterType,
+    catalogView,
+    setCatalogView,
     setSearchQuery,
     setAgentFilterLevel,
     setAgentFilterType,
@@ -697,6 +699,25 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
         title={t('page.title')}
         count={visibleAgents.length}
         groups={[
+          {
+            id: 'catalog',
+            label: t('catalog.tabs.ariaLabel'),
+            mode: 'tabs',
+            chips: [
+              {
+                id: 'agents',
+                label: t('catalog.tabs.agents'),
+                active: catalogView === 'agents',
+                onSelect: () => setCatalogView('agents'),
+              },
+              {
+                id: 'teams',
+                label: t('catalog.tabs.teams'),
+                active: catalogView === 'teams',
+                onSelect: () => setCatalogView('teams'),
+              },
+            ],
+          },
           {
             id: 'source',
             label: t('filters.source'),
@@ -1494,7 +1515,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
     page,
     catalogView,
     openHome,
-    setCatalogView,
   } = useAgentsStore();
 
   useEffect(() => {
@@ -1570,30 +1590,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
 
   return (
     <div className="void-agents-shell">
-      <div
-        className="agents-catalog-tabs"
-        role="tablist"
-        aria-label={t('catalog.tabs.ariaLabel')}
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={catalogView === 'agents'}
-          className={catalogView === 'agents' ? 'is-active' : ''}
-          onClick={() => setCatalogView('agents')}
-        >
-          {t('catalog.tabs.agents')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={catalogView === 'teams'}
-          className={catalogView === 'teams' ? 'is-active' : ''}
-          onClick={() => setCatalogView('teams')}
-        >
-          {t('catalog.tabs.teams')}
-        </button>
-      </div>
       {catalogView === 'agents' ? (
         <AgentsHomeView taskDispatcher={taskDispatcher} />
       ) : (

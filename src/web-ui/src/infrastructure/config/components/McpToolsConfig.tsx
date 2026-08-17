@@ -1451,16 +1451,14 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
               count={catalogView === 'installed' ? filteredCatalogServers.length : undefined}
               groups={catalogTopBarGroups}
               search={catalogView === 'installed' ? (
-                servers.length > 0 && (
-                  <Search
-                    value={catalogQuery}
-                    onChange={setCatalogQuery}
-                    onClear={() => setCatalogQuery('')}
-                    placeholder={tMcp('search.placeholder')}
-                    size="small"
-                    clearable
-                  />
-                )
+                <Search
+                  value={catalogQuery}
+                  onChange={setCatalogQuery}
+                  onClear={() => setCatalogQuery('')}
+                  placeholder={tMcp('search.placeholder')}
+                  size="small"
+                  clearable
+                />
               ) : (
                 <Search
                   value={marketQuery}

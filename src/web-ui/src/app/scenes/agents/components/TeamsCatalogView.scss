@@ -1,38 +1,5 @@
 @use '../../../../component-library/styles/tokens' as *;
 
-.team-catalog-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: min(
-    calc(100% - (var(--workspace-space-4, #{$size-gap-4}) * 2)),
-    var(--agents-content-max, 1280px)
-  );
-  min-height: 52px;
-  gap: $size-gap-2;
-  margin: var(--workspace-space-2, #{$size-gap-2}) auto 0;
-  padding: var(--workspace-space-2, #{$size-gap-2}) 0;
-  border-bottom: 1px solid var(--workspace-border-subtle, var(--border-subtle));
-
-  &__actions {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: $size-gap-2;
-
-    select {
-      min-height: 30px;
-      padding: 0 $size-gap-2;
-      border: 1px solid var(--border-subtle);
-      border-radius: $size-radius-base;
-      color: var(--color-text-secondary);
-      background: var(--color-bg-primary);
-      font: inherit;
-      font-size: var(--font-size-xs);
-    }
-  }
-}
-
 .catalog-pagination {
   display: flex;
   align-items: center;
@@ -185,19 +152,21 @@
   }
 }
 
-@media (max-width: 760px) {
-  .team-catalog-toolbar {
-    width: calc(100% - (var(--workspace-space-3, #{$size-gap-3}) * 2));
+// The install-scope picker sits among the shared top bar's icon utilities, so
+// it has to read as chrome rather than as a form control.
+.team-catalog-scope {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+  border-radius: var(--workspace-radius-control, $size-radius-base);
+  background: transparent;
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
+  font: inherit;
+  font-size: var(--workspace-font-size-meta, var(--font-size-2xs));
+  cursor: pointer;
 
-    &__actions {
-      width: 100%;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-
-      select {
-        min-width: 0;
-        flex: 1 1 140px;
-      }
-    }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 }
