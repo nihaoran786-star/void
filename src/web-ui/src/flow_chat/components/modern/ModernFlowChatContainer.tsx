@@ -298,7 +298,11 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     onToolConfirm: handleToolConfirm,
     onToolReject: handleToolReject,
     sessionId: activeSession?.sessionId,
-    activeSessionOverride: activeSession,
+    // Deliberately not `activeSessionOverride`: the active session object is
+    // replaced on every streamed flush, and putting it here re-rendered every
+    // mounted message ~10 times a second. Consumers read live turn state from
+    // the store instead.
+    sessionWorkspacePath: activeSession?.workspacePath,
     allowUserMessageRollback,
     config: {
       enableMarkdown: true,
@@ -325,7 +329,8 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     onSwitchToChatPanel,
     handleToolConfirm,
     handleToolReject,
-    activeSession,
+    activeSession?.sessionId,
+    activeSession?.workspacePath,
     allowUserMessageRollback,
     config,
     exploreGroupStates,

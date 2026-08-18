@@ -31,6 +31,14 @@ export interface UseFlowChatSearchReturn {
   clearSearch: () => void;
 }
 
+/**
+ * Stable "no search" results. Returning fresh `[]` / `new Set()` on every
+ * projection update would change the FlowChat context identity on every
+ * streamed flush and re-render the whole message list.
+ */
+const EMPTY_MATCHES: SearchMatch[] = [];
+const EMPTY_MATCH_INDICES: ReadonlySet<number> = new Set<number>();
+
 function extractSearchableText(items: readonly SearchableFlowItem[]): string {
   return items
     .filter(item => item.type === 'text' || item.type === 'thinking')
@@ -60,7 +68,7 @@ export function useFlowChatSearch(virtualItems: VirtualItem[]): UseFlowChatSearc
 
   const matches = useMemo<SearchMatch[]>(() => {
     const trimmed = searchQuery.trim();
-    if (!trimmed) return [];
+    if (!trimmed) return EMPTY_MATCHES;
     const q = trimmed.toLowerCase();
 
     const minIndexByTurn = new Map<string, number>();
@@ -86,7 +94,7 @@ export function useFlowChatSearch(virtualItems: VirtualItem[]): UseFlowChatSearc
   }, [virtualItems, searchQuery]);
 
   const matchIndices = useMemo<ReadonlySet<number>>(() => {
-    if (matches.length === 0) return new Set();
+    if (matches.length === 0) return EMPTY_MATCH_INDICES;
     const matchedTurnIds = new Set(matches.map(match => match.turnId));
     const indices = new Set<number>();
     virtualItems.forEach((item, index) => {

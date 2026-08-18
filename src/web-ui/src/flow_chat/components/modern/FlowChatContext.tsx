@@ -30,7 +30,19 @@ export interface FlowChatContextValue {
 
   // Session info
   sessionId?: string;
+  /**
+   * Live session object for surfaces that render a session other than the
+   * active one (BTW child panel, Agent debug chat).
+   *
+   * The main Flow Chat surface must not put the active session here: its
+   * identity changes on every streamed flush, which would change this context
+   * value and re-render every mounted message. It passes the stable
+   * `sessionWorkspacePath` instead and lets consumers read live turn state
+   * from the store.
+   */
   activeSessionOverride?: Session | null;
+  /** Workspace path of the rendered session; stable for the session's lifetime. */
+  sessionWorkspacePath?: string;
   allowUserMessageRollback?: boolean;
   allowUserMessageEdit?: boolean;
   onFillUserMessageInput?: (request: FlowChatComposerFillRequest) => void;

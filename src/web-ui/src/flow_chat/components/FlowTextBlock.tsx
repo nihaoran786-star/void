@@ -64,6 +64,7 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
 }) => {
   const {
     activeSessionOverride,
+    sessionWorkspacePath,
     onFileViewRequest,
     onTabOpen,
     onHttpLinkClick,
@@ -132,7 +133,7 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
       source: 'assistant-message',
       sessionId,
       turnId: textItem.id,
-      workspaceKey: activeSessionOverride?.workspacePath,
+      workspaceKey: activeSessionOverride?.workspacePath ?? sessionWorkspacePath,
     });
 
     if (candidate) {
@@ -140,6 +141,7 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
     }
   }, [
     activeSessionOverride?.workspacePath,
+    sessionWorkspacePath,
     content,
     isStreaming,
     sessionId,
