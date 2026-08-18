@@ -9,7 +9,10 @@
 @use '../../component-library/styles/tokens.scss' as *;
 
 $_nav-width: 240px;
-$_nav-collapsed-width: 48px;
+// 54px, not 48: the expanded sidebar centres every glyph on the 27px icon
+// column, and a centred rail can only share that exact column when its width
+// is twice the column offset. At 48px the icons shifted 3px on every collapse.
+$_nav-collapsed-width: 54px;
 
 // ── Root: left-right split ───────────────────────────────
 

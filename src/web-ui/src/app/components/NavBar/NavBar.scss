@@ -153,16 +153,12 @@
   }
 }
 
-// Collapsed the sidebar is a 48px rail whose buttons centre themselves, so the
-// control bar drops the expanded icon-column inset and centres too — otherwise
-// the toggle sits off the line the rail glyphs share.
-.void-ui--minimal .void-nav-bar--collapsed {
-  justify-content: center;
-  padding-inline: 0;
-}
-
+// Collapsed, the toggle keeps the exact inset it has when expanded: the 54px
+// rail centres its buttons on the same 27px icon column, so re-centring the
+// control bar here would make the toggle glyph hop on every click.
 .void-app-layout--macos.void-ui--minimal .void-nav-bar--collapsed {
   padding: 0;
+  justify-content: center;
 }
 
 @media (prefers-reduced-motion: reduce) {

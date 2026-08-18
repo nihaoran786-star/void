@@ -182,7 +182,9 @@
     // height, same icon column and same flat ground as the rows under it.
     &__session-create-action {
       grid-row: 1;
-      grid-template-columns: 18px minmax(0, 1fr) auto;
+      // 22px, matching .__top-action-icon-slot below: an 18px first column put
+      // this glyph 2px left of the assistant/automation glyphs under it.
+      grid-template-columns: 22px minmax(0, 1fr) auto;
       gap: 8px;
       width: 100%;
       height: 30px;
@@ -428,9 +430,11 @@
   // Collapsed Minimal navigation is a presentation projection of the same
   // mounted NavBar + NavPanel + MainNav tree, so local component state survives.
   .void-ui--minimal .void-workspace-body__nav-area.is-collapsed .void-nav-panel {
-    width: 48px;
-    min-width: 48px;
-    max-width: 48px;
+    // Keep in sync with $_nav-collapsed-width in WorkspaceBody.scss: 54px puts
+    // the centred rail glyphs on the same 27px column the expanded sidebar uses.
+    width: 54px;
+    min-width: 54px;
+    max-width: 54px;
     border-right: 1px solid var(--workspace-border-subtle, var(--border-subtle));
 
     &__content {
@@ -456,13 +460,18 @@
 
     &__session-create {
       display: block;
-      width: 32px;
+      // Same box as the rail buttons below; a 32px wrapper pushed the create
+      // glyph 4px off the shared icon column.
+      width: 40px;
     }
 
     &__session-create-footer {
       display: block;
     }
 
+    // One square for every rail entry: identical boxes centred in the rail
+    // give one glyph column and one hover pill. The create action used to be a
+    // 32px square next to 40px buttons, so its edge and hover halo sat apart.
     &__session-create-action,
     &__top-action-btn {
       display: flex;
@@ -476,14 +485,6 @@
       border-radius: var(--workspace-radius-control, 4px);
     }
 
-    &__session-create-action {
-      width: 32px;
-      min-width: 32px;
-      height: 32px;
-      min-height: 32px;
-      border-radius: var(--workspace-radius-panel, 8px);
-    }
-
     &__session-create-action > svg {
       width: 16px;
       height: 16px;
@@ -491,7 +492,9 @@
       opacity: 1;
     }
 
-    // Collapsed to a 48px rail: only the glyphs survive.
+    // Collapsed rail keeps exactly three entries: create, assistant,
+    // automation. Everything else — labels, sections, the customization group
+    // and its sublist — waits for the expanded sidebar.
     &__session-create-action-text,
     &__session-create-action-kbd,
     &__session-create-action-mode,
@@ -501,41 +504,10 @@
     &__bottom-bar,
     &__footer-more-wrap,
     &__footer-quick-action,
-    &__footer-right {
-      display: none;
-    }
-
-    &__top-action-expand {
-      display: flex;
-      align-items: center;
-      width: 40px;
-      margin: 0;
-      padding: 0;
-      border-bottom: 0;
-    }
-
-    &__top-action-expand.is-open {
-      gap: var(--workspace-space-1, 4px);
-    }
-
-    &__top-action-expand-icons {
-      display: none;
-    }
-
+    &__footer-right,
+    &__top-action-expand,
     &__top-action-sublist {
-      align-items: center;
-      width: 40px;
-      margin: 0;
-      padding: 0;
-      border-left: 0;
-    }
-
-    &__top-action-sublist.is-open {
-      max-height: 128px;
-    }
-
-    &__top-action-btn--sub {
-      padding: 0;
+      display: none;
     }
 
     &__top-action-btn.is-active {
