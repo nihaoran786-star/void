@@ -6,6 +6,7 @@ import { DotMatrixArrowRightIcon } from './DotMatrixArrowRightIcon';
 import { NavTechFolderIcon } from '../../components/NavTechIcons';
 import { Button, ConfirmDialog, Modal, Tooltip } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
+import { useNavWorkspaceFoldStore } from '@/app/stores/navWorkspaceFoldStore';
 import { aiExperienceConfigService } from '@/infrastructure/config/services/AIExperienceConfigService';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import {
@@ -88,7 +89,10 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
   const [isDeletingAssistant, setIsDeletingAssistant] = useState(false);
   const [isDeletingWorktree, setIsDeletingWorktree] = useState(false);
   const [isResettingWorkspace, setIsResettingWorkspace] = useState(false);
-  const [sessionsCollapsed, setSessionsCollapsed] = useState(false);
+  const sessionsCollapsed = useNavWorkspaceFoldStore(
+    state => state.foldedWorkspaceIds.has(workspace.id),
+  );
+  const toggleSessionsFolded = useNavWorkspaceFoldStore(state => state.toggleFolded);
   const [searchIndexModalOpen, setSearchIndexModalOpen] = useState(false);
   const [workspaceSearchEnabled, setWorkspaceSearchEnabled] = useState(
     () => aiExperienceConfigService.getSettings().enable_workspace_search,
@@ -379,17 +383,18 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
   }, [isActive, onActivate, setActiveWorkspace, workspace]);
 
   const handleCollapseToggle = useCallback(() => {
-    setSessionsCollapsed(prev => !prev);
-  }, []);
+    toggleSessionsFolded(workspace.id);
+  }, [toggleSessionsFolded, workspace.id]);
 
+  // Activating a workspace must not re-open a list the user folded shut; only
+  // the fold control changes the fold.
   const handleCardNameClick = useCallback(async () => {
     if (!isActive) {
       await handleActivate();
-      setSessionsCollapsed(false);
-    } else {
-      setSessionsCollapsed(prev => !prev);
+      return;
     }
-  }, [handleActivate, isActive]);
+    toggleSessionsFolded(workspace.id);
+  }, [handleActivate, isActive, toggleSessionsFolded, workspace.id]);
 
   const handleCloseWorkspace = useCallback(async () => {
     setMenuOpen(false);

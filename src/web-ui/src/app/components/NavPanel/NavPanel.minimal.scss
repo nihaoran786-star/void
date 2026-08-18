@@ -272,6 +272,11 @@
       top: 0;
       z-index: 2;
       flex: 0 0 auto;
+      // Rows scroll underneath, so the head carries the nav area's own material
+      // instead of letting text show through it.
+      background: var(--workspace-glass-panel-bg);
+      backdrop-filter: var(--workspace-glass-blur);
+      -webkit-backdrop-filter: var(--workspace-glass-blur);
     }
 
     &__section-label,
@@ -299,12 +304,15 @@
       }
     }
 
+    // A section head is a quiet caption, not a ruled divider: the label owns the
+    // row and the count sits at the far end. The hairline that used to stretch
+    // between them read as a broken line across the sidebar.
     &__section-label {
-      flex: 0 1 auto;
+      flex: 1 1 auto;
     }
 
     &__section-hline {
-      display: block;
+      display: none;
     }
 
     &__section-meta {
