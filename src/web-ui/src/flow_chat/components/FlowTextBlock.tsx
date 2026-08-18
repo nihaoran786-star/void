@@ -5,10 +5,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { MarkdownRenderer } from '@/component-library';
-import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
-import LoadingState from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import type { FlowTextItem } from '../types/flow-chat';
 import { useFlowChatContext } from './modern/FlowChatContext';
 import {
@@ -30,29 +27,6 @@ interface FlowTextBlockProps {
   className?: string;
   replayStreamingOnMount?: boolean;
 }
-
-const RuntimeStatusBlock: React.FC<Pick<FlowTextBlockProps, 'textItem' | 'className'>> = ({ textItem, className = '' }) => {
-  const { t } = useTranslation('flow-chat/processing-hints');
-  const rawHints = t('items', { returnObjects: true });
-  const hints = Array.isArray(rawHints)
-    ? rawHints.filter((item): item is string => typeof item === 'string')
-    : [];
-  const hintIndex = hints.length > 0
-    ? Math.abs(textItem.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0)) % hints.length
-    : 0;
-  const hint = hints[hintIndex] ?? '';
-
-  return (
-    <div
-      data-beautiful-component="loading-state"
-      className={`flow-text-block flow-text-block--runtime-status ${className}`}
-    >
-      <BeautifulUIStage mode="inline">
-        <LoadingState label={hint || 'Working'} variant="Drive" />
-      </BeautifulUIStage>
-    </div>
-  );
-};
 
 /**
  * Use React.memo to avoid unnecessary re-renders.
@@ -154,9 +128,10 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
     (textItem.status === 'streaming' || textItem.status === 'running') &&
     isContentGrowing;
 
-  const flowTextBlockContent = textItem.runtimeStatus ? (
-    <RuntimeStatusBlock textItem={textItem} className={className} />
-  ) : (
+  // A runtime-status item is a phase marker, not content. The single turn
+  // activity indicator at the tail of the turn represents that phase; rendering
+  // a second loader here duplicated it with its own independent timer.
+  const flowTextBlockContent = textItem.runtimeStatus ? null : (
     <div
       data-beautiful-component="streaming-text"
       className={`flow-text-block ${className} ${isActivelyStreaming ? 'streaming flow-text-block--streaming' : ''}`}

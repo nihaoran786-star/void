@@ -6,8 +6,6 @@
 
 import React, { useRef, useMemo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BeautifulUIStage } from '@/component-library/components/BeautifulUI';
-import LoadingState from '@/component-library/preview/beautiful-ui-original/components/loading-state';
 import type { FlowItem, FlowToolItem, FlowTextItem, FlowThinkingItem } from '../../types/flow-chat';
 import type { ExploreGroupData } from '../../store/modernFlowChatStore';
 import { FlowTextBlock } from '../FlowTextBlock';
@@ -153,15 +151,16 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
       data-beautiful-component="tool-chips"
       className={className}
     >
-      {!isThinkingOnly && (isGroupStreaming ? (
-        <BeautifulUIStage mode="inline" className="explore-region__header">
-          <LoadingState label={displaySummary} variant="Orbit" />
-        </BeautifulUIStage>
-      ) : (
+      {/*
+        One activity indicator per turn. The group header stays a quiet summary
+        line in both states; a second loader here ran its own animation and its
+        own elapsed clock next to the turn indicator.
+      */}
+      {!isThinkingOnly && (
         <div className="explore-region__header">
           <span className="explore-region__summary">{displaySummary}</span>
         </div>
-      ))}
+      )}
       <div ref={containerRef} className="explore-region__content" onScroll={checkScrollState}>
         {allItems.map((item, idx) => (
           <ExploreItemRenderer

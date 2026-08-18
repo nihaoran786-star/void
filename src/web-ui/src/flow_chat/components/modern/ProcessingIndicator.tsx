@@ -16,12 +16,19 @@ interface ProcessingIndicatorProps {
   visible: boolean;
   /** When true, preserve height to avoid layout jumps. */
   reserveSpace?: boolean;
+  /**
+   * i18n key for the phase the runtime actually reported. When present it wins
+   * over the rotating hints, so the one indicator says what is happening.
+   */
+  labelKey?: string;
 }
 
-export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visible, reserveSpace = false }) => {
+export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visible, reserveSpace = false, labelKey }) => {
   const isPresentationActive = useFlowChatPresentationActive();
   const isEffectivelyVisible = visible && isPresentationActive;
   const { t } = useTranslation('flow-chat/processing-hints');
+  const { t: tFlowChat } = useTranslation('flow-chat');
+  const label = labelKey ? tFlowChat(labelKey) : undefined;
   const rawHints = t('items', { returnObjects: true });
   const hints = Array.isArray(rawHints)
     ? rawHints.filter((item): item is string => typeof item === 'string')
@@ -33,16 +40,23 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
   const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const hasLabel = Boolean(label);
+
   useEffect(() => {
-    if (isEffectivelyVisible && hints.length > 0) {
-      const initialIndex = Math.floor(Math.random() * hints.length);
+    if (isEffectivelyVisible && (hints.length > 0 || hasLabel)) {
+      const initialIndex = hints.length > 0
+        ? Math.floor(Math.random() * hints.length)
+        : 0;
       setHintIndex(initialIndex);
 
       delayTimerRef.current = setTimeout(() => {
         setShowHint(true);
-        rotateTimerRef.current = setInterval(() => {
-          setHintIndex(prev => (prev + 1) % hints.length);
-        }, 5000);
+        // A reported phase is real information; it must not be rotated away.
+        if (!hasLabel && hints.length > 0) {
+          rotateTimerRef.current = setInterval(() => {
+            setHintIndex(prev => (prev + 1) % hints.length);
+          }, 5000);
+        }
       }, 1000);
     } else {
       if (delayTimerRef.current) {
@@ -60,7 +74,7 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
       if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
       if (rotateTimerRef.current) clearInterval(rotateTimerRef.current);
     };
-  }, [hints.length, isEffectivelyVisible]);
+  }, [hasLabel, hints.length, isEffectivelyVisible]);
 
   const shouldRender = isEffectivelyVisible || reserveSpace;
   if (!shouldRender) return null;
@@ -71,9 +85,9 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
         className="processing-indicator__content"
         style={isEffectivelyVisible ? undefined : { visibility: 'hidden' as const }}
       >
-        {showHint && hints.length > 0 && (
+        {showHint && (label || hints.length > 0) && (
           <BeautifulUIStage mode="inline">
-            <LoadingState label={hints[hintIndex]} variant="Drive" />
+            <LoadingState label={label ?? hints[hintIndex]} variant="Drive" />
           </BeautifulUIStage>
         )}
       </div>

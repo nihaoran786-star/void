@@ -141,6 +141,7 @@ vi.mock('./ProcessingIndicator', () => ({
 vi.mock('./processingIndicatorVisibility', () => ({
   shouldReserveProcessingIndicatorSpace: () => false,
   shouldShowProcessingIndicator: () => false,
+  readProcessingIndicatorMessageKey: () => null,
 }));
 
 vi.mock('./ScrollAnchor', () => ({

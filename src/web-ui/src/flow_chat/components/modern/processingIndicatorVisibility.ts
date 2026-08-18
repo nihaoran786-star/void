@@ -25,7 +25,9 @@ function isInlineRuntimeStatus(item: LastFlowItem | undefined): boolean {
 export function shouldShowProcessingIndicator(input: ProcessingIndicatorVisibilityInput): boolean {
   if (!hasProcessing(input)) return false;
   if (input.processingPhase === 'tool_confirming') return false;
-  if (isInlineRuntimeStatus(input.lastItem)) return false;
+  // A runtime-status item no longer draws its own loader, so this single
+  // indicator is what represents that phase.
+  if (isInlineRuntimeStatus(input.lastItem)) return true;
   if (!input.lastItem) return true;
 
   if (input.lastItem.type === 'text' || input.lastItem.type === 'thinking') {
@@ -46,6 +48,18 @@ export function shouldShowProcessingIndicator(input: ProcessingIndicatorVisibili
 export function shouldReserveProcessingIndicatorSpace(input: ProcessingIndicatorVisibilityInput): boolean {
   if (!hasProcessing(input)) return false;
   if (input.processingPhase === 'tool_confirming') return false;
-  if (isInlineRuntimeStatus(input.lastItem)) return false;
   return true;
+}
+
+/**
+ * Phase text for the single turn activity indicator.
+ *
+ * Runtime-status items already carry the real phase key; the removed inline
+ * loader ignored it and showed a hashed random hint instead.
+ */
+export function readProcessingIndicatorMessageKey(item: LastFlowItem | undefined): string | null {
+  if (!isInlineRuntimeStatus(item)) return null;
+  const runtimeStatus = item?.runtimeStatus as { messageKey?: string } | undefined;
+  const messageKey = runtimeStatus?.messageKey;
+  return typeof messageKey === 'string' && messageKey.length > 0 ? messageKey : null;
 }

@@ -21,6 +21,7 @@ import { useVisibleTaskInfo } from '../../hooks/useVisibleTaskInfo';
 import { StickyTaskIndicator } from '../StickyTaskIndicator';
 import { ProcessingIndicator } from './ProcessingIndicator';
 import {
+  readProcessingIndicatorMessageKey,
   shouldReserveProcessingIndicatorSpace,
   shouldShowProcessingIndicator,
 } from './processingIndicatorVisibility';
@@ -284,6 +285,7 @@ interface VirtualMessageListFooterContext {
   footerHeightPx: number;
   showBreathingIndicator: boolean;
   reserveSpaceForIndicator: boolean;
+  activityLabelKey?: string;
   footerElementRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -301,6 +303,7 @@ function VirtualMessageListFooter(
       <ProcessingIndicator
         visible={context.showBreathingIndicator}
         reserveSpace={context.reserveSpaceForIndicator}
+        labelKey={context.activityLabelKey}
       />
       <div
         ref={context.footerElementRef}
@@ -2446,6 +2449,11 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     });
   }, [isProcessing, processingPhase, lastItemInfo, isContentGrowing]);
 
+  const activityLabelKey = React.useMemo(
+    () => readProcessingIndicatorMessageKey(lastItemInfo.lastItem) ?? undefined,
+    [lastItemInfo.lastItem],
+  );
+
   const reserveSpaceForIndicator = React.useMemo(() => {
     return shouldReserveProcessingIndicatorSpace({
       isTurnProcessing: lastItemInfo.isTurnProcessing,
@@ -2762,8 +2770,9 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     footerHeightPx,
     showBreathingIndicator,
     reserveSpaceForIndicator,
+    activityLabelKey,
     footerElementRef,
-  }), [footerHeightPx, reserveSpaceForIndicator, showBreathingIndicator]);
+  }), [activityLabelKey, footerHeightPx, reserveSpaceForIndicator, showBreathingIndicator]);
 
   // ── Render ────────────────────────────────────────────────────────────
   if (virtualItems.length === 0) {
@@ -2818,7 +2827,11 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
               style={{ height: `${Math.round(trailingOmittedInitialHistoryEstimatedHeightPx)}px` }}
             />
           ) : null}
-          <ProcessingIndicator visible={showBreathingIndicator} reserveSpace={reserveSpaceForIndicator} />
+          <ProcessingIndicator
+            visible={showBreathingIndicator}
+            reserveSpace={reserveSpaceForIndicator}
+            labelKey={activityLabelKey}
+          />
           <div
             ref={footerElementRef}
             className="message-list-footer"
