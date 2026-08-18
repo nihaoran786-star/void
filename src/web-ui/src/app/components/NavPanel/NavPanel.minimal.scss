@@ -229,42 +229,32 @@
     }
 
     // ── Anchored sections ────────────────────────────────────────────────────
-    // The column itself no longer scrolls: each section keeps its header in
-    // place and scrolls its own list. Otherwise a long session list pushes the
-    // workspace header out of sight and there is no way back to it.
+    // One scroller for the whole list, with the section heads pinned inside it.
+    // Splitting the column into a scroll box per section looked broken: a
+    // collapsed section got pushed to the bottom with a void above it, and two
+    // scrollbars in one narrow column made it unclear what would move.
+    //
+    // Sticky heads give the same guarantee for less: the head you are reading
+    // under stays put, and the next section's head takes over as it arrives.
     &__sections {
       display: flex;
       flex-direction: column;
       gap: var(--workspace-space-1);
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     &__section {
       display: flex;
       flex-direction: column;
+      flex: 0 0 auto;
       min-height: 0;
       margin-bottom: 0;
     }
 
     &__section:last-child {
       margin-bottom: 0;
-    }
-
-    // Only an open section competes for the leftover height.
-    &__section:has(> .void-nav-panel__collapsible:not(.is-collapsed)) {
-      flex: 1 1 auto;
-    }
-
-    &__section > .void-nav-panel__collapsible:not(.is-collapsed) {
-      flex: 1 1 auto;
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-
-    &__section > .void-nav-panel__collapsible:not(.is-collapsed)
-      > .void-nav-panel__collapsible-inner {
-      overflow: visible;
     }
 
     &__section-header {
