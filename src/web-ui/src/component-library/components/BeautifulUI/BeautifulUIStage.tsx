@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './BeautifulUIStage.scss';
 
@@ -7,8 +7,42 @@ export type BeautifulUIStageMode = 'preview' | 'inline' | 'icon' | 'surface';
 interface BeautifulUIStageProps {
   children: React.ReactNode;
   mode?: BeautifulUIStageMode;
+  /** Explicit override; when omitted the stage follows the application theme. */
   theme?: 'light' | 'dark';
   className?: string;
+}
+
+function readDocumentThemeType(): 'light' | 'dark' {
+  return document.documentElement.getAttribute('data-theme-type') === 'dark' ? 'dark' : 'light';
+}
+
+/**
+ * The stage renders into a shadow root, so the app's dark-theme selectors
+ * cannot reach its contents. site.css ships a complete `.dark` variable table;
+ * this hook tracks the `data-theme-type` attribute the theme service already
+ * maintains so the shadow content flips with the application theme. Without it
+ * every staged component kept its light ink (#1f2124) on dark backgrounds.
+ */
+function useDocumentThemeType(override?: 'light' | 'dark'): 'light' | 'dark' {
+  const [themeType, setThemeType] = useState<'light' | 'dark'>(
+    () => override ?? readDocumentThemeType(),
+  );
+
+  useEffect(() => {
+    if (override) return;
+    setThemeType(readDocumentThemeType());
+
+    const observer = new MutationObserver(() => {
+      setThemeType(readDocumentThemeType());
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme-type'],
+    });
+    return () => observer.disconnect();
+  }, [override]);
+
+  return override ?? themeType;
 }
 
 const tailwindPropertyDefaults = `
@@ -94,11 +128,12 @@ const stageStyles = `
 export const BeautifulUIStage: React.FC<BeautifulUIStageProps> = ({
   children,
   mode = 'preview',
-  theme = 'light',
+  theme,
   className = '',
 }) => {
   const hostRef = useRef<HTMLDivElement>(null);
   const [portalRoot, setPortalRoot] = useState<HTMLDivElement | null>(null);
+  const resolvedTheme = useDocumentThemeType(theme);
 
   useLayoutEffect(() => {
     const host = hostRef.current;
@@ -112,7 +147,7 @@ export const BeautifulUIStage: React.FC<BeautifulUIStageProps> = ({
 
     const root = document.createElement('div');
     root.className = [
-      theme === 'dark' ? 'dark' : '',
+      resolvedTheme === 'dark' ? 'dark' : '',
       'primitive-showcase',
       '__className_f367f3',
       '__variable_f367f3',
@@ -127,7 +162,7 @@ export const BeautifulUIStage: React.FC<BeautifulUIStageProps> = ({
       setPortalRoot(null);
       shadowRoot.replaceChildren();
     };
-  }, [mode, theme]);
+  }, [mode, resolvedTheme]);
 
   return (
     <div

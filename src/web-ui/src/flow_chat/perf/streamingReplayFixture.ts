@@ -18,6 +18,7 @@ import type {
   AnyFlowItem,
   DialogTurn,
   FlowTextItem,
+  FlowThinkingItem,
   FlowToolItem,
   ModelRound,
   Session,
@@ -99,6 +100,18 @@ function toolItem(
   } as FlowToolItem;
 }
 
+function thinkingItem(id: string, content: string): FlowThinkingItem {
+  return {
+    id,
+    type: 'thinking',
+    timestamp: BASE_TIMESTAMP,
+    status: 'completed',
+    content,
+    isStreaming: false,
+    isCollapsed: true,
+  };
+}
+
 function round(id: string, index: number, items: AnyFlowItem[], streaming: boolean): ModelRound {
   return {
     id,
@@ -124,6 +137,10 @@ function completedTurn(turnIndex: number, sessionId: string): DialogTurn {
     },
     modelRounds: [
       round(`${turnId}-round-explore`, 0, [
+        thinkingItem(
+          `${turnId}-thinking`,
+          'The projection layer flattens turns into render units, so the store shape decides how much re-renders on each flush.',
+        ),
         toolItem(`${turnId}-read`, 'Read', { file_path: 'src/flow_chat/store/FlowChatStore.ts' }, 'ok'),
         toolItem(`${turnId}-grep`, 'Grep', { pattern: 'updateModelRoundItem' }, 'ok'),
       ], false),
