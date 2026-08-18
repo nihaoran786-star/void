@@ -29,9 +29,9 @@
   &__map-grid { position: absolute; top: 50%; left: 50%; width: 3200px; height: 3200px; margin: -1600px 0 0 -1600px; background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1.2px); background-size: 28px 28px; pointer-events: none; }
   &__map-world { position: absolute; top: 50%; left: 50%; width: 0; height: 0; }
   &__map-wires { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
-  &__map-wires line { stroke: var(--border-base); stroke-width: 1; }
-  &__map-wires line.is-hot { stroke: var(--color-accent-500); stroke-dasharray: 5 7; }
-  &__map-wires line.is-worker { stroke-dasharray: 2 5; opacity: .72; }
+  &__map-wires path { fill: none; stroke: var(--border-base); stroke-width: 1; }
+  &__map-wires path.is-live { stroke: var(--color-accent-500); stroke-dasharray: 5 6; }
+  &__map-wires path.is-worker { stroke-dasharray: 3 6; opacity: .7; }
 
   /* ── 顶栏:两个视图一致的 36px 细栏,本身即拖拽区 ── */
   &__map-topbar { position: absolute; z-index: 2; top: 0; right: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; min-height: 36px; padding: 0 16px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .12em; white-space: nowrap; }
@@ -39,38 +39,37 @@
   &__map-topbar-live { flex: 0 0 auto; color: var(--color-accent-500); }
   &__map-topbar-live::before { content: "●"; margin-right: 5px; }
 
-  /* ── 主理人:一枚实心点,运行时只增加静态细描边 ── */
-  &__map-lead { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 8px; width: 96px; margin: -6px 0 0 -48px; transform-origin: 50% 6px; }
-  &__map-lead-point { position: relative; width: 11px; height: 11px; border-radius: 50%; background: var(--color-text-primary); }
-  &[data-running] &__map-lead-point { outline: 1px solid var(--color-accent-500); outline-offset: 5px; }
-  &__map-lead-name { max-width: 96px; overflow: hidden; color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  /* ── 拓扑节点:一张矩形卡 + 两侧端口,运行中发光 ── */
+  &__node { position: absolute; top: 0; left: 0; box-sizing: border-box; border: 1px solid var(--border-base); border-radius: 10px; background: var(--workspace-surface-panel); transition: border-color var(--workspace-motion-fast) var(--workspace-easing-standard), box-shadow var(--workspace-motion-fast) var(--workspace-easing-standard); }
+  &__node:hover { border-color: var(--border-medium); }
+  &__node[data-live] { border-color: var(--color-accent-500); box-shadow: 0 0 0 1px var(--color-accent-500), 0 0 20px -4px var(--color-accent-500); }
+  &__node[data-tone='warning'] { border-color: var(--status-warning-text); }
+  &__node[data-tone='error'] { border-color: var(--status-error-text); }
+  &__node--lead { border-color: var(--border-medium); }
+  &__node--worker { border-style: dashed; }
 
-  /* ── 成员:一枚状态点 + 名字 + 职责 ── */
-  &__map-member { position: absolute; top: 0; left: 0; display: flex; align-items: center; flex-direction: column; gap: 7px; width: 92px; margin: -5px 0 0 -46px; padding: 6px 0; border: 0; background: transparent; color: inherit; cursor: pointer; transform-origin: 50% 5px; }
-  &__map-member-point { position: relative; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--color-text-muted); transition: outline-color var(--workspace-motion-fast) var(--workspace-easing-standard), background-color var(--workspace-motion-fast) var(--workspace-easing-standard); }
-  &__map-member:hover &__map-member-point { outline: 1px solid var(--border-medium); outline-offset: 3px; }
-  &__map-member[data-tone='info'] &__map-member-point { background: var(--color-accent-500); }
-  &__map-member[data-tone='success'] &__map-member-point { background: var(--status-success-text); }
-  &__map-member[data-tone='warning'] &__map-member-point { background: var(--status-warning-text); }
-  &__map-member[data-tone='error'] &__map-member-point { background: var(--status-error-text); }
-  &__map-member-ripples { display: none; }
-  &__map-member-ripples i { position: absolute; inset: -3px; border: 1px solid var(--color-accent-500); border-radius: 50%; opacity: 0; }
-  &__map-member-name { max-width: 92px; overflow: hidden; color: var(--color-text-primary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  &__map-member-role { max-width: 92px; margin-top: -4px; overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .14em; text-overflow: ellipsis; white-space: nowrap; }
-  &__map-worker { position: absolute; top: 0; left: 0; display: flex; width: 78px; margin: -4px 0 0 -39px; padding: 4px 0; border: 0; align-items: center; flex-direction: column; gap: 5px; background: transparent; color: inherit; cursor: pointer; transform-origin: 50% 4px; }
-  &__map-worker:disabled { cursor: default; opacity: .58; }
-  &__map-worker-point { width: 6px; height: 6px; flex: 0 0 auto; border: 1px solid var(--color-bg-primary); border-radius: 50%; background: var(--color-text-muted); outline: 1px solid var(--border-medium); }
-  &__map-worker[data-tone='info'] &__map-worker-point { background: var(--color-accent-500); }
-  &__map-worker[data-tone='success'] &__map-worker-point { background: var(--status-success-text); }
-  &__map-worker[data-tone='warning'] &__map-worker-point { background: var(--status-warning-text); }
-  &__map-worker[data-tone='error'] &__map-worker-point { background: var(--status-error-text); }
-  &__map-worker-name,
-  &__map-worker-objective { max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  &__map-worker-name { color: var(--color-text-secondary); font-size: var(--flowchat-font-size-xxs); font-weight: 600; }
-  &__map-worker-objective { color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); }
-  &__map-delegation-state { position: absolute; top: 0; left: 0; max-width: 96px; margin-left: -48px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); text-align: center; white-space: nowrap; transform-origin: 50% 0; }
-  &__map-delegation-state[data-state='partial'],
-  &__map-delegation-state[data-state='error'] { color: var(--status-warning-text); }
+  /* 端口:贴在卡片左右边缘中线上的小圆点,连线从这里进出 */
+  &__node-port { position: absolute; top: 50%; width: 7px; height: 7px; border: 1px solid var(--border-medium); border-radius: 50%; background: var(--color-bg-primary); transform: translateY(-50%); }
+  &__node-port[data-side='left'] { left: -4px; }
+  &__node-port[data-side='right'] { right: -4px; }
+  &__node[data-live] &__node-port { border-color: var(--color-accent-500); background: var(--color-accent-500); }
+
+  &__node-body { display: flex; align-items: center; gap: 9px; width: 100%; height: 100%; box-sizing: border-box; padding: 0 11px; border: 0; border-radius: inherit; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+  &__node-body:disabled { cursor: default; opacity: .55; }
+  &__node-glyph { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: 0 0 auto; border: 1px solid var(--border-subtle); border-radius: 7px; background: var(--element-bg-soft); color: var(--color-text-secondary); }
+  &__node-glyph svg { width: 14px; }
+  &__node[data-live] &__node-glyph { border-color: var(--color-accent-500); color: var(--color-accent-500); }
+  &__node-text { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
+  &__node-name { overflow: hidden; color: var(--color-text-primary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  &__node-role { overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); text-overflow: ellipsis; white-space: nowrap; }
+
+  &__node-chip { position: absolute; top: -8px; right: 8px; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--workspace-surface-panel); color: var(--color-text-secondary); cursor: pointer; font-size: var(--flowchat-font-size-xxs); font-variant-numeric: tabular-nums; }
+  &__node-chip:hover { border-color: var(--border-medium); color: var(--color-text-primary); }
+  &__node-chip[aria-expanded='true'] { border-color: var(--color-accent-500); color: var(--color-accent-500); }
+  &__node-delegation { position: absolute; top: calc(100% + 3px); left: 11px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
+  &__node-delegation[data-state='partial'],
+  &__node-delegation[data-state='error'] { color: var(--status-warning-text); }
+
   &__map-empty { position: absolute; top: 0; left: 0; margin: 0; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); white-space: nowrap; transform: translate(-50%, -50%); }
 
   /* ── 浮动层:缩放 HUD(悬停浮现) / 异常 ── */
@@ -134,15 +133,10 @@
   }
 }
 
-.void-session-scene__team-workspace[data-dragging='true'] .team-workspace-panel__strip,
-.void-session-scene__team-workspace[data-dragging='true'] .team-workspace-panel__map-topbar {
-  cursor: grabbing;
-}
-
 @keyframes team-workspace-spin { to { transform: rotate(360deg); } }
 
 @container (max-width: 300px) {
-  .team-workspace-panel__map-member-role,
+  .team-workspace-panel__map-node-role,
   .team-workspace-panel__map-phases-cap { display: none; }
   .team-workspace-panel__issue { align-items: flex-start; flex-direction: column; }
   .team-workspace-panel__map-topbar { padding: 0 12px; }
@@ -151,6 +145,11 @@
 /* ── 轻微动效:全部尊重 prefers-reduced-motion ── */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes team-workspace-live { 50% { opacity: .3; } }
+  @keyframes team-workspace-flow { to { stroke-dashoffset: -22; } }
+
+  .team-workspace-panel__map-wires path.is-live {
+    animation: team-workspace-flow 900ms linear infinite;
+  }
 
   .team-workspace-panel {
     &__map-world, &__map-grid { transition: transform var(--motion-base) var(--easing-standard); }

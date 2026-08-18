@@ -18,6 +18,11 @@ import type {
   TeamWorkspacePhaseProjection,
   TeamWorkspaceTeamProjection,
 } from '../types';
+import {
+  teamLinkPath,
+  teamNodePort,
+  teamTopologyLayout,
+} from './teamTopologyLayout';
 import './TeamWorkspacePanel.scss';
 
 const BtwSessionPanel = React.lazy(() =>
@@ -73,7 +78,8 @@ function EmptyState({
 
 const MAP_MIN_ZOOM = 0.6;
 const MAP_MAX_ZOOM = 1.8;
-const MAP_ORBIT_SQUASH = 0.78;
+/** How far an automatic fit may enlarge a small roster. */
+const MAP_FIT_MAX_ZOOM = 1.35;
 
 interface MapCamera {
   x: number;
@@ -81,70 +87,19 @@ interface MapCamera {
   k: number;
 }
 
-// Nodes render at a constant screen size (semantic zoom): the orbit grows with
-// headcount so adjacent nodes keep clearance even when the camera zooms out.
-function memberOrbitRadius(count: number) {
-  if (count <= 4) return 150;
-  if (count <= 6) return 180;
-  return 205;
+function sortedDelegatedTasks(
+  member: TeamWorkspaceMemberProjection,
+): TeamDelegatedTask[] {
+  return [...member.delegation.tasks].sort((left, right) => (
+    left.depth - right.depth
+    || left.createdAt - right.createdAt
+    || left.taskId.localeCompare(right.taskId)
+  ));
 }
 
-function memberPosition(index: number, count: number) {
-  const radius = memberOrbitRadius(count);
-  const angle = ((-90 + (360 / count) * index) * Math.PI) / 180;
-  return {
-    x: Math.round(Math.cos(angle) * radius),
-    y: Math.round(Math.sin(angle) * radius * MAP_ORBIT_SQUASH),
-  };
-}
-
-interface DelegatedTaskNode {
-  member: TeamWorkspaceMemberProjection;
-  task: TeamDelegatedTask;
-  x: number;
-  y: number;
-  parentX: number;
-  parentY: number;
-}
-
-function delegatedTaskLayout(
-  members: TeamWorkspaceMemberProjection[],
-  positions: Array<{ x: number; y: number }>,
-): DelegatedTaskNode[] {
-  const nodes: DelegatedTaskNode[] = [];
-  members.forEach((member, memberIndex) => {
-    const memberPositionValue = positions[memberIndex] ?? { x: 0, y: 0 };
-    const length = Math.hypot(memberPositionValue.x, memberPositionValue.y) || 1;
-    const outward = { x: memberPositionValue.x / length, y: memberPositionValue.y / length };
-    const tangent = { x: -outward.y, y: outward.x };
-    const memberTasks = [...member.delegation.tasks].sort((left, right) => (
-      left.depth - right.depth
-      || left.createdAt - right.createdAt
-      || left.taskId.localeCompare(right.taskId)
-    ));
-    const positioned = new Map<string, DelegatedTaskNode>();
-    memberTasks.forEach(task => {
-      const parent = task.parentTaskId ? positioned.get(task.parentTaskId) : undefined;
-      const siblings = memberTasks.filter(candidate => candidate.parentTaskId === task.parentTaskId);
-      const siblingIndex = siblings.findIndex(candidate => candidate.taskId === task.taskId);
-      const siblingOffset = (siblingIndex - (siblings.length - 1) / 2) * 38;
-      const anchor = parent ?? {
-        x: memberPositionValue.x,
-        y: memberPositionValue.y,
-      };
-      const node: DelegatedTaskNode = {
-        member,
-        task,
-        parentX: anchor.x,
-        parentY: anchor.y,
-        x: Math.round(anchor.x + outward.x * 70 + tangent.x * siblingOffset),
-        y: Math.round(anchor.y + outward.y * 70 + tangent.y * siblingOffset),
-      };
-      positioned.set(task.taskId, node);
-      nodes.push(node);
-    });
-  });
-  return nodes;
+/** Nodes light up only while their member is actually executing. */
+function isLiveStatus(status: string): boolean {
+  return INFO.has(status);
 }
 
 function PhaseSegBar({ phases }: { phases: TeamWorkspacePhaseProjection[] }) {
@@ -204,35 +159,54 @@ function TeamMapView({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ sx: number; sy: number; cx: number; cy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [camera, setCamera] = useState<MapCamera>({ x: 0, y: 12, k: 1 });
+  const [camera, setCamera] = useState<MapCamera>({ x: 0, y: 0, k: 1 });
+  const [expandedMemberIds, setExpandedMemberIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
 
-  const positions = useMemo(
-    () => members.map((_, index) => memberPosition(index, members.length)),
+  const memberTasks = useMemo(
+    () => new Map(members.map(member => [
+      member.definition.memberId,
+      sortedDelegatedTasks(member),
+    ])),
     [members],
   );
-  const delegatedNodes = useMemo(
-    () => delegatedTaskLayout(members, positions),
-    [members, positions],
+  const layout = useMemo(
+    () => teamTopologyLayout(members.map(member => ({
+      memberId: member.definition.memberId,
+      workerCount: memberTasks.get(member.definition.memberId)?.length ?? 0,
+      isExpanded: expandedMemberIds.has(member.definition.memberId),
+    }))),
+    [expandedMemberIds, members, memberTasks],
   );
+
+  const toggleMemberWorkers = useCallback((memberId: string) => {
+    setExpandedMemberIds(current => {
+      const next = new Set(current);
+      if (!next.delete(memberId)) next.add(memberId);
+      return next;
+    });
+  }, []);
 
   const fitCamera = useCallback((): MapCamera => {
     const viewport = viewportRef.current;
     if (!viewport || !viewport.clientWidth || !viewport.clientHeight) {
-      return { x: 0, y: 12, k: 1 };
+      return { x: 0, y: 0, k: 1 };
     }
-    const radius = memberOrbitRadius(members.length);
+    // Fitting may scale up as well as down: a small roster in a tall window
+    // should fill it rather than float in the middle of empty canvas.
     const k = Math.min(
-      1,
+      MAP_FIT_MAX_ZOOM,
       Math.max(
         MAP_MIN_ZOOM,
         Math.min(
-          (viewport.clientWidth - 48) / (2 * (radius + 60)),
-          (viewport.clientHeight - 140) / (2 * (radius * MAP_ORBIT_SQUASH + 66)),
+          (viewport.clientWidth - 40) / layout.width,
+          (viewport.clientHeight - 108) / layout.height,
         ),
       ),
     );
-    return { x: 0, y: 12, k };
-  }, [members.length]);
+    return { x: 0, y: 0, k };
+  }, [layout.height, layout.width]);
 
   const resetCamera = useCallback(() => {
     setCamera(fitCamera());
@@ -303,7 +277,7 @@ function TeamMapView({
       <div className="team-workspace-panel__map-grid" style={{ transform }} aria-hidden="true" />
       <div className="team-workspace-panel__map-topbar" data-map-static data-team-drag>
         <span className="team-workspace-panel__map-topbar-title">
-          {t('teamWorkspace.members.title')} · {members.length + delegatedNodes.length + 1}
+          {t('teamWorkspace.members.title')} · {members.length + 1}
         </span>
         {running && (
           <span className="team-workspace-panel__map-topbar-live">{t('teamWorkspace.runStatus.running')}</span>
@@ -317,106 +291,167 @@ function TeamMapView({
         <strong id="team-workspace-members" className="sr-only">{t('teamWorkspace.members.title')}</strong>
         <svg className="team-workspace-panel__map-wires" aria-hidden="true">
           {members.map((member, index) => {
-            const position = positions[index] ?? { x: 0, y: 0 };
+            const node = layout.members[index];
+            if (!node) return null;
+            const live = isLiveStatus(member.state.status);
             return (
-              <line
-                key={member.definition.memberId}
-                x1={0}
-                y1={0}
-                x2={position.x}
-                y2={position.y}
-                className={INFO.has(member.state.status) ? 'is-hot' : undefined}
-                vectorEffect="non-scaling-stroke"
-              />
+              <React.Fragment key={member.definition.memberId}>
+                <path
+                  d={teamLinkPath(
+                    teamNodePort(layout.lead, 'right'),
+                    teamNodePort(node, 'left'),
+                  )}
+                  className={live ? 'is-live' : undefined}
+                  vectorEffect="non-scaling-stroke"
+                />
+                {node.workers.map((worker, workerIndex) => (
+                  <path
+                    key={`${member.definition.memberId}:${workerIndex}`}
+                    d={teamLinkPath(
+                      teamNodePort(node, 'right'),
+                      teamNodePort(worker, 'left'),
+                    )}
+                    className="is-worker"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </React.Fragment>
             );
           })}
-          {delegatedNodes.map(node => (
-            <line
-              key={`${node.member.definition.memberId}:${node.task.taskId}`}
-              x1={node.parentX}
-              y1={node.parentY}
-              x2={node.x}
-              y2={node.y}
-              className={`is-worker${INFO.has(node.task.status) ? ' is-hot' : ''}`}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
         </svg>
-        <div
-          className="team-workspace-panel__map-lead"
-          style={{ transform: 'scale(calc(1 / var(--map-camera-zoom, 1)))' }}
+
+        <span
+          className="team-workspace-panel__node team-workspace-panel__node--lead"
+          data-live={running || undefined}
+          data-testid="team-lead-node"
+          style={{
+            transform: `translate(${layout.lead.x}px, ${layout.lead.y}px)`,
+            width: `${layout.lead.width}px`,
+            height: `${layout.lead.height}px`,
+          }}
         >
-          <span className="team-workspace-panel__map-lead-point" aria-hidden="true" />
-          <span className="team-workspace-panel__map-lead-name">{t('teamWorkspace.roles.lead')}</span>
-        </div>
+          <span className="team-workspace-panel__node-port" data-side="right" />
+          <span className="team-workspace-panel__node-body">
+            <span className="team-workspace-panel__node-glyph" aria-hidden="true">
+              <ShieldCheck />
+            </span>
+            <span className="team-workspace-panel__node-text">
+              <span className="team-workspace-panel__node-name">
+                {team.definition.displayName}
+              </span>
+              <span className="team-workspace-panel__node-role">
+                {t('teamWorkspace.roles.lead')}
+              </span>
+            </span>
+          </span>
+        </span>
+
         {members.length === 0 ? (
           <p className="team-workspace-panel__map-empty">{t('teamWorkspace.members.empty')}</p>
         ) : members.map((member, index) => {
+          const node = layout.members[index];
+          if (!node) return null;
+          const memberId = member.definition.memberId;
           const tone = statusTone(member.state.status);
-          const position = positions[index] ?? { x: 0, y: 0 };
+          const tasks = memberTasks.get(memberId) ?? [];
+          const isExpanded = expandedMemberIds.has(memberId);
           return (
-            <button
-              key={member.definition.memberId}
-              ref={button => registerButton(member.definition.memberId, button)}
-              type="button"
-              className="team-workspace-panel__map-member"
-              data-tone={tone}
-              style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(calc(1 / var(--map-camera-zoom, 1)))`,
-              }}
-              onClick={() => openMember(member)}
-              aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
-            >
-              <span className="team-workspace-panel__map-member-point" aria-hidden="true">
-                {tone === 'info' && (
-                  <span className="team-workspace-panel__map-member-ripples"><i /><i /></span>
+            <React.Fragment key={memberId}>
+              <span
+                className="team-workspace-panel__node"
+                data-tone={tone}
+                data-live={isLiveStatus(member.state.status) || undefined}
+                data-testid="team-member-node"
+                style={{
+                  transform: `translate(${node.x}px, ${node.y}px)`,
+                  width: `${node.width}px`,
+                  height: `${node.height}px`,
+                }}
+              >
+                <span className="team-workspace-panel__node-port" data-side="left" />
+                {tasks.length > 0 && (
+                  <span className="team-workspace-panel__node-port" data-side="right" />
+                )}
+                <button
+                  ref={button => registerButton(memberId, button)}
+                  type="button"
+                  className="team-workspace-panel__node-body"
+                  onClick={() => openMember(member)}
+                  aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
+                >
+                  <span className="team-workspace-panel__node-glyph" aria-hidden="true">
+                    <CircleUserRound />
+                  </span>
+                  <span className="team-workspace-panel__node-text">
+                    <span className="team-workspace-panel__node-name">
+                      {member.definition.displayName}
+                    </span>
+                    <span className="team-workspace-panel__node-role">
+                      {member.definition.professionalRole}
+                    </span>
+                  </span>
+                  <span className="sr-only">{t(`teamWorkspace.memberStatus.${member.state.status}`)}</span>
+                </button>
+                {tasks.length > 0 && (
+                  <button
+                    type="button"
+                    className="team-workspace-panel__node-chip"
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleMemberWorkers(memberId)}
+                    aria-label={t('teamWorkspace.delegation.toggle', {
+                      name: member.definition.displayName,
+                      count: tasks.length,
+                    })}
+                  >
+                    {tasks.length}
+                  </button>
+                )}
+                {member.delegation.status !== 'ready' && (
+                  <span
+                    className="team-workspace-panel__node-delegation"
+                    data-state={member.delegation.status}
+                    role={member.delegation.status === 'error' ? 'alert' : 'status'}
+                  >
+                    {t(`teamWorkspace.delegation.${member.delegation.status}`)}
+                  </span>
                 )}
               </span>
-              <span className="team-workspace-panel__map-member-name">{member.definition.displayName}</span>
-              <span className="team-workspace-panel__map-member-role">{member.definition.professionalRole}</span>
-              <span className="sr-only">{t(`teamWorkspace.memberStatus.${member.state.status}`)}</span>
-            </button>
-          );
-        })}
-        {delegatedNodes.map(node => {
-          const tone = statusTone(node.task.status);
-          const canOpen = Boolean(node.task.childSessionId);
-          return (
-            <button
-              key={`${node.member.definition.memberId}:${node.task.taskId}`}
-              ref={button => registerButton(`task:${node.task.taskId}`, button)}
-              type="button"
-              className="team-workspace-panel__map-worker"
-              data-tone={tone}
-              data-depth={node.task.depth}
-              disabled={!canOpen}
-              style={{
-                transform: `translate(${node.x}px, ${node.y}px) scale(calc(1 / var(--map-camera-zoom, 1)))`,
-              }}
-              onClick={() => openWorker(node.member, node.task)}
-              aria-label={t('teamWorkspace.delegation.open', { name: node.task.owner })}
-              title={node.task.objective}
-            >
-              <span className="team-workspace-panel__map-worker-point" aria-hidden="true" />
-              <span className="team-workspace-panel__map-worker-name">{node.task.owner}</span>
-              <span className="team-workspace-panel__map-worker-objective">{node.task.objective}</span>
-              <span className="sr-only">{t(`teamWorkspace.delegation.status.${node.task.status}`)}</span>
-            </button>
-          );
-        })}
-        {members.map((member, index) => {
-          if (member.delegation.status === 'ready') return null;
-          const position = positions[index] ?? { x: 0, y: 0 };
-          return (
-            <span
-              key={`${member.definition.memberId}:delegation-state`}
-              className="team-workspace-panel__map-delegation-state"
-              data-state={member.delegation.status}
-              style={{ transform: `translate(${position.x}px, ${position.y + 42}px) scale(calc(1 / var(--map-camera-zoom, 1)))` }}
-              role={member.delegation.status === 'error' ? 'alert' : 'status'}
-            >
-              {t(`teamWorkspace.delegation.${member.delegation.status}`)}
-            </span>
+              {isExpanded && tasks.map((task, taskIndex) => {
+                const worker = node.workers[taskIndex];
+                if (!worker) return null;
+                return (
+                  <span
+                    key={task.taskId}
+                    className="team-workspace-panel__node team-workspace-panel__node--worker"
+                    data-tone={statusTone(task.status)}
+                    data-live={isLiveStatus(task.status) || undefined}
+                    data-depth={task.depth}
+                    style={{
+                      transform: `translate(${worker.x}px, ${worker.y}px)`,
+                      width: `${worker.width}px`,
+                      height: `${worker.height}px`,
+                    }}
+                  >
+                    <span className="team-workspace-panel__node-port" data-side="left" />
+                    <button
+                      ref={button => registerButton(`task:${task.taskId}`, button)}
+                      type="button"
+                      className="team-workspace-panel__node-body"
+                      disabled={!task.childSessionId}
+                      onClick={() => openWorker(member, task)}
+                      aria-label={t('teamWorkspace.delegation.open', { name: task.owner })}
+                      title={task.objective}
+                    >
+                      <span className="team-workspace-panel__node-text">
+                        <span className="team-workspace-panel__node-name">{task.owner}</span>
+                        <span className="team-workspace-panel__node-role">{task.objective}</span>
+                      </span>
+                      <span className="sr-only">{t(`teamWorkspace.delegation.status.${task.status}`)}</span>
+                    </button>
+                  </span>
+                );
+              })}
+            </React.Fragment>
           );
         })}
       </section>

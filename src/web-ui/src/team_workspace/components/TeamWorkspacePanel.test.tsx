@@ -59,6 +59,10 @@ vi.mock('react-i18next', () => ({
       if (key === 'teamWorkspace.phases.count') return `${values?.count ?? 0} 个`;
       if (key === 'teamWorkspace.members.open') return `查看${values?.name ?? ''}的会话`;
       if (key === 'teamWorkspace.delegation.open') return `打开${values?.name ?? ''}的 Worker 会话`;
+      if (key === 'teamWorkspace.delegation.count') return `${values?.count ?? 0} 个分身`;
+      if (key === 'teamWorkspace.delegation.toggle') {
+        return `展开或收起${values?.name ?? ''}的 ${values?.count ?? 0} 个分身`;
+      }
       if (key === 'teamWorkspace.updatedAt') return `更新于 ${values?.value ?? ''}`;
       return translations[key] ?? key;
     },
@@ -485,8 +489,24 @@ describe('TeamWorkspacePanel', () => {
     };
     await render(readyState(team));
 
-    expect(container.querySelectorAll('.team-workspace-panel__map-worker')).toHaveLength(2);
-    expect(container.querySelector('.team-workspace-panel__map-worker[data-depth="2"]')).not.toBeNull();
+    // Workers stay behind an explicit control on their member, so the map
+    // stays readable when several members delegate at once.
+    const workerNodes = () => container.querySelectorAll(
+      '.team-workspace-panel__node--worker',
+    );
+    expect(workerNodes()).toHaveLength(0);
+    const chip = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="展开或收起开发工程师的 2 个分身"]',
+    );
+    expect(chip?.getAttribute('aria-expanded')).toBe('false');
+    await act(async () => {
+      chip?.click();
+      await Promise.resolve();
+    });
+    expect(chip?.getAttribute('aria-expanded')).toBe('true');
+
+    expect(workerNodes()).toHaveLength(2);
+    expect(container.querySelector('.team-workspace-panel__node--worker[data-depth="2"]')).not.toBeNull();
     const workerButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="打开测试 Worker的 Worker 会话"]',
     );
@@ -501,14 +521,67 @@ describe('TeamWorkspacePanel', () => {
     expect(conversation?.textContent).toBe('测试 Worker');
   });
 
-  it('在成员节点旁明确展示委派加载状态', async () => {
+  it('在成员节点上明确展示委派加载状态', async () => {
     const team = activeTeam();
     team.members[1]!.delegation = { status: 'loading', tasks: [] };
     await render(readyState(team));
 
-    const stateLabel = container.querySelector('.team-workspace-panel__map-delegation-state');
+    const stateLabel = container.querySelector('.team-workspace-panel__node-delegation');
     expect(stateLabel?.getAttribute('data-state')).toBe('loading');
     expect(stateLabel?.textContent).toBe('正在加载委派工作…');
+    // A member with no readable worker list must not offer the expander.
+    expect(container.querySelector('.team-workspace-panel__node-chip')).toBeNull();
+  });
+
+  it('主理人是自己的节点，不进成员列', async () => {
+    await render(readyState());
+
+    const memberNodes = container.querySelectorAll('[data-testid="team-member-node"]');
+    expect(memberNodes).toHaveLength(1);
+    const member = memberNodes[0]!;
+    expect(member.textContent).toContain('开发工程师');
+    expect(member.textContent).toContain('工程师');
+    expect(member.textContent).not.toContain('研发主理人');
+
+    const lead = container.querySelector('[data-testid="team-lead-node"]');
+    expect(lead?.textContent).toContain('软件交付团队');
+    expect(lead?.textContent).toContain('主理人');
+    expect(container.querySelector('button[aria-label*="研发主理人"]')).toBeNull();
+  });
+
+  it('只有正在执行的节点发光，未派发的成员不发光但仍可点开', async () => {
+    const team = activeTeam();
+    await render(readyState(team));
+
+    const running = container.querySelector('[data-testid="team-member-node"]');
+    expect(running?.hasAttribute('data-live')).toBe(true);
+    expect(container.querySelector('[data-testid="team-lead-node"]')?.hasAttribute('data-live'))
+      .toBe(true);
+
+    const idle = activeTeam();
+    idle.members[1] = {
+      definition: idle.definition.members[1]!,
+      state: { source: 'definition', status: 'not_started' },
+      delegation: { status: 'ready', tasks: [] },
+    };
+    await render(readyState(idle));
+
+    const node = container.querySelector('[data-testid="team-member-node"]');
+    expect(node?.hasAttribute('data-live')).toBe(false);
+    // Not glowing is not the same as unavailable: it stays selectable.
+    expect(container.querySelector<HTMLButtonElement>(
+      'button[aria-label="查看开发工程师的会话"]',
+    )?.disabled).toBe(false);
+  });
+
+  it('每条连线从上游节点的端口出发，运行中的那条走强调色', async () => {
+    await render(readyState());
+
+    const ports = container.querySelectorAll('.team-workspace-panel__node-port');
+    expect(ports.length).toBeGreaterThan(0);
+    const link = container.querySelector('.team-workspace-panel__map-wires path');
+    expect(link?.getAttribute('d')).toMatch(/^M -?[\d.]+ -?[\d.]+ C /);
+    expect(link?.classList.contains('is-live')).toBe(true);
   });
 
   it('错误状态显示本地化恢复信息，重试走注入的 reload', async () => {
