@@ -104,7 +104,9 @@ describe('SessionCapabilityRail', () => {
       '[data-testid="session-team-workspace-toggle"]',
     );
     expect(team).not.toBeNull();
-    expect(team?.getAttribute('aria-controls')).toBe('void-team-workspace-panel');
+    // The Team presentation is a separate desktop window, so the control owns
+    // no element in this document to reference.
+    expect(team?.getAttribute('aria-controls')).toBeNull();
     expect(team?.getAttribute('aria-expanded')).toBe('false');
     expect(team?.getAttribute('aria-label')).toBe(
       'layout.sessionCapabilities.teamWorkspace.ariaLabel',

@@ -39,6 +39,18 @@ const mocks = vi.hoisted(() => ({
     dispose: vi.fn(),
   })),
   reconcileTeamCanvas: vi.fn(),
+  openTeamWorkspaceWindow: vi.fn(async () => true),
+  closeTeamWorkspaceWindow: vi.fn(async () => true),
+  teamWorkspaceWindowClosedHandlers: [] as Array<() => void>,
+  listenTeamWorkspaceWindowClosed: vi.fn(async (handler: () => void) => {
+    mocks.teamWorkspaceWindowClosedHandlers.push(handler);
+    return () => {
+      mocks.teamWorkspaceWindowClosedHandlers =
+        mocks.teamWorkspaceWindowClosedHandlers.filter(entry => entry !== handler);
+    };
+  }),
+  activateTeamWorkspaceWindowPublishing: vi.fn(async () => {}),
+  suspendTeamWorkspaceWindowPublishing: vi.fn(),
   teamWorkspace: {
     status: 'disabled' as const,
     sessionId: null as string | null,
@@ -135,6 +147,17 @@ vi.mock('@/infrastructure/runtime', () => ({
   isTauriRuntime: () => false,
 }));
 
+vi.mock('@/infrastructure/config/services/TeamWorkspaceWindowService', () => ({
+  openTeamWorkspaceWindow: mocks.openTeamWorkspaceWindow,
+  closeTeamWorkspaceWindow: mocks.closeTeamWorkspaceWindow,
+  listenTeamWorkspaceWindowClosed: mocks.listenTeamWorkspaceWindowClosed,
+}));
+
+vi.mock('@/team_workspace/services/TeamWorkspaceWindowPublisher', () => ({
+  activateTeamWorkspaceWindowPublishing: mocks.activateTeamWorkspaceWindowPublishing,
+  suspendTeamWorkspaceWindowPublishing: mocks.suspendTeamWorkspaceWindowPublishing,
+}));
+
 vi.mock('@/flow_chat/hooks/useActiveSessionCapabilities', () => ({
   useActiveSessionCapabilities: () => ({
     sessionId: mocks.activeSessionId,
@@ -161,6 +184,8 @@ vi.mock('@/app/components/panels/content-canvas/registry/FirstPartyCanvasCapabil
   },
 }));
 
+// The Team presentation is a second desktop window now, so the scene never
+// imports the panel itself.
 vi.mock('@/team_workspace', async () => {
   const ReactModule = await import('react');
   return {
@@ -177,28 +202,6 @@ vi.mock('@/team_workspace', async () => {
         : teamDefinitionId === 'workspace-media-team'
           ? 'workspace-media'
         : null,
-    TeamWorkspacePanel: ({
-      onClose,
-      selectedMemberId,
-      onSelectedMemberChange,
-    }: {
-      onClose?: () => void;
-      selectedMemberId?: string | null;
-      onSelectedMemberChange?: (memberId: string | null) => void;
-    }) => (
-      <div
-        data-testid="mock-team-workspace"
-        data-selected-member-id={selectedMemberId ?? ''}
-      >
-        <button type="button" onClick={onClose}>close</button>
-        <button
-          type="button"
-          onClick={() => onSelectedMemberChange?.('member-1')}
-        >
-          select member
-        </button>
-      </div>
-    ),
   };
 });
 
@@ -238,6 +241,29 @@ describe('SessionScene universal canvas toggle control', () => {
   let containerWidth: number;
   let offsetWidthSpy: ReturnType<typeof vi.spyOn>;
 
+  // The Team window host awaits a dynamic publisher import and an async event
+  // subscription, so a few microtask turns are needed before asserting.
+  const flushMicrotasks = async () => {
+    for (let turn = 0; turn < 5; turn += 1) await Promise.resolve();
+  };
+
+  const renderScene = async (element: React.ReactElement) => {
+    await act(async () => {
+      root.render(element);
+      await flushMicrotasks();
+    });
+  };
+
+  const bindTeam = (overrides: Partial<typeof mocks.teamWorkspace> = {}) => {
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
+    mocks.teamWorkspace.displayName = '软件交付团队';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+    Object.assign(mocks.teamWorkspace, overrides);
+  };
+
   beforeEach(() => {
     mocks.openCanvasCapability.mockReset();
     mocks.openCanvasCapability.mockResolvedValue({
@@ -254,6 +280,14 @@ describe('SessionScene universal canvas toggle control', () => {
       dispose: vi.fn(),
     }));
     mocks.reconcileTeamCanvas.mockReset();
+    mocks.openTeamWorkspaceWindow.mockClear();
+    mocks.openTeamWorkspaceWindow.mockResolvedValue(true);
+    mocks.closeTeamWorkspaceWindow.mockClear();
+    mocks.closeTeamWorkspaceWindow.mockResolvedValue(true);
+    mocks.activateTeamWorkspaceWindowPublishing.mockClear();
+    mocks.suspendTeamWorkspaceWindowPublishing.mockClear();
+    mocks.listenTeamWorkspaceWindowClosed.mockClear();
+    mocks.teamWorkspaceWindowClosedHandlers = [];
     mocks.toggleRightPanel.mockReset();
     mocks.updateRightPanelWidth.mockReset();
     mocks.chatPaneProps = null;
@@ -538,116 +572,130 @@ describe('SessionScene universal canvas toggle control', () => {
     ))).toEqual(['short-drama', 'workspace-media']);
   });
 
-  it('opens a bound general team as the dedicated third column without changing the canvas', async () => {
-    mocks.teamWorkspace.status = 'ready';
-    mocks.teamWorkspace.sessionId = 'session-1';
-    mocks.teamWorkspace.hasTeamBinding = true;
-    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
-    mocks.teamWorkspace.displayName = '软件交付团队';
-    mocks.teamWorkspace.presentationStatus = 'running';
+  it('hosts a bound team in its own desktop window instead of inside the scene', async () => {
+    bindTeam({ presentationStatus: 'running' });
     mocks.layout.rightPanelCollapsed = true;
 
-    await act(async () => {
-      root.render(<SessionScene workspacePath="D:\\workspace" />);
-    });
+    await renderScene(<SessionScene workspacePath="D:\\workspace" />);
 
     const toggle = container.querySelector<HTMLButtonElement>(
       '[data-testid="session-team-workspace-toggle"]',
     );
     expect(toggle).not.toBeNull();
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
-
-    await act(async () => {
-      toggle?.click();
-    });
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    // The floating in-scene panel is gone: nothing overlaps the canvas.
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
       .toBeNull();
-    await act(async () => {
-      toggle?.click();
-    });
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalledTimes(1);
+    // Team identity and run status stay readable for assistive technology.
+    expect(toggle?.textContent).toContain('软件交付团队');
+    expect(toggle?.getAttribute('aria-label')).toBeTruthy();
+    // Opening a presentation host must not touch the Canvas or dispatch work.
     expect(mocks.toggleRightPanel).not.toHaveBeenCalled();
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
+  });
+
+  it('closing the team window collapses the presentation only', async () => {
+    bindTeam();
+    await renderScene(<SessionScene workspacePath="D:\\workspace" />);
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalledTimes(1);
+
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-team-workspace-toggle"]',
+    );
+    await act(async () => {
+      toggle?.click();
+      await flushMicrotasks();
+    });
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(mocks.closeTeamWorkspaceWindow).toHaveBeenCalledTimes(1);
+    expect(mocks.suspendTeamWorkspaceWindowPublishing).toHaveBeenCalledTimes(1);
+    // No child session is cancelled or deleted, no Team run is stopped, and the
+    // Canvas is untouched: closing is presentation-only.
+    expect(mocks.toggleRightPanel).not.toHaveBeenCalled();
+    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
+    expect(mocks.reconcileTeamCanvas).not.toHaveBeenCalled();
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>(
-        '[data-testid="mock-team-workspace"] button',
-      )?.click();
-      await Promise.resolve();
+      toggle?.click();
+      await flushMicrotasks();
     });
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .toBeNull();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not claim an open team window the desktop host refused', async () => {
+    // Reproduces an application binary that predates the Team window commands:
+    // the invoke is rejected, so the capsule must not report an open window.
+    mocks.openTeamWorkspaceWindow.mockResolvedValue(false);
+    bindTeam();
+
+    await renderScene(<SessionScene workspacePath="D:\\workspace" />);
+
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="session-team-workspace-toggle"]')
+      ?.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('writes the toggle state back when the window is closed natively', async () => {
+    bindTeam();
+    await renderScene(<SessionScene workspacePath="D:\\workspace" />);
+
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-team-workspace-toggle"]',
+    );
+    expect(mocks.teamWorkspaceWindowClosedHandlers).toHaveLength(1);
+
+    await act(async () => {
+      mocks.teamWorkspaceWindowClosedHandlers[0]?.();
+      await flushMicrotasks();
+    });
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(toggle);
+    expect(mocks.toggleRightPanel).not.toHaveBeenCalled();
   });
 
-  it('reopens the team workspace when the active team binding changes', async () => {
-    mocks.teamWorkspace.status = 'ready';
-    mocks.teamWorkspace.sessionId = 'session-1';
-    mocks.teamWorkspace.hasTeamBinding = true;
-    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
-    mocks.teamWorkspace.displayName = '软件交付团队';
-    mocks.teamWorkspace.presentationStatus = 'ready';
+  it('reopens the team window when the active team binding changes', async () => {
+    bindTeam();
+    await renderScene(<SessionScene />);
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalledTimes(1);
 
-    await act(async () => {
-      root.render(<SessionScene />);
-    });
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>(
-        '[data-testid="mock-team-workspace"] button',
-      )?.click();
-    });
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .toBeNull();
-
-    mocks.teamWorkspace.teamBindingKey = 'team-2:revision-1:instance-2';
-    await act(async () => {
-      root.render(<SessionScene />);
-    });
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
-  });
-
-  it('关闭重开保留已选成员，同会话切换团队时才重置成员路由', async () => {
-    mocks.teamWorkspace.status = 'ready';
-    mocks.teamWorkspace.sessionId = 'session-1';
-    mocks.teamWorkspace.hasTeamBinding = true;
-    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
-    mocks.teamWorkspace.presentationStatus = 'ready';
-
-    await act(async () => {
-      root.render(<SessionScene />);
-    });
-    await act(async () => {
-      container.querySelectorAll<HTMLButtonElement>(
-        '[data-testid="mock-team-workspace"] button',
-      )[1]?.click();
-    });
-    expect(container.querySelector('[data-testid="mock-team-workspace"]')
-      ?.getAttribute('data-selected-member-id')).toBe('member-1');
-
-    await act(async () => {
-      container.querySelectorAll<HTMLButtonElement>(
-        '[data-testid="mock-team-workspace"] button',
-      )[0]?.click();
-    });
     await act(async () => {
       container.querySelector<HTMLButtonElement>(
         '[data-testid="session-team-workspace-toggle"]',
       )?.click();
+      await flushMicrotasks();
     });
-    expect(container.querySelector('[data-testid="mock-team-workspace"]')
-      ?.getAttribute('data-selected-member-id')).toBe('member-1');
+    expect(mocks.closeTeamWorkspaceWindow).toHaveBeenCalledTimes(1);
 
     mocks.teamWorkspace.teamBindingKey = 'team-2:revision-1:instance-2';
+    await renderScene(<SessionScene />);
+
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-testid="session-team-workspace-toggle"]')
+      ?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('keeps the Canvas and the team window independent surfaces', async () => {
+    bindTeam();
+    mocks.layout.rightPanelCollapsed = false;
+    await renderScene(<SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />);
+    expect(mocks.openTeamWorkspaceWindow).toHaveBeenCalledTimes(1);
+
     await act(async () => {
-      root.render(<SessionScene />);
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="session-aux-pane-toggle"]',
+      )?.click();
+      await flushMicrotasks();
     });
-    expect(container.querySelector('[data-testid="mock-team-workspace"]')
-      ?.getAttribute('data-selected-member-id')).toBe('');
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+    // Collapsing the Canvas no longer has to collapse the Team presentation.
+    expect(mocks.closeTeamWorkspaceWindow).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="session-team-workspace-toggle"]')
+      ?.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('restores bound short-drama canvas content without expanding the collapsed canvas', async () => {
@@ -690,7 +738,7 @@ describe('SessionScene universal canvas toggle control', () => {
       revision: expect.stringContaining('short-drama:revision-1:instance-1'),
     });
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
+      .toBeNull();
   });
 
   it('waits for typed workspace identity before restoring bound media canvas content', async () => {
@@ -909,55 +957,6 @@ describe('SessionScene universal canvas toggle control', () => {
       await Promise.resolve();
     });
     expect(mocks.openCanvasCapability).toHaveBeenCalledTimes(2);
-  });
-
-  it('collapses the canvas and bound team workspace as one right-side surface', async () => {
-    mocks.teamWorkspace.status = 'ready';
-    mocks.teamWorkspace.sessionId = 'session-1';
-    mocks.teamWorkspace.hasTeamBinding = true;
-    mocks.teamWorkspace.teamBindingKey = 'short-drama:revision-1:instance-1';
-    mocks.teamWorkspace.displayName = 'AI 短剧制作团队';
-    mocks.teamWorkspace.presentationStatus = 'ready';
-    mocks.teamWorkspace.snapshot = {
-      parentSessionId: 'session-1',
-      activeTeam: {
-        teamDefinitionId: 'custom-00000000000000000000000000000001',
-        members: [],
-      },
-    };
-    mocks.layout.rightPanelCollapsed = false;
-    await act(async () => {
-      root.render(
-        <SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />,
-      );
-    });
-    mocks.toggleRightPanel.mockClear();
-    mocks.openCanvasCapability.mockClear();
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>(
-        '[data-testid="session-aux-pane-toggle"]',
-      )?.click();
-    });
-    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .toBeNull();
-
-    mocks.layout.rightPanelCollapsed = true;
-    await act(async () => {
-      root.render(
-        <SessionScene workspaceId="workspace-1" workspacePath="D:\\workspace" />,
-      );
-    });
-
-    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
-    expect(mocks.openCanvasCapability).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .toBeNull();
-    expect(container.querySelector('[data-testid="session-team-workspace-toggle"]')
-      ?.getAttribute('aria-expanded')).toBe('false');
-    expect(container.querySelector('[data-testid="session-aux-pane-toggle"]')
-      ?.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('keeps an empty media-session capability available to reopen the media canvas', async () => {

@@ -129,7 +129,8 @@ export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
             ),
             status: teamWorkspaceStatus,
           })}
-          aria-controls="void-team-workspace-panel"
+          // No `aria-controls`: the Team presentation is a separate desktop
+          // window, so there is no element in this document to point at.
           aria-expanded={teamWorkspace.isOpen}
           data-testid="session-team-workspace-toggle"
         >

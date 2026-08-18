@@ -5,7 +5,8 @@
  *   ChatPane (flex:1, FlowChat conversation)
  *   PaneResizer (draggable divider)
  *   AuxPane (variable width, ContentCanvas tabs)
- *   TeamWorkspace (fixed member workspace when a Team is bound)
+ *
+ * A bound Team is presented in its own desktop window, not inside this scene.
  *
  * Resizer logic moved here from WorkspaceShell.
  */
@@ -29,11 +30,15 @@ import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSession
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
 import { isSamePath } from '@/shared/utils/pathUtils';
 import {
-  TeamWorkspacePanel,
   resolveTeamCanvasCapability,
   useTeamWorkspacePresentationStore,
   useActiveSessionTeamWorkspace,
 } from '@/team_workspace';
+import {
+  closeTeamWorkspaceWindow,
+  listenTeamWorkspaceWindowClosed,
+  openTeamWorkspaceWindow,
+} from '@/infrastructure/config/services/TeamWorkspaceWindowService';
 
 import {
   RIGHT_PANEL_CONFIG,
@@ -154,9 +159,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const closeTeamWorkspacePresentation = useTeamWorkspacePresentationStore(
     store => store.close,
   );
-  const selectTeamWorkspaceMember = useTeamWorkspacePresentationStore(
-    store => store.selectMember,
-  );
   const isTeamWorkspaceOpen = Boolean(
     activeTeamWorkspace.hasTeamBinding
       && teamWorkspacePresentation?.isOpen,
@@ -185,11 +187,52 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     }
   }, [activeTeamWorkspace.snapshot, registerTeamWorkspaceSnapshot]);
 
-  const closeTeamWorkspace = useCallback(() => {
-    if (!activeTeamWorkspace.sessionId) return;
-    closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
-    queueMicrotask(() => teamWorkspaceToggleRef.current?.focus());
-  }, [activeTeamWorkspace.sessionId, closeTeamWorkspacePresentation]);
+  // The Team presentation now lives in its own desktop window. Opening and
+  // closing it is presentation-only: the Team run, its member child sessions,
+  // and this parent conversation are untouched either way.
+  useEffect(() => {
+    if (!isTeamWorkspaceOpen) return undefined;
+
+    let disposed = false;
+    // Loaded behind the Team-window boundary so the main entry never pays for
+    // the publisher, and so scene tests do not pull the Flow Chat store in.
+    const publisherModule = import(
+      '@/team_workspace/services/TeamWorkspaceWindowPublisher'
+    );
+    void publisherModule.then(({ activateTeamWorkspaceWindowPublishing }) => {
+      if (disposed) return;
+      void activateTeamWorkspaceWindowPublishing();
+    });
+    // If the desktop host cannot provide the window, collapse the presentation
+    // again so the rail capsule never claims a window the user cannot see.
+    void openTeamWorkspaceWindow().then(opened => {
+      if (opened || disposed || !activeTeamWorkspace.sessionId) return;
+      closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
+    });
+
+    let removeClosedListener: (() => void) | null = null;
+    void listenTeamWorkspaceWindowClosed(() => {
+      if (disposed || !activeTeamWorkspace.sessionId) return;
+      closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
+      queueMicrotask(() => teamWorkspaceToggleRef.current?.focus());
+    }).then(unlisten => {
+      if (disposed) unlisten();
+      else removeClosedListener = unlisten;
+    });
+
+    return () => {
+      disposed = true;
+      removeClosedListener?.();
+      void publisherModule.then(({ suspendTeamWorkspaceWindowPublishing }) => {
+        suspendTeamWorkspaceWindowPublishing();
+      });
+      void closeTeamWorkspaceWindow();
+    };
+  }, [
+    activeTeamWorkspace.sessionId,
+    closeTeamWorkspacePresentation,
+    isTeamWorkspaceOpen,
+  ]);
 
   const toggleTeamWorkspace = useCallback(() => {
     if (!activeTeamWorkspace.sessionId) return;
@@ -204,97 +247,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     isTeamWorkspaceOpen,
     openTeamWorkspace,
   ]);
-
-  // Floating Team Workspace: grabber drag offset + outside-interaction dimming.
-  // Dimming and dragging are presentation-only; they never touch the binding.
-  const teamPanelEdgeInset = 8;
-  const teamPanelRef = useRef<HTMLDivElement>(null);
-  const teamDragRef = useRef<{
-    sx: number;
-    sy: number;
-    ox: number;
-    oy: number;
-    minDx: number;
-    maxDx: number;
-    minDy: number;
-    maxDy: number;
-  } | null>(null);
-  const teamDragCleanupRef = useRef<(() => void) | null>(null);
-  const [teamPanelOffset, setTeamPanelOffset] = useState({ x: 0, y: 0 });
-  const [teamPanelDimmed, setTeamPanelDimmed] = useState(false);
-  const [teamPanelDragging, setTeamPanelDragging] = useState(false);
-
-  const cleanupTeamPanelDrag = useCallback(() => {
-    const removeListeners = teamDragCleanupRef.current;
-    teamDragCleanupRef.current = null;
-    removeListeners?.();
-    teamDragRef.current = null;
-    setTeamPanelDragging(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isTeamWorkspaceOpen) {
-      cleanupTeamPanelDrag();
-      setTeamPanelDimmed(false);
-      setTeamPanelOffset({ x: 0, y: 0 });
-      return undefined;
-    }
-    const handlePointerDown = (event: PointerEvent) => {
-      const panel = teamPanelRef.current;
-      if (!panel) return;
-      setTeamPanelDimmed(!panel.contains(event.target as Node));
-    };
-    document.addEventListener('pointerdown', handlePointerDown, true);
-    return () => {
-      cleanupTeamPanelDrag();
-      document.removeEventListener('pointerdown', handlePointerDown, true);
-    };
-  }, [cleanupTeamPanelDrag, isTeamWorkspaceOpen]);
-
-  // Drag only from empty topbar space; interactive descendants keep their own pointer behavior.
-  const handleTeamPanelPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (!target.closest('[data-team-drag]')) return;
-    if (target.closest('button, a, input, textarea, select')) return;
-    event.preventDefault();
-    const panelRect = event.currentTarget.getBoundingClientRect();
-    const sceneRect = event.currentTarget.parentElement?.getBoundingClientRect();
-    if (!sceneRect) return;
-    cleanupTeamPanelDrag();
-    teamDragRef.current = {
-      sx: event.clientX,
-      sy: event.clientY,
-      ox: teamPanelOffset.x,
-      oy: teamPanelOffset.y,
-      minDx: sceneRect.left + teamPanelEdgeInset - panelRect.left,
-      maxDx: sceneRect.right - teamPanelEdgeInset - panelRect.right,
-      minDy: sceneRect.top + teamPanelEdgeInset - panelRect.top,
-      maxDy: sceneRect.bottom - teamPanelEdgeInset - panelRect.bottom,
-    };
-    setTeamPanelDragging(true);
-    const handleMove = (moveEvent: PointerEvent) => {
-      const drag = teamDragRef.current;
-      if (!drag) return;
-      const deltaX = moveEvent.clientX - drag.sx;
-      const deltaY = moveEvent.clientY - drag.sy;
-      setTeamPanelOffset({
-        x: drag.ox + Math.min(drag.maxDx, Math.max(drag.minDx, deltaX)),
-        y: drag.oy + Math.min(drag.maxDy, Math.max(drag.minDy, deltaY)),
-      });
-    };
-    const handleEnd = () => cleanupTeamPanelDrag();
-    document.addEventListener('pointermove', handleMove);
-    document.addEventListener('pointerup', handleEnd);
-    document.addEventListener('pointercancel', handleEnd);
-    window.addEventListener('blur', handleEnd);
-    teamDragCleanupRef.current = () => {
-      document.removeEventListener('pointermove', handleMove);
-      document.removeEventListener('pointerup', handleEnd);
-      document.removeEventListener('pointercancel', handleEnd);
-      window.removeEventListener('blur', handleEnd);
-    };
-  }, [cleanupTeamPanelDrag, teamPanelOffset]);
 
   const preferredRightWidthRef = useRef(
     loadPanelWidth(
@@ -347,7 +299,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     if (!containerRef.current) return newWidth;
     const containerWidth = containerRef.current.offsetWidth;
     // NavPanel (240px) is outside SessionScene — only account for resizer + min chat width.
-    // The Team Workspace floats above the scene and reserves no column width.
+    // The Team Workspace is its own desktop window and reserves no width here.
     const reserved = PANEL_COMMON_CONFIG.RESIZER_WIDTH
       + PANEL_COMMON_CONFIG.MIN_CENTER_WIDTH;
     const dynamicMax = containerWidth - reserved;
@@ -699,22 +651,11 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     && !isRightAsMain
     && !state.layout.centerPanelCollapsed;
   const isAuxPaneExpanded = !state.layout.rightPanelCollapsed;
+  // The Team presentation is a separate window now, so expanding or collapsing
+  // Canvas no longer has to collapse it to free scene space.
   const toggleAuxPane = useCallback(() => {
-    if (
-      isAuxPaneExpanded
-      && isTeamWorkspaceOpen
-      && activeTeamWorkspace.sessionId
-    ) {
-      closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
-    }
     toggleRightPanel();
-  }, [
-    activeTeamWorkspace.sessionId,
-    closeTeamWorkspacePresentation,
-    isAuxPaneExpanded,
-    isTeamWorkspaceOpen,
-    toggleRightPanel,
-  ]);
+  }, [toggleRightPanel]);
   const ensureAuxPaneExpanded = useCallback(() => {
     if (state.layout.rightPanelCollapsed) {
       toggleRightPanel();
@@ -730,7 +671,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
         className={[
           'void-session-scene',
           isDragging && 'void-session-scene--dragging',
-          isTeamWorkspaceOpen && 'void-session-scene--has-team-workspace',
           isEntering && 'layout-entering',
         ].filter(Boolean).join(' ')}
         style={panelCollapseHintStyles}
@@ -835,40 +775,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
           />
         </React.Suspense>
       </div>
-      {activeTeamWorkspace.hasTeamBinding && isTeamWorkspaceOpen && (
-        <div
-          ref={teamPanelRef}
-          className="void-session-scene__team-workspace"
-          id="void-team-workspace-panel"
-          data-testid="session-team-workspace-panel"
-          data-dimmed={teamPanelDimmed || undefined}
-          data-dragging={teamPanelDragging || undefined}
-          onPointerDown={handleTeamPanelPointerDown}
-          style={{
-            transform: teamPanelOffset.x || teamPanelOffset.y
-              ? `translate(${teamPanelOffset.x}px, ${teamPanelOffset.y}px)`
-              : undefined,
-          }}
-        >
-          <TeamWorkspacePanel
-            state={activeTeamWorkspace}
-            isActive={isActive}
-            workspacePath={workspacePath}
-            onClose={closeTeamWorkspace}
-            selectedMemberId={
-              teamWorkspacePresentation?.selectedMemberId ?? null
-            }
-            onSelectedMemberChange={memberId => {
-              if (activeTeamWorkspace.sessionId) {
-                selectTeamWorkspaceMember(
-                  activeTeamWorkspace.sessionId,
-                  memberId,
-                );
-              }
-            }}
-          />
-        </div>
-      )}
       </div>
     </SessionCapabilityRailOutletProvider>
   );

@@ -62,52 +62,6 @@
 }
 
 // ── Floating Team Workspace ─────────────────────────────
-// The Team panel is one floating portrait surface (9:16), not a third column.
-// It reserves no layout width: chat and Canvas keep the full scene while the
-// panel floats above them. Opening, closing, dimming, or dragging the panel is
-// presentation-only and never touches the durable Team binding or child
-// sessions. Interacting outside the panel only quiets its chrome; semantic
-// content keeps full opacity and cannot blend into the Canvas below it.
-.void-session-scene__team-workspace {
-  position: absolute;
-  z-index: $z-floating;
-  top: 50%;
-  right: 16px;
-  height: min(78vh, calc(100% - 48px), calc((100vw - 32px) * 16 / 9));
-  aspect-ratio: 9 / 16;
-  max-width: calc(100% - 32px);
-  overflow: hidden;
-  border: 1px solid var(--workspace-border-strong, var(--border-medium));
-  border-radius: 16px;
-  background: var(--workspace-surface-panel, var(--color-bg-secondary));
-  box-shadow: var(--workspace-shadow-raised, var(--shadow-xs)), var(--shadow-lg);
-  translate: 0 -50%;
-  transition: border-color var(--motion-fast) var(--easing-standard);
-
-  // 使用中:悬停或键盘聚焦时,描边染上一层 accent。
-  &:hover,
-  &:focus-within {
-    border-color: var(--color-accent-400);
-  }
-
-  // 运行中只改变描边。状态动效由面板内唯一的呼吸点承担。
-  &:has(.team-workspace-panel[data-running]) {
-    border-color: var(--color-accent-500);
-  }
-
-  &[data-dimmed='true'] {
-    border-color: var(--workspace-border-subtle, var(--border-subtle));
-    box-shadow: var(--workspace-shadow-raised, var(--shadow-xs));
-  }
-
-  &[data-dragging='true'] {
-    cursor: grabbing;
-  }
-}
-
-// 顶栏([data-team-drag])即拖拽区:没有独立抓手,按住栏上空白即可移动面板。
-
-
 .void-session-scene__aux-pane {
   display: flex;
   flex-shrink: 0;
@@ -343,10 +297,6 @@
 
   .void-session-scene__aux-pane--near-collapse {
     &::before, &::after { animation: none; }
-  }
-
-  .void-session-scene__team-workspace {
-    transition: none;
   }
 }
 
