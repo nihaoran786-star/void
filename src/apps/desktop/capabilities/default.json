@@ -2,7 +2,13 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "void default capabilities",
-  "windows": ["main", "agent-companion-pet", "spotlight", "compact-chat-floating"],
+  "windows": [
+    "main",
+    "agent-companion-pet",
+    "spotlight",
+    "compact-chat-floating",
+    "team-workspace-window"
+  ],
   "permissions": [
     "log:default",
     "autostart:default",

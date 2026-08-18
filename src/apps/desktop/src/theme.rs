@@ -1,12 +1,13 @@
 //! Theme System
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{OnceLock, RwLock};
 use std::time::Instant;
 
 use dark_light::Mode;
 use log::{debug, error, warn};
 use tauri::webview::PageLoadEvent;
-use tauri::{Manager, WebviewUrl};
+use tauri::{Emitter, Manager, WebviewUrl};
 use void_core::infrastructure::try_get_path_manager_arc;
 use void_core::service::config::types::GlobalConfig;
 
@@ -25,11 +26,34 @@ const COMPACT_CHAT_WINDOW_MAX_WIDTH: f64 = 560.0;
 const COMPACT_CHAT_WINDOW_MAX_HEIGHT: f64 = 760.0;
 const COMPACT_CHAT_WINDOW_MARGIN: i32 = 64;
 const COMPACT_CHAT_WINDOW_EDGE_MARGIN: f64 = 8.0;
+const TEAM_WORKSPACE_WINDOW_LABEL: &str = "team-workspace-window";
+const TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH: f64 = 900.0;
+const TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT: f64 = 620.0;
+const TEAM_WORKSPACE_WINDOW_MIN_WIDTH: f64 = 420.0;
+const TEAM_WORKSPACE_WINDOW_MIN_HEIGHT: f64 = 400.0;
+const TEAM_WORKSPACE_WINDOW_EDGE_MARGIN: f64 = 8.0;
+/// The main window's share of the paired desktop layout; the Team window takes
+/// the remaining third beside it.
+const PAIRED_MAIN_WINDOW_WIDTH_RATIO: f64 = 2.0 / 3.0;
+/// The pair does not fill the display. These fractions are measured from the
+/// layout the owner accepted: the pair is centred, leaving a visible margin on
+/// every side rather than sitting flush against the screen edges.
+const PAIRED_LAYOUT_WIDTH_FRACTION: f64 = 0.90;
+const PAIRED_LAYOUT_HEIGHT_FRACTION: f64 = 0.85;
+/// Gutter between the two windows.
+const PAIRED_LAYOUT_GAP: f64 = 8.0;
+/// Below this the display is too small to split, so the main window keeps the
+/// whole work area instead.
+const PAIRED_MAIN_WINDOW_MIN_WIDTH: f64 = 880.0;
+static MAIN_WINDOW_INITIAL_LAYOUT_APPLIED: AtomicBool = AtomicBool::new(false);
 static AGENT_COMPANION_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 static AGENT_COMPANION_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
     OnceLock::new();
 static COMPACT_CHAT_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 static COMPACT_CHAT_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
+    OnceLock::new();
+static TEAM_WORKSPACE_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+static TEAM_WORKSPACE_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
     OnceLock::new();
 
 fn agent_companion_window_ops() -> &'static tokio::sync::Mutex<()> {
@@ -46,6 +70,209 @@ fn compact_chat_window_ops() -> &'static tokio::sync::Mutex<()> {
 
 fn compact_chat_window_last_position() -> &'static RwLock<Option<tauri::LogicalPosition<f64>>> {
     COMPACT_CHAT_WINDOW_LAST_POSITION.get_or_init(|| RwLock::new(None))
+}
+
+fn team_workspace_window_ops() -> &'static tokio::sync::Mutex<()> {
+    TEAM_WORKSPACE_WINDOW_OPS.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+fn team_workspace_window_last_position() -> &'static RwLock<Option<tauri::LogicalPosition<f64>>> {
+    TEAM_WORKSPACE_WINDOW_LAST_POSITION.get_or_init(|| RwLock::new(None))
+}
+
+/// Keep a window frame fully inside a work area. When the frame is larger than
+/// the area the frame is pinned to the area origin instead of being pushed
+/// off-screen by a negative maximum.
+fn clamp_frame_into_work_area(
+    area: (f64, f64, f64, f64),
+    frame: (f64, f64, f64, f64),
+    edge_margin: f64,
+) -> (f64, f64) {
+    let (area_x, area_y, area_width, area_height) = area;
+    let (x, y, width, height) = frame;
+    let min_x = area_x + edge_margin;
+    let min_y = area_y + edge_margin;
+    let max_x = area_x + area_width - width - edge_margin;
+    let max_y = area_y + area_height - height - edge_margin;
+    (
+        if max_x >= min_x {
+            x.clamp(min_x, max_x)
+        } else {
+            area_x
+        },
+        if max_y >= min_y {
+            y.clamp(min_y, max_y)
+        } else {
+            area_y
+        },
+    )
+}
+
+/// The main window's frame in the paired desktop layout: it takes the left two
+/// thirds of the work area, leaving the right third for the Team window. Both
+/// windows use the same outer margin and the same vertical extent, so the pair
+/// is symmetric and top/bottom aligned.
+///
+/// Returns `None` when the display is too narrow to split usefully; the caller
+/// then keeps the whole work area for the main window.
+fn paired_main_window_frame(
+    area: (f64, f64, f64, f64),
+    width_fraction: f64,
+    height_fraction: f64,
+    gap: f64,
+    ratio: f64,
+    min_width: f64,
+) -> Option<(f64, f64, f64, f64)> {
+    let (area_x, area_y, area_width, area_height) = area;
+    let pair_width = area_width * width_fraction;
+    let height = area_height * height_fraction;
+    let width = (pair_width - gap) * ratio;
+    if width < min_width || height <= 0.0 {
+        return None;
+    }
+    // Centred, so the margin left of the main window equals the margin right of
+    // the Team window.
+    let x = area_x + (area_width - pair_width) / 2.0;
+    let y = area_y + (area_height - height) / 2.0;
+    Some((x, y, width, height))
+}
+
+/// Place the Team window beside the main window as its mirror image: same top
+/// and bottom edges, starting one gutter to its right, and ending as far from
+/// the right screen edge as the main window starts from the left one.
+///
+/// Mirroring the main window's own outer margin — rather than filling to a
+/// fixed edge margin — is what makes the pair read as symmetric wherever the
+/// user has put the main window.
+fn mirrored_frame_beside_main_window(
+    area: (f64, f64, f64, f64),
+    main: (f64, f64, f64, f64),
+    gap: f64,
+    min_width: f64,
+) -> (f64, f64, f64, f64) {
+    let (area_x, _area_y, area_width, _area_height) = area;
+    let (main_x, main_y, main_width, main_height) = main;
+
+    let outer_margin = (main_x - area_x).max(0.0);
+    let right_edge = area_x + area_width - outer_margin;
+    let x = main_x + main_width + gap;
+    let width = (right_edge - x).max(min_width);
+
+    // The frame is already placed symmetrically, so the clamp is only a
+    // last-resort guard against leaving the display; it must not impose a
+    // margin of its own and pull the pair out of alignment.
+    let (clamped_x, clamped_y) =
+        clamp_frame_into_work_area(area, (x, main_y, width, main_height), 0.0);
+    (clamped_x, clamped_y, width, main_height)
+}
+
+/// Centre a window frame inside a work area. The result is still clamped, so a
+/// frame larger than the area lands on the area origin rather than a negative
+/// coordinate.
+fn centered_frame_in_work_area(area: (f64, f64, f64, f64), width: f64, height: f64) -> (f64, f64) {
+    let (area_x, area_y, area_width, area_height) = area;
+    let x = area_x + (area_width - width) / 2.0;
+    let y = area_y + (area_height - height) / 2.0;
+    clamp_frame_into_work_area(
+        area,
+        (x, y, width, height),
+        TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
+    )
+}
+
+fn remember_team_workspace_window_position(position: tauri::LogicalPosition<f64>) {
+    match team_workspace_window_last_position().write() {
+        Ok(mut last_position) => {
+            *last_position = Some(position);
+        }
+        Err(error) => {
+            warn!(
+                "Failed to remember team workspace window position: {}",
+                error
+            );
+        }
+    }
+}
+
+fn remembered_team_workspace_window_position() -> Option<tauri::LogicalPosition<f64>> {
+    team_workspace_window_last_position()
+        .read()
+        .ok()
+        .and_then(|position| *position)
+}
+
+fn team_workspace_window_effective_size(window: &tauri::WebviewWindow) -> tauri::LogicalSize<f64> {
+    let scale_factor = window.scale_factor().unwrap_or(1.0);
+    window
+        .outer_size()
+        .ok()
+        .map(|size| size.to_logical::<f64>(scale_factor))
+        .unwrap_or_else(|| {
+            tauri::LogicalSize::new(
+                TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
+                TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT,
+            )
+        })
+}
+
+/// The main window's logical frame, when it exists and can be measured.
+fn main_window_frame(app: &tauri::AppHandle) -> Option<(f64, f64, f64, f64)> {
+    let window = app.get_webview_window("main")?;
+    let scale_factor = window.scale_factor().ok()?;
+    let position = window.outer_position().ok()?.to_logical::<f64>(scale_factor);
+    let size = window.outer_size().ok()?.to_logical::<f64>(scale_factor);
+    if size.width <= 0.0 || size.height <= 0.0 {
+        return None;
+    }
+    Some((position.x, position.y, size.width, size.height))
+}
+
+/// Restore the last user position when the window is reopened. On its first
+/// placement the window mirrors the main window instead, so the pair fills the
+/// display symmetrically. Dragging the window to a second display therefore
+/// survives close/reopen within one application run.
+fn position_team_workspace_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let Some((area_position, area_size)) = work_area_for_agent_companion_window(app, window) else {
+        return;
+    };
+
+    let size = team_workspace_window_effective_size(window);
+    let area = (
+        area_position.x,
+        area_position.y,
+        area_size.width,
+        area_size.height,
+    );
+
+    let (x, y) = match remembered_team_workspace_window_position() {
+        Some(position) => clamp_frame_into_work_area(
+            area,
+            (position.x, position.y, size.width, size.height),
+            TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
+        ),
+        None => match main_window_frame(app) {
+            Some(main) => {
+                let (x, y, width, height) = mirrored_frame_beside_main_window(
+                    area,
+                    main,
+                    PAIRED_LAYOUT_GAP,
+                    TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+                );
+                if let Err(e) = window.set_size(tauri::LogicalSize::new(width, height)) {
+                    warn!("Failed to size team workspace window: {}", e);
+                }
+                (x, y)
+            }
+            None => centered_frame_in_work_area(area, size.width, size.height),
+        },
+    };
+
+    let position = tauri::LogicalPosition::new(x, y);
+    if let Err(e) = window.set_position(position) {
+        warn!("Failed to position team workspace window: {}", e);
+    } else {
+        remember_team_workspace_window_position(position);
+    }
 }
 
 fn remember_agent_companion_window_position(position: tauri::LogicalPosition<f64>) {
@@ -497,8 +724,20 @@ pub fn create_main_window(app_handle: &tauri::AppHandle, startup_trace_id: &str)
 }
 
 fn show_main_window_for_startup(window: &tauri::WebviewWindow, total_started_at: Instant) {
+    // Open as the left two thirds of the display so the main and Team windows
+    // form one symmetric, top/bottom aligned pair. Falls back to the previous
+    // maximized startup when the display is too narrow to split.
+    let step_started_at = Instant::now();
+    let paired = apply_initial_main_window_layout(&window.app_handle().clone(), window);
+    debug!(
+        "Main window startup show step completed: step=paired_layout applied={} duration_ms={} since_create_start_ms={}",
+        paired,
+        step_started_at.elapsed().as_millis(),
+        total_started_at.elapsed().as_millis()
+    );
+
     #[cfg(target_os = "windows")]
-    {
+    if !paired {
         let step_started_at = Instant::now();
         if let Err(error) = window.maximize() {
             warn!("Failed to maximize main window during startup: {}", error);
@@ -1096,12 +1335,233 @@ pub async fn hide_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(
     Ok(())
 }
 
+/// Emitted to every window when the Team window disappears for any reason,
+/// including the native close button. Presentation state only: the Team run,
+/// its member child sessions, and the parent conversation are untouched.
+pub const TEAM_WORKSPACE_WINDOW_CLOSED_EVENT: &str = "void://team-workspace-window-closed";
+
+#[tauri::command]
+pub async fn show_team_workspace_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
+    let started_at = Instant::now();
+    let _guard = team_workspace_window_ops().lock().await;
+    debug!("Team workspace window show requested");
+
+    if let Some(window) = app.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL) {
+        if let Err(e) = window.unminimize() {
+            warn!("Failed to unminimize team workspace window: {}", e);
+        }
+        window.show().map_err(|e| {
+            error!("Failed to show team workspace window: {}", e);
+            format!("Failed to show team workspace window: {}", e)
+        })?;
+        if let Err(e) = window.set_focus() {
+            warn!("Failed to focus team workspace window: {}", e);
+        }
+        debug!(
+            "Team workspace window reused: total_duration_ms={}",
+            started_at.elapsed().as_millis()
+        );
+        return Ok(());
+    }
+
+    let url = app_url("?voidWindow=team-workspace");
+    #[allow(unused_mut)]
+    let mut builder = tauri::WebviewWindowBuilder::new(&app, TEAM_WORKSPACE_WINDOW_LABEL, url)
+        .title("void Team")
+        .inner_size(
+            TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
+            TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT,
+        )
+        .min_inner_size(
+            TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+            TEAM_WORKSPACE_WINDOW_MIN_HEIGHT,
+        )
+        .resizable(true)
+        .maximizable(true)
+        .always_on_top(false)
+        .skip_taskbar(false)
+        .visible(false)
+        .on_page_load({
+            let started_at = started_at;
+            move |_window, payload| {
+                let event = match payload.event() {
+                    PageLoadEvent::Started => "started",
+                    PageLoadEvent::Finished => "finished",
+                };
+                debug!(
+                    "Team workspace window page load event: event={}, url={}, since_show_request_ms={}",
+                    event,
+                    payload.url(),
+                    started_at.elapsed().as_millis()
+                );
+            }
+        });
+
+    // Same chrome as the main window: the Team window draws its own top bar, so
+    // the pair reads as one application rather than two unrelated windows.
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .decorations(true)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        builder = builder.decorations(false);
+    }
+
+    let build_started_at = Instant::now();
+    let window = builder.build().map_err(|e| {
+        error!(
+            "Failed to create team workspace window: error={} duration_ms={}",
+            e,
+            build_started_at.elapsed().as_millis()
+        );
+        format!("Failed to create team workspace window: {}", e)
+    })?;
+
+    // The native close button is presentation-only: remember the position,
+    // let the window go away, and tell the rest of the app it is gone.
+    let app_for_event = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { .. } = event {
+            if let Some(window) = app_for_event.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL) {
+                if let (Ok(scale_factor), Ok(position)) =
+                    (window.scale_factor(), window.outer_position())
+                {
+                    remember_team_workspace_window_position(
+                        position.to_logical::<f64>(scale_factor),
+                    );
+                }
+            }
+            if let Err(e) = app_for_event.emit(TEAM_WORKSPACE_WINDOW_CLOSED_EVENT, ()) {
+                warn!("Failed to publish team workspace window close: {}", e);
+            }
+        }
+    });
+
+    position_team_workspace_window(&app, &window);
+    debug!(
+        "Team workspace window prepared hidden: total_duration_ms={}",
+        started_at.elapsed().as_millis()
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reveal_team_workspace_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
+    let _guard = team_workspace_window_ops().lock().await;
+
+    let Some(window) = app.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL) else {
+        warn!("Team workspace window reveal requested before window exists");
+        return Ok(());
+    };
+
+    if let Err(e) = window.unminimize() {
+        warn!("Failed to unminimize team workspace window: {}", e);
+    }
+    position_team_workspace_window(&app, &window);
+    window.show().map_err(|e| {
+        error!("Failed to reveal team workspace window: {}", e);
+        format!("Failed to reveal team workspace window: {}", e)
+    })?;
+    if let Err(e) = window.set_focus() {
+        warn!("Failed to focus team workspace window: {}", e);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn hide_team_workspace_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
+    let _guard = team_workspace_window_ops().lock().await;
+    if let Some(window) = app.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL) {
+        if let (Ok(scale_factor), Ok(position)) = (window.scale_factor(), window.outer_position()) {
+            remember_team_workspace_window_position(position.to_logical::<f64>(scale_factor));
+        }
+        window.destroy().map_err(|e| {
+            error!("Failed to destroy team workspace window: {}", e);
+            format!("Failed to destroy team workspace window: {}", e)
+        })?;
+        if let Err(e) = app.emit(TEAM_WORKSPACE_WINDOW_CLOSED_EVENT, ()) {
+            warn!("Failed to publish team workspace window close: {}", e);
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn is_team_workspace_desktop_window_open(app: tauri::AppHandle) -> Result<bool, String> {
+    Ok(app.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL).is_some())
+}
+
+/// Lay the main window out as the left two thirds of the display on its first
+/// show, so it and the Team window form one symmetric, top/bottom aligned pair.
+/// Applied once per run: a window the user has since moved or resized keeps its
+/// own geometry when it is shown again.
+fn apply_initial_main_window_layout(
+    app: &tauri::AppHandle,
+    main_window: &tauri::WebviewWindow,
+) -> bool {
+    if MAIN_WINDOW_INITIAL_LAYOUT_APPLIED
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return false;
+    }
+
+    let Some((area_position, area_size)) = work_area_for_agent_companion_window(app, main_window)
+    else {
+        return false;
+    };
+    let Some((x, y, width, height)) = paired_main_window_frame(
+        (
+            area_position.x,
+            area_position.y,
+            area_size.width,
+            area_size.height,
+        ),
+        PAIRED_LAYOUT_WIDTH_FRACTION,
+        PAIRED_LAYOUT_HEIGHT_FRACTION,
+        PAIRED_LAYOUT_GAP,
+        PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+        PAIRED_MAIN_WINDOW_MIN_WIDTH,
+    ) else {
+        return false;
+    };
+
+    if let Err(e) = main_window.set_size(tauri::LogicalSize::new(width, height)) {
+        warn!("Failed to size main window for the paired layout: {}", e);
+        return false;
+    }
+    if let Err(e) = main_window.set_position(tauri::LogicalPosition::new(x, y)) {
+        warn!("Failed to position main window for the paired layout: {}", e);
+        return false;
+    }
+    debug!(
+        "Main window paired layout applied: x={} y={} width={} height={}",
+        x, y, width, height
+    );
+    true
+}
+
 #[tauri::command]
 pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
     let total_started_at = Instant::now();
     if let Some(main_window) = app.get_webview_window("main") {
+        let step_started_at = Instant::now();
+        let paired = apply_initial_main_window_layout(&app, &main_window);
+        debug!(
+            "Main window show step completed: step=paired_layout applied={} duration_ms={}",
+            paired,
+            step_started_at.elapsed().as_millis()
+        );
+
         #[cfg(target_os = "windows")]
-        {
+        if !paired {
             // Work around Windows startup flicker: avoid creating the native window
             // in maximized mode, and maximize it right before showing instead.
             let step_started_at = Instant::now();
@@ -1152,4 +1612,208 @@ pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
         total_started_at.elapsed().as_millis()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod team_workspace_window_geometry_tests {
+    use super::{
+        centered_frame_in_work_area, clamp_frame_into_work_area,
+        mirrored_frame_beside_main_window, paired_main_window_frame, PAIRED_LAYOUT_GAP,
+        PAIRED_LAYOUT_HEIGHT_FRACTION, PAIRED_LAYOUT_WIDTH_FRACTION,
+        PAIRED_MAIN_WINDOW_MIN_WIDTH, PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+        TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT, TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
+        TEAM_WORKSPACE_WINDOW_EDGE_MARGIN, TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+    };
+
+    fn paired_pair(area: (f64, f64, f64, f64)) -> ((f64, f64, f64, f64), (f64, f64, f64, f64)) {
+        let main = paired_main_window_frame(
+            area,
+            PAIRED_LAYOUT_WIDTH_FRACTION,
+            PAIRED_LAYOUT_HEIGHT_FRACTION,
+            PAIRED_LAYOUT_GAP,
+            PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+            PAIRED_MAIN_WINDOW_MIN_WIDTH,
+        )
+        .expect("this display splits");
+        let team = mirrored_frame_beside_main_window(
+            area,
+            main,
+            PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+        );
+        (main, team)
+    }
+
+    const PRIMARY: (f64, f64, f64, f64) = (0.0, 0.0, 1920.0, 1040.0);
+    // A second display placed to the right of the primary one.
+    const SECONDARY: (f64, f64, f64, f64) = (1920.0, 0.0, 1280.0, 800.0);
+
+    /// The pair is the contract the owner accepted from their screenshot: equal
+    /// outer margins, the same top and bottom edges, a 2:1 width split, and
+    /// visible breathing room around the whole pair rather than a flush fill.
+    #[test]
+    fn lays_the_two_windows_out_as_one_symmetric_aligned_pair() {
+        let (main, team) = paired_pair(PRIMARY);
+
+        // Top and bottom aligned.
+        assert_eq!(main.1, team.1);
+        assert_eq!(main.3, team.3);
+        // Symmetric outer margins, and the same gutter between them.
+        let left_margin = main.0 - PRIMARY.0;
+        let right_margin = (PRIMARY.0 + PRIMARY.2) - (team.0 + team.2);
+        assert!((right_margin - left_margin).abs() < 0.001);
+        assert!((team.0 - (main.0 + main.2) - PAIRED_LAYOUT_GAP).abs() < 0.001);
+        // Two thirds / one third.
+        assert!((main.2 / team.2 - 2.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn leaves_the_pair_short_of_the_screen_edges() {
+        let (main, team) = paired_pair(PRIMARY);
+
+        // The pair is inset, not flush: the owner's screenshot shows desktop
+        // on all four sides.
+        assert!((main.0 - PRIMARY.0) > PAIRED_LAYOUT_GAP * 4.0);
+        assert!((main.1 - PRIMARY.1) > PAIRED_LAYOUT_GAP * 4.0);
+        assert!((team.0 + team.2) < PRIMARY.0 + PRIMARY.2 - PAIRED_LAYOUT_GAP * 4.0);
+        assert!((main.1 + main.3) < PRIMARY.1 + PRIMARY.3 - PAIRED_LAYOUT_GAP * 4.0);
+        // The pair still covers most of the display.
+        let pair_width = (team.0 + team.2) - main.0;
+        assert!((pair_width / PRIMARY.2 - PAIRED_LAYOUT_WIDTH_FRACTION).abs() < 0.001);
+        assert!((main.3 / PRIMARY.3 - PAIRED_LAYOUT_HEIGHT_FRACTION).abs() < 0.001);
+    }
+
+    #[test]
+    fn keeps_the_whole_work_area_when_the_display_is_too_narrow_to_split() {
+        let narrow = (0.0, 0.0, 1000.0, 700.0);
+        assert!(paired_main_window_frame(
+            narrow,
+            PAIRED_LAYOUT_WIDTH_FRACTION,
+            PAIRED_LAYOUT_HEIGHT_FRACTION,
+            PAIRED_LAYOUT_GAP,
+            PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+            PAIRED_MAIN_WINDOW_MIN_WIDTH,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn mirrors_the_main_windows_own_outer_margin_onto_the_right_edge() {
+        // Main window inset 8px from the left; the Team window must end 8px
+        // from the right, whatever the main window's width happens to be.
+        let main = (8.0, 40.0, 940.0, 960.0);
+        let (x, y, width, height) = mirrored_frame_beside_main_window(
+            PRIMARY,
+            main,
+            PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+        );
+
+        assert_eq!(x, main.0 + main.2 + PAIRED_LAYOUT_GAP);
+        assert_eq!(y, main.1);
+        assert_eq!(height, main.3);
+        assert_eq!(x + width, 1920.0 - (main.0 - PRIMARY.0));
+    }
+
+    #[test]
+    fn gives_a_flush_main_window_a_flush_partner() {
+        let main = (0.0, 0.0, 1100.0, 1040.0);
+        let (x, _y, width, _height) = mirrored_frame_beside_main_window(
+            PRIMARY,
+            main,
+            PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+        );
+
+        assert_eq!(x, main.0 + main.2 + PAIRED_LAYOUT_GAP);
+        assert_eq!(x + width, 1920.0);
+    }
+
+    #[test]
+    fn stays_on_screen_when_the_main_window_leaves_no_room() {
+        // A maximized main window cannot be avoided. Remaining visible beats
+        // remaining beside it, so the frame is pulled back onto the display.
+        let main = (0.0, 0.0, 1920.0, 1040.0);
+        let (x, _y, width, _height) = mirrored_frame_beside_main_window(
+            PRIMARY,
+            main,
+            PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+        );
+
+        assert_eq!(width, TEAM_WORKSPACE_WINDOW_MIN_WIDTH);
+        assert!(x >= 0.0);
+        assert!(x + width <= 1920.0);
+    }
+
+    #[test]
+    fn mirrors_using_the_display_that_hosts_the_main_window() {
+        let main = (1928.0, 30.0, 600.0, 740.0);
+        let (x, y, width, height) = mirrored_frame_beside_main_window(
+            SECONDARY,
+            main,
+            PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+        );
+
+        assert_eq!(x, main.0 + main.2 + PAIRED_LAYOUT_GAP);
+        assert_eq!(y, main.1);
+        assert_eq!(height, main.3);
+        // 8px from this display's right edge, mirroring its 8px left inset.
+        assert_eq!(x + width, 1920.0 + 1280.0 - 8.0);
+    }
+
+    #[test]
+    fn centres_the_default_frame_on_its_own_display() {
+        let (x, y) = centered_frame_in_work_area(
+            PRIMARY,
+            TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
+            TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT,
+        );
+        assert_eq!(x, (1920.0 - 900.0) / 2.0);
+        assert_eq!(y, (1040.0 - 620.0) / 2.0);
+    }
+
+    #[test]
+    fn centres_on_a_secondary_display_using_its_own_origin() {
+        let (x, y) = centered_frame_in_work_area(
+            SECONDARY,
+            TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
+            TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT,
+        );
+        assert_eq!(x, 1920.0 + (1280.0 - 900.0) / 2.0);
+        assert_eq!(y, (800.0 - 620.0) / 2.0);
+    }
+
+    #[test]
+    fn keeps_a_remembered_secondary_display_position() {
+        let remembered = (2000.0, 90.0);
+        let (x, y) = clamp_frame_into_work_area(
+            SECONDARY,
+            (remembered.0, remembered.1, 900.0, 620.0),
+            TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
+        );
+        assert_eq!((x, y), remembered);
+    }
+
+    #[test]
+    fn pulls_an_off_screen_frame_back_inside_the_work_area() {
+        let (x, y) = clamp_frame_into_work_area(
+            PRIMARY,
+            (5000.0, -400.0, 900.0, 620.0),
+            TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
+        );
+        assert_eq!(x, 1920.0 - 900.0 - TEAM_WORKSPACE_WINDOW_EDGE_MARGIN);
+        assert_eq!(y, TEAM_WORKSPACE_WINDOW_EDGE_MARGIN);
+    }
+
+    #[test]
+    fn pins_a_frame_larger_than_the_display_to_the_display_origin() {
+        let (x, y) = clamp_frame_into_work_area(
+            SECONDARY,
+            (2400.0, 300.0, 1600.0, 1200.0),
+            TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
+        );
+        assert_eq!((x, y), (SECONDARY.0, SECONDARY.1));
+    }
 }
