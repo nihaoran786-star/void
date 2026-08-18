@@ -1387,9 +1387,9 @@
     },
     "think": {
       "analysis": "思考分析",
-      "thinking": "思考中...",
+      "thinking": "正在思考",
       "preparing": "準備思考",
-      "thinkingProcess": "思考過程",
+      "thinkingProcess": "思考",
       "thinkingComplete": "已完成思考",
       "thinkingCharacters": "思考了 {{count}} 字符"
     },

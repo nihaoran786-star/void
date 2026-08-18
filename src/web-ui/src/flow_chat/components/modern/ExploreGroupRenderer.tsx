@@ -6,12 +6,14 @@
 
 import React, { useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronDown } from 'lucide-react';
 import type { FlowItem, FlowToolItem, FlowTextItem, FlowThinkingItem } from '../../types/flow-chat';
 import type { ExploreGroupData } from '../../store/modernFlowChatStore';
 import { FlowTextBlock } from '../FlowTextBlock';
 import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
 import { useFlowChatContext } from './FlowChatContext';
+import { SmoothHeightCollapse } from './SmoothHeightCollapse';
 import './ExploreRegion.scss';
 
 export interface ExploreGroupRendererProps {
@@ -24,6 +26,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   turnId,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const { exploreGroupStates, onExploreGroupToggle } = useFlowChatContext();
 
   const {
     groupId,
@@ -67,13 +70,40 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     && allItems.every(item => item.type !== 'tool')
   ), [allItems]);
 
+  const isExpanded = exploreGroupStates?.get(groupId) ?? false;
+
+  const items = allItems.map((item, idx) => (
+    <ExploreItemRenderer
+      key={item.id}
+      item={item}
+      turnId={turnId}
+      isLastItem={isLastGroupInTurn && idx === allItems.length - 1}
+    />
+  ));
+
   // Build class list.
   const className = [
     'explore-region',
-    'explore-region--always-visible',
     isGroupStreaming ? 'explore-region--streaming' : null,
     !wasCutByCritical ? 'explore-region--bounded' : null,
+    isExpanded ? 'explore-region--expanded' : null,
   ].filter(Boolean).join(' ');
+
+  // A summaries-only group is already one quiet line per summary and carries no
+  // count worth reading, so wrapping it in a second disclosure would only add a
+  // row that says nothing.
+  if (isThinkingOnly) {
+    return (
+      <div
+        data-tool-card-id={groupId}
+        data-beautiful-component="tool-chips"
+        className={className}
+      >
+        <div className="explore-region__content">{items}</div>
+      </div>
+    );
+  }
+
   return (
     <div
       data-tool-card-id={groupId}
@@ -81,25 +111,23 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
       className={className}
     >
       {/*
-        One activity indicator per turn. The group header stays a quiet summary
-        line in both states; a second loader here ran its own animation and its
-        own elapsed clock next to the turn indicator.
+        The counted summary is the whole activity block when collapsed. A turn
+        that read five files and ran five searches used to print every row plus
+        a repeated summary header for each one; it reads as one line now and
+        opens on click.
       */}
-      {!isThinkingOnly && (
-        <div className="explore-region__header">
-          <span className="explore-region__summary">{displaySummary}</span>
-        </div>
-      )}
-      <div className="explore-region__content">
-        {allItems.map((item, idx) => (
-          <ExploreItemRenderer
-            key={item.id}
-            item={item}
-            turnId={turnId}
-            isLastItem={isLastGroupInTurn && idx === allItems.length - 1}
-          />
-        ))}
-      </div>
+      <button
+        type="button"
+        className="explore-region__header explore-region__toggle"
+        aria-expanded={isExpanded}
+        onClick={() => onExploreGroupToggle?.(groupId)}
+      >
+        <span className="explore-region__summary">{displaySummary}</span>
+        <ChevronDown className="explore-region__chevron" size={14} aria-hidden="true" />
+      </button>
+      <SmoothHeightCollapse isOpen={isExpanded}>
+        <div className="explore-region__content">{items}</div>
+      </SmoothHeightCollapse>
     </div>
   );
 });

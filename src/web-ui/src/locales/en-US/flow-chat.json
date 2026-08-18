@@ -1387,9 +1387,9 @@
     },
     "think": {
       "analysis": "Thinking Analysis",
-      "thinking": "Thinking...",
+      "thinking": "Thinking",
       "preparing": "Preparing to think",
-      "thinkingProcess": "Thinking Process",
+      "thinkingProcess": "Thought",
       "thinkingComplete": "Thinking complete",
       "thinkingCharacters": "Thought {{count}} characters"
     },

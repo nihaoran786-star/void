@@ -4,7 +4,10 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({}));
+const mocks = vi.hoisted(() => ({
+  exploreGroupStates: new Map<string, boolean>(),
+  onExploreGroupToggle: vi.fn(),
+}));
 
 vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
@@ -57,7 +60,15 @@ const data = {
   wasCutByCritical: false,
 };
 
-describe('ExploreGroupRenderer always-visible activity', () => {
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() { /* jsdom stub */ }
+    unobserve() { /* jsdom stub */ }
+    disconnect() { /* jsdom stub */ }
+  } as unknown as typeof globalThis.ResizeObserver;
+}
+
+describe('ExploreGroupRenderer activity summary', () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -65,6 +76,8 @@ describe('ExploreGroupRenderer always-visible activity', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    mocks.exploreGroupStates = new Map<string, boolean>();
+    mocks.onExploreGroupToggle.mockReset();
   });
 
   afterEach(() => {
@@ -72,25 +85,42 @@ describe('ExploreGroupRenderer always-visible activity', () => {
     container.remove();
   });
 
-  it('keeps the active tail visible without a second disclosure control', () => {
+  it('reads as one counted summary line until the reader opens it', () => {
     act(() => {
       root.render(<ExploreGroupRenderer data={data} turnId="turn-1" />);
     });
 
-    expect(container.querySelector('.explore-region__header')?.tagName).not.toBe('BUTTON');
-    expect(container.querySelector('.explore-region')?.classList)
-      .toContain('explore-region--always-visible');
-    expect(container.querySelector('.explore-region__content')).not.toBeNull();
+    const toggle = container.querySelector('.explore-region__toggle');
+    expect(toggle?.tagName).toBe('BUTTON');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.explore-region__summary')?.textContent)
+      .toContain('exploreRegion.readFiles');
+    expect(container.querySelector('.explore-region__content')).toBeNull();
   });
 
-  it('ignores stale collapse state and keeps details mounted', () => {
+  it('asks its owner to expand when the summary is activated', () => {
     act(() => {
-      root.render(
-        <ExploreGroupRenderer data={{ ...data }} turnId="turn-1" />,
-      );
+      root.render(<ExploreGroupRenderer data={data} turnId="turn-1" />);
     });
 
-    expect(container.querySelector('.explore-region--collapsed')).toBeNull();
+    act(() => {
+      container
+        .querySelector('.explore-region__toggle')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(mocks.onExploreGroupToggle).toHaveBeenCalledWith('explore-1');
+  });
+
+  it('shows the rows once the group is expanded', () => {
+    mocks.exploreGroupStates = new Map([['explore-1', true]]);
+
+    act(() => {
+      root.render(<ExploreGroupRenderer data={data} turnId="turn-1" />);
+    });
+
+    expect(container.querySelector('.explore-region__toggle')?.getAttribute('aria-expanded'))
+      .toBe('true');
     expect(container.querySelector('.explore-region__content')).not.toBeNull();
   });
 

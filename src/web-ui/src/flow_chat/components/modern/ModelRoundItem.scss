@@ -8,14 +8,16 @@
    */
   margin-bottom: 0;
   padding: 0 var(--flowchat-content-inline-pad, 3rem);
-  animation: fadeIn 0.4s ease;
+  /*
+   * No mount animation: the list is virtualized, so a settled round remounts
+   * every time it scrolls back into view and would fade in again each time.
+   */
   position: relative;
 
   // Streaming state
   &--streaming {
     opacity: 1;
     margin-bottom: 0;
-    animation: none;
 
     .flowchat-flow-item--tool-transition:not(.flowchat-flow-item--tool-completed),
     .flowchat-flow-item--tool-active {
