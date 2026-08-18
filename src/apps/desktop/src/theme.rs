@@ -27,8 +27,8 @@ const COMPACT_CHAT_WINDOW_MAX_HEIGHT: f64 = 760.0;
 const COMPACT_CHAT_WINDOW_MARGIN: i32 = 64;
 const COMPACT_CHAT_WINDOW_EDGE_MARGIN: f64 = 8.0;
 const TEAM_WORKSPACE_WINDOW_LABEL: &str = "team-workspace-window";
-const TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH: f64 = 900.0;
-const TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT: f64 = 620.0;
+const TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH: f64 = 460.0;
+const TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT: f64 = 818.0;
 const TEAM_WORKSPACE_WINDOW_MIN_WIDTH: f64 = 420.0;
 const TEAM_WORKSPACE_WINDOW_MIN_HEIGHT: f64 = 400.0;
 const TEAM_WORKSPACE_WINDOW_EDGE_MARGIN: f64 = 8.0;
@@ -54,7 +54,10 @@ static COMPACT_CHAT_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new
 static COMPACT_CHAT_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
     OnceLock::new();
 static TEAM_WORKSPACE_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
-static TEAM_WORKSPACE_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
+/// The Team window is destroyed on close and rebuilt on the next open, so its
+/// remembered geometry has to carry the size as well as the corner. Keeping
+/// only the corner left a rebuilt window on its build-time default size.
+static TEAM_WORKSPACE_WINDOW_LAST_FRAME: OnceLock<RwLock<Option<(f64, f64, f64, f64)>>> =
     OnceLock::new();
 
 fn agent_companion_window_ops() -> &'static tokio::sync::Mutex<()> {
@@ -77,8 +80,8 @@ fn team_workspace_window_ops() -> &'static tokio::sync::Mutex<()> {
     TEAM_WORKSPACE_WINDOW_OPS.get_or_init(|| tokio::sync::Mutex::new(()))
 }
 
-fn team_workspace_window_last_position() -> &'static RwLock<Option<tauri::LogicalPosition<f64>>> {
-    TEAM_WORKSPACE_WINDOW_LAST_POSITION.get_or_init(|| RwLock::new(None))
+fn team_workspace_window_last_frame() -> &'static RwLock<Option<(f64, f64, f64, f64)>> {
+    TEAM_WORKSPACE_WINDOW_LAST_FRAME.get_or_init(|| RwLock::new(None))
 }
 
 /// Keep a window frame fully inside a work area. When the frame is larger than
@@ -185,25 +188,33 @@ fn centered_frame_in_work_area(area: (f64, f64, f64, f64), width: f64, height: f
     )
 }
 
-fn remember_team_workspace_window_position(position: tauri::LogicalPosition<f64>) {
-    match team_workspace_window_last_position().write() {
-        Ok(mut last_position) => {
-            *last_position = Some(position);
+fn remember_team_workspace_window_frame(frame: (f64, f64, f64, f64)) {
+    match team_workspace_window_last_frame().write() {
+        Ok(mut last_frame) => {
+            *last_frame = Some(frame);
         }
         Err(error) => {
-            warn!(
-                "Failed to remember team workspace window position: {}",
-                error
-            );
+            warn!("Failed to remember team workspace window frame: {}", error);
         }
     }
 }
 
-fn remembered_team_workspace_window_position() -> Option<tauri::LogicalPosition<f64>> {
-    team_workspace_window_last_position()
+fn remembered_team_workspace_window_frame() -> Option<(f64, f64, f64, f64)> {
+    team_workspace_window_last_frame()
         .read()
         .ok()
-        .and_then(|position| *position)
+        .and_then(|frame| *frame)
+}
+
+/// The window's own logical frame, when it can be measured.
+fn team_workspace_window_frame(window: &tauri::WebviewWindow) -> Option<(f64, f64, f64, f64)> {
+    let scale_factor = window.scale_factor().ok()?;
+    let position = window
+        .outer_position()
+        .ok()?
+        .to_logical::<f64>(scale_factor);
+    let size = window.outer_size().ok()?.to_logical::<f64>(scale_factor);
+    Some((position.x, position.y, size.width, size.height))
 }
 
 fn team_workspace_window_effective_size(window: &tauri::WebviewWindow) -> tauri::LogicalSize<f64> {
@@ -252,36 +263,45 @@ fn position_team_workspace_window(app: &tauri::AppHandle, window: &tauri::Webvie
         area_size.height,
     );
 
-    let (x, y) = match remembered_team_workspace_window_position() {
-        Some(position) => clamp_frame_into_work_area(
-            area,
-            (position.x, position.y, size.width, size.height),
-            TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
-        ),
+    // Whatever branch runs, the size is applied explicitly: a window rebuilt
+    // after a close starts at its build-time default, not at the frame the user
+    // last saw.
+    let (x, y, width, height) = match remembered_team_workspace_window_frame() {
+        Some((last_x, last_y, last_width, last_height)) => {
+            let (x, y) = clamp_frame_into_work_area(
+                area,
+                (last_x, last_y, last_width, last_height),
+                TEAM_WORKSPACE_WINDOW_EDGE_MARGIN,
+            );
+            (x, y, last_width, last_height)
+        }
         None => match main_window_frame(app) {
-            Some(main) => {
-                let (x, y, width, height) = mirrored_frame_beside_main_window(
-                    area,
-                    main,
-                    PAIRED_LAYOUT_GAP,
-                    TEAM_WORKSPACE_WINDOW_ASPECT,
-                    TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
-                );
-                if let Err(e) = window.set_size(tauri::LogicalSize::new(width, height)) {
-                    warn!("Failed to size team workspace window: {}", e);
-                }
-                (x, y)
+            Some(main) => mirrored_frame_beside_main_window(
+                area,
+                main,
+                PAIRED_LAYOUT_GAP,
+                TEAM_WORKSPACE_WINDOW_ASPECT,
+                TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
+            ),
+            None => {
+                let (x, y) = centered_frame_in_work_area(area, size.width, size.height);
+                (x, y, size.width, size.height)
             }
-            None => centered_frame_in_work_area(area, size.width, size.height),
         },
     };
 
-    let position = tauri::LogicalPosition::new(x, y);
-    if let Err(e) = window.set_position(position) {
+    if let Err(e) = window.set_size(tauri::LogicalSize::new(width, height)) {
+        warn!("Failed to size team workspace window: {}", e);
+    }
+    if let Err(e) = window.set_position(tauri::LogicalPosition::new(x, y)) {
         warn!("Failed to position team workspace window: {}", e);
     } else {
-        remember_team_workspace_window_position(position);
+        remember_team_workspace_window_frame((x, y, width, height));
     }
+    debug!(
+        "Team workspace window placed: x={} y={} width={} height={}",
+        x, y, width, height
+    );
 }
 
 fn remember_agent_companion_window_position(position: tauri::LogicalPosition<f64>) {
@@ -1437,12 +1457,8 @@ pub async fn show_team_workspace_desktop_window(app: tauri::AppHandle) -> Result
     window.on_window_event(move |event| {
         if let tauri::WindowEvent::CloseRequested { .. } = event {
             if let Some(window) = app_for_event.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL) {
-                if let (Ok(scale_factor), Ok(position)) =
-                    (window.scale_factor(), window.outer_position())
-                {
-                    remember_team_workspace_window_position(
-                        position.to_logical::<f64>(scale_factor),
-                    );
+                if let Some(frame) = team_workspace_window_frame(&window) {
+                    remember_team_workspace_window_frame(frame);
                 }
             }
             if let Err(e) = app_for_event.emit(TEAM_WORKSPACE_WINDOW_CLOSED_EVENT, ()) {
@@ -1488,8 +1504,8 @@ pub async fn reveal_team_workspace_desktop_window(app: tauri::AppHandle) -> Resu
 pub async fn hide_team_workspace_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
     let _guard = team_workspace_window_ops().lock().await;
     if let Some(window) = app.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL) {
-        if let (Ok(scale_factor), Ok(position)) = (window.scale_factor(), window.outer_position()) {
-            remember_team_workspace_window_position(position.to_logical::<f64>(scale_factor));
+        if let Some(frame) = team_workspace_window_frame(&window) {
+            remember_team_workspace_window_frame(frame);
         }
         window.destroy().map_err(|e| {
             error!("Failed to destroy team workspace window: {}", e);
@@ -1800,19 +1816,29 @@ mod team_workspace_window_geometry_tests {
             TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
             TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT,
         );
-        assert_eq!(x, (1920.0 - 900.0) / 2.0);
-        assert_eq!(y, (1040.0 - 620.0) / 2.0);
+        assert_eq!(x, (1920.0 - TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH) / 2.0);
+        assert_eq!(y, (1040.0 - TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT) / 2.0);
+        // The fallback frame is a portrait column too, never a landscape box.
+        assert!(TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT > TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH);
     }
 
     #[test]
     fn centres_on_a_secondary_display_using_its_own_origin() {
-        let (x, y) = centered_frame_in_work_area(
+        let (x, y) = centered_frame_in_work_area(SECONDARY, 460.0, 600.0);
+        assert_eq!(x, 1920.0 + (1280.0 - 460.0) / 2.0);
+        assert_eq!(y, (800.0 - 600.0) / 2.0);
+    }
+
+    #[test]
+    fn pins_a_default_taller_than_the_display_to_its_origin() {
+        // SECONDARY is shorter than the portrait default, so centring would put
+        // the frame above the display. Staying visible wins.
+        let (_x, y) = centered_frame_in_work_area(
             SECONDARY,
             TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
             TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT,
         );
-        assert_eq!(x, 1920.0 + (1280.0 - 900.0) / 2.0);
-        assert_eq!(y, (800.0 - 620.0) / 2.0);
+        assert_eq!(y, SECONDARY.1);
     }
 
     #[test]
