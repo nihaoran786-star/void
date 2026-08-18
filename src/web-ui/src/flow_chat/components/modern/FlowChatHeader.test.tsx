@@ -479,20 +479,35 @@ describe('FlowChatHeader', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('keeps click, Enter, and Space paths for jumping to the current message', () => {
+  it('keeps the jump-to-current-turn action reachable from the more menu', () => {
     const onJumpToCurrentTurn = vi.fn();
     act(() => {
       root.render(<FlowChatHeader {...createProps({ onJumpToCurrentTurn })} />);
     });
 
-    const message = container.querySelector<HTMLElement>('.flowchat-header__message');
+    openMoreMenu();
+    const currentItem = container.querySelector<HTMLButtonElement>(
+      '[data-testid="flowchat-header-turn-current"]',
+    );
+    expect(currentItem).not.toBeNull();
     act(() => {
-      message?.click();
-      message?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      message?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      currentItem?.click();
     });
 
-    expect(onJumpToCurrentTurn).toHaveBeenCalledTimes(3);
+    expect(onJumpToCurrentTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders one floating action cluster without the old bar message', () => {
+    act(() => {
+      root.render(<FlowChatHeader {...createProps()} />);
+    });
+
+    expect(container.querySelector('.flowchat-header__message')).toBeNull();
+    const actions = container.querySelectorAll('.flowchat-header__actions');
+    expect(actions).toHaveLength(1);
+    // The session actions live in the same cluster as the more button.
+    expect(actions[0]?.querySelector('[data-testid="session-files-badge"]')).not.toBeNull();
+    expect(actions[0]?.querySelector('[data-testid="flowchat-header-more-actions"]')).not.toBeNull();
   });
 
   it('closes the more menu with Escape and restores focus to its trigger', async () => {

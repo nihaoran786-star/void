@@ -9,6 +9,7 @@ import {
   Bot,
   ChevronDown,
   ChevronUp,
+  Crosshair,
   GitPullRequest,
   List,
   MoreHorizontal,
@@ -16,7 +17,7 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { Tooltip, IconButton, Input } from '@/component-library';
+import { IconButton, Input } from '@/component-library';
 import { useTranslation } from 'react-i18next';
 import { SessionFilesBadge } from './SessionFilesBadge';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
@@ -42,8 +43,12 @@ export interface FlowChatHeaderProps {
   currentTurn: number;
   /** Total turns. */
   totalTurns: number;
-  /** Current user message. */
-  currentUserMessage: string;
+  /**
+   * Current user message. No longer displayed — the header is an action
+   * cluster, not a bar — but kept in the contract so existing callers and the
+   * turn-pin flow do not change shape.
+   */
+  currentUserMessage?: string;
   /** Whether the header is visible. */
   visible: boolean;
   /** Session ID. */
@@ -88,7 +93,6 @@ export interface FlowChatHeaderProps {
 export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   currentTurn,
   totalTurns,
-  currentUserMessage,
   visible,
   sessionId,
   turns = [],
@@ -127,19 +131,11 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const hasConversationHeader = visible && totalTurns > 0;
 
-  // Truncate long messages.
-  const truncatedMessage = currentUserMessage.length > 50
-    ? currentUserMessage.slice(0, 50) + '...'
-    : currentUserMessage;
   const turnListTooltip = t('flowChatHeader.turnList', {
     defaultValue: 'Turn list',
   });
   const untitledTurnLabel = t('flowChatHeader.untitledTurn', {
     defaultValue: 'Untitled turn',
-  });
-  const turnBadgeLabel = t('flowChatHeader.turnBadge', {
-    current: currentTurn,
-    defaultValue: `Turn ${currentTurn}`,
   });
   const moreActionsLabel = t('flowChatHeader.moreActions', {
     defaultValue: 'More actions',
@@ -399,45 +395,17 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     return null;
   }
 
+  // The header is no longer a full-width bar over the transcript. It is one
+  // floating action cluster in the top-right corner: session actions, the
+  // background-subagent chip, search when open, and the more menu. Turn
+  // navigation lives inside the more menu.
   return (
     <div className="flowchat-header">
-      <div className="flowchat-header__actions flowchat-header__actions--left">
-        {hasConversationHeader && isPresentationActive && (
+      <div className="flowchat-header__actions">
+        {isPresentationActive && (
           <SessionFilesBadge sessionId={sessionId} />
         )}
-      </div>
 
-      {hasConversationHeader ? (
-        <Tooltip content={currentUserMessage} placement="bottom">
-          <div
-            className="flowchat-header__message"
-            role="button"
-            tabIndex={0}
-            onClick={onJumpToCurrentTurn}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onJumpToCurrentTurn?.();
-              }
-            }}
-            aria-label={t('flowChatHeader.jumpToCurrentTurn', {
-              turn: currentTurn,
-              defaultValue: `Jump to Turn ${currentTurn}`,
-            })}
-          >
-            <span className="flowchat-header__turn-badge" aria-label={turnBadgeLabel}>
-              <span>{turnBadgeLabel}</span>
-            </span>
-            <span className="flowchat-header__message-text">
-              {truncatedMessage}
-            </span>
-          </div>
-        </Tooltip>
-      ) : (
-        <div className="flowchat-header__message flowchat-header__message--empty" aria-hidden="true" />
-      )}
-
-      <div className="flowchat-header__actions">
         {hasBackgroundSubagents && (
           <div className="flowchat-header__subagent-nav" ref={subagentListRef}>
             <IconButton
@@ -667,6 +635,22 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
               >
                 <List size={14} aria-hidden="true" />
                 <span>{turnListTooltip}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flowchat-header__more-menu-item"
+                onClick={() => runMoreMenuAction(onJumpToCurrentTurn)}
+                disabled={currentTurn <= 0 || !onJumpToCurrentTurn}
+                data-testid="flowchat-header-turn-current"
+              >
+                <Crosshair size={14} aria-hidden="true" />
+                <span>
+                  {t('flowChatHeader.jumpToCurrentTurn', {
+                    turn: currentTurn,
+                    defaultValue: `Jump to Turn ${currentTurn}`,
+                  })}
+                </span>
               </button>
               <button
                 type="button"
