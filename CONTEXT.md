@@ -57,15 +57,19 @@ Updated: 2026-08-17
   opening entry, legacy creation-page migration, and the P1-A exit gate
   (including post-restart binding recovery) are A2-4 and still require
   explicit user approval.
-- The Quiet Directory design system is the current entity-glyph and catalog
-  language: Agent orbs (animated when selected/running), Skill sigils (static
-  runes), and Connector link glyphs (route state: solid/broken/pulse/error)
-  sit on hairline directory rows with mono chips, mono right-aligned meta,
-  hover-collected operations, one quiet primary action, and underline search.
-  It is applied to the Agents, Skills, and Connectors (installed + market)
-  catalogs and to the Automation chrome/list view; the Automation calendar
-  grid and scheduling logic are intentionally unchanged. The active contract
-  is [docs/design/quiet-directory-design-system.md](docs/design/quiet-directory-design-system.md).
+- The Catalog and Sidebar design system is the current catalog and navigation
+  language: the Employees, Teams, Skills and Connectors catalogs mount one
+  shared directory top bar (page name + count, filter pills, elastic gap, quiet
+  search, icon-only utilities, a single `+` action) over a three-line card
+  grid, and the Minimal sidebar keeps one icon column, one scroller with pinned
+  section heads, and a remembered per-workspace fold. Employees keep animated
+  orbs; Skills and Connectors use deterministic Lucide marks whose ink carries
+  connector state. Colour comes only from existing theme tokens. The active
+  contract is [docs/design/catalog-and-sidebar-design-system.md](docs/design/catalog-and-sidebar-design-system.md).
+- The Quiet Directory design system now covers the Automation chrome and list
+  view only; the Automation calendar grid and scheduling logic are
+  intentionally unchanged. Its catalog sections were superseded on 2026-08-18.
+  The active contract is [docs/design/quiet-directory-design-system.md](docs/design/quiet-directory-design-system.md).
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
 - Bound Teams use one floating presentation path: the Team Workspace is a

@@ -41,11 +41,15 @@ automatically the current source of truth.
   the token architecture, permits scoped semantic-color correction, and now
   covers the shell, navigation, chat, tool calls, composer, customization
   markets, Canvas, Team Workspace, and Welcome/new-session presentation
+- [Catalog and Sidebar design system](design/catalog-and-sidebar-design-system.md)
+  — current shared directory top bar, three-line catalog card, entity-glyph
+  table and Minimal sidebar rules (one icon column, one scroller with pinned
+  section heads, remembered workspace fold); covers the Employees, Teams,
+  Skills, and Connectors catalogs
 - [Quiet Directory design system](design/quiet-directory-design-system.md)
-  — current entity-glyph (Agent orb / Skill sigil / Connector link) and
-  hairline directory-row language for the Minimal presentation; covers the
-  Agents, Skills, and Connectors catalogs plus the Automation chrome and list
-  view, with the Automation calendar structure preserved
+  — current hairline-row language for the Automation chrome and list view, with
+  the Automation calendar structure preserved; its catalog sections were
+  superseded on 2026-08-18 by the Catalog and Sidebar design system
 - [Porcelain Air navigation/chat execution prompt](handoffs/porcelain-graphite-nav-chat-prompt.md)
   — self-contained prompt for a fresh AI to implement only the approved first
   slice without relying on this conversation
@@ -121,6 +125,14 @@ a current specification. Record the deletion here, not the document.
 
 ## Cleanup record
 
+- **2026-08-18** — The catalog sections of the Quiet Directory design system
+  (entity-glyph table, hairline directory-row language, per-catalog application
+  rows) were removed rather than left contradicting the implementation: the
+  Employees, Teams, Skills and Connectors catalogs now follow
+  [Catalog and Sidebar](design/catalog-and-sidebar-design-system.md). Quiet
+  Directory is retained for the Automation surface, which still uses it. The
+  retired `skillSigil.ts` and `linkGlyph.ts` modules and their tests were
+  deleted with their last consumer.
 - **2026-08-17** — Repository-root design scaffolds `design-lab/` (26 tracked
   files), `design-demo/` (10 files), `demos/` (1 file) and five unreferenced
   `png/` marketing screenshots (~6 MB total) were deleted. None had inbound
