@@ -26,7 +26,12 @@ import { SessionUsageReportCard } from '../usage/SessionUsageReportCard';
 import { coerceSessionUsageReport } from '../usage/usageReportUtils';
 import { resolveSessionRelationship } from '../../utils/sessionMetadata';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
-import { usePresentationActiveSession } from './useFlowChatPresentationStore';
+import {
+  usePresentationSessionRelationship,
+  usePresentationTurnIndex,
+  usePresentationTurnStatus,
+} from './useFlowChatPresentationStore';
+import { useModernFlowChatStore } from '../../store/modernFlowChatStore';
 import {
   composerPresentationToAccessibleText,
   parseComposerPresentation,
@@ -54,8 +59,16 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       onFillUserMessageInput,
     } = useFlowChatContext();
     const isPresentationActive = useFlowChatPresentationActive();
-    const activeSessionFromStore = usePresentationActiveSession();
-    const activeSession = activeSessionOverride ?? activeSessionFromStore;
+    // Subscribe to the few session facts this message actually presents, not to
+    // the whole active session. The session object is replaced on every streamed
+    // flush, so a broad subscription re-rendered every mounted message about ten
+    // times a second while a single answer streamed.
+    const storeSessionRelationship = usePresentationSessionRelationship();
+    const storeTurnIndex = usePresentationTurnIndex(turnId);
+    const storeTurnStatus = usePresentationTurnStatus(turnId);
+    const activeSessionFromStore = activeSessionOverride
+      ? null
+      : useModernFlowChatStore.getState().activeSession;
     const [copied, setCopied] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [hasOverflow, setHasOverflow] = useState(false);
@@ -91,17 +104,26 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     const isUsageReportLoading = message?.metadata?.usageReportStatus === 'loading';
     const usageReport = coerceSessionUsageReport(message?.metadata?.usageReport);
     const sessionRelationship = useMemo(
-      () => resolveSessionRelationship(activeSession),
-      [activeSession]
+      () => (activeSessionOverride
+        ? resolveSessionRelationship(activeSessionOverride)
+        : storeSessionRelationship),
+      [activeSessionOverride, storeSessionRelationship]
     );
     const canShowRollbackAction = allowUserMessageRollback && !sessionRelationship.isSubagent;
 
     const currentSession = activeSessionOverride
       ?? (sessionId ? flowChatStore.getState().sessions.get(sessionId) ?? null : null)
       ?? activeSessionFromStore;
-    const turnIndex = currentSession?.dialogTurns.findIndex(t => t.id === turnId) ?? -1;
+    // `storeTurnIndex` / `storeTurnStatus` are the subscriptions that make this
+    // message re-render when its own turn moves or fails; the live read below
+    // then resolves the current values.
+    const turnIndex = currentSession
+      ? currentSession.dialogTurns.findIndex(t => t.id === turnId)
+      : storeTurnIndex;
     const dialogTurn = turnIndex >= 0 ? currentSession?.dialogTurns[turnIndex] : null;
-    const isFailed = dialogTurn?.status === 'error';
+    const isFailed = currentSession
+      ? dialogTurn?.status === 'error'
+      : storeTurnStatus === 'error';
     const isEditing = editingTurnId === turnId;
     const resolvedSessionId = sessionId ?? currentSession?.sessionId;
     const isSystemTriggered = Boolean(

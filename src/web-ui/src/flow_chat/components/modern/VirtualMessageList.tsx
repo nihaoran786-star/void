@@ -38,7 +38,12 @@ import {
   type HistoryProjectionHandoffSnapshot,
 } from './historyProjectionHandoff';
 import type { FlowChatPinTurnToTopMode } from '../../events/flowchatNavigation';
-import { useModernFlowChatStore, type VirtualItem, type VisibleTurnInfo } from '../../store/modernFlowChatStore';
+import {
+  getVirtualItemStableKey,
+  useModernFlowChatStore,
+  type VirtualItem,
+  type VisibleTurnInfo,
+} from '../../store/modernFlowChatStore';
 import { computeFlowChatInputStackFooterPx } from '../../utils/flowChatScrollLayout';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import {
@@ -253,21 +258,6 @@ function getReservationTotalPx(reservation: BottomReservationBase): number {
 
 function getReservationConsumablePx(reservation: BottomReservationBase): number {
   return Math.max(0, reservation.px - reservation.floorPx);
-}
-
-function getVirtualItemStableKey(item: VirtualItem): string {
-  switch (item.type) {
-    case 'user-message':
-    case 'user-steering-message':
-      return `${item.type}:${item.turnId}:${item.data.id}`;
-    case 'model-round':
-      return `${item.type}:${item.turnId}:${item.data.id}`;
-    case 'explore-group':
-      return `${item.type}:${item.turnId}:${item.data.groupId}`;
-    case 'image-analyzing':
-    case 'turn-failure-notice':
-      return `${item.type}:${item.turnId}`;
-  }
 }
 
 function computeVirtualMessageItemKey(sessionId: string | null, item: VirtualItem): string {

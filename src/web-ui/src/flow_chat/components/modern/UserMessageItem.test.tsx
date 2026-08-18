@@ -40,10 +40,37 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('../../store/modernFlowChatStore', () => ({
   useActiveSession: () => activeSessionRef.current,
+  useModernFlowChatStore: {
+    getState: () => ({ activeSession: activeSessionRef.current }),
+  },
 }));
 
 vi.mock('./useFlowChatPresentationStore', () => ({
   usePresentationActiveSession: () => activeSessionRef.current,
+  usePresentationSessionRelationship: () => {
+    const session = activeSessionRef.current as {
+      sessionKind?: string;
+      parentSessionId?: string;
+    } | null;
+    const kind = session?.sessionKind;
+    return {
+      kind,
+      isBtw: kind === 'btw',
+      isSubagent: kind === 'subagent',
+      isReview: kind === 'review' || kind === 'deep_review',
+      isDeepReview: kind === 'deep_review',
+      parentSessionId: session?.parentSessionId,
+      displayAsChild: Boolean(session?.parentSessionId),
+      canOpenInAuxPane: Boolean(kind && kind !== 'normal' && session?.parentSessionId),
+      origin: undefined,
+    };
+  },
+  usePresentationTurnIndex: (turnId: string) => (
+    activeSessionRef.current?.dialogTurns.findIndex(turn => turn.id === turnId) ?? -1
+  ),
+  usePresentationTurnStatus: (turnId: string) => (
+    activeSessionRef.current?.dialogTurns.find(turn => turn.id === turnId)?.status ?? null
+  ),
 }));
 
 const flowChatStoreMock = vi.hoisted(() => ({

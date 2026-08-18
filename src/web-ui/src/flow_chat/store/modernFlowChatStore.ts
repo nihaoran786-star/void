@@ -202,6 +202,123 @@ let cachedDialogTurnsRef: DialogTurn[] | null = null;
 let cachedVirtualItems: VirtualItem[] = [];
 
 /**
+ * Rounds that had user-steering items filtered out are rendered from a clone.
+ * Rebuilding that clone on every flush changed the round identity for rounds
+ * that never changed, so the clone is cached against its source round.
+ */
+const cachedSteeringFilteredRounds = new Map<string, { source: ModelRound; filtered: ModelRound }>();
+
+function readSteeringFilteredRound(round: ModelRound, items: ModelRound['items']): ModelRound {
+  const cached = cachedSteeringFilteredRounds.get(round.id);
+  if (cached && cached.source === round) {
+    return cached.filtered;
+  }
+
+  const filtered = { ...round, items };
+  cachedSteeringFilteredRounds.set(round.id, { source: round, filtered });
+  return filtered;
+}
+
+function haveSameElements(a: readonly unknown[], b: readonly unknown[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+/**
+ * True when two projections describe exactly the same render unit.
+ *
+ * The projection rebuilds every wrapper object whenever `dialogTurns` changes,
+ * which is once per streamed flush. Without this comparison the renderer's
+ * `prev.item === next.item` memo can never hold and the entire mounted list
+ * re-renders while a single message streams.
+ */
+function areVirtualItemsEquivalent(previous: VirtualItem, next: VirtualItem): boolean {
+  if (previous === next) return true;
+  if (previous.type !== next.type || previous.turnId !== next.turnId) return false;
+
+  switch (previous.type) {
+    case 'user-message':
+      return previous.data === (next as typeof previous).data;
+
+    case 'user-steering-message': {
+      const candidate = next as typeof previous;
+      return previous.steeringId === candidate.steeringId
+        && previous.steeringStatus === candidate.steeringStatus
+        && previous.data.id === candidate.data.id
+        && previous.data.content === candidate.data.content
+        && previous.data.timestamp === candidate.data.timestamp;
+    }
+
+    case 'model-round': {
+      const candidate = next as typeof previous;
+      return previous.data === candidate.data
+        && previous.isLastRound === candidate.isLastRound
+        && previous.isTurnComplete === candidate.isTurnComplete;
+    }
+
+    case 'explore-group': {
+      const candidate = next as typeof previous;
+      return previous.data.groupId === candidate.data.groupId
+        && previous.data.isGroupStreaming === candidate.data.isGroupStreaming
+        && previous.data.isLastGroupInTurn === candidate.data.isLastGroupInTurn
+        && previous.data.wasCutByCritical === candidate.data.wasCutByCritical
+        && previous.data.stats.readCount === candidate.data.stats.readCount
+        && previous.data.stats.searchCount === candidate.data.stats.searchCount
+        && previous.data.stats.commandCount === candidate.data.stats.commandCount
+        && haveSameElements(previous.data.rounds, candidate.data.rounds)
+        && haveSameElements(previous.data.allItems, candidate.data.allItems);
+    }
+
+    case 'turn-failure-notice': {
+      const candidate = next as typeof previous;
+      return previous.data.error === candidate.data.error
+        && previous.data.errorDetail === candidate.data.errorDetail;
+    }
+
+    case 'image-analyzing':
+      return true;
+  }
+}
+
+/** Stable render identity of a projected item, independent of its position. */
+export function getVirtualItemStableKey(item: VirtualItem): string {
+  switch (item.type) {
+    case 'user-message':
+    case 'user-steering-message':
+      return `${item.type}:${item.turnId}:${item.data.id}`;
+    case 'model-round':
+      return `${item.type}:${item.turnId}:${item.data.id}`;
+    case 'explore-group':
+      return `${item.type}:${item.turnId}:${item.data.groupId}`;
+    case 'image-analyzing':
+    case 'turn-failure-notice':
+      return `${item.type}:${item.turnId}`;
+  }
+}
+
+/**
+ * Replace freshly built items with the previous instance whenever they describe
+ * the same render unit, so unchanged messages keep their object identity.
+ */
+function reuseUnchangedVirtualItems(
+  previousItems: readonly VirtualItem[],
+  nextItems: VirtualItem[],
+): VirtualItem[] {
+  if (previousItems.length === 0) return nextItems;
+
+  const previousByKey = new Map<string, VirtualItem>();
+  for (const item of previousItems) {
+    previousByKey.set(getVirtualItemStableKey(item), item);
+  }
+
+  return nextItems.map(item => {
+    const previous = previousByKey.get(getVirtualItemStableKey(item));
+    return previous && areVirtualItemsEquivalent(previous, item) ? previous : item;
+  });
+}
+
+/**
  * Convert Session to virtualized render items
  *
  * Performance optimizations:
@@ -216,17 +333,24 @@ export function sessionToVirtualItems(session: Session | null): VirtualItem[] {
       cachedSession = null;
       cachedDialogTurnsRef = null;
       cachedVirtualItems = [];
+      cachedSteeringFilteredRounds.clear();
     }
     return cachedVirtualItems;
   }
-  
+
   if (
-    cachedSession?.sessionId === session.sessionId && 
+    cachedSession?.sessionId === session.sessionId &&
     cachedDialogTurnsRef === session.dialogTurns
   ) {
     return cachedVirtualItems;
   }
-  
+
+  // A different session must never reuse render identities from the previous one.
+  if (cachedSession?.sessionId !== session.sessionId) {
+    cachedVirtualItems = [];
+    cachedSteeringFilteredRounds.clear();
+  }
+
   cachedSession = session;
   cachedDialogTurnsRef = session.dialogTurns;
 
@@ -260,7 +384,7 @@ export function sessionToVirtualItems(session: Session | null): VirtualItem[] {
           type: 'round',
           round: nonSteeringItems.length === round.items.length
             ? round
-            : { ...round, items: nonSteeringItems },
+            : readSteeringFilteredRound(round, nonSteeringItems),
         });
       }
       round.items
@@ -438,8 +562,8 @@ export function sessionToVirtualItems(session: Session | null): VirtualItem[] {
     }
   });
 
-  cachedVirtualItems = items;
-  return items;
+  cachedVirtualItems = reuseUnchangedVirtualItems(cachedVirtualItems, items);
+  return cachedVirtualItems;
 }
 
 function getInitialModernState(): Pick<
@@ -489,6 +613,7 @@ export const useModernFlowChatStore = create<ModernFlowChatState>()(
       cachedSession = null;
       cachedDialogTurnsRef = null;
       cachedVirtualItems = [];
+      cachedSteeringFilteredRounds.clear();
 
       set((state) => {
         state.activeSession = null;

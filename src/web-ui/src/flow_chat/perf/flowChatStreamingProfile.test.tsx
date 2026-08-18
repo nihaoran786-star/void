@@ -195,6 +195,12 @@ interface FlushSample {
   commits: number;
   markdownRenders: number;
   itemRendersTotal: number;
+  /**
+   * Render cost of the item subtrees. A memo bail-out still fires the profiler
+   * for the wrapper, so the count alone cannot distinguish "re-rendered the
+   * whole message" from "checked and skipped"; the cost can.
+   */
+  itemRenderCostMs: number;
   changedVirtualItems: number;
   durationMs: number;
 }
@@ -261,6 +267,7 @@ describe('Flow Chat streaming render profile', () => {
       const commitsBefore = counters.rootCommits;
       const markdownBefore = counters.markdownRenders;
       const itemRendersBefore = [...counters.itemRenders.values()].reduce((a, b) => a + b, 0);
+      const itemCostBefore = [...counters.itemDurationMs.values()].reduce((a, b) => a + b, 0);
       const durationBefore = counters.rootDurationMs;
 
       act(() => {
@@ -280,6 +287,8 @@ describe('Flow Chat streaming render profile', () => {
         markdownRenders: counters.markdownRenders - markdownBefore,
         itemRendersTotal:
           [...counters.itemRenders.values()].reduce((a, b) => a + b, 0) - itemRendersBefore,
+        itemRenderCostMs:
+          [...counters.itemDurationMs.values()].reduce((a, b) => a + b, 0) - itemCostBefore,
         changedVirtualItems,
         durationMs: counters.rootDurationMs - durationBefore,
       });
@@ -298,6 +307,7 @@ describe('Flow Chat streaming render profile', () => {
         commits: Number(average(s => s.commits).toFixed(2)),
         markdownReparses: Number(average(s => s.markdownRenders).toFixed(2)),
         itemRenders: Number(average(s => s.itemRendersTotal).toFixed(2)),
+        itemRenderCostMs: Number(average(s => s.itemRenderCostMs).toFixed(2)),
         changedVirtualItemObjects: Number(average(s => s.changedVirtualItems).toFixed(2)),
         jsDurationMs: Number(average(s => s.durationMs).toFixed(2)),
       },
@@ -329,5 +339,8 @@ describe('Flow Chat streaming render profile', () => {
     // Only the message that is actually streaming may re-parse its markdown.
     // Re-parsing settled answers is what made streaming drop frames.
     expect(report.perFlushAverages.markdownReparses).toBeLessThanOrEqual(1);
+    // Only the streaming turn's own render units may change identity; settled
+    // messages must keep theirs so the item memo can bail out.
+    expect(report.perFlushAverages.changedVirtualItemObjects).toBeLessThanOrEqual(4);
   }, 180_000);
 });

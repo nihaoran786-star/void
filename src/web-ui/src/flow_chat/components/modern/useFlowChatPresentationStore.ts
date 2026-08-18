@@ -5,6 +5,10 @@ import {
   type VisibleTurnInfo,
 } from '../../store/modernFlowChatStore';
 import type { Session } from '../../types/flow-chat';
+import {
+  resolveSessionRelationship,
+  type ResolvedSessionRelationship,
+} from '../../utils/sessionMetadata';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 
 type ModernFlowChatState = ReturnType<typeof useModernFlowChatStore.getState>;
@@ -60,4 +64,67 @@ export function usePresentationActiveSession(activeOverride?: boolean): Session 
 
 export function usePresentationVisibleTurnInfo(activeOverride?: boolean): VisibleTurnInfo | null {
   return usePresentationSelector(selectVisibleTurnInfo, activeOverride);
+}
+
+export function usePresentationActiveSessionId(activeOverride?: boolean): string | null {
+  return usePresentationSelector(
+    state => state.activeSession?.sessionId ?? null,
+    activeOverride,
+  );
+}
+
+/**
+ * How the active session relates to other sessions.
+ *
+ * The fields behind this are fixed for a session's lifetime, so the selector
+ * tracks them as one key and the relationship is resolved only when that key
+ * changes. Subscribing to the session object instead would re-render every
+ * mounted message on every streamed flush.
+ */
+export function usePresentationSessionRelationship(
+  activeOverride?: boolean,
+): ResolvedSessionRelationship {
+  const relationshipKey = usePresentationSelector(state => {
+    const session = state.activeSession;
+    if (!session) return '';
+    return [
+      session.sessionKind ?? '',
+      session.parentSessionId ?? '',
+      session.btwOrigin?.parentSessionId ?? '',
+      session.parentToolCallId ?? '',
+      session.subagentType ?? '',
+    ].join('|');
+  }, activeOverride);
+
+  // The key is the subscription; the session read is the source of truth. They
+  // are cached together so the resolved relationship keeps a stable identity
+  // until one of those fields really changes.
+  const cacheRef = useRef<{ key: string; value: ResolvedSessionRelationship } | null>(null);
+  if (cacheRef.current?.key !== relationshipKey) {
+    cacheRef.current = {
+      key: relationshipKey,
+      value: resolveSessionRelationship(useModernFlowChatStore.getState().activeSession),
+    };
+  }
+
+  return cacheRef.current.value;
+}
+
+/** Position of one turn in the active session, or -1 when it is not there. */
+export function usePresentationTurnIndex(turnId: string, activeOverride?: boolean): number {
+  return usePresentationSelector(
+    state => state.activeSession?.dialogTurns.findIndex(turn => turn.id === turnId) ?? -1,
+    activeOverride,
+  );
+}
+
+/** Status of one turn in the active session, or null when it is not there. */
+export function usePresentationTurnStatus(
+  turnId: string,
+  activeOverride?: boolean,
+): string | null {
+  return usePresentationSelector(
+    state => state.activeSession?.dialogTurns.find(turn => turn.id === turnId)?.status ?? null,
+    activeOverride,
+  );
 }

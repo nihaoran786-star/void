@@ -48,7 +48,8 @@ vi.mock('react-virtuoso', () => ({
   }),
 }));
 
-vi.mock('../../store/modernFlowChatStore', () => {
+vi.mock('../../store/modernFlowChatStore', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
   const useModernFlowChatStore = (selector: (state: any) => unknown) => selector({
     visibleTurnInfo: stateMocks.visibleTurnInfo,
   });
@@ -58,6 +59,7 @@ vi.mock('../../store/modernFlowChatStore', () => {
   });
 
   return {
+    ...actual,
     useActiveSession: () => stateMocks.activeSession,
     useVirtualItems: () => stateMocks.virtualItems,
     useModernFlowChatStore,
