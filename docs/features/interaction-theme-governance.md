@@ -70,9 +70,28 @@ Allowed in this phase:
 Flow Chat activity baseline amendment (2026-08-14): the user selected all 19
 Beautiful UI source components for production Flow Chat presentation. Bindings
 connect them to existing explicit Flow Chat state and must not synthesize
-hidden reasoning or replace typed tool events. Model summaries and grouped
-activity stay mounted and visible; do not add another auto-collapse, typewriter,
+hidden reasoning or replace typed tool events. Do not add another typewriter,
 loader, completion-ring, or hidden-region animation around the source motion.
+
+Activity density amendment (2026-08-19, superseding the "stay mounted and
+visible" clause above): the user reviewed a real transcript in which one turn
+printed every tool row plus a repeated summary header between them, and
+directed that multi-tool activity read condensed by default. The current
+contract is:
+
+- one turn activity indicator, at the tail of the running turn, carrying the
+  phase the runtime reports; the explore header and runtime-status items do not
+  draw loaders of their own;
+- a model summary is one quiet line and opens on click, using the Beautiful UI
+  Thinking component's own disclosure;
+- an activity group with tools is its counted summary line and opens on click,
+  using the existing `SmoothHeightCollapse` and the explore-group state the
+  Flow Chat context already carried;
+- no second collapse mechanism, and no auto-collapse driven by streaming state:
+  the disclosure only moves when the reader moves it.
+
+Reasoning content itself is still never synthesized or hidden behind inference;
+only its default density changed.
 
 Not allowed without a separate architecture review:
 
