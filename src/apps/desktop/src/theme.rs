@@ -32,9 +32,10 @@ const TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT: f64 = 620.0;
 const TEAM_WORKSPACE_WINDOW_MIN_WIDTH: f64 = 420.0;
 const TEAM_WORKSPACE_WINDOW_MIN_HEIGHT: f64 = 400.0;
 const TEAM_WORKSPACE_WINDOW_EDGE_MARGIN: f64 = 8.0;
-/// The main window's share of the paired desktop layout; the Team window takes
-/// the remaining third beside it.
-const PAIRED_MAIN_WINDOW_WIDTH_RATIO: f64 = 2.0 / 3.0;
+/// The Team window is a portrait satellite of the main window: it keeps the
+/// main window's height and takes its width from this aspect, so it always
+/// reads as one tall companion column rather than a second application.
+const TEAM_WORKSPACE_WINDOW_ASPECT: f64 = 9.0 / 16.0;
 /// The pair does not fill the display. These fractions are measured from the
 /// layout the owner accepted: the pair is centred, leaving a visible margin on
 /// every side rather than sitting flush against the screen edges.
@@ -108,10 +109,12 @@ fn clamp_frame_into_work_area(
     )
 }
 
-/// The main window's frame in the paired desktop layout: it takes the left two
-/// thirds of the work area, leaving the right third for the Team window. Both
-/// windows use the same outer margin and the same vertical extent, so the pair
-/// is symmetric and top/bottom aligned.
+/// The main window's frame in the paired desktop layout.
+///
+/// The pair does not fill the display: it is inset and centred, so the margin
+/// left of the main window equals the margin right of the Team window. The
+/// Team window is a portrait column of a fixed aspect, and the main window
+/// takes whatever is left of the pair.
 ///
 /// Returns `None` when the display is too narrow to split usefully; the caller
 /// then keeps the whole work area for the main window.
@@ -120,34 +123,36 @@ fn paired_main_window_frame(
     width_fraction: f64,
     height_fraction: f64,
     gap: f64,
-    ratio: f64,
+    team_aspect: f64,
     min_width: f64,
 ) -> Option<(f64, f64, f64, f64)> {
     let (area_x, area_y, area_width, area_height) = area;
     let pair_width = area_width * width_fraction;
     let height = area_height * height_fraction;
-    let width = (pair_width - gap) * ratio;
+    let width = pair_width - gap - height * team_aspect;
     if width < min_width || height <= 0.0 {
         return None;
     }
-    // Centred, so the margin left of the main window equals the margin right of
-    // the Team window.
     let x = area_x + (area_width - pair_width) / 2.0;
     let y = area_y + (area_height - height) / 2.0;
     Some((x, y, width, height))
 }
 
-/// Place the Team window beside the main window as its mirror image: same top
-/// and bottom edges, starting one gutter to its right, and ending as far from
-/// the right screen edge as the main window starts from the left one.
+/// Place the Team window beside the main window as its portrait satellite: the
+/// same top and bottom edges, a width taken from the shared height and the
+/// window's aspect, and a right edge as far from the screen edge as the main
+/// window starts from the left one.
 ///
 /// Mirroring the main window's own outer margin — rather than filling to a
 /// fixed edge margin — is what makes the pair read as symmetric wherever the
-/// user has put the main window.
+/// user has put the main window. When the leftover space is too narrow for
+/// that, the window is pushed to start one gutter past the main window rather
+/// than sit on top of it.
 fn mirrored_frame_beside_main_window(
     area: (f64, f64, f64, f64),
     main: (f64, f64, f64, f64),
     gap: f64,
+    aspect: f64,
     min_width: f64,
 ) -> (f64, f64, f64, f64) {
     let (area_x, _area_y, area_width, _area_height) = area;
@@ -155,8 +160,8 @@ fn mirrored_frame_beside_main_window(
 
     let outer_margin = (main_x - area_x).max(0.0);
     let right_edge = area_x + area_width - outer_margin;
-    let x = main_x + main_width + gap;
-    let width = (right_edge - x).max(min_width);
+    let width = (main_height * aspect).max(min_width);
+    let x = (right_edge - width).max(main_x + main_width + gap);
 
     // The frame is already placed symmetrically, so the clamp is only a
     // last-resort guard against leaving the display; it must not impose a
@@ -219,7 +224,10 @@ fn team_workspace_window_effective_size(window: &tauri::WebviewWindow) -> tauri:
 fn main_window_frame(app: &tauri::AppHandle) -> Option<(f64, f64, f64, f64)> {
     let window = app.get_webview_window("main")?;
     let scale_factor = window.scale_factor().ok()?;
-    let position = window.outer_position().ok()?.to_logical::<f64>(scale_factor);
+    let position = window
+        .outer_position()
+        .ok()?
+        .to_logical::<f64>(scale_factor);
     let size = window.outer_size().ok()?.to_logical::<f64>(scale_factor);
     if size.width <= 0.0 || size.height <= 0.0 {
         return None;
@@ -256,6 +264,7 @@ fn position_team_workspace_window(app: &tauri::AppHandle, window: &tauri::Webvie
                     area,
                     main,
                     PAIRED_LAYOUT_GAP,
+                    TEAM_WORKSPACE_WINDOW_ASPECT,
                     TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
                 );
                 if let Err(e) = window.set_size(tauri::LogicalSize::new(width, height)) {
@@ -1495,7 +1504,9 @@ pub async fn hide_team_workspace_desktop_window(app: tauri::AppHandle) -> Result
 
 #[tauri::command]
 pub async fn is_team_workspace_desktop_window_open(app: tauri::AppHandle) -> Result<bool, String> {
-    Ok(app.get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL).is_some())
+    Ok(app
+        .get_webview_window(TEAM_WORKSPACE_WINDOW_LABEL)
+        .is_some())
 }
 
 /// Lay the main window out as the left two thirds of the display on its first
@@ -1527,7 +1538,7 @@ fn apply_initial_main_window_layout(
         PAIRED_LAYOUT_WIDTH_FRACTION,
         PAIRED_LAYOUT_HEIGHT_FRACTION,
         PAIRED_LAYOUT_GAP,
-        PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+        TEAM_WORKSPACE_WINDOW_ASPECT,
         PAIRED_MAIN_WINDOW_MIN_WIDTH,
     ) else {
         return false;
@@ -1538,7 +1549,10 @@ fn apply_initial_main_window_layout(
         return false;
     }
     if let Err(e) = main_window.set_position(tauri::LogicalPosition::new(x, y)) {
-        warn!("Failed to position main window for the paired layout: {}", e);
+        warn!(
+            "Failed to position main window for the paired layout: {}",
+            e
+        );
         return false;
     }
     debug!(
@@ -1617,10 +1631,9 @@ pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod team_workspace_window_geometry_tests {
     use super::{
-        centered_frame_in_work_area, clamp_frame_into_work_area,
-        mirrored_frame_beside_main_window, paired_main_window_frame, PAIRED_LAYOUT_GAP,
-        PAIRED_LAYOUT_HEIGHT_FRACTION, PAIRED_LAYOUT_WIDTH_FRACTION,
-        PAIRED_MAIN_WINDOW_MIN_WIDTH, PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+        centered_frame_in_work_area, clamp_frame_into_work_area, mirrored_frame_beside_main_window,
+        paired_main_window_frame, PAIRED_LAYOUT_GAP, PAIRED_LAYOUT_HEIGHT_FRACTION,
+        PAIRED_LAYOUT_WIDTH_FRACTION, PAIRED_MAIN_WINDOW_MIN_WIDTH, TEAM_WORKSPACE_WINDOW_ASPECT,
         TEAM_WORKSPACE_WINDOW_DEFAULT_HEIGHT, TEAM_WORKSPACE_WINDOW_DEFAULT_WIDTH,
         TEAM_WORKSPACE_WINDOW_EDGE_MARGIN, TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
     };
@@ -1631,7 +1644,7 @@ mod team_workspace_window_geometry_tests {
             PAIRED_LAYOUT_WIDTH_FRACTION,
             PAIRED_LAYOUT_HEIGHT_FRACTION,
             PAIRED_LAYOUT_GAP,
-            PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             PAIRED_MAIN_WINDOW_MIN_WIDTH,
         )
         .expect("this display splits");
@@ -1639,6 +1652,7 @@ mod team_workspace_window_geometry_tests {
             area,
             main,
             PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
         );
         (main, team)
@@ -1663,8 +1677,11 @@ mod team_workspace_window_geometry_tests {
         let right_margin = (PRIMARY.0 + PRIMARY.2) - (team.0 + team.2);
         assert!((right_margin - left_margin).abs() < 0.001);
         assert!((team.0 - (main.0 + main.2) - PAIRED_LAYOUT_GAP).abs() < 0.001);
-        // Two thirds / one third.
-        assert!((main.2 / team.2 - 2.0).abs() < 0.001);
+        // The Team window is a portrait column of the shared height.
+        assert!((team.2 / team.3 - TEAM_WORKSPACE_WINDOW_ASPECT).abs() < 0.001);
+        assert!(team.3 > team.2);
+        // The main window keeps the rest of the pair.
+        assert!(main.2 > team.2);
     }
 
     #[test]
@@ -1691,7 +1708,7 @@ mod team_workspace_window_geometry_tests {
             PAIRED_LAYOUT_WIDTH_FRACTION,
             PAIRED_LAYOUT_HEIGHT_FRACTION,
             PAIRED_LAYOUT_GAP,
-            PAIRED_MAIN_WINDOW_WIDTH_RATIO,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             PAIRED_MAIN_WINDOW_MIN_WIDTH,
         )
         .is_none());
@@ -1699,34 +1716,41 @@ mod team_workspace_window_geometry_tests {
 
     #[test]
     fn mirrors_the_main_windows_own_outer_margin_onto_the_right_edge() {
-        // Main window inset 8px from the left; the Team window must end 8px
-        // from the right, whatever the main window's width happens to be.
-        let main = (8.0, 40.0, 940.0, 960.0);
+        // Main window inset 8px from the left and narrow enough to leave room:
+        // the Team window must end 8px from the right.
+        let main = (8.0, 40.0, 940.0, 800.0);
         let (x, y, width, height) = mirrored_frame_beside_main_window(
             PRIMARY,
             main,
             PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
         );
 
-        assert_eq!(x, main.0 + main.2 + PAIRED_LAYOUT_GAP);
         assert_eq!(y, main.1);
         assert_eq!(height, main.3);
+        assert!((width / height - TEAM_WORKSPACE_WINDOW_ASPECT).abs() < 0.001);
         assert_eq!(x + width, 1920.0 - (main.0 - PRIMARY.0));
+        assert!(x >= main.0 + main.2 + PAIRED_LAYOUT_GAP);
     }
 
     #[test]
-    fn gives_a_flush_main_window_a_flush_partner() {
+    fn keeps_the_portrait_aspect_and_stays_beside_a_wide_main_window() {
+        // 1100 + gap + 585 exceeds the display, so the frame gives up its
+        // mirrored right margin before it gives up standing beside the main
+        // window.
         let main = (0.0, 0.0, 1100.0, 1040.0);
-        let (x, _y, width, _height) = mirrored_frame_beside_main_window(
+        let (x, _y, width, height) = mirrored_frame_beside_main_window(
             PRIMARY,
             main,
             PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
         );
 
-        assert_eq!(x, main.0 + main.2 + PAIRED_LAYOUT_GAP);
-        assert_eq!(x + width, 1920.0);
+        assert!((width / height - TEAM_WORKSPACE_WINDOW_ASPECT).abs() < 0.001);
+        assert!(x >= main.0 + main.2);
+        assert!(x + width <= 1920.0);
     }
 
     #[test]
@@ -1738,29 +1762,35 @@ mod team_workspace_window_geometry_tests {
             PRIMARY,
             main,
             PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
         );
 
-        assert_eq!(width, TEAM_WORKSPACE_WINDOW_MIN_WIDTH);
+        // A maximized main window is 1040 tall, so the portrait width stays
+        // well above the floor; only its position has to give.
+        assert!((width / 1040.0 - TEAM_WORKSPACE_WINDOW_ASPECT).abs() < 0.001);
         assert!(x >= 0.0);
         assert!(x + width <= 1920.0);
     }
 
     #[test]
     fn mirrors_using_the_display_that_hosts_the_main_window() {
-        let main = (1928.0, 30.0, 600.0, 740.0);
+        // Tall enough that the portrait width clears the window's minimum.
+        let main = (1928.0, 10.0, 600.0, 780.0);
         let (x, y, width, height) = mirrored_frame_beside_main_window(
             SECONDARY,
             main,
             PAIRED_LAYOUT_GAP,
+            TEAM_WORKSPACE_WINDOW_ASPECT,
             TEAM_WORKSPACE_WINDOW_MIN_WIDTH,
         );
 
-        assert_eq!(x, main.0 + main.2 + PAIRED_LAYOUT_GAP);
         assert_eq!(y, main.1);
         assert_eq!(height, main.3);
+        assert!((width / height - TEAM_WORKSPACE_WINDOW_ASPECT).abs() < 0.001);
         // 8px from this display's right edge, mirroring its 8px left inset.
         assert_eq!(x + width, 1920.0 + 1280.0 - 8.0);
+        assert!(x >= main.0 + main.2 + PAIRED_LAYOUT_GAP);
     }
 
     #[test]
