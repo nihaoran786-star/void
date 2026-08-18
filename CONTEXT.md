@@ -72,15 +72,30 @@ Updated: 2026-08-17
   The active contract is [docs/design/quiet-directory-design-system.md](docs/design/quiet-directory-design-system.md).
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
-- Bound Teams use one floating presentation path: the Team Workspace is a
-  bordered 9:16 portrait panel floating above the full-width scene at every
-  desktop width. It reserves no column, drags by a thin hover grabber, and
-  dims to 50% opacity on outside interaction instead of hiding. Team member
-  conversations never become sibling Canvas tabs, and closing the presentation
-  must not delete or cancel child sessions. The panel switches in place
-  between the operations map and the selected member conversation; the member
-  conversation chrome is one slim strip with a back-to-map action and a member
-  switcher.
+- Bound Teams use one desktop presentation path: the Team Workspace is a second
+  system window (resizable, not always-on-top, taskbar-visible), opened from the
+  Team capsule in the session capability rail. The two windows open as one
+  paired layout — centred and inset from the screen edges, main window left two
+  thirds, Team window right third, top and bottom edges aligned and outer
+  margins equal — so the main window no longer starts maximized. A display too
+  narrow to split keeps the previous maximized startup. The Team window has no
+  native title bar; it draws the same top bar as the main window.
+  The in-app floating Team panel has been removed, so the main window's scene is
+  never overlapped and a second-display user can move the Team window across.
+  The window reuses the compact-chat multi-window pipeline (Tauri window,
+  `?voidWindow=team-workspace` route, event bridge); the compact chat entry in
+  the titlebar overflow menu is a protected capability and is unchanged. The
+  window is not a mirror: the main window publishes only the typed Team binding
+  identity, and the window resolves the projection through the same typed reader
+  while member transcripts stay on the existing `/btw` child-session interface.
+  Equivalent binding snapshots are not republished, so typing or streaming in
+  either window cannot remount or flash the other. Team member conversations
+  never become sibling Canvas tabs, and closing the window — including a native
+  close — collapses the presentation only and must not delete or cancel child
+  sessions or stop the Team. The window switches in place between the operations
+  map and the selected member conversation; the member conversation chrome is one
+  slim strip with a back-to-map action and a member switcher. The
+  Canvas expand/collapse control and the Team presentation are now independent.
 - The right Team Workspace is reserved for durable Team members. Ordinary Task
   and `/btw` temporary child conversations keep their existing compatibility
   presentation and are not promoted into the formal Team member surface.
@@ -183,13 +198,18 @@ Updated: 2026-08-17
   semantically unchanged snapshots are no-ops, and typing or streaming in the
   left lead conversation must not remount or flash the selected member panel.
 - The canonical Team Workspace now presents the durable Team as an operations
-  map rather than a second member list. It supports bounded pan/zoom, semantic
-  orbit sizing, constant-screen-size member nodes, explicit selection, and the
-  existing member-conversation projection. This is a presentation over the
+  map rather than a second member list. The lead anchors a spine on the left and
+  each specialist is one member card — status-coloured corner badge, the
+  member's Agent orb (never a human portrait), name, professional role and
+  output responsibility — joined to the spine by a right-angle hairline.
+  Delegated workers are collapsed behind a per-card expander and open as rows
+  inside their own card. It supports bounded pan/zoom, explicit selection, and
+  the existing member-conversation projection. This is a presentation over the
   same typed Team snapshot; it does not create another runtime, roster, or
   child-session path. The map is free of prose (no header bar, mission
   briefing, or zoom readout); team identity and run status remain available to
-  assistive technology. The panel floats at every layout width.
+  assistive technology. On the desktop host this map is the content of the
+  separate Team window.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards

@@ -47,17 +47,18 @@ Specialist members run as isolated child conversations and return role-owned
 results to the lead. This activation contract is defined by
 [Customization Center and active persona](customization-center-prd.md).
 
-The primary desktop composition is a floating Team panel above the scene:
+The primary desktop composition puts the Team in its own system window:
 
 ```text
-main conversation | working canvas          (full-width scene)
-                  + floating 9:16 Team panel (no reserved column)
+main window : main conversation | working canvas   (full-width scene)
+Team window : operations map / member conversation (second OS window)
 ```
 
-Canvas shows artifacts and tools. The floating Team panel shows participants,
+Canvas shows artifacts and tools. The Team window shows participants,
 progress, handoffs, and member conversations. Users must be able to inspect
-both at the same time: the panel floats above the scene without pushing chat
-or Canvas aside, and dimming, dragging, or closing it is presentation-only.
+both at the same time: the main window's scene is never overlapped, and a
+second-display user can move the Team window to the other screen. Opening,
+moving, and closing the Team window is presentation-only.
 
 The right workspace uses stale-while-revalidate presentation semantics. A new
 Team binding may show an initial loading state, but background polling,
@@ -255,8 +256,15 @@ Team entry rules:
 - collapsed capsules show only a team emblem, member stack, and status dot;
 - pointer hover or keyboard focus expands the capsule to reveal the team name
   and concise state;
-- click opens or focuses the Team Workspace without replacing the current
-  Canvas tab;
+- click opens or focuses the Team Workspace — on the desktop host that is the
+  Team window — without replacing the current Canvas tab; the capsule is the
+  only entry, and the window-titlebar overflow menu (preview-first chat window
+  and main-session floating window) is a separate protected capability that
+  this control never changes;
+- the capsule's `aria-expanded` reflects whether the Team window is open, and
+  a native window close writes that state back and returns focus to the
+  capsule; it carries no `aria-controls`, because the presentation it opens is
+  another window rather than an element in this document;
 - secondary action may open a small menu to start a new conversation with
   another Team, hide this presentation, inspect the definition, or stop/cancel
   when the runtime explicitly permits it; it never unbinds or replaces the
@@ -269,38 +277,64 @@ session binding, retry, or cancellation rules.
 
 ### Team Workspace
 
-Team Workspace is a dedicated coordination container beside Canvas. It is not
-an ordinary Canvas tab.
+Team Workspace is a dedicated coordination container. It is not an ordinary
+Canvas tab, and on the desktop host it is not inside the main window at all.
 
-All desktop widths share one floating presentation:
+The desktop presentation is a second system window:
 
 ```text
-main conversation | active Canvas surface   (full-width scene)
-                  + floating 9:16 Team panel (no reserved column)
+main window : main conversation | active Canvas surface  (left 2/3)
+Team window : operations map / member conversation       (right 1/3)
 ```
 
-The Team Workspace is one bordered portrait panel (9:16 aspect, a visible
-1px frame with a layered soft shadow) floating above the scene's right side. It reserves no column width at any breakpoint;
-chat and Canvas keep the full scene. Both views share one consistent 36px top bar, and that bar itself
-is the drag handle — press anywhere on its blank area to move the panel
-(there is no separate grabber line). Interacting outside the panel dims it to 50% opacity
-instead of hiding it; closing it remains presentation-only. While any member
-or run is active the panel root carries `data-running`, and the floating frame
-answers with a quiet accent-tinted border
-and one faint outer halo; hovering or focusing the panel tints the same
-border. It has two
-in-place views:
+The Team window reuses the existing multi-window desktop pipeline — the same
+Tauri window creation, `?voidWindow=` route, and event bridge as the compact
+chat floating window — so no new runtime or data channel exists. It is
+resizable, is not always-on-top, and appears in the taskbar. Its position is
+remembered and clamped back onto a visible display when the screen layout
+changes.
 
-1. an operations map in the onyx/frost language — the shared top bar
-   (member count with an accent live marker), the lead as one solid
-   dot with a slow conic thinking ring while running, specialist members as
-   8px status dots with name and role labels, and a hairline phase progress
-   line, free of prose (team identity and run status stay available to
-   assistive technology);
+The two windows open as one **paired layout**: the pair is centred and inset
+from the screen edges, the main window takes the left two thirds and the Team
+window the right third, and both share the same top and bottom edges and the
+same outer margin. The Team window derives its frame from the main window's
+actual frame, so the pair stays symmetric wherever the main window is. A
+display too narrow to split keeps the previous maximized main window instead.
+Once the user moves or resizes either window, that geometry is kept for the
+rest of the run.
+
+The Team window has no native system title bar. It draws the same top bar as
+the main window — same height, same window controls, same quietness — so the
+pair reads as one application. Its close control routes through the same native
+close path the desktop host already intercepts, so closing stays
+presentation-only.
+
+The window is a presentation host, not a mirror. The main window publishes only
+the typed Team binding identity; the Team window resolves the projection itself
+through the same `TeamWorkspaceProjection` reader, and member transcripts still
+come from the existing `/btw` child-session interface. Equivalent binding
+snapshots are not republished, so composer typing and lead streaming in the main
+window cannot remount or flash the Team window, and input in either window does
+not disturb the other.
+
+The window has two in-place views:
+
+1. an operations map — a 36px top bar (member count with an accent live
+   marker), the lead as one solid dot anchoring a spine on the left, each
+   specialist as one member card joined to that spine by a right-angle
+   hairline, and a hairline phase progress line. A member card carries a
+   status-coloured corner badge, the member's Agent orb, its name, its
+   professional role and its output responsibility. Delegated workers are
+   collapsed behind an explicit per-card expander and open as rows inside their
+   own member's card, so a busy Team stays readable. Cards scale with the
+   camera; the map stays free of prose, and team identity, run status, member
+   status and delegation state remain available to assistive technology;
 2. the selected member conversation behind a text-tab strip — a plain
    back-to-map arrow and member tabs whose active state is one 1px accent
    underline, sharing the 36px chrome-height contract with the Canvas topbar,
    and the same complete composer presentation contract as the main chat.
+
+While any member or run is active the panel root carries `data-running`.
 
 The lead is not a member-workspace entry: it is the active AI in the left
 parent conversation. The right roster contains specialists and quality-gate
@@ -321,10 +355,9 @@ route shows an explicit not-started state instead of disabling the member. It
 does not replace the active Media, Short Drama, Terminal, Browser, or other
 Canvas surface.
 
-Medium and narrow layouts keep the same floating 9:16 panel; it scales down
-with the scene height and never covers the Canvas by default. Narrow layouts
-may temporarily promote Team Workspace to a single full surface, but that is a
-responsive fallback, not the primary desktop model.
+The Team window is sized and moved by the user like any other system window;
+the main window's layout is unaffected at every width, because the Team
+presentation no longer occupies or overlaps the scene.
 
 ### Member conversation
 
@@ -527,7 +560,9 @@ Presentation code must not depend on either compatibility detail.
 - no team business logic in `ChatInput.tsx`, `FlowChatStore.ts`,
   `ContentCanvas.tsx`, or `ShortDramaCenterPanel.tsx`;
 - no team lifecycle inferred from transcript text;
-- no automatic cancellation when the Team Workspace is closed.
+- no automatic cancellation when the Team Workspace is closed, including a
+  native close of the Team window: closing collapses the presentation only and
+  never stops a Team run or deletes a member child session.
 
 ## Current implementation status
 
@@ -579,9 +614,13 @@ The Desktop/Tauri reusable-Team slice implements:
   can start instead of remaining falsely active;
 - Web composer activation for otherwise-compatible ordinary Teams with member
   Skill allowlists;
-- one right-side Team Workspace presentation for all durable Team members,
-  fixed desktop three-column composition, Task-card routing into that workspace,
-  and automatic restoration of the short-drama Canvas from session binding;
+- one Team Workspace presentation for all durable Team members, hosted on the
+  desktop in a second system window opened from the session capability rail's
+  Team capsule, Task-card routing into that workspace, and automatic
+  restoration of the short-drama Canvas from session binding. The window reuses
+  the compact-chat multi-window pipeline and publishes binding identity only;
+  the main window's floating Team panel has been removed, and the Canvas
+  expand/collapse control no longer has to collapse the Team presentation;
 - the Team Workspace roster is presented as one operations map with bounded
   pan/zoom, semantic orbit sizing, constant-screen-size member nodes, status,
   selection, and entry into the existing member conversation. It is a view of
@@ -722,7 +761,10 @@ Accepted test matrix:
 
 ## Acceptance gates
 
-- Canvas and Team Workspace remain simultaneously usable on wide desktop.
+- Canvas and Team Workspace remain simultaneously usable, and the Team window
+  never overlaps the main window's scene.
+- The Team window survives close/reopen and a moved or removed display, and the
+  Team keeps running while it is closed.
 - Each parent session restores its own attached teams and presentation state.
 - Team collapse and application restart do not delete child sessions.
 - A member conversation remains an existing BTW child session.
