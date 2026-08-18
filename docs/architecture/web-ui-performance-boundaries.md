@@ -47,6 +47,52 @@ UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 
 `BrowserScene.tsx` 与 `BrowserPanel.tsx` 目前仍在 UI 内动态调用 Tauri window/webview/dpi/core，并重复编排原生 WebView 生命周期，不满足上面的目标依赖方向。第一阶段为控制回归范围，只把 URL 轮询和“最后一次任务生效”闸门隔离为可单测模块，并收紧现有异步生命周期；不得继续向这两个组件增加新的外部系统判断。下一阶段应先补齐行为测试，再提取统一的 browser feature controller/adapter。
 
+## Flow Chat 流式渲染边界
+
+流式输出期间，只有正在变化的那条消息可以进入渲染路径。已经说完的消息不得因为
+会话对象被替换而重新渲染或重新解析 Markdown。
+
+- `FlowChatContext` 的 value 不得携带活动会话对象。主 Flow Chat 传稳定的
+  `sessionWorkspacePath`，需要实时轮次状态的消费者自行从 store 订阅；BTW 子面板
+  与 Agent 调试聊天渲染的是非活动会话，仍使用 `activeSessionOverride`。
+- 搜索无查询时必须返回稳定的空结果实例，否则 context 每次 flush 都换身份。
+- 投影必须复用未变化的 render unit 包装对象，`VirtualItemRenderer` 的
+  `prev.item === next.item` 记忆化才有意义。
+- 消息组件只订阅它真正呈现的会话事实（本轮位置与状态、会话关系），不订阅整个
+  会话对象。
+- Virtuoso 的 `components.Header` / `components.Footer` / `itemContent` /
+  `computeItemKey` 必须保持稳定身份；内联声明会让 React 卸载重建页脚子树，进而
+  重置活动指示器的计时与动画。实时值通过 Virtuoso 的 `context` prop 传入。
+- 每轮只允许存在一个运行指示。行内 runtime-status item 不渲染自己的 loader，
+  探索区头部在两种状态下都是安静的摘要行；指示文案优先使用 runtime 报告的
+  `runtimeStatus.messageKey`，无阶段时才回退到轮换提示语。
+- 活动区域在消息列表自身的滚动容器中自然排布，不得再嵌套自己的滚动框；模型摘要
+  默认收起为一行，展开由 Beautiful UI Thinking 组件自带的 disclosure 负责。
+
+### 测量基线（2026-08-18）
+
+夹具与量具：`src/web-ui/src/flow_chat/perf/streamingReplayFixture.ts`、
+`flowChatStreamingProfile.test.tsx`、`markdownReparseCost.test.tsx`。
+夹具为 8 个已完成轮次 + 1 个流式轮次，共 27 个 render unit，每轮包含长 Markdown
+回答（含代码块与 GFM 表格）、探索工具组与关键工具卡。计数为精确值，可迁移到
+浏览器；时长是 jsdom 的 JS 侧成本，不是浏览器绘制时间。
+
+| 每次 flush（约每秒 10 次） | 优化前 | 当前 |
+| --- | --- | --- |
+| Markdown 全量重解析 | 9 | 1 |
+| 变更身份的 render unit | 27 | 3 |
+| 条目渲染成本 | 2.70 ms | 0.74 ms |
+| 总 JS 成本 | 8.47 ms | 2.1 ms |
+| Header/Footer/itemContent 身份变化（20 次 flush 合计） | 22 / 22 / 22 | 0 / 0 / 0 |
+
+单次 Markdown 全量重解析：974 字符约 11 ms，4,878 字符约 33 ms，随长度线性。
+
+回归门禁由 `flowChatStreamingProfile.test.tsx` 执行：每次 flush 的 Markdown
+重解析不得超过 1 次，变更身份的 render unit 不得超过 4 个。
+
+尚未采集：真实浏览器 Performance 面板的长任务/掉帧曲线与输入端到端延迟，需要接
+provider 的活会话。
+
 ## 生命周期边界
 
 已挂载但非活动的场景必须停止定时器、observer、stream 和媒体工作。重新激活时可以恢复；卸载或停止后，迟到的异步结果不得继续更新 UI。
