@@ -204,8 +204,13 @@ describe('estimateVirtualMessageItemHeight', () => {
     )).toBeGreaterThan(1000);
   });
 
-  it('estimates explore groups from visible row count', () => {
-    expect(estimateVirtualMessageItemHeight(makeExploreGroup(12))).toBe(336);
+  it('estimates explore groups from every row, since the region no longer clips', () => {
+    expect(estimateVirtualMessageItemHeight(makeExploreGroup(12))).toBe(384);
+    expect(estimateVirtualMessageItemHeight(makeExploreGroup(30))).toBe(816);
+  });
+
+  it('bounds the explore group estimate for pathological groups', () => {
+    expect(estimateVirtualMessageItemHeight(makeExploreGroup(400))).toBe(1200);
   });
 
   it('keeps image-analyzing items on the live legacy estimate', () => {

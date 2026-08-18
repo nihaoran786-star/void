@@ -1,9 +1,9 @@
 /**
  * Production model-summary presenter.
  *
- * Uses the Beautiful UI Thinking source component directly. The trace is
- * intentionally always visible: Flow Chat no longer adds a second collapse
- * state or a duplicate animation layer around model summaries.
+ * Uses the Beautiful UI Thinking source component directly, including its own
+ * disclosure: the summary reads as one quiet line and the reasoning opens on
+ * click. Flow Chat adds no second collapse state or animation layer around it.
  */
 
 import React, { useMemo } from 'react';
@@ -16,7 +16,7 @@ import type { FlowThinkingItem } from '../types/flow-chat';
 
 interface ModelThinkingDisplayProps {
   thinkingItem: FlowThinkingItem;
-  /** Kept for renderer compatibility; summaries are now always visible. */
+  /** Kept for renderer compatibility; the disclosure state is component-local. */
   isLastItem?: boolean;
   displayContext?: 'default' | 'subagent-projection';
 }
@@ -43,7 +43,7 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
     <div
       data-tool-card-id={thinkingItem.id}
       data-beautiful-component="thinking-state"
-      className="flow-thinking-item flow-thinking-item--beautiful-original expanded"
+      className="flow-thinking-item flow-thinking-item--beautiful-original"
     >
       <BeautifulUIStage mode="surface">
         <ThinkingState
@@ -52,7 +52,6 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
           working={isActive}
           activeLabel={t('toolCards.think.thinking')}
           doneLabel={t('toolCards.think.thinkingProcess')}
-          alwaysExpanded
           compact
         />
       </BeautifulUIStage>

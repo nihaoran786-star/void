@@ -99,9 +99,13 @@ function estimateUserMessageHeight(content: string | undefined): number {
   );
 }
 
+/**
+ * The activity region no longer clips to its own 400px scroller, so every row
+ * contributes height. Rows stay compact — tool rows and condensed model
+ * summaries are one line each — and the bound only guards pathological groups.
+ */
 function estimateExploreGroupHeight(item: Extract<VirtualItem, { type: 'explore-group' }>): number {
-  const visibleRowCount = Math.min(10, item.data.allItems.length);
-  return Math.min(420, EXPLORE_GROUP_BASE_HEIGHT_PX + visibleRowCount * 24);
+  return Math.min(1200, EXPLORE_GROUP_BASE_HEIGHT_PX + item.data.allItems.length * 24);
 }
 
 export function estimateVirtualMessageItemHeight(item: VirtualItem): number {

@@ -31,31 +31,18 @@
   white-space: nowrap;
 }
 
+/*
+ * The activity timeline flows in the message list's own scroller. It used to be
+ * a 400px box with its own scrollbar that auto-scrolled to the bottom, so a
+ * model summary was pushed out of sight by the tool rows that followed it and
+ * the reader had a scroller inside a scroller.
+ */
 .explore-region__content {
   position: relative;
   box-sizing: border-box;
-  max-height: 400px;
   margin: 4px 0 0 5px;
   padding: 4px 0 8px 20px;
-  overflow: hidden;
   border-left: 1px solid var(--workspace-border-subtle);
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 2px;
-    background: var(--workspace-border-strong);
-  }
-}
-
-.explore-region--has-scroll .explore-region__content {
-  overflow-y: auto;
 }
 
 .void-ui--minimal .explore-region {
