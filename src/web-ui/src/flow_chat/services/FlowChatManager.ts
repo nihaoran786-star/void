@@ -252,6 +252,20 @@ export class FlowChatManager {
     }
   }
 
+  /**
+   * Attach a secondary presentation host (a second desktop window) to the
+   * existing Flow Chat runtime.
+   *
+   * Unlike {@link initialize} this performs no session discovery, selection, or
+   * relationship hydration: the host renders explicitly identified sessions and
+   * only needs live events plus the workspace path. Session lifecycle, history,
+   * and sending continue to go through the same interfaces as the main window.
+   */
+  async attachPresentationHost(workspacePath: string): Promise<void> {
+    await this.initializeEventListeners();
+    this.context.currentWorkspacePath = workspacePath;
+  }
+
   private async initializeEventListeners(): Promise<void> {
     if (this.eventListenerInitialized) {
       return;

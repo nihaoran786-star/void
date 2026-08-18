@@ -309,6 +309,7 @@ async function startApplication(): Promise<void> {
   const windowParams = new URLSearchParams(window.location.search);
   const isAgentCompanionWindow = windowParams.get('voidWindow') === 'agent-companion';
   const isCompactChatWindow = windowParams.get('voidWindow') === 'compact-chat';
+  const isTeamWorkspaceWindow = windowParams.get('voidWindow') === 'team-workspace';
 
   const renderStartedAt = nowMs();
   if (isAgentCompanionWindow) {
@@ -356,6 +357,30 @@ async function startApplication(): Promise<void> {
       sinceStartupMs: elapsedMs(appStartedAt),
     });
     startupTrace.flushSummary('compact_chat_render_scheduled');
+    return;
+  }
+
+  if (isTeamWorkspaceWindow) {
+    const { default: TeamWorkspaceDesktopWindow } = await import(
+      './app/components/TeamWorkspaceDesktopWindow/TeamWorkspaceDesktopWindow'
+    );
+    ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+      <AppErrorBoundary>
+        <I18nProvider>
+          <TeamWorkspaceDesktopWindow />
+        </I18nProvider>
+      </AppErrorBoundary>
+    );
+    logElapsed(log, 'Startup step completed', renderStartedAt, {
+      data: {
+        step: 'scheduleTeamWorkspaceRender',
+        sinceStartupMs: elapsedMs(appStartedAt),
+      },
+    });
+    startupTrace.markPhase('team_workspace_render_scheduled', {
+      sinceStartupMs: elapsedMs(appStartedAt),
+    });
+    startupTrace.flushSummary('team_workspace_render_scheduled');
     return;
   }
 

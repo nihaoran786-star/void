@@ -8,7 +8,7 @@ import type {
 } from '../types';
 import { useActiveTeamWorkspace } from './useActiveTeamWorkspace';
 
-interface ActiveTeamSelection {
+export interface ActiveTeamSelection {
   sessionId: string | null;
   workspacePath?: string;
   teamDefinitionId: string | null;
@@ -78,7 +78,7 @@ function emptySelection(workspacePath?: string): ActiveTeamSelection {
   };
 }
 
-function selectActiveTeam(state: FlowChatState): ActiveTeamSelection {
+export function selectActiveTeam(state: FlowChatState): ActiveTeamSelection {
   const sessionId = state.activeSessionId;
   const session = sessionId ? state.sessions.get(sessionId) : undefined;
   const binding = session?.activePersonaBinding;
@@ -122,7 +122,7 @@ function selectActiveTeam(state: FlowChatState): ActiveTeamSelection {
   };
 }
 
-function isSameSelection(
+export function isSameSelection(
   left: ActiveTeamSelection,
   right: ActiveTeamSelection,
 ): boolean {

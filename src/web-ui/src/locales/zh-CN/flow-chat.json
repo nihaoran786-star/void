@@ -2278,6 +2278,13 @@
   },
   "teamWorkspace": {
     "ariaLabel": "团队工作区",
+    "window": {
+      "open": "在独立窗口打开团队面板",
+      "unboundTitle": "当前会话没有绑定团队",
+      "unboundDescription": "在主窗口切换到一个绑定了团队的会话，这里就会显示它的成员与进度。",
+      "disconnectedTitle": "联系不上主窗口",
+      "disconnectedDescription": "这个窗口还在向主窗口询问要显示哪个团队。团队仍在正常运行；你可以关掉这个窗口，再从团队按钮重新打开。"
+    },
     "actions": {
       "close": "关闭团队工作区",
       "backToTeam": "返回团队",
@@ -2335,6 +2342,8 @@
     },
     "delegation": {
       "open": "打开{{name}}的 Worker 会话",
+      "count": "{{count}} 个分身",
+      "toggle": "展开或收起{{name}}的 {{count}} 个分身",
       "loading": "正在加载委派工作…",
       "partial": "部分委派工作暂不可用",
       "error": "委派工作不可用",

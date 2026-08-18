@@ -2278,6 +2278,13 @@
   },
   "teamWorkspace": {
     "ariaLabel": "團隊工作區",
+    "window": {
+      "open": "在獨立視窗開啟團隊面板",
+      "unboundTitle": "目前會話沒有綁定團隊",
+      "unboundDescription": "在主視窗切換到一個綁定了團隊的會話，這裡就會顯示它的成員與進度。",
+      "disconnectedTitle": "聯繫不上主視窗",
+      "disconnectedDescription": "這個視窗還在向主視窗詢問要顯示哪個團隊。團隊仍在正常執行；你可以關掉這個視窗，再從團隊按鈕重新開啟。"
+    },
     "actions": {
       "close": "關閉團隊工作區",
       "backToTeam": "返回團隊",
@@ -2335,6 +2342,8 @@
     },
     "delegation": {
       "open": "打開{{name}}的 Worker 會話",
+      "count": "{{count}} 個分身",
+      "toggle": "展開或收起{{name}}的 {{count}} 個分身",
       "loading": "正在載入委派工作…",
       "partial": "部分委派工作暫不可用",
       "error": "委派工作不可用",

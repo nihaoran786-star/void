@@ -2278,6 +2278,13 @@
   },
   "teamWorkspace": {
     "ariaLabel": "Team workspace",
+    "window": {
+      "open": "Open the Team panel in its own window",
+      "unboundTitle": "No Team is bound to this conversation",
+      "unboundDescription": "Switch the main window to a conversation with a Team and its members and progress appear here.",
+      "disconnectedTitle": "Cannot reach the main window",
+      "disconnectedDescription": "This window is still asking the main window which Team to show. Your Team keeps running; you can close this window and open it again from the Team button."
+    },
     "actions": {
       "close": "Close team workspace",
       "backToTeam": "Back to team",
@@ -2335,6 +2342,8 @@
     },
     "delegation": {
       "open": "Open {{name}}'s worker conversation",
+      "count": "{{count}} workers",
+      "toggle": "Show or hide {{name}}'s {{count}} workers",
       "loading": "Loading delegated work…",
       "partial": "Some delegated work is unavailable",
       "error": "Delegated work unavailable",
