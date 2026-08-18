@@ -47,12 +47,15 @@ vi.mock('react-virtuoso', () => ({
 
     return (
       <div ref={scrollerRef} data-testid="virtuoso" data-session-id={stateMocks.activeSession?.sessionId ?? ''}>
-        {props.data?.map((item: VirtualItem, index: number) => (
-          <React.Fragment key={props.computeItemKey?.(index, item) ?? item.turnId}>
-            {props.itemContent?.(index, item)}
-          </React.Fragment>
-        ))}
-        {props.components?.Footer ? <props.components.Footer /> : null}
+        {props.data?.map((item: VirtualItem, index: number) => {
+          const itemKey = props.computeItemKey?.(index, item) ?? item.turnId;
+          return (
+            <div key={itemKey} data-item-key={itemKey}>
+              {props.itemContent?.(index, item)}
+            </div>
+          );
+        })}
+        {props.components?.Footer ? <props.components.Footer context={props.context} /> : null}
       </div>
     );
   }),
@@ -164,14 +167,6 @@ const virtualMessageListSource = readFileSync(
 );
 
 describe('VirtualMessageList session boundary source contract', () => {
-  it('scopes virtual item keys by active session identity and stable item identity', () => {
-    expect(virtualMessageListSource).toContain('function getVirtualItemStableKey');
-    expect(virtualMessageListSource).toContain('function computeVirtualMessageItemKey');
-    expect(virtualMessageListSource).toContain("sessionId ?? 'no-active-session'");
-    expect(virtualMessageListSource).toContain('getVirtualItemStableKey(item)');
-    expect(virtualMessageListSource).toContain('computeItemKey={(_, item) => computeVirtualMessageItemKey(activeSessionId, item)}');
-  });
-
   it('remounts the Virtuoso viewport when the active session changes', () => {
     expect(virtualMessageListSource).toContain('const virtualListSessionKey = activeSessionId ??');
     expect(virtualMessageListSource).toContain('key={virtualListSessionKey}');
@@ -273,6 +268,54 @@ describe('VirtualMessageList session boundary behavior', () => {
     act(() => root.unmount());
     container.remove();
     vi.unstubAllGlobals();
+  });
+
+  it('scopes rendered item keys by active session and stable item identity', () => {
+    stateMocks.activeSession = createSession('session-a', 'turn-a');
+    stateMocks.virtualItems = [createItem('turn-a')];
+
+    act(() => {
+      root.render(<VirtualMessageList />);
+    });
+
+    const readItemKeys = () => Array.from(
+      container.querySelectorAll('[data-testid="virtuoso"] [data-item-key]'),
+    ).map(node => node.getAttribute('data-item-key'));
+
+    expect(readItemKeys()).toEqual(['session-a:user-message:turn-a:user-turn-a']);
+
+    stateMocks.activeSession = createSession('session-b', 'turn-a');
+    stateMocks.virtualItems = [createItem('turn-a')];
+
+    act(() => {
+      root.render(<VirtualMessageList />);
+    });
+
+    // The same turn id under a different session must not reuse the key, so the
+    // previous session's rendered item cannot survive the boundary.
+    expect(readItemKeys()).toEqual(['session-b:user-message:turn-a:user-turn-a']);
+  });
+
+  it('keeps the same item key across streaming updates of the same session', () => {
+    stateMocks.activeSession = createSession('session-a', 'turn-a');
+    stateMocks.virtualItems = [createItem('turn-a')];
+
+    act(() => {
+      root.render(<VirtualMessageList />);
+    });
+
+    const firstNode = container.querySelector('[data-testid="virtuoso"] [data-item-key]');
+
+    // A new session object with an equivalent turn is what every streamed flush
+    // produces; the item must not remount.
+    stateMocks.activeSession = createSession('session-a', 'turn-a');
+    stateMocks.virtualItems = [createItem('turn-a')];
+
+    act(() => {
+      root.render(<VirtualMessageList />);
+    });
+
+    expect(container.querySelector('[data-testid="virtuoso"] [data-item-key]')).toBe(firstNode);
   });
 
   it('does not carry stale at-bottom UI state across active sessions', () => {

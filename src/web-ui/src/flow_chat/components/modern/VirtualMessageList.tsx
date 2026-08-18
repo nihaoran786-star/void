@@ -273,6 +273,52 @@ function computeVirtualMessageItemKey(sessionId: string | null, item: VirtualIte
   return `${sessionId ?? 'no-active-session'}:${getVirtualItemStableKey(item)}`;
 }
 
+/**
+ * Virtuoso resolves `components.Header` / `components.Footer` as component
+ * types. Declaring them inline made their identity change on every render, so
+ * React remounted the footer — and with it the processing indicator and its
+ * elapsed timer — about ten times a second while streaming. They are module
+ * level now and read live values through Virtuoso's `context` prop.
+ */
+interface VirtualMessageListFooterContext {
+  footerHeightPx: number;
+  showBreathingIndicator: boolean;
+  reserveSpaceForIndicator: boolean;
+  footerElementRef: React.RefObject<HTMLDivElement>;
+}
+
+function VirtualMessageListHeader(): React.ReactElement {
+  return <div className="message-list-header" />;
+}
+
+function VirtualMessageListFooter(
+  { context }: { context?: VirtualMessageListFooterContext },
+): React.ReactElement | null {
+  if (!context) return null;
+
+  return (
+    <>
+      <ProcessingIndicator
+        visible={context.showBreathingIndicator}
+        reserveSpace={context.reserveSpaceForIndicator}
+      />
+      <div
+        ref={context.footerElementRef}
+        className="message-list-footer"
+        style={{
+          height: `${context.footerHeightPx}px`,
+          minHeight: `${context.footerHeightPx}px`,
+        }}
+      />
+    </>
+  );
+}
+
+const VIRTUAL_MESSAGE_LIST_COMPONENTS = {
+  Header: VirtualMessageListHeader,
+  Footer: VirtualMessageListFooter,
+};
+
 export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessageListProps>(({ onUserScrollIntent }, ref) => {
   const isPresentationActive = useFlowChatPresentationActive();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -2702,6 +2748,23 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     virtualItems,
   ]);
 
+  const computeStableItemKey = useCallback(
+    (_index: number, item: VirtualItem) => computeVirtualMessageItemKey(activeSessionId, item),
+    [activeSessionId],
+  );
+
+  const renderVirtualItem = useCallback(
+    (index: number, item: VirtualItem) => <VirtualItemRenderer item={item} index={index} />,
+    [],
+  );
+
+  const virtuosoFooterContext = React.useMemo<VirtualMessageListFooterContext>(() => ({
+    footerHeightPx,
+    showBreathingIndicator,
+    reserveSpaceForIndicator,
+    footerElementRef,
+  }), [footerHeightPx, reserveSpaceForIndicator, showBreathingIndicator]);
+
   // ── Render ────────────────────────────────────────────────────────────
   if (virtualItems.length === 0) {
     return (
@@ -2770,13 +2833,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
           key={virtualListSessionKey}
           ref={virtuosoRef}
           data={virtualItems}
-          computeItemKey={(_, item) => computeVirtualMessageItemKey(activeSessionId, item)}
-          itemContent={(index, item) => (
-            <VirtualItemRenderer
-              item={item}
-              index={index}
-            />
-          )}
+          computeItemKey={computeStableItemKey}
+          itemContent={renderVirtualItem}
           followOutput={false}
 
           alignToBottom={false}
@@ -2797,22 +2855,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
           scrollerRef={handleScrollerRef}
 
-          components={{
-            Header: () => <div className="message-list-header" />,
-            Footer: () => (
-              <>
-                <ProcessingIndicator visible={showBreathingIndicator} reserveSpace={reserveSpaceForIndicator} />
-                <div
-                  ref={footerElementRef}
-                  className="message-list-footer"
-                  style={{
-                    height: `${footerHeightPx}px`,
-                    minHeight: `${footerHeightPx}px`,
-                  }}
-                />
-              </>
-            ),
-          }}
+          components={VIRTUAL_MESSAGE_LIST_COMPONENTS}
+          context={virtuosoFooterContext}
         />
       )}
 
