@@ -24,6 +24,7 @@
   "page": {
     "title": "技能",
     "subtitle": "统一管理已安装技能，并从外部技能市场发现更多可复用能力。",
+    "mission": "为员工装配的可复用技能",
     "searchPlaceholder": "搜索已安装技能和市场技能..."
   },
   "runtimeUnsupported": {

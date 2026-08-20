@@ -93,6 +93,25 @@ describe('ModelThinkingDisplay disclosure', () => {
     expect(readToggle().textContent).toContain('思考过程');
   });
 
+  it('shows a raw live tail below the header only while streaming', () => {
+    act(() => {
+      root.render(
+        <ModelThinkingDisplay thinkingItem={thinkingItem('First step.\n**Second** step.', true)} />,
+      );
+    });
+
+    const tail = container.querySelector<HTMLElement>('[data-thinking-live-tail]');
+    if (!tail) throw new Error('live tail was not rendered while streaming');
+    expect(tail.textContent).toContain('**Second** step.');
+
+    act(() => {
+      root.render(
+        <ModelThinkingDisplay thinkingItem={thinkingItem('First step.\n**Second** step.')} />,
+      );
+    });
+    expect(container.querySelector('[data-thinking-live-tail]')).toBeNull();
+  });
+
   it('renders the summary as plain text without markdown markers', () => {
     act(() => {
       root.render(

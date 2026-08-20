@@ -1241,6 +1241,12 @@ $badge-info-text: $color-info;
     var(--status-error-text) 60%,
     var(--workspace-text-primary)
   );
+
+  // Staff HQ card geometry, consumed by the mixins in
+  // component-library/styles/staff-hq.scss.
+  --hq-card-height-person: 168px;
+  --hq-card-height-utility: 132px;
+  --hq-avatar-lg: 44px;
 }
 
 :root[data-theme="void-midnight"] .void-ui--minimal {

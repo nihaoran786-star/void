@@ -8,13 +8,13 @@
 @keyframes defaultToolConfirmationPulse {
   0%, 100% {
     box-shadow:
-      0 0 0 1px rgba(245, 158, 11, 0.14),
-      0 0 12px rgba(245, 158, 11, 0.16);
+      0 0 0 1px color-mix(in srgb, var(--color-warning) 14%, transparent),
+      0 0 12px color-mix(in srgb, var(--color-warning) 16%, transparent);
   }
   50% {
     box-shadow:
-      0 0 0 2px rgba(245, 158, 11, 0.2),
-      0 0 16px rgba(245, 158, 11, 0.22);
+      0 0 0 2px color-mix(in srgb, var(--color-warning) 20%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-warning) 22%, transparent);
   }
 }
 
@@ -117,7 +117,7 @@
     margin: 0;
     padding: var(--flowchat-code-block-pad-y, 0.55rem) var(--flowchat-code-block-pad-x, 0.75rem);
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
+    border-radius: var(--tool-card-radius, 8px);
     background: var(--color-bg-secondary);
     color: var(--color-text-primary);
     font-family: var(--tool-card-font-mono);
@@ -131,9 +131,9 @@
 
   .default-tool-card__error-message {
     padding: var(--flowchat-card-pad-y, 0.625rem) var(--flowchat-card-pad-x, 0.75rem);
-    border: 1px solid rgba(239, 68, 68, 0.24);
-    border-radius: 8px;
-    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid color-mix(in srgb, var(--color-error) 24%, transparent);
+    border-radius: var(--tool-card-radius, 8px);
+    background: color-mix(in srgb, var(--color-error) 8%, transparent);
     color: var(--color-error);
     font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
     line-height: var(--flowchat-support-line-height, 1.45);
@@ -150,12 +150,15 @@
   .default-tool-card__button {
     appearance: none;
     border: 1px solid var(--border-base);
-    border-radius: 8px;
+    border-radius: var(--tool-card-radius, 8px);
     padding: var(--flowchat-control-pad-y, 0.35rem) var(--flowchat-control-pad-x, 0.75rem);
     font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition:
+      background-color var(--tool-card-motion),
+      border-color var(--tool-card-motion),
+      color var(--tool-card-motion);
   }
 
   .default-tool-card__button:disabled {
@@ -164,14 +167,14 @@
   }
 
   .default-tool-card__button--confirm {
-    background: rgba(34, 197, 94, 0.12);
-    border-color: rgba(34, 197, 94, 0.26);
+    background: color-mix(in srgb, var(--color-success) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 26%, transparent);
     color: #86efac;
   }
 
   .default-tool-card__button--confirm:hover:not(:disabled) {
-    background: rgba(34, 197, 94, 0.18);
-    border-color: rgba(34, 197, 94, 0.4);
+    background: color-mix(in srgb, var(--color-success) 18%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
   }
 
   .default-tool-card__button--reject {
@@ -186,11 +189,11 @@
 
   &.requires-confirmation {
     .compact-tool-card {
-      border-radius: 8px;
-      background: rgba(245, 158, 11, 0.05) !important;
+      border-radius: var(--tool-card-radius, 8px);
+      background: color-mix(in srgb, var(--color-warning) 5%, transparent) !important;
       box-shadow:
-        inset 0 0 0 1px rgba(245, 158, 11, 0.18),
-        0 0 0 1px rgba(245, 158, 11, 0.1);
+        inset 0 0 0 1px color-mix(in srgb, var(--color-warning) 18%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--color-warning) 10%, transparent);
       animation: defaultToolConfirmationPulse 2s ease-in-out infinite;
     }
 
@@ -198,5 +201,11 @@
     .compact-card-right-icon {
       color: var(--color-warning, #f59e0b);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .default-tool-card.requires-confirmation .compact-tool-card {
+    animation: none;
   }
 }

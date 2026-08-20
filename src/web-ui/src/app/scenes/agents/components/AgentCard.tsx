@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AgentWithCapabilities } from '../agentsStore';
+import { getAgentDescription, getCapabilityLabel } from '../utils';
 import AgentAvatar from './AgentAvatar';
 import './AgentCard.scss';
 
@@ -36,6 +37,10 @@ const AgentCard: React.FC<AgentCardProps> = ({
       ? t('filters.project')
       : t('filters.builtin');
   const roleLabel = t('agentCard.roles.specialist');
+  const summary = getAgentDescription(t, agent);
+  const tagLabels = (agent.capabilities ?? [])
+    .slice(0, 3)
+    .map(cap => getCapabilityLabel(t, cap.category));
   const openDetails = () => onOpenDetails(agent);
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -71,18 +76,30 @@ const AgentCard: React.FC<AgentCardProps> = ({
         <span aria-hidden="true">·</span>
         {sourceLabel}
       </p>
-      <p className="agent-card__status">
-        {dispatching ? (
-          <span className="agent-card__status-running">
-            <span className="agent-card__status-dot" aria-hidden="true" />
-            {t('agentCard.status.running')}
+      {summary ? (
+        <p className="agent-card__summary" title={summary}>{summary}</p>
+      ) : null}
+      <div className="agent-card__foot">
+        <p className="agent-card__status">
+          {dispatching ? (
+            <span className="agent-card__status-running">
+              <span className="agent-card__status-dot" aria-hidden="true" />
+              {t('agentCard.status.running')}
+            </span>
+          ) : (
+            <span className="agent-card__status-idle">
+              {t('agentCard.status.idle')}
+            </span>
+          )}
+        </p>
+        {tagLabels.length > 0 ? (
+          <span className="agent-card__tags">
+            {tagLabels.map(label => (
+              <span key={label} className="agent-card__tag">{label}</span>
+            ))}
           </span>
-        ) : (
-          <span className="agent-card__status-idle">
-            {t('agentCard.status.idle')}
-          </span>
-        )}
-      </p>
+        ) : null}
+      </div>
 
       <div className="agent-card__actions">
         {onDispatch ? (
@@ -105,8 +122,8 @@ const AgentCard: React.FC<AgentCardProps> = ({
             <span>{t('agentCard.actions.dispatchTask')}</span>
           </button>
         ) : null}
-        <span className="agent-card__view">
-          {t('agentCard.actions.view')}
+        <span className="agent-card__view" title={t('agentCard.actions.view')}>
+          <span className="agent-card__view-label">{t('agentCard.actions.view')}</span>
           <ChevronRight size={12} aria-hidden="true" />
         </span>
       </div>

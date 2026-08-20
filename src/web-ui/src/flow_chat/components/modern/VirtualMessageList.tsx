@@ -2012,14 +2012,6 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       scrollToLatestEndPositionInternal('smooth');
     },
     performAutoFollowScroll: performAutoFollowSync,
-    performLatestTurnStickyPin: () => {
-      if (latestTurnId) {
-        requestTurnPinToTop(latestTurnId, {
-          behavior: 'auto',
-          pinMode: 'sticky-latest',
-        });
-      }
-    },
     shouldSuspendAutoFollow,
     // Subtract the bottom-reservation footer so the follow controller treats
     // synthetic footer space as "already at the bottom". Without this, the
@@ -2132,6 +2124,12 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     virtualItems.length,
   ]);
 
+  // Legacy armed-follow activation fallback. New turns now enter follow
+  // immediately inside `armFollowOutputForNewTurn` (bottom-pinned streaming),
+  // so this effect early-returns while follow is active and no sticky-latest
+  // pin floor is created for new turns anymore. It only fires in the residual
+  // case where the arm is still pending, follow is inactive, and a
+  // sticky-latest pin reservation for the latest turn drains to zero.
   useEffect(() => {
     if (!isPresentationActive) return;
     const trackingState = latestTurnAutoFollowStateRef.current;
@@ -2299,6 +2297,20 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   ]);
 
   const pinTurnToTop = useCallback((turnId: string, options?: { behavior?: ScrollBehavior; pinMode?: FlowChatPinTurnToTopMode }) => {
+    // New turns now enter bottom-follow immediately (see
+    // `armFollowOutputForNewTurn`), so a sticky-latest pin of the latest turn
+    // while follow is active would fight the continuous follow loop: the pin
+    // alignment pulls the turn's top to the viewport top while the loop pushes
+    // scrollTop back to the tail. Follow is the single authority for the live
+    // tail; treat the pin request as handled without moving the viewport.
+    if (
+      options?.pinMode === 'sticky-latest' &&
+      turnId === latestTurnId &&
+      isFollowingOutputRef.current
+    ) {
+      return true;
+    }
+
     const shouldExitFollowOutput = !(
       options?.pinMode === 'sticky-latest' &&
       turnId === latestTurnId

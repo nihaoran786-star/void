@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/customization-market' as market;
+@use '../../../component-library/styles/staff-hq' as hq;
 
 // Minimal-only projection of the approved directory language:
 // one top bar (title + count, filter pills, spacer, search, one action) over a
@@ -78,69 +79,51 @@
       font-size: var(--workspace-font-size-meta);
     }
 
-    // ── Card ─────────────────────────────────────────────────────────────────
+    // ── Card — the one Staff HQ utility card (SkillCard) ─────────────────────
 
-    .skills-card,
     .skill-card {
-      position: relative;
-      box-sizing: border-box;
+      @include hq.hq-card(var(--hq-card-height-utility, 132px));
+
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
       gap: 0;
       width: 100%;
-      height: 132px;
-      min-height: 132px;
       padding: var(--workspace-space-3) var(--workspace-space-2)
         var(--workspace-space-2);
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-panel);
-      background: var(--workspace-surface-panel);
+      overflow: hidden;
       text-align: center;
       animation: none;
       box-shadow: none;
-      transform: none;
-      transition:
-        transform var(--workspace-motion-fast) var(--workspace-easing-standard),
-        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
       &::before {
         content: none;
       }
 
       &:hover {
-        border-color: var(--workspace-border-strong);
         background: var(--workspace-surface-panel);
-        box-shadow: none;
-        transform: translateY(-3px);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
         box-shadow: none;
       }
     }
 
     // Overridden skills stay legible but visibly out of service.
-    .skills-card.is-shadowed {
+    .skill-card.is-shadowed {
       opacity: 0.65;
       background: var(--workspace-surface-panel);
     }
 
-    .skills-card__avatar,
     .skill-card__avatar {
       flex: 0 0 auto;
-      width: 26px;
-      height: 26px;
+      width: 36px;
+      height: 36px;
       border: 0;
       background: transparent;
       box-shadow: none;
     }
 
-    .skills-card__name,
     .skill-card__name {
+      flex: none;
       max-width: 100%;
       margin: var(--workspace-space-2) 0 2px;
       color: var(--workspace-text-primary);
@@ -152,7 +135,6 @@
       text-overflow: ellipsis;
     }
 
-    .skills-card__desc,
     .skill-card__desc {
       display: -webkit-box;
       max-width: 100%;
@@ -162,29 +144,19 @@
       line-height: var(--workspace-line-height-meta);
       opacity: 1;
       -webkit-box-orient: vertical;
-      -webkit-line-clamp: 1;
-      line-clamp: 1;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
       overflow: hidden;
     }
 
-    .skills-card__status {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--workspace-space-1);
-      margin: var(--workspace-space-2) 0 0;
-      font-size: var(--workspace-font-size-meta);
-      line-height: 1.3;
+    // Status is ink, never a pill; tones come from the shared mixin.
+    .skill-card__status {
+      @include hq.hq-status-ink;
+
+      margin: var(--workspace-space-1) 0 0;
     }
 
-    .skills-card__status-state {
-      color: var(--workspace-status-success-text);
-    }
-
-    .skills-card.is-shadowed .skills-card__status-state {
-      color: var(--workspace-text-muted);
-    }
-
-    .skills-card__status-origin {
+    .skill-card__status-origin {
       color: var(--workspace-text-muted);
 
       &::before {
@@ -195,109 +167,86 @@
 
     // ── Operations surface on hover in the card's top-right corner ────────────
 
-    .skills-card__actions,
     .skill-card__footer {
-      position: absolute;
-      top: var(--workspace-space-1);
-      right: var(--workspace-space-1);
-      display: flex;
-      align-items: center;
-      gap: var(--workspace-space-1);
+      @include hq.hq-card-corner-actions;
+
       min-height: 0;
       margin: 0;
       padding: 0;
       border: 0;
       background: transparent;
-      opacity: 0;
-      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
 
       &::after {
         content: none;
       }
+
+      .skill-card__detail-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--workspace-space-1);
+        width: auto;
+        min-width: 0;
+        height: 24px;
+        min-height: 24px;
+        padding-inline: var(--workspace-space-2);
+        border: 1px solid var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+        background: var(--workspace-surface-panel);
+        color: var(--workspace-text-secondary);
+        font-family: var(--workspace-font-family);
+        font-size: var(--workspace-font-size-meta);
+        letter-spacing: 0;
+
+        &:hover {
+          border-color: var(--workspace-border-strong);
+          background: var(--workspace-surface-panel);
+          color: var(--workspace-text-primary);
+        }
+      }
+
+      .skill-card__action-btn {
+        flex: 0 0 auto;
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        min-height: 24px;
+        border: 1px solid var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+        background: var(--workspace-surface-panel);
+        color: var(--workspace-text-muted);
+
+        &:not(:disabled):hover {
+          border-color: var(--workspace-border-strong);
+          background: var(--workspace-surface-panel);
+          color: var(--workspace-text-primary);
+        }
+      }
+
+      .skill-card__action-btn--success:not(:disabled):hover {
+        color: var(--workspace-status-success-text);
+      }
+
+      .skill-card__action-btn--danger:not(:disabled):hover {
+        border-color: var(--workspace-status-error-border);
+        color: var(--workspace-status-error-text);
+      }
     }
 
-    .skills-card:hover .skills-card__actions,
-    .skills-card:focus-within .skills-card__actions,
-    .skill-card:hover .skill-card__footer,
-    .skill-card:focus-within .skill-card__footer {
+    // Pointer reveal is the card's side of the corner-actions contract.
+    .skill-card:hover .skill-card__footer {
       opacity: 1;
     }
 
-    .skills-card__detail,
-    .skill-card__detail-btn {
+    .skill-card__actions {
       display: inline-flex;
       align-items: center;
-      gap: var(--workspace-space-1);
-      width: auto;
-      min-width: 0;
-      height: 24px;
-      min-height: 24px;
-      padding-inline: var(--workspace-space-2);
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-secondary);
-      font-family: var(--workspace-font-family);
-      font-size: var(--workspace-font-size-meta);
-      letter-spacing: 0;
-
-      &:hover {
-        border-color: var(--workspace-border-strong);
-        background: var(--workspace-surface-panel);
-        color: var(--workspace-text-primary);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-      }
-    }
-
-    .skills-card__edit,
-    .skills-card__delete,
-    .skill-card__action-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      gap: 2px;
       flex: 0 0 auto;
-      width: 24px;
-      min-width: 24px;
-      height: 24px;
-      min-height: 24px;
-      padding: 0;
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-muted);
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
-      }
+      position: static;
     }
 
-    .skills-card__edit:hover,
-    .skill-card__action-btn:not(:disabled):hover {
-      border-color: var(--workspace-border-strong);
-      color: var(--workspace-text-primary);
-    }
-
-    .skills-card__delete:hover {
-      border-color: var(--workspace-status-error-border);
-      color: var(--workspace-status-error-text);
-    }
-
-    .skill-card__action-btn--success:not(:disabled):hover {
-      color: var(--workspace-status-success-text);
-    }
-
-    .skill-card__action-btn--danger:not(:disabled):hover {
-      color: var(--workspace-status-error-text);
-    }
-
-    // Market cards keep the component's own header/body wrappers; flatten them
-    // into the same centred three-line rhythm.
+    // The component keeps its header/body wrappers for the classic projection;
+    // flatten them into the same centred rhythm here.
     .skill-card__header {
       display: flex;
       flex-direction: column;
@@ -361,8 +310,8 @@
     .skills-card-skeleton,
     .skills-discover__skeleton-card {
       box-sizing: border-box;
-      height: 132px;
-      min-height: 132px;
+      height: var(--hq-card-height-utility, 132px);
+      min-height: var(--hq-card-height-utility, 132px);
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);
@@ -376,43 +325,14 @@
       font-size: var(--workspace-font-size-label);
     }
 
-    .skills-installed__pagination,
-    .skills-discover__pagination {
+    // The shared CatalogPagination brings its own control styling; the scene
+    // only seats it on the content frame and pins it to the block end.
+    .catalog-pagination {
       @include market.content-frame;
-      @include market.pagination;
 
+      flex-shrink: 0;
       margin-top: auto;
       padding: var(--workspace-space-2) 0 var(--workspace-space-3);
-      border: 0;
-      background: transparent;
-    }
-
-    .skills-installed__page-btn,
-    .skills-discover__page-btn {
-      width: var(--workspace-icon-target);
-      height: var(--workspace-icon-target);
-      border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-secondary);
-
-      &:not(:disabled):hover {
-        border-color: var(--workspace-border-strong);
-        background: var(--workspace-surface-hover);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
-      }
-    }
-
-    .skills-installed__page-info,
-    .skills-discover__page-info {
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
-      font-variant-numeric: tabular-nums;
     }
 
     // ── Suite view (out of the directory redesign scope) ──────────────────────
@@ -619,7 +539,6 @@
 
   @media (hover: none) {
     .void-ui--minimal .void-skills-scene {
-      .skills-card__actions,
       .skill-card__footer {
         opacity: 1;
       }
@@ -628,9 +547,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .void-skills-scene {
-      .skills-card,
       .skill-card,
-      .skills-card__actions,
       .skill-card__footer,
       .skills-card-skeleton,
       .skills-discover__skeleton-card,
@@ -640,7 +557,6 @@
         transition: none;
       }
 
-      .skills-card:hover,
       .skill-card:hover {
         transform: none;
       }

@@ -3,28 +3,18 @@
  */
 
 .processing-indicator {
-  width: 100%;
-  max-width: 1200px; /* Relaxed max width for larger screens */
+  /*
+   * Shared reading measure: same width formula as the transcript column, so
+   * the live footer keeps the left edge of restored rounds. The 900px fallback
+   * covers the classic presentation, where the minimal-only workspace tokens
+   * are not defined.
+   */
+  width: min(var(--workspace-content-max, 900px), calc(100% - 32px));
+  max-width: none;
   /* Keep below the Virtuoso footer spacer; tight margin avoids a tall “dead” band above the input. */
   margin: 0 auto 0.35rem auto;
-  padding: 0 3rem;
+  padding-inline: 0;
   box-sizing: border-box;
-
-  // Responsive: large screens
-  @media (max-width: 1400px) {
-    max-width: 1000px;
-  }
-
-  // Responsive: medium screens
-  @media (max-width: 1200px) {
-    max-width: 900px;
-  }
-
-  // Responsive: small screens
-  @media (max-width: 768px) {
-    max-width: 100%;
-    padding: 0 1.5rem;
-  }
 }
 
 .processing-indicator__content {

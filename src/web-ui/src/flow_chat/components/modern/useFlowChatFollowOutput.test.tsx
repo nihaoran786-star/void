@@ -43,7 +43,6 @@ function Harness({
     scrollerRef,
     performUserFollowScroll: vi.fn(),
     performAutoFollowScroll,
-    performLatestTurnStickyPin: vi.fn(),
   });
 
   onController(controller);
@@ -150,7 +149,7 @@ describe('useFlowChatFollowOutput', () => {
     expect(controller?.isFollowingOutput).toBe(false);
   });
 
-  it('cancels armed auto-follow when upward intent arrives during the programmatic guard', () => {
+  it('enters bottom-follow immediately for a new turn and still exits on upward intent', () => {
     const scroller = document.createElement('div');
     setScrollerMetrics(scroller, {
       scrollHeight: 1500,
@@ -177,11 +176,16 @@ describe('useFlowChatFollowOutput', () => {
       controller?.armFollowOutputForNewTurn();
     });
 
-    expect(controller?.isFollowingOutput).toBe(false);
+    // New turn contract: follow activates immediately and the viewport snaps
+    // to the latest end position (no sticky pin-to-top phase anymore).
+    expect(controller?.isFollowingOutput).toBe(true);
+    expect(performAutoFollowScroll).toHaveBeenCalled();
 
     act(() => {
       controller?.handleUserScrollIntent();
     });
+
+    expect(controller?.isFollowingOutput).toBe(false);
 
     let activated = true;
     act(() => {

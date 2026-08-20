@@ -19,7 +19,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   padding: var(--size-gap-3) var(--size-gap-4);
   z-index: var(--z-overlay);
-  transition: all var(--motion-normal) var(--easing-standard);
+  transition: all var(--motion-base) var(--easing-standard);
   opacity: 0.6; /* Overall opacity when inactive */
   display: flex;
   align-items: center;
@@ -101,7 +101,7 @@
 .floating-input-base:focus-within .floating-input-wrapper {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: var(--size-radius-md);
+  border-radius: var(--size-radius-base);
   padding: var(--size-gap-2);
 }
 

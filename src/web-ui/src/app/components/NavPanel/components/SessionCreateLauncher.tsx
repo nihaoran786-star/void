@@ -105,7 +105,7 @@ export const SessionCreateLauncher: React.FC<SessionCreateLauncherProps> = ({
             onClick={onCreate}
             aria-label={groupLabel}
           >
-            <NavTechPlusIcon size={14} className="void-nav-panel__session-create-tech-icon" />
+            <NavTechPlusIcon size={15} className="void-nav-panel__session-create-tech-icon" />
             <span className="void-nav-panel__session-create-action-text">
               {groupLabel}
             </span>

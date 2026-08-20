@@ -1,0 +1,180 @@
+// Shared presentation contract for the AI Staff HQ card layer.
+// Mixin-only partial, like customization-market.scss: scene minimal overlays
+// pull these in with `@use '../../../component-library/styles/staff-hq' as hq;`
+// and this file emits no CSS of its own. Everything reads workspace tokens, so
+// it only takes effect inside `.void-ui--minimal` scopes; the card geometry
+// custom properties (--hq-card-height-person / --hq-card-height-utility /
+// --hq-avatar-lg) are published on `.void-ui--minimal` in tokens.scss.
+
+// Card shell: panel surface, hairline border, lift-on-hover, visible focus ring.
+@mixin hq-card($height: var(--hq-card-height-person, 168px)) {
+  box-sizing: border-box;
+  position: relative;
+  min-width: 0;
+  height: $height;
+  min-height: $height;
+  border: 1px solid var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-panel);
+  background: var(--workspace-surface-panel);
+  transition:
+    transform var(--workspace-motion-fast) var(--workspace-easing-standard),
+    border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+    background-color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+  &:hover {
+    border-color: var(--workspace-border-strong);
+    transform: translateY(-3px);
+  }
+
+  &:focus-visible,
+  &:focus-within {
+    outline: 2px solid var(--workspace-focus-ring);
+    outline-offset: -2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+// Top-right action cluster of 28px icon buttons; hidden until hovered or
+// focused. Keyboard focus reveals it here; the pointer reveal is the card's
+// side of the contract: `.your-card:hover .your-actions { opacity: 1; }`.
+@mixin hq-card-corner-actions {
+  position: absolute;
+  top: var(--workspace-space-2);
+  right: var(--workspace-space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+  &:hover,
+  &:focus-within {
+    opacity: 1;
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    color: var(--workspace-text-muted);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--workspace-surface-hover);
+      color: var(--workspace-text-primary);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: -2px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+// Status as ink, never a pill: a small dot plus quiet text, toned with
+// `.is-success` / `.is-warning` / `.is-error` / `.is-muted` modifiers.
+@mixin hq-status-ink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--workspace-space-1);
+  color: var(--workspace-text-muted);
+  font-size: var(--workspace-font-size-meta);
+  line-height: var(--workspace-line-height-meta);
+
+  &::before {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    content: '';
+  }
+
+  &.is-success {
+    color: var(--workspace-status-success-text);
+  }
+
+  &.is-warning {
+    color: var(--workspace-status-warning-text);
+  }
+
+  &.is-error {
+    color: var(--workspace-status-error-text);
+  }
+
+  &.is-muted {
+    color: var(--workspace-text-muted);
+  }
+}
+
+// Quiet capability tag: meta type inside a subtle hairline, control radius.
+@mixin hq-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-control);
+  background: transparent;
+  color: var(--workspace-text-muted);
+  font-size: var(--workspace-font-size-meta);
+  line-height: var(--workspace-line-height-meta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Horizontal strip of 16px overlapping member circles ringed in panel surface;
+// a trailing `.is-overflow` child renders the "+N" remainder in meta ink.
+@mixin hq-member-orb-strip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+
+  > :not(.is-overflow) {
+    box-sizing: border-box;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--workspace-surface-panel);
+    border-radius: 50%;
+    background: var(--workspace-surface-hover);
+    object-fit: cover;
+  }
+
+  > :not(.is-overflow) + :not(.is-overflow) {
+    margin-left: -5px;
+  }
+
+  > .is-overflow {
+    flex: none;
+    margin-left: var(--workspace-space-1);
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--workspace-line-height-meta);
+    white-space: nowrap;
+  }
+}

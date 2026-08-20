@@ -139,11 +139,10 @@ vi.mock('./hooks/useSkillMarket', () => ({
 }));
 
 vi.mock('./components/SkillAuthoringPage', () => ({ default: () => null }));
-vi.mock('./components/SkillCard', () => ({ default: () => null }));
 vi.mock('./components/SkillsSuiteView', () => ({ default: () => null }));
-vi.mock('./components/SkillCatalogAvatar', () => ({
-  default: () => <span data-testid="skill-glyph" />,
-}));
+// SkillCard and its glyph avatar are the one card shared by the installed and
+// market grids — the per-card assertions below run against the real components
+// so a regression in either is caught here rather than hidden by a stand-in.
 
 vi.mock('./skillsSceneStore', () => ({
   useSkillsSceneStore: () => ({
@@ -253,7 +252,7 @@ describeWithJsdom('SkillsScene directory presentation', () => {
     expect(cards).toHaveLength(2);
 
     for (const card of cards) {
-      expect(card.querySelector('[data-testid="skill-glyph"]')).toBeTruthy();
+      expect(card.querySelector('.skill-glyph')).toBeTruthy();
       expect(card.getAttribute('data-state')).toBeTruthy();
     }
 

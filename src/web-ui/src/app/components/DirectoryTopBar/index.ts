@@ -3,5 +3,6 @@ export type {
   DirectoryChip,
   DirectoryChipGroup,
   DirectoryPrimaryAction,
+  DirectoryStat,
   DirectoryTopBarProps,
 } from './DirectoryTopBar';

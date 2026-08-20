@@ -370,111 +370,9 @@
 }
 
 // ── Card ──
+// The one card component (SkillCard, `.skill-card`) is shared by the installed
+// and market grids; its classic projection lives in SkillCard.scss.
 
-.skills-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  padding: 18px 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-lg;
-  background: var(--color-bg-secondary);
-  text-align: center;
-  animation: skills-card-in 0.18s $easing-decelerate both;
-  animation-delay: calc(var(--card-index, 0) * 30ms);
-  transition:
-    border-color $motion-fast $easing-standard,
-    transform $motion-fast $easing-standard;
-
-  &:hover {
-    border-color: var(--border-medium);
-    transform: translateY(-3px);
-  }
-
-  &.is-shadowed {
-    opacity: 0.65;
-  }
-}
-
-.skills-card__name {
-  margin: 10px 0 2px;
-  font-size: var(--font-size-sm);
-  font-weight: $font-weight-medium;
-  color: var(--color-text-primary);
-  line-height: $line-height-tight;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.skills-card__desc {
-  margin: 0;
-  font-size: var(--font-size-xxs);
-  color: var(--color-text-muted);
-  line-height: $line-height-relaxed;
-  max-width: 100%;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  overflow: hidden;
-}
-
-.skills-card__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin: 7px 0 0;
-  font-size: var(--font-size-xxs);
-  line-height: 1.3;
-  color: var(--color-text-muted);
-}
-
-.skills-card__status-state {
-  color: var(--status-success-text);
-
-  .skills-card.is-shadowed & {
-    color: var(--color-text-muted);
-  }
-}
-
-.skills-card__status-origin {
-  color: var(--color-text-muted);
-
-  &::before {
-    content: '·';
-    margin-right: 5px;
-  }
-}
-
-// Operations live in the card's top-right corner and surface on hover/focus.
-.skills-card__actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity $motion-fast $easing-standard;
-}
-
-.skills-card:hover .skills-card__actions,
-.skills-card:focus-within .skills-card__actions {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .skills-card__actions {
-    opacity: 1;
-  }
-}
-
-.skills-card__delete,
-.skills-card__edit,
 .skills-main__retry {
   display: inline-flex;
   align-items: center;
@@ -489,34 +387,6 @@
   transition:
     background $motion-fast $easing-standard,
     color $motion-fast $easing-standard;
-
-  &:focus-visible {
-    outline: 2px solid var(--color-accent-500);
-    outline-offset: 1px;
-  }
-}
-
-.skills-card__detail {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 24px;
-  padding: 0 9px;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
-  background: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xxs);
-  cursor: pointer;
-  transition:
-    background $motion-fast $easing-standard,
-    border-color $motion-fast $easing-standard,
-    color $motion-fast $easing-standard;
-
-  &:hover {
-    border-color: var(--border-medium);
-    color: var(--color-text-primary);
-  }
 
   &:focus-visible {
     outline: 2px solid var(--color-accent-500);
@@ -564,22 +434,6 @@
   text-align: center;
 }
 
-.skills-card__edit:hover {
-  background: var(--element-bg-medium);
-  color: var(--color-text-primary);
-}
-
-.skills-card__delete {
-  &:hover {
-    background: color-mix(in srgb, var(--color-error) 10%, var(--element-bg-medium));
-    color: var(--color-error);
-  }
-
-  &:focus-visible {
-    outline-color: var(--color-error);
-  }
-}
-
 // ══════════════════════════════════════════════════════════════════════════════
 // Skeleton
 // ══════════════════════════════════════════════════════════════════════════════
@@ -601,50 +455,14 @@
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Pagination
+// Pagination — the shared CatalogPagination component brings its own styles;
+// the scene only positions it.
 // ══════════════════════════════════════════════════════════════════════════════
 
-.skills-installed__pagination,
-.skills-discover__pagination {
+.skills-main > .catalog-pagination,
+.skills-discover__content > .catalog-pagination {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 16px 0 8px;
-}
-
-.skills-installed__page-btn,
-.skills-discover__page-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border-medium);
-  border-radius: $size-radius-base;
-  background: var(--element-bg-soft);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: background $motion-fast $easing-standard, color $motion-fast $easing-standard;
-
-  &:hover:not(:disabled) {
-    background: var(--element-bg-medium);
-    color: var(--color-text-primary);
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
-.skills-installed__page-info,
-.skills-discover__page-info {
-  min-width: 60px;
-  text-align: center;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  padding: 12px 0 8px;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -965,9 +783,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skills-card,
-  .skills-card-skeleton,
-  .skills-card__actions {
+  .skills-card-skeleton {
     animation: none;
     transition: none;
   }
@@ -1009,7 +825,6 @@
     padding: var(--workspace-space-2) var(--workspace-space-4) 0;
   }
 
-  .skills-card,
   .skills-card-skeleton,
   .skill-card,
   .skills-discover__skeleton-card {
@@ -1019,13 +834,11 @@
     contain-intrinsic-block-size: 168px;
   }
 
-  .skills-card,
   .skill-card {
     border-color: var(--workspace-border-subtle);
     background: var(--workspace-surface-panel);
   }
 
-  .skills-card__avatar,
   .skill-card__avatar {
     width: 36px;
     height: 36px;
@@ -1084,8 +897,7 @@
     line-clamp: 2;
   }
 
-  .skills-installed__pagination,
-  .skills-discover__pagination {
+  .catalog-pagination {
     flex: 0 0 auto;
     margin-top: auto;
     padding: var(--workspace-space-2) var(--workspace-space-4)

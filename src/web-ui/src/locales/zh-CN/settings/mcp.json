@@ -114,6 +114,7 @@
   },
   "catalog": {
     "title": "连接器",
+    "mission": "连接外部系统的通道",
     "chips": {
       "installed": "已安装",
       "market": "市场"

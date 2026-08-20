@@ -1,12 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Egg, Settings, Star, Wrench, BarChart2 } from 'lucide-react';
 import {
-  GalleryLayout,
-  GalleryPageHeader,
-  GalleryZone,
+  BarChart2,
+  Bot,
+  ChevronRight,
+  MessageSquarePlus,
+  Settings,
+  Star,
+  Wrench,
+} from 'lucide-react';
+import {
+  DirectoryTopBar,
+  GalleryEmpty,
   GalleryGrid,
+  GalleryLayout,
+  GalleryZone,
 } from '@/app/components';
+import { Badge, Button, confirmDanger } from '@/component-library';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { useApp } from '@/app/hooks/useApp';
 import { useSceneStore } from '@/app/stores/sceneStore';
@@ -17,13 +27,9 @@ import { configManager } from '@/infrastructure/config/services/ConfigManager';
 import type { AIModelConfig } from '@/infrastructure/config/types';
 import { createLogger } from '@/shared/utils/logger';
 import AssistantCard from './AssistantCard';
+import AssistantQuickInput from './AssistantQuickInput';
 import { useNurseryStore } from '../nurseryStore';
 import { estimateTokens, formatTokenCount } from './useTokenEstimate';
-
-interface DeleteConfirmState {
-  workspaceId: string;
-  name: string;
-}
 
 const log = createLogger('NurseryGallery');
 
@@ -33,15 +39,19 @@ interface TemplateStats {
   enabledToolCount: number;
 }
 
+/**
+ * Staff HQ presentation of the assistant gallery:
+ * chief assistant hero + person-card grid + one quiet foundation row.
+ */
 const NurseryGallery: React.FC = () => {
   const { t } = useTranslation('scenes/profile');
+  const { t: tAgents } = useTranslation('scenes/agents');
   const { assistantWorkspacesList, createAssistantWorkspace, setActiveWorkspace, deleteAssistantWorkspace } = useWorkspaceContext();
   const openScene = useSceneStore(s => s.openScene);
   const { switchLeftPanelTab } = useApp();
   const { openTemplate, openAssistant } = useNurseryStore();
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
   const [templateStats, setTemplateStats] = useState<TemplateStats | null>(null);
 
   useEffect(() => {
@@ -91,37 +101,39 @@ const NurseryGallery: React.FC = () => {
     }
   }, [creating, createAssistantWorkspace, openAssistant]);
 
-  const sortedAssistantWorkspacesList = useMemo(
-    () => {
-      const primary = assistantWorkspacesList.filter(w => !w.assistantId);
-      const secondary = assistantWorkspacesList.filter(w => w.assistantId);
-      return [...primary, ...secondary];
-    },
-    [assistantWorkspacesList]
+  // Primary assistant (no assistantId) fronts the page; the rest fill the grid.
+  const primaryWorkspace = useMemo(
+    () => assistantWorkspacesList.find(w => !w.assistantId) ?? null,
+    [assistantWorkspacesList],
   );
 
-  const handleDeleteRequest = useCallback((workspace: WorkspaceInfo) => {
+  const secondaryWorkspaces = useMemo(
+    () => assistantWorkspacesList.filter(w => w.assistantId),
+    [assistantWorkspacesList],
+  );
+
+  const handleDeleteRequest = useCallback(async (workspace: WorkspaceInfo) => {
+    if (deleting) return;
     const identity = workspace.identity;
     const name = identity?.name?.trim() || workspace.name || t('nursery.card.unnamed');
-    setDeleteConfirm({ workspaceId: workspace.id, name });
-  }, [t]);
-
-  const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteConfirm || deleting) return;
+    const ok = await confirmDanger(
+      t('nursery.card.deleteConfirmTitle'),
+      t('nursery.card.deleteConfirmMessage', { name }),
+      {
+        confirmText: t('nursery.card.deleteConfirm'),
+        cancelText: t('nursery.card.deleteCancel'),
+      },
+    );
+    if (!ok) return;
     setDeleting(true);
     try {
-      await deleteAssistantWorkspace(deleteConfirm.workspaceId);
+      await deleteAssistantWorkspace(workspace.id);
     } catch (e) {
       log.error('Failed to delete assistant workspace', e);
     } finally {
       setDeleting(false);
-      setDeleteConfirm(null);
     }
-  }, [deleteConfirm, deleting, deleteAssistantWorkspace]);
-
-  const handleDeleteCancel = useCallback(() => {
-    setDeleteConfirm(null);
-  }, []);
+  }, [deleting, deleteAssistantWorkspace, t]);
 
   const handleNewAssistantSession = useCallback(
     async (workspace: WorkspaceInfo) => {
@@ -137,149 +149,146 @@ const NurseryGallery: React.FC = () => {
     [openScene, setActiveWorkspace, switchLeftPanelTab],
   );
 
+  const renderHero = (workspace: WorkspaceInfo) => {
+    const identity = workspace.identity;
+    const name = identity?.name?.trim() || workspace.name || t('nursery.card.unnamed');
+    const emoji = identity?.emoji?.trim() ?? '';
+    const creature = identity?.creature?.trim() || '';
+    const modelPrimary = identity?.modelPrimary?.trim() || '';
+    const modelFast = identity?.modelFast?.trim() || '';
+
+    return (
+      <section className="assistant-hq-hero" aria-label={name}>
+        <div className="assistant-hq-hero__head">
+          <div className="assistant-hq-hero__avatar" aria-hidden>
+            {emoji ? (
+              <span className="assistant-hq-hero__emoji">{emoji}</span>
+            ) : (
+              <Bot className="assistant-hq-hero__avatar-icon" size={26} strokeWidth={1.5} />
+            )}
+          </div>
+          <div className="assistant-hq-hero__id">
+            <div className="assistant-hq-hero__name-row">
+              <span className="assistant-hq-hero__name">{name}</span>
+              <span className="assistant-hq-hero__badge">{t('nursery.card.primaryBadge')}</span>
+            </div>
+            <div className="assistant-hq-hero__chips">
+              {creature && <Badge variant="neutral">{creature}</Badge>}
+              {modelPrimary && <Badge variant="accent">{modelPrimary}</Badge>}
+              {modelFast && modelFast !== modelPrimary && <Badge variant="neutral">{modelFast}</Badge>}
+            </div>
+          </div>
+          <div className="assistant-hq-hero__actions">
+            <Button
+              type="button"
+              variant="ghost"
+              size="small"
+              onClick={() => openAssistant(workspace.id)}
+            >
+              <Settings size={13} aria-hidden />
+              {t('nursery.hq.configure')}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              onClick={() => { void handleNewAssistantSession(workspace); }}
+            >
+              <MessageSquarePlus size={13} aria-hidden />
+              {t('nursery.card.newSession')}
+            </Button>
+          </div>
+        </div>
+        <AssistantQuickInput
+          workspacePath={workspace.rootPath}
+          workspaceId={workspace.id}
+          assistantName={name}
+        />
+      </section>
+    );
+  };
+
   return (
-    <GalleryLayout className="nursery-gallery">
-      <GalleryPageHeader
+    <GalleryLayout className="assistant-hq">
+      <DirectoryTopBar
         title={t('nursery.gallery.title')}
-        subtitle={t('nursery.gallery.subtitle')}
-        actions={(
-          <button
-            type="button"
-            className="gallery-action-btn gallery-action-btn--primary"
-            onClick={handleCreateAssistant}
-            disabled={creating}
-            aria-label={t('nursery.gallery.newAssistant')}
-          >
-            <Plus size={15} />
-            <span>{t('nursery.gallery.newAssistant')}</span>
-          </button>
-        )}
+        count={assistantWorkspacesList.length}
+        mission={tAgents('missions.assistant')}
+        primary={{
+          label: t('nursery.gallery.newAssistant'),
+          onClick: () => { void handleCreateAssistant(); },
+          disabled: creating,
+        }}
       />
 
-      {/* Template hero: brand mark + card side by side, bottom-aligned */}
-      <div className="nursery-template-hero">
-        <div className="nursery-template-brand-mark">
-          <img
-            className="nursery-template-brand-mark__img nursery-template-brand-mark__img--default"
-            src="/Logo-ICON.png"
-            alt=""
-            onError={(e) => { (e.target as HTMLImageElement).src = '/Logo-ICON.png'; }}
-          />
-          <img
-            className="nursery-template-brand-mark__img nursery-template-brand-mark__img--hover"
-            src="/Void-Logo.png"
-            alt=""
-            onError={(e) => { (e.target as HTMLImageElement).src = '/Logo-ICON.png'; }}
-          />
-        </div>
-
-        {/* Card */}
-        <button
-          type="button"
-          className="nursery-template-card"
-          onClick={openTemplate}
-          aria-label={t('nursery.template.title')}
-        >
-          <div className="nursery-template-card__content">
-            <h3 className="nursery-template-card__title">{t('nursery.template.title')}</h3>
-            <p className="nursery-template-card__subtitle">{t('nursery.template.subtitle')}</p>
-
-            {/* Key stats */}
-            {templateStats && tokenBreakdown && (
-              <div className="nursery-template-card__stats">
-                <span className="nursery-template-card__stat">
-                  <Star size={10} strokeWidth={2} />
-                  {templateStats.primaryModelName}
-                </span>
-                {templateStats.fastModelName !== templateStats.primaryModelName && (
-                  <span className="nursery-template-card__stat nursery-template-card__stat--accent">
-                    <Star size={10} strokeWidth={1.5} style={{ opacity: 0.7 }} />
-                    {templateStats.fastModelName}
-                  </span>
-                )}
-                <span className="nursery-template-card__stat nursery-template-card__stat--muted">
-                  <Wrench size={10} strokeWidth={2} />
-                  {t('nursery.template.stats.tools', { count: templateStats.enabledToolCount })}
-                </span>
-                <span className="nursery-template-card__stat nursery-template-card__stat--token">
-                  <BarChart2 size={10} strokeWidth={2} />
-                  ~{formatTokenCount(tokenBreakdown.total)} tok · {tokenBreakdown.percentage}
-                </span>
-              </div>
-            )}
-
-            <span className="nursery-template-card__action">
-              <Settings size={13} strokeWidth={1.8} />
-              <span>{t('nursery.template.configure')}</span>
-            </span>
-          </div>
-
-          {/* Decorative eggs */}
-          <div className="nursery-template-card__deco" aria-hidden="true">
-            <Egg size={56} strokeWidth={1} className="nursery-template-card__deco-egg nursery-template-card__deco-egg--1" />
-            <Egg size={32} strokeWidth={1} className="nursery-template-card__deco-egg nursery-template-card__deco-egg--2" />
-          </div>
-        </button>
-      </div>
-
-      {/* Assistants */}
       <div className="gallery-zones">
+        {primaryWorkspace && renderHero(primaryWorkspace)}
+
         <GalleryZone
-          id="nursery-assistants-zone"
+          id="assistant-hq-zone"
           title={t('nursery.gallery.assistantsTitle')}
           subtitle={t('nursery.gallery.assistantsSubtitle')}
           tools={(
-            <span className="gallery-zone-count">{sortedAssistantWorkspacesList.length}</span>
+            <span className="gallery-zone-count">{secondaryWorkspaces.length}</span>
           )}
         >
-          <GalleryGrid minCardWidth={360}>
-            {sortedAssistantWorkspacesList.map((workspace, i) => {
-              const isPrimary = !workspace.assistantId;
-              return (
+          {secondaryWorkspaces.length === 0 ? (
+            <GalleryEmpty
+              icon={<Bot size={32} strokeWidth={1.5} />}
+              message={t('nursery.hq.empty')}
+            />
+          ) : (
+            <GalleryGrid minCardWidth={280}>
+              {secondaryWorkspaces.map((workspace, i) => (
                 <AssistantCard
                   key={workspace.id}
                   workspace={workspace}
-                  isPrimary={isPrimary}
                   onClick={() => openAssistant(workspace.id)}
                   onNewSession={() => { void handleNewAssistantSession(workspace); }}
-                  onDelete={isPrimary ? undefined : () => handleDeleteRequest(workspace)}
+                  onDelete={() => { void handleDeleteRequest(workspace); }}
                   style={{ '--card-index': i } as React.CSSProperties}
                 />
-              );
-            })}
-          </GalleryGrid>
+              ))}
+            </GalleryGrid>
+          )}
         </GalleryZone>
-      </div>
 
-      {/* Delete confirmation dialog */}
-      {deleteConfirm && (
-        <div className="nursery-delete-overlay" role="dialog" aria-modal="true">
-          <div className="nursery-delete-dialog">
-            <h3 className="nursery-delete-dialog__title">{t('nursery.card.deleteConfirmTitle')}</h3>
-            <p className="nursery-delete-dialog__message">
-              {t('nursery.card.deleteConfirmMessage', { name: deleteConfirm.name })}
-            </p>
-            <div className="nursery-delete-dialog__actions">
-              <button
-                type="button"
-                className="nursery-delete-dialog__btn nursery-delete-dialog__btn--cancel"
-                onClick={handleDeleteCancel}
-                disabled={deleting}
-              >
-                {t('nursery.card.deleteCancel')}
-              </button>
-              <button
-                type="button"
-                className="nursery-delete-dialog__btn nursery-delete-dialog__btn--confirm"
-                onClick={() => { void handleDeleteConfirm(); }}
-                disabled={deleting}
-              >
-                {t('nursery.card.deleteConfirm')}
-              </button>
-            </div>
+        {/* Team foundation: one quiet wide row into the template page */}
+        <button
+          type="button"
+          className="assistant-hq-foundation"
+          onClick={openTemplate}
+          aria-label={t('nursery.hq.foundationTitle')}
+        >
+          <div className="assistant-hq-foundation__text">
+            <span className="assistant-hq-foundation__title">{t('nursery.hq.foundationTitle')}</span>
+            <span className="assistant-hq-foundation__subtitle">{t('nursery.template.subtitle')}</span>
           </div>
-        </div>
-      )}
+          {templateStats && tokenBreakdown && (
+            <div className="assistant-hq-foundation__stats">
+              <span className="assistant-hq-foundation__stat">
+                <Star size={11} strokeWidth={2} aria-hidden />
+                {templateStats.primaryModelName}
+              </span>
+              {templateStats.fastModelName !== templateStats.primaryModelName && (
+                <span className="assistant-hq-foundation__stat">
+                  <Star size={11} strokeWidth={1.5} aria-hidden style={{ opacity: 0.7 }} />
+                  {templateStats.fastModelName}
+                </span>
+              )}
+              <span className="assistant-hq-foundation__stat">
+                <Wrench size={11} strokeWidth={2} aria-hidden />
+                {t('nursery.template.stats.tools', { count: templateStats.enabledToolCount })}
+              </span>
+              <span className="assistant-hq-foundation__stat">
+                <BarChart2 size={11} strokeWidth={2} aria-hidden />
+                ~{formatTokenCount(tokenBreakdown.total)} tok · {tokenBreakdown.percentage}
+              </span>
+            </div>
+          )}
+          <ChevronRight size={15} strokeWidth={1.8} className="assistant-hq-foundation__go" aria-hidden />
+        </button>
+      </div>
     </GalleryLayout>
   );
 };

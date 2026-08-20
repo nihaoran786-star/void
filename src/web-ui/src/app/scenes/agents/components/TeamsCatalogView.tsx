@@ -33,7 +33,7 @@ import { useAgentsStore } from '../agentsStore';
 import { useTeamCatalog, type UseTeamCatalogResult } from '../hooks/useTeamCatalog';
 import TeamCatalogCard from './TeamCatalogCard';
 import TeamCatalogDetail from './TeamCatalogDetail';
-import CatalogPagination from './CatalogPagination';
+import CatalogPagination from '@/app/components/CatalogPagination/CatalogPagination';
 import './TeamsCatalogView.scss';
 import {
   canDispatchCustomizationTarget,
@@ -109,6 +109,7 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
       <DirectoryTopBar
         title={t('catalog.tabs.teams')}
         count={catalog.entries.length}
+        mission={t('missions.teams')}
         groups={[
           {
             id: 'catalog',
@@ -172,7 +173,7 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
           tools={<span className="gallery-zone-count">{catalog.entries.length}</span>}
         >
           {catalog.status === 'loading' ? (
-            <GallerySkeleton count={8} cardHeight={190} className="team-catalog-skeleton" />
+            <GallerySkeleton count={8} cardHeight={168} className="team-catalog-skeleton" />
           ) : null}
 
           {catalog.status === 'partial' ? (

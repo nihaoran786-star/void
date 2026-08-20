@@ -801,6 +801,18 @@
     color: var(--color-text-muted);
   }
 
+  // Staff HQ additions (one-line responsibility + capability tags) surface in
+  // the minimal presentation only; the classic base keeps its approved
+  // three-line rhythm, so they stay dormant here.
+  &__summary,
+  &__tags {
+    display: none;
+  }
+
+  &__foot {
+    display: contents;
+  }
+
   &__actions {
     position: absolute;
     top: 8px;

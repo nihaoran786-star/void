@@ -71,7 +71,10 @@
         padding: 0 2px 0 4px;
         animation: none;
 
-        // Enlarge the Plus button to match the capsule height
+        // Enlarge the Plus button to match the capsule height. The flags must
+        // stay: the base `&__agent-boost-add` rule pins its 20px sizing with
+        // `!important` (itself fighting IconButton chrome), and an unflagged
+        // declaration loses to a flagged one at any specificity.
         .void-chat-input__agent-boost-add {
           width: 28px !important;
           height: 28px !important;
@@ -115,24 +118,29 @@
         padding: 0 4px 0 2px;
         animation: none;
 
-        // Enlarge send/stop button to match the capsule height
+        // Enlarge send/stop button to match the capsule height. This
+        // four-class selector already outweighs the single-class base rules
+        // (`&__send-button` 20px sizing, `&--breathing` auto sizing), so no
+        // `!important` is needed for the size overrides.
         .void-chat-input__send-button {
-          width: 28px !important;
-          height: 28px !important;
+          width: 28px;
+          height: 28px;
+          // Keeps the flag: fights `&__send-button--breathing`'s
+          // `border-radius: 0 !important`, which specificity alone cannot beat.
           border-radius: 50% !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          justify-content: center !important;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
 
           &--breathing {
-            width: auto !important;
-            height: auto !important;
+            width: auto;
+            height: auto;
           }
         }
 
         .void-chat-input__breathing-circle {
-          width: 28px !important;
-          height: 28px !important;
+          width: 28px;
+          height: 28px;
         }
 
         .void-chat-input__model-usage-group {
@@ -586,14 +594,13 @@
     color: var(--color-text-secondary);
     background: color-mix(in srgb, var(--color-text-muted) 14%, transparent);
 
-    &--Plan {
-      background: rgba(245, 158, 11, 0.15);
-      color: rgba(180, 110, 0, 0.98);
-    }
-
+    // Theme-safe attention tint: both capsules ride the workspace warning
+    // status tokens so they re-solve correctly under dark presentations.
+    &--Plan,
     &--debug {
-      background: rgba(249, 115, 22, 0.2);
-      color: rgba(180, 83, 9, 0.98);
+      // Classic fallbacks: the workspace-* aliases are minimal-scoped.
+      background: var(--workspace-status-warning-bg, var(--status-warning-bg));
+      color: var(--workspace-status-warning-text, var(--status-warning-text));
     }
   }
 

@@ -64,6 +64,13 @@
     'Droid Sans Mono', 'Source Code Pro', 'Lucida Console', 'Courier New', monospace;
 }
 
+/* ========== Shared radius & motion (classic layer aligns with workspace tokens) ========== */
+:root {
+  --tool-card-radius: var(--flowchat-card-radius, var(--workspace-radius-panel, 8px));
+  --tool-card-radius-inner: var(--workspace-radius-control, 6px);
+  --tool-card-motion: var(--workspace-motion-fast, 0.2s) var(--workspace-easing-standard, ease);
+}
+
 /* ========== Shared header icon variables ========== */
 :root {
   --tool-card-header-pad-y: var(--flowchat-card-header-pad-y, 0.44rem);
@@ -121,9 +128,9 @@
   appearance: none;
 
   &:focus-visible {
-    outline: 2px solid var(--color-accent-500, #60a5fa);
+    outline: 2px solid var(--workspace-focus-ring, var(--color-accent-500, #60a5fa));
     outline-offset: 2px;
-    border-radius: 6px;
+    border-radius: var(--tool-card-radius-inner, 6px);
   }
 }
 
@@ -187,7 +194,7 @@
   flex-shrink: 0;
   margin-left: 4px;
   padding-left: 4px;
-  transition: all 0.2s ease;
+  transition: color var(--tool-card-motion);
 
   &.tool-card-status-icon--with-divider {
     border-left: 1px solid var(--border-base);
@@ -220,6 +227,6 @@
 
   .icon-error {
     color: var(--color-error);
-    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4));
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--color-error) 40%, transparent));
   }
 }

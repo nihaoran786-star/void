@@ -125,8 +125,8 @@
       "title": "Assistant",
       "subtitle": "Manage all your assistant instances",
       "newAssistant": "New Assistant",
-      "assistantsTitle": "Hatched Assistants",
-      "assistantsSubtitle": "Click a card to configure"
+      "assistantsTitle": "Other assistants",
+      "assistantsSubtitle": "Open a card to configure that assistant"
     },
     "template": {
       "title": "Build your AI team",
@@ -197,6 +197,11 @@
       },
       "personaDocSaveFailed": "Failed to save document",
       "personaDocLoadFailed": "Failed to load document"
+    },
+    "hq": {
+      "configure": "Configure",
+      "empty": "No other assistants yet — create one from the top right.",
+      "foundationTitle": "Build your AI team"
     }
   }
 }

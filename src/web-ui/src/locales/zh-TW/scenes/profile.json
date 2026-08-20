@@ -125,8 +125,8 @@
       "title": "助理",
       "subtitle": "管理你的所有助理實例",
       "newAssistant": "新建助理",
-      "assistantsTitle": "已孵化的助理",
-      "assistantsSubtitle": "點擊助理卡片進行配置"
+      "assistantsTitle": "其他助理",
+      "assistantsSubtitle": "點擊卡片進入該助理的工位"
     },
     "template": {
       "title": "構建你的 AI 團隊",
@@ -197,6 +197,11 @@
       },
       "personaDocSaveFailed": "保存文檔失敗",
       "personaDocLoadFailed": "讀取文檔失敗"
+    },
+    "hq": {
+      "configure": "配置",
+      "empty": "還沒有其他助理，從右上角新建一個。",
+      "foundationTitle": "構建你的 AI 團隊"
     }
   }
 }

@@ -50,6 +50,17 @@ $_nav-collapsed-width: 54px;
   }
 }
 
+// The nav divider is an absolutely positioned sibling that offsets itself by
+// `--workspace-nav-effective-width`. Collapsing the rail only changed the
+// element width, so the divider stayed at the expanded offset and floated over
+// the scene. Re-declare the shared width on the container both elements read
+// from, matching the existing narrow-settings override below. Minimal only:
+// Classic collapses into an absolutely positioned 80x40 block and is unchanged.
+.void-ui--minimal
+  .void-workspace-body:has(> .void-workspace-body__nav-area.is-collapsed) {
+  --workspace-nav-effective-width: #{$_nav-collapsed-width};
+}
+
 .void-workspace-body.is-entering .void-workspace-body__nav-area:not(.is-collapsed) {
   animation: wb-nav-slide-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }

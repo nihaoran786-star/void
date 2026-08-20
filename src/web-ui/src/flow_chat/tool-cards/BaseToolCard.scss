@@ -10,21 +10,23 @@
   display: flex;
   flex-direction: column;
   margin: var(--flowchat-card-gap, 0.42rem) 0;
-  border-radius: var(--flowchat-card-radius, 8px);
+  border-radius: var(--tool-card-radius, 8px);
   border: 1px solid var(--border-base);
   background: var(--color-bg-flowchat);
   backdrop-filter: blur(10px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    border-color var(--tool-card-motion),
+    box-shadow var(--tool-card-motion);
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
-  
+
   &:hover {
     border-color: var(--border-medium);
-    box-shadow: 
+    box-shadow: var(--workspace-shadow-raised,
       0 2px 8px rgba(0, 0, 0, 0.15),
       0 1px 4px rgba(0, 0, 0, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      inset 0 1px 0 rgba(255, 255, 255, 0.03));
   }
   
   &:active {
@@ -52,26 +54,26 @@
   &.requires-confirmation {
     border-color: var(--color-warning, #f59e0b);
     border-width: 1.5px;
-    box-shadow: 
-      0 0 0 1px rgba(245, 158, 11, 0.15),
-      0 0 12px rgba(245, 158, 11, 0.2),
-      inset 0 0 8px rgba(245, 158, 11, 0.05);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-warning) 15%, transparent),
+      0 0 12px color-mix(in srgb, var(--color-warning) 20%, transparent),
+      inset 0 0 8px color-mix(in srgb, var(--color-warning) 5%, transparent);
     animation: confirmationPulse 2s ease-in-out infinite;
-    
+
     &:hover {
       border-color: var(--color-warning, #f59e0b);
-      box-shadow: 
-        0 0 0 2px rgba(245, 158, 11, 0.25),
-        0 0 20px rgba(245, 158, 11, 0.3),
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--color-warning) 25%, transparent),
+        0 0 20px color-mix(in srgb, var(--color-warning) 30%, transparent),
         0 4px 20px rgba(0, 0, 0, 0.3),
-        inset 0 0 12px rgba(245, 158, 11, 0.08);
+        inset 0 0 12px color-mix(in srgb, var(--color-warning) 8%, transparent);
     }
-    
+
     .base-tool-card-header::before {
       background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(245, 158, 11, 0.4) 50%,
+        color-mix(in srgb, var(--color-warning) 40%, transparent) 50%,
         transparent 100%
       );
     }
@@ -110,7 +112,7 @@
   width: 100%;
   box-sizing: border-box;
   background: transparent;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color var(--tool-card-motion);
   overflow: hidden;
 
   &::before {
@@ -148,6 +150,15 @@
   &:focus {
     outline: none;
   }
+
+  /* Keyboard focus: inset ring so overflow:hidden card bounds don't clip it.
+   * Shared by base, compact, and default shells (all render this activation button). */
+  &:focus-visible {
+    // Classic fallback: --workspace-focus-ring is minimal-scoped.
+    outline: 2px solid var(--workspace-focus-ring, var(--color-accent-600));
+    outline-offset: -2px;
+    border-radius: var(--tool-card-radius-inner, 6px);
+  }
 }
 
 /* Chevron swap: only when card opts in via headerExpandAffordance (includes status-error with collapsible details). */
@@ -164,7 +175,7 @@
   font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
   font-weight: 500;
   color: var(--color-text-primary);
-  transition: color 0.2s ease;
+  transition: color var(--tool-card-motion);
   letter-spacing: -0.01em;
   flex-shrink: 0;
   line-height: var(--tool-card-action-line-height, var(--flowchat-support-line-height, 1.45));
@@ -180,7 +191,7 @@
   font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
   font-weight: 500;
   color: var(--color-text-primary);
-  transition: color 0.2s ease;
+  transition: color var(--tool-card-motion);
   letter-spacing: -0.01em;
   line-height: var(--tool-card-action-line-height, var(--flowchat-support-line-height, 1.45));
   overflow: hidden;
@@ -277,16 +288,22 @@
 /* ========== Confirmation state pulse animation ========== */
 @keyframes confirmationPulse {
   0%, 100% {
-    box-shadow: 
-      0 0 0 1px rgba(245, 158, 11, 0.15),
-      0 0 12px rgba(245, 158, 11, 0.2),
-      inset 0 0 8px rgba(245, 158, 11, 0.05);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-warning) 15%, transparent),
+      0 0 12px color-mix(in srgb, var(--color-warning) 20%, transparent),
+      inset 0 0 8px color-mix(in srgb, var(--color-warning) 5%, transparent);
   }
   50% {
-    box-shadow: 
-      0 0 0 2px rgba(245, 158, 11, 0.25),
-      0 0 20px rgba(245, 158, 11, 0.35),
-      inset 0 0 12px rgba(245, 158, 11, 0.08);
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--color-warning) 25%, transparent),
+      0 0 20px color-mix(in srgb, var(--color-warning) 35%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--color-warning) 8%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .base-tool-card-wrapper.requires-confirmation {
+    animation: none;
   }
 }
 

@@ -153,10 +153,14 @@
   }
 }
 
-// Collapsed, the toggle keeps the exact inset it has when expanded: the 54px
-// rail centres its buttons on the same 27px icon column, so re-centring the
-// control bar here would make the toggle glyph hop on every click.
-.void-app-layout--macos.void-ui--minimal .void-nav-bar--collapsed {
+// Collapsed, drop the expanded control-bar inset and centre in the 54px rail:
+// a centred 28px control lands exactly on the same 27px icon column the
+// expanded state uses (13px inset + half a control), so the toggle glyph does
+// not hop between states. All platforms: the asymmetric padding-left /
+// padding-right pair above outranks the base `--collapsed` reset, and with it
+// still applied a centred toggle sat ~4.5px right of the column — macOS was
+// previously the only platform exempted here.
+.void-ui--minimal .void-nav-bar--collapsed {
   padding: 0;
   justify-content: center;
 }

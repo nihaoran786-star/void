@@ -16,7 +16,15 @@ interface AgentTeamCardProps {
   dispatchLabel?: string;
   dispatchAriaLabel?: string;
   dispatching?: boolean;
+  /** Presentation only: member names already known to the caller. */
+  memberNames?: string[];
+  /** Localized "{n} members" line for the card foot. */
+  memberCountLabel?: string;
+  /** Localized status word (running/idle); tone follows `dispatching`. */
+  statusLabel?: string;
 }
+
+const MEMBER_ORB_LIMIT = 5;
 
 const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
   index = 0,
@@ -31,6 +39,9 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
   dispatchLabel,
   dispatchAriaLabel,
   dispatching = false,
+  memberNames = [],
+  memberCountLabel,
+  statusLabel,
 }) => {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -75,6 +86,22 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
           state={dispatching ? 'running' : 'idle'}
           className="agent-team-card__avatar"
         />
+        {memberNames.length > 0 ? (
+          <span className="agent-team-card__members" aria-hidden="true">
+            {memberNames.slice(0, MEMBER_ORB_LIMIT).map((name, orbIndex) => (
+              <span
+                key={`${name}-${orbIndex}`}
+                className="agent-team-card__member-orb"
+                title={name}
+              />
+            ))}
+            {memberNames.length > MEMBER_ORB_LIMIT ? (
+              <span className="is-overflow">
+                +{memberNames.length - MEMBER_ORB_LIMIT}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
         <div className="agent-team-card__header-copy">
           <div className="agent-team-card__title-row">
             <span className="agent-team-card__title">{title}</span>
@@ -101,6 +128,22 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
             </span>
           ))}
         </div>
+        {memberCountLabel || statusLabel ? (
+          <span className="agent-team-card__meta">
+            {memberCountLabel ? (
+              <span className="agent-team-card__member-count">
+                {memberCountLabel}
+              </span>
+            ) : null}
+            {statusLabel ? (
+              <span
+                className={`agent-team-card__status ${dispatching ? 'is-success' : 'is-muted'}`}
+              >
+                {statusLabel}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
       </div>
     </div>
   );

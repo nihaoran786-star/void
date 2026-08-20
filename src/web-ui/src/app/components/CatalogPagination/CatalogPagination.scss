@@ -1,0 +1,58 @@
+@use '../../../component-library/styles/tokens' as *;
+
+// Shared catalog pager. Workspace tokens first, classic tokens as fallback,
+// so the same control sits correctly in Minimal and classic presentation.
+.catalog-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--workspace-space-2, #{$size-gap-2});
+  min-height: 34px;
+  margin-top: var(--workspace-space-2, #{$size-gap-2});
+
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+    border-radius: var(--workspace-radius-control, #{$size-radius-base});
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    background: var(--workspace-surface-panel, var(--color-bg-primary));
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      color: var(--workspace-text-primary, var(--color-text-primary));
+      border-color: var(--workspace-border-strong, var(--border-strong));
+      background: var(--workspace-surface-hover, var(--element-bg-hover));
+    }
+
+    &:focus-visible {
+      outline: 1px solid var(--workspace-focus-ring-subtle, var(--color-accent-500));
+      outline-offset: 1px;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 50px;
+    color: var(--workspace-text-muted, var(--color-text-muted));
+    font-size: var(--workspace-font-size-meta, var(--font-size-xs));
+    font-variant-numeric: tabular-nums;
+
+    strong {
+      color: var(--workspace-text-primary, var(--color-text-primary));
+      font-weight: var(--workspace-font-weight-medium, #{$font-weight-medium});
+    }
+  }
+}

@@ -3,7 +3,7 @@ import { useNurseryStore } from '../nurseryStore';
 import NurseryGallery from './NurseryGallery';
 import TemplateConfigPage from './TemplateConfigPage';
 import AssistantConfigPage from './AssistantConfigPage';
-import './NurseryView.scss';
+import './AssistantHq.scss';
 
 interface NurseryViewProps {
   isActive?: boolean;

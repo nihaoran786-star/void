@@ -5,7 +5,10 @@
       min-width: 0;
       max-width: min(640px, calc(100% - 32px));
       margin-top: var(--workspace-space-1);
-      margin-right: max(16px, calc((100% - 760px) / 2));
+      // Align the user column against the same measure the assistant column
+      // uses. The literal 760px used to sit 40px inside `--workspace-content-max`,
+      // so the two right edges drifted apart on wide windows.
+      margin-right: max(16px, calc((100% - var(--workspace-content-max)) / 2));
       margin-bottom: var(--flowchat-turn-gap);
       margin-left: auto;
       padding: var(--workspace-space-1) var(--workspace-space-2);

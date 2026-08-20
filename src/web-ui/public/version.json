@@ -1,11 +1,11 @@
 {
   "name": "void",
   "version": "0.2.8",
-  "buildDate": "2026-08-14T12:40:51.753Z",
-  "buildTimestamp": 1786711251754,
+  "buildDate": "2026-08-19T15:11:11.070Z",
+  "buildTimestamp": 1787152271071,
   "buildEnv": "development",
   "isDev": true,
-  "gitCommit": "b6f5a99",
-  "gitCommitFull": "b6f5a997f49ef294f5f9c30a97942d73896e99d1",
-  "gitBranch": "codex/minimal-workspace-ui"
+  "gitCommit": "4a0087c",
+  "gitCommitFull": "4a0087c6bc7fc7ecdfacab3dd86029af9dcc7552",
+  "gitBranch": "codex/agent-revision-core-p1a1"
 }

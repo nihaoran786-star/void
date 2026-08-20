@@ -19,23 +19,18 @@
   z-index: 10;
   pointer-events: none;
 
-  &__btw-back {
-    flex: 0 0 auto;
-
-    &:not(:disabled):hover {
-      background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
-    }
-  }
-
   &__turn-nav {
-    position: relative;
+    // Positioning context intentionally omitted: the panels inside anchor to
+    // the nearest positioned ancestor, `&__actions`, so they align with the
+    // action cluster's right edge instead of this near-zero-width wrapper.
     display: flex;
     align-items: center;
     gap: 0;
   }
 
   &__subagent-nav {
-    position: relative;
+    // Like &__turn-nav, no positioning context: the subagent panel anchors to
+    // `&__actions` so it hangs from the cluster's right edge.
     display: flex;
     align-items: center;
   }
@@ -107,15 +102,6 @@
     }
   }
 
-  &__turn-nav-button {
-    flex: 0 0 auto;
-
-    &:not(:disabled):hover,
-    &--active {
-      background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
-    }
-  }
-
   &__subagent-nav-button {
     flex: 0 0 auto;
 
@@ -139,10 +125,10 @@
     width: 4px;
     height: 4px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--color-success, #22c55e) 92%, white 8%);
+    background: color-mix(in srgb, var(--color-success) 92%, white 8%);
     box-shadow:
       0 0 0 1px var(--color-bg-elevated),
-      0 0 0 0 color-mix(in srgb, var(--color-success, #22c55e) 42%, transparent);
+      0 0 0 0 color-mix(in srgb, var(--color-success) 42%, transparent);
     animation: flowchat-header-subagent-pulse 1.45s ease-out infinite;
   }
 
@@ -153,7 +139,7 @@
       opacity: 0.9;
       box-shadow:
         0 0 0 1px var(--color-bg-elevated),
-        0 0 0 0 color-mix(in srgb, var(--color-success, #22c55e) 40%, transparent);
+        0 0 0 0 color-mix(in srgb, var(--color-success) 40%, transparent);
     }
 
     50% {
@@ -161,7 +147,7 @@
       opacity: 1;
       box-shadow:
         0 0 0 1px var(--color-bg-elevated),
-        0 0 0 5px color-mix(in srgb, var(--color-success, #22c55e) 0%, transparent);
+        0 0 0 5px color-mix(in srgb, var(--color-success) 0%, transparent);
     }
   }
 
@@ -171,20 +157,12 @@
     }
   }
 
-  &__search-btn,
-  &__review-platform-btn,
-  &__preview-first-btn,
   &__search-close {
     flex: 0 0 auto;
 
     &:not(:disabled):hover {
       background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
     }
-  }
-
-  &__preview-first-btn--active {
-    color: var(--color-accent-500);
-    background: color-mix(in srgb, var(--color-accent-500) 12%, transparent);
   }
 
   &__search {
@@ -226,7 +204,7 @@
     gap: 0;
     padding-left: 2px;
     margin-left: 2px;
-    border-left: 1px solid var(--color-border-subtle, rgba(128, 128, 128, 0.2));
+    border-left: 1px solid var(--border-subtle);
   }
 
   &__search-count {
@@ -266,7 +244,7 @@
 
     &:hover:not(:disabled) {
       opacity: 1;
-      background: var(--element-bg-soft, rgba(128, 128, 128, 0.1));
+      background: var(--element-bg-soft);
     }
 
     &:disabled {
@@ -370,6 +348,12 @@
       background: color-mix(in srgb, var(--element-bg-soft) 88%, transparent);
     }
 
+    &:focus-visible {
+      background: color-mix(in srgb, var(--element-bg-soft) 88%, transparent);
+      outline: 1px solid var(--border-strong);
+      outline-offset: -1px;
+    }
+
     &--active {
       background: color-mix(in srgb, var(--accent-primary) 12%, var(--element-bg-soft));
     }
@@ -414,6 +398,12 @@
     &:hover {
       background: color-mix(in srgb, var(--element-bg-soft) 88%, transparent);
     }
+
+    &:focus-visible {
+      background: color-mix(in srgb, var(--element-bg-soft) 88%, transparent);
+      outline: 1px solid var(--border-strong);
+      outline-offset: -1px;
+    }
   }
 
   &__subagent-list-title {
@@ -435,8 +425,10 @@
   }
 
   // ==================== Actions ====================
-  // The one interactive island in the click-through header strip.
+  // The one interactive island in the click-through header strip. Positioned
+  // so the turn-list / subagent panels anchor to its right edge.
   &__actions {
+    position: relative;
     display: flex;
     align-items: center;
     gap: $size-gap-1;

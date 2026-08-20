@@ -36,6 +36,13 @@ export interface DirectoryChipGroup {
   onChipKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
 }
 
+export interface DirectoryStat {
+  key: string;
+  label: string;
+  /** Quiet ink only — status tones recolor the text, never fill a pill. */
+  tone?: 'neutral' | 'success' | 'warning';
+}
+
 export interface DirectoryPrimaryAction {
   /** Accessible name and tooltip; the control itself stays a bare `+`. */
   label: string;
@@ -48,6 +55,10 @@ export interface DirectoryPrimaryAction {
 export interface DirectoryTopBarProps {
   title: string;
   count?: number;
+  /** One muted line under the bar row; a page's reason to exist, not chrome. */
+  mission?: string;
+  /** Quiet inline text figures right after the count, middot-separated. */
+  stats?: DirectoryStat[];
   groups?: DirectoryChipGroup[];
   /** The page's own search control, already bound to its own state. */
   search?: React.ReactNode;
@@ -60,6 +71,8 @@ export interface DirectoryTopBarProps {
 const DirectoryTopBar: React.FC<DirectoryTopBarProps> = ({
   title,
   count,
+  mission,
+  stats,
   groups = [],
   search,
   utilities,
@@ -75,6 +88,24 @@ const DirectoryTopBar: React.FC<DirectoryTopBarProps> = ({
         <span className="directory-topbar__count">{count}</span>
       )}
     </h2>
+
+    {stats && stats.length > 0 ? (
+      <span className="directory-topbar__stats">
+        {stats.map(stat => (
+          <span
+            key={stat.key}
+            className={[
+              'directory-topbar__stat',
+              stat.tone && stat.tone !== 'neutral'
+                ? `directory-topbar__stat--${stat.tone}`
+                : null,
+            ].filter(Boolean).join(' ')}
+          >
+            {stat.label}
+          </span>
+        ))}
+      </span>
+    ) : null}
 
     {groups.length > 0 && (
       <div className="directory-topbar__chips">
@@ -135,6 +166,10 @@ const DirectoryTopBar: React.FC<DirectoryTopBarProps> = ({
       >
         <Plus size={16} aria-hidden="true" />
       </button>
+    ) : null}
+
+    {mission ? (
+      <p className="directory-topbar__mission">{mission}</p>
     ) : null}
   </header>
 );

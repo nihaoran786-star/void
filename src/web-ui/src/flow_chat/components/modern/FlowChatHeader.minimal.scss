@@ -68,7 +68,6 @@
       box-shadow: none;
     }
 
-    &__message:focus-visible,
     &__more-button:focus-visible,
     &__subagent-nav-button:focus-visible,
     &__search-close:focus-visible {
@@ -106,6 +105,13 @@
     &__turn-list-item:hover,
     &__subagent-list-item:hover {
       background: var(--workspace-surface-hover);
+    }
+
+    &__turn-list-item:focus-visible,
+    &__subagent-list-item:focus-visible {
+      background: var(--workspace-surface-hover);
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: -2px;
     }
 
     &__turn-list-item--active {

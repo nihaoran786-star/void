@@ -15,12 +15,30 @@ export interface SkillCardAction {
   onClick: () => void;
 }
 
+/** Explicit per-card status line: quiet ink, never a pill. */
+export interface SkillCardStatus {
+  /** Visible status copy, e.g. t('list.item.statusActive'). */
+  label: string;
+  /** Colors the status ink dot + label; defaults to muted. */
+  tone?: 'success' | 'warning' | 'error' | 'muted';
+  /** Optional origin/detail rendered after a middot, always muted. */
+  detail?: string;
+  /** Tooltip for the whole status line. */
+  title?: string;
+}
+
 interface SkillCardProps {
   name: string;
   description?: string;
   index?: number;
   accentSeed?: string;
   iconKind?: 'skill' | 'market';
+  /**
+   * Card lifecycle state, surfaced as `data-state` so tests and styles can
+   * distinguish e.g. an active skill from one shadowed by a duplicate.
+   */
+  state?: 'active' | 'shadowed';
+  status?: SkillCardStatus;
   badges?: React.ReactNode;
   meta?: React.ReactNode;
   actions?: SkillCardAction[];
@@ -28,12 +46,20 @@ interface SkillCardProps {
   onOpenDetails?: () => void;
 }
 
+/**
+ * The one Staff HQ skill card, shared by the installed grid and the market
+ * grid: 36px glyph, name, clamped purpose, explicit status ink, and corner
+ * actions that surface on hover. Presentation only — every grid passes its own
+ * handlers in.
+ */
 const SkillCard: React.FC<SkillCardProps> = ({
   name,
   description,
   index = 0,
   accentSeed,
   iconKind = 'skill',
+  state = 'active',
+  status,
   badges,
   meta,
   actions = [],
@@ -42,13 +68,17 @@ const SkillCard: React.FC<SkillCardProps> = ({
 }) => {
   return (
     <article
-      className="skill-card"
+      className={[
+        'skill-card',
+        state === 'shadowed' && 'is-shadowed',
+      ].filter(Boolean).join(' ')}
       style={{
         '--card-index': index,
         '--skill-card-gradient': getCardGradient(accentSeed ?? name),
         '--skill-card-color-rgb': getCardColorRgb(accentSeed ?? name),
       } as React.CSSProperties}
       aria-label={name}
+      data-state={state}
     >
       {/* Header: visual identity + capability summary */}
       <div className="skill-card__header">
@@ -74,11 +104,25 @@ const SkillCard: React.FC<SkillCardProps> = ({
           {description?.trim() && (
             <p className="skill-card__desc">{description.trim()}</p>
           )}
+          {status && (
+            <p
+              className={[
+                'skill-card__status',
+                `is-${status.tone ?? 'muted'}`,
+              ].join(' ')}
+              title={status.title}
+            >
+              <span className="skill-card__status-state">{status.label}</span>
+              {status.detail && (
+                <span className="skill-card__status-origin">{status.detail}</span>
+              )}
+            </p>
+          )}
         </div>
         {badges && <div className="skill-card__badges">{badges}</div>}
       </div>
 
-      {/* Footer: action buttons */}
+      {/* Corner operations: detail + per-grid actions, revealed on hover */}
       {(onOpenDetails || actions.length > 0) && (
         <div className="skill-card__footer">
           {onOpenDetails && (

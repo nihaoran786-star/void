@@ -1,18 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  Brain,
   Check,
   ChevronLeft,
   ChevronRight,
-  Code2,
   Download,
-  FolderOpen,
-  Globe2,
-  LayoutGrid,
-  ListTree,
-  Zap,
-  type LucideIcon,
 } from 'lucide-react';
 import { Button, Input, Modal, Search, ToolProcessingDots } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
@@ -65,16 +57,6 @@ const MARKET_CATEGORIES: readonly ConnectorMarketplaceCategory[] = [
   'productivity',
   'browser',
 ];
-
-const MARKET_CATEGORY_ICONS: Record<ConnectorMarketplaceCategory, LucideIcon> = {
-  all: LayoutGrid,
-  knowledge: Brain,
-  reasoning: ListTree,
-  files: FolderOpen,
-  development: Code2,
-  productivity: Zap,
-  browser: Globe2,
-};
 
 const ConnectorMarketplacePanel: React.FC<ConnectorMarketplacePanelProps> = ({
   installedIds,
@@ -225,21 +207,22 @@ const ConnectorMarketplacePanel: React.FC<ConnectorMarketplacePanelProps> = ({
           role="group"
           aria-label={t('catalog.market.categoryLabel')}
         >
-          {MARKET_CATEGORIES.map((item) => {
-            const CategoryIcon = MARKET_CATEGORY_ICONS[item];
-            return (
-              <button
-                key={item}
-                type="button"
-                className={`void-connector-market__category ${category === item ? 'is-active' : ''}`}
-                aria-pressed={category === item}
-                onClick={() => updateCategory(item)}
-              >
-                <CategoryIcon size={14} strokeWidth={1.8} aria-hidden="true" />
-                <span>{t(`catalog.market.categories.${item}`)}</span>
-              </button>
-            );
-          })}
+          {MARKET_CATEGORIES.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={[
+                'void-connector-market__category',
+                'directory-chip',
+                'directory-chip--filters',
+                category === item && 'is-active',
+              ].filter(Boolean).join(' ')}
+              aria-pressed={category === item}
+              onClick={() => updateCategory(item)}
+            >
+              {t(`catalog.market.categories.${item}`)}
+            </button>
+          ))}
         </div>
       </div>
 

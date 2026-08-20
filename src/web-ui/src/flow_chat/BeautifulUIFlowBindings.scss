@@ -36,6 +36,39 @@
   font-family: 'BeautifulUI Inter', Inter, var(--workspace-font-family);
 }
 
+// The source palette above is the light original the owner accepted on
+// 2026-08-14 and stays authoritative for light themes. Without a dark
+// projection its white surfaces (approval card, tables, code block, context
+// cards, prompt bar) render as light panels inside a dark transcript.
+//
+// This block only re-points the same `--bui-*` contract at existing theme
+// tokens: no new colour literal is introduced, and every value resolves
+// through `apply-design-tokens`, so it holds in both workspace presentations.
+[data-theme-type='dark']
+  :where([data-beautiful-component], [data-beautiful-components]) {
+  --bui-page: var(--color-bg-scene);
+  --bui-canvas: var(--color-bg-secondary);
+  --bui-surface: var(--color-bg-elevated);
+  --bui-inset: var(--color-bg-tertiary);
+  --bui-hover: var(--control-bg-active);
+  --bui-hover-2: var(--control-bg-hover);
+  --bui-ink: var(--color-text-primary);
+  --bui-ink-2: var(--color-text-secondary);
+  --bui-ink-3: var(--color-text-muted);
+  --bui-line: var(--border-subtle);
+  --bui-line-strong: var(--border-strong);
+  --bui-accent: var(--color-accent-500);
+  --bui-green: var(--color-success);
+  --bui-orange: var(--color-warning);
+  --bui-red: var(--color-error);
+
+  // Dark surfaces separate by value, not by drop shadow: keep the hairline
+  // ring and drop the light-only ambient layers.
+  --bui-shadow-hairline: 0 0 0 1px var(--bui-line);
+  --bui-shadow-btn: 0 0 0 1px var(--bui-line-strong);
+  --bui-shadow-card: 0 0 0 1px var(--bui-line);
+}
+
 .flow-tool-card-wrapper[data-beautiful-component] {
   color: var(--bui-ink);
 

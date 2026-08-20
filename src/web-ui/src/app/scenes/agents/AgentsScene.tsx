@@ -30,7 +30,7 @@ import CreateAgentPage from './components/CreateAgentPage';
 import ReviewTeamPage, { ReviewTeamErrorBoundary } from './components/ReviewTeamPage';
 import TeamAuthoringPage from './components/TeamAuthoringPage';
 import TeamsCatalogView from './components/TeamsCatalogView';
-import CatalogPagination from './components/CatalogPagination';
+import CatalogPagination from '@/app/components/CatalogPagination/CatalogPagination';
 import {
   type AgentWithCapabilities,
   useAgentsStore,
@@ -378,7 +378,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
   ] as const;
 
   const renderSkeletons = (prefix: string) => (
-    <GallerySkeleton count={8} cardHeight={138} className={`${prefix}-skeleton`} />
+    <GallerySkeleton count={8} cardHeight={168} className={`${prefix}-skeleton`} />
   );
 
   const selectedAgent = useMemo(
@@ -698,6 +698,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
       <DirectoryTopBar
         title={t('page.title')}
         count={visibleAgents.length}
+        mission={t('missions.agents')}
         groups={[
           {
             id: 'catalog',
@@ -769,7 +770,7 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
           )}
         >
           {loading ? (
-            <GallerySkeleton count={3} cardHeight={160} className="core-agent-skeleton" />
+            <GallerySkeleton count={3} cardHeight={168} className="core-agent-skeleton" />
           ) : coreAgents.length === 0 ? (
             <GalleryEmpty
               icon={<Cpu size={32} strokeWidth={1.5} />}
@@ -864,6 +865,12 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
         title={selectedAgent?.displayName ?? ''}
         badges={selectedAgent ? (
           <>
+            <Badge variant="neutral">
+              {coreAgentMeta[selectedAgent.id]?.role
+                ?? (selectedAgent.agentKind === 'mode'
+                  ? t('agentCard.roles.core')
+                  : t('agentCard.roles.specialist'))}
+            </Badge>
             <Badge variant={getAgentBadge(t, selectedAgent.agentKind, selectedAgent.subagentSource).variant}>
               {selectedAgent.agentKind === 'mode' ? <Cpu size={10} /> : <Bot size={10} />}
               {getAgentBadge(t, selectedAgent.agentKind, selectedAgent.subagentSource).label}

@@ -18,8 +18,6 @@ import {
   KeyRound,
   Trash2,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Globe2,
   TerminalSquare,
 } from 'lucide-react';
@@ -35,6 +33,7 @@ import {
   DirectoryTopBar,
   type DirectoryChipGroup,
 } from '@/app/components';
+import CatalogPagination from '@/app/components/CatalogPagination';
 import { useNotification } from '@/shared/notification-system';
 import { createLogger } from '@/shared/utils/logger';
 import {
@@ -1422,388 +1421,387 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     );
   };
 
-  return (
-    <ConfigPageLayout
-      className={`void-mcp-tools ${presentation === 'catalog' ? 'void-mcp-tools--catalog' : 'void-mcp-tools--settings'}`}
-    >
-      {presentation === 'settings' && (
-        <ConfigPageHeader title={tPage('title')} subtitle={tPage('subtitle')} />
-      )}
-
-      <ConfigPageContent>
-        {/* MCP section */}
-        <ConfigPageSection
-          title={presentation === 'catalog'
-            ? tMcp('section.serverList.title')
-            : tMcp('section.serverList.title')}
-          description={presentation === 'catalog'
-            ? undefined
-            : (isMcpEmpty ? undefined : tMcp('section.serverList.description'))}
-          extra={presentation === 'settings' && !isMcpEmpty ? mcpSectionExtra : undefined}
-          className={[
-            isMcpEmpty && 'void-mcp-tools__section--empty',
-            presentation === 'catalog' && 'void-mcp-tools__section--catalog',
-          ].filter(Boolean).join(' ')}
-        >
-          {presentation === 'catalog' && !showJsonEditor && (
-            <DirectoryTopBar
-              title={tMcp('catalog.title')}
-              count={catalogView === 'installed' ? filteredCatalogServers.length : undefined}
-              groups={catalogTopBarGroups}
-              search={catalogView === 'installed' ? (
-                <Search
-                  value={catalogQuery}
-                  onChange={setCatalogQuery}
-                  onClear={() => setCatalogQuery('')}
-                  placeholder={tMcp('search.placeholder')}
-                  size="small"
-                  clearable
-                />
-              ) : (
-                <Search
-                  value={marketQuery}
-                  onChange={setMarketQuery}
-                  onClear={() => setMarketQuery('')}
-                  placeholder={tMcp('catalog.market.searchPlaceholder')}
-                  size="small"
-                  clearable
-                />
-              )}
-              primary={{
-                label: tMcp('actions.addConnector'),
-                onClick: () => setShowJsonEditor(true),
-                expanded: showJsonEditor,
-                controls: 'mcp-json-editor',
-              }}
+  // The runtime body both projections share. The settings page keeps it inside
+  // the ConfigPage wrappers so it stays a settings section; the catalog renders
+  // it on its own 1280px content frame, like the employee and skill catalogs.
+  const body = (
+    <>
+      {presentation === 'catalog' && !showJsonEditor && (
+        <DirectoryTopBar
+          title={tMcp('catalog.title')}
+          count={catalogView === 'installed' ? filteredCatalogServers.length : undefined}
+          mission={tMcp('catalog.mission')}
+          groups={catalogTopBarGroups}
+          search={catalogView === 'installed' ? (
+            <Search
+              value={catalogQuery}
+              onChange={setCatalogQuery}
+              onClear={() => setCatalogQuery('')}
+              placeholder={tMcp('search.placeholder')}
+              size="small"
+              clearable
+            />
+          ) : (
+            <Search
+              value={marketQuery}
+              onChange={setMarketQuery}
+              onClear={() => setMarketQuery('')}
+              placeholder={tMcp('catalog.market.searchPlaceholder')}
+              size="small"
+              clearable
             />
           )}
+          primary={{
+            label: tMcp('actions.addConnector'),
+            onClick: () => setShowJsonEditor(true),
+            expanded: showJsonEditor,
+            controls: 'mcp-json-editor',
+          }}
+        />
+      )}
 
-          {showJsonEditor && (
-            <div
-              id="mcp-json-editor"
-              className="void-mcp-tools__json-editor"
-            >
-              <div className="void-mcp-tools__json-editor-header">
-                <h3>{tMcp('jsonEditor.title')}</h3>
-                <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint1')}</p>
-                <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint2')}</p>
+      {showJsonEditor && (
+        <div
+          id="mcp-json-editor"
+          className="void-mcp-tools__json-editor"
+        >
+          <div className="void-mcp-tools__json-editor-header">
+            <h3>{tMcp('jsonEditor.title')}</h3>
+            <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint1')}</p>
+            <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint2')}</p>
+          </div>
+          <Textarea
+            ref={jsonEditorRef}
+            value={jsonConfig}
+            onChange={(e) => setJsonConfig(e.target.value)}
+            onKeyDown={handleJsonEditorKeyDown}
+            onPaste={handleJsonEditorPaste}
+            rows={18}
+            placeholder={`{\n  "mcpServers": {\n    "server-name": {\n      "command": "npx",\n      "args": ["-y", "@package/name"],\n      "env": {}\n    }\n  }\n}`}
+            variant="outlined"
+            className="void-mcp-tools__json-textarea"
+            spellCheck={false}
+            aria-label={tMcp('jsonEditor.title')}
+            error={!!jsonLintError}
+            errorMessage={
+              jsonLintError
+                ? tMcp('jsonEditor.lintError', {
+                    location:
+                      typeof jsonLintError.line === 'number' && typeof jsonLintError.column === 'number'
+                        ? tMcp('jsonEditor.lintLocation', {
+                            line: jsonLintError.line,
+                            column: jsonLintError.column,
+                          })
+                        : '',
+                    message: jsonLintError.message,
+                  })
+                : undefined
+            }
+          />
+          <div className="void-mcp-tools__json-actions">
+            <Button variant="secondary" onClick={() => setShowJsonEditor(false)}>
+              {tMcp('actions.cancel')}
+            </Button>
+            <Button variant="primary" onClick={handleSaveJsonConfig}>
+              {tMcp('actions.saveConfig')}
+            </Button>
+          </div>
+          <details className="void-mcp-tools__json-examples">
+            <summary className="void-mcp-tools__json-examples-summary">
+              {tMcp('jsonEditor.exampleTitle')}
+            </summary>
+            <div className="void-mcp-tools__json-examples-content">
+              <div className="void-mcp-tools__example">
+                <h5>{tMcp('jsonEditor.localProcess')}</h5>
+                <pre>{`{\n  "mcpServers": {\n    "zai-mcp-server": {\n      "command": "npx",\n      "args": ["-y", "@z_ai/mcp-server"],\n      "env": { "Z_AI_API_KEY": "your_api_key" }\n    }\n  }\n}`}</pre>
               </div>
-              <Textarea
-                ref={jsonEditorRef}
-                value={jsonConfig}
-                onChange={(e) => setJsonConfig(e.target.value)}
-                onKeyDown={handleJsonEditorKeyDown}
-                onPaste={handleJsonEditorPaste}
-                rows={18}
-                placeholder={`{\n  "mcpServers": {\n    "server-name": {\n      "command": "npx",\n      "args": ["-y", "@package/name"],\n      "env": {}\n    }\n  }\n}`}
-                variant="outlined"
-                className="void-mcp-tools__json-textarea"
-                spellCheck={false}
-                aria-label={tMcp('jsonEditor.title')}
-                error={!!jsonLintError}
-                errorMessage={
-                  jsonLintError
-                    ? tMcp('jsonEditor.lintError', {
-                        location:
-                          typeof jsonLintError.line === 'number' && typeof jsonLintError.column === 'number'
-                            ? tMcp('jsonEditor.lintLocation', {
-                                line: jsonLintError.line,
-                                column: jsonLintError.column,
-                              })
-                            : '',
-                        message: jsonLintError.message,
-                      })
-                    : undefined
-                }
+              <div className="void-mcp-tools__example">
+                <h5>{tMcp('jsonEditor.remoteService')}</h5>
+                <pre>{`{\n  "mcpServers": {\n    "remote-mcp": {\n      "url": "http://localhost:3000/sse"\n    }\n  }\n}`}</pre>
+              </div>
+            </div>
+          </details>
+        </div>
+      )}
+
+      {!showJsonEditor && mcpLoading && !mcpLoadError && (
+        <div className="void-collection-empty">
+          <p>{tMcp('loading')}</p>
+        </div>
+      )}
+
+      {!showJsonEditor && !mcpLoading && mcpLoadError && (
+        <div className="void-collection-empty void-mcp-tools__load-error" role="alert">
+          <AlertTriangle size={20} aria-hidden="true" />
+          <div className="void-mcp-tools__load-error-copy">
+            <strong>{tMcp('errors.operationFailed', {
+              context: tMcp('section.serverList.title'),
+            })}</strong>
+            <span>{mcpLoadError}</span>
+          </div>
+          <Button variant="secondary" size="small" onClick={() => void loadServers()}>
+            <RefreshCw size={14} />
+            {tCommon('actions.retry')}
+          </Button>
+        </div>
+      )}
+
+      {presentation === 'settings' && isMcpEmpty && (
+        <div className="void-collection-empty void-mcp-tools__empty">
+          <div className="void-mcp-tools__empty-copy">
+            <span className="void-mcp-tools__empty-title">
+              {tMcp('empty.noServers')}
+            </span>
+            <span className="void-mcp-tools__empty-hint">
+              {tMcp('empty.noServersHint')}
+            </span>
+          </div>
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={() => setShowJsonEditor(true)}
+            aria-expanded={showJsonEditor}
+            aria-controls="mcp-json-editor"
+          >
+            <FileJson size={14} />
+            {tMcp('actions.jsonConfig')}
+          </Button>
+        </div>
+      )}
+
+      {presentation === 'settings' && !showJsonEditor && !mcpLoading && !mcpLoadError &&
+        servers.map((server) => (
+          <ConfigCollectionItem
+            key={server.id}
+            label={server.name}
+            badge={renderServerBadge(server)}
+            control={renderServerControl(server)}
+            details={renderServerDetails(server)}
+          />
+        ))}
+
+      {presentation === 'catalog'
+        && catalogView === 'installed'
+        && !showJsonEditor
+        && !mcpLoading
+        && !mcpLoadError
+        && filteredCatalogServers.length === 0 && (
+        servers.length === 0 ? (
+          <div className="void-mcp-tools__catalog-starter">
+            <div className="void-mcp-tools__catalog-starter-intro">
+              <ConnectorCatalogAvatar
+                identity="connector-empty"
+                name={tMcp('empty.noServersHint')}
+                size="detail"
+                className="void-mcp-tools__catalog-empty-avatar"
               />
-              <div className="void-mcp-tools__json-actions">
-                <Button variant="secondary" onClick={() => setShowJsonEditor(false)}>
-                  {tMcp('actions.cancel')}
-                </Button>
-                <Button variant="primary" onClick={handleSaveJsonConfig}>
-                  {tMcp('actions.saveConfig')}
-                </Button>
-              </div>
-              <details className="void-mcp-tools__json-examples">
-                <summary className="void-mcp-tools__json-examples-summary">
-                  {tMcp('jsonEditor.exampleTitle')}
-                </summary>
-                <div className="void-mcp-tools__json-examples-content">
-                  <div className="void-mcp-tools__example">
-                    <h5>{tMcp('jsonEditor.localProcess')}</h5>
-                    <pre>{`{\n  "mcpServers": {\n    "zai-mcp-server": {\n      "command": "npx",\n      "args": ["-y", "@z_ai/mcp-server"],\n      "env": { "Z_AI_API_KEY": "your_api_key" }\n    }\n  }\n}`}</pre>
-                  </div>
-                  <div className="void-mcp-tools__example">
-                    <h5>{tMcp('jsonEditor.remoteService')}</h5>
-                    <pre>{`{\n  "mcpServers": {\n    "remote-mcp": {\n      "url": "http://localhost:3000/sse"\n    }\n  }\n}`}</pre>
-                  </div>
-                </div>
-              </details>
-            </div>
-          )}
-
-          {!showJsonEditor && mcpLoading && !mcpLoadError && (
-            <div className="void-collection-empty">
-              <p>{tMcp('loading')}</p>
-            </div>
-          )}
-
-          {!showJsonEditor && !mcpLoading && mcpLoadError && (
-            <div className="void-collection-empty void-mcp-tools__load-error" role="alert">
-              <AlertTriangle size={20} aria-hidden="true" />
-              <div className="void-mcp-tools__load-error-copy">
-                <strong>{tMcp('errors.operationFailed', {
-                  context: tMcp('section.serverList.title'),
-                })}</strong>
-                <span>{mcpLoadError}</span>
-              </div>
-              <Button variant="secondary" size="small" onClick={() => void loadServers()}>
-                <RefreshCw size={14} />
-                {tCommon('actions.retry')}
-              </Button>
-            </div>
-          )}
-
-          {presentation === 'settings' && isMcpEmpty && (
-            <div className="void-collection-empty void-mcp-tools__empty">
-              <div className="void-mcp-tools__empty-copy">
-                <span className="void-mcp-tools__empty-title">
-                  {tMcp('empty.noServers')}
-                </span>
-                <span className="void-mcp-tools__empty-hint">
-                  {tMcp('empty.noServersHint')}
-                </span>
+              <div className="void-mcp-tools__catalog-starter-copy">
+                <strong>{tMcp('empty.noServers')}</strong>
+                <span>{tMcp('empty.noServersHint')}</span>
               </div>
               <Button
                 variant="secondary"
                 size="small"
                 onClick={() => setShowJsonEditor(true)}
-                aria-expanded={showJsonEditor}
                 aria-controls="mcp-json-editor"
               >
                 <FileJson size={14} />
-                {tMcp('actions.jsonConfig')}
+                {tMcp('actions.addConnector')}
               </Button>
             </div>
-          )}
-
-          {presentation === 'settings' && !showJsonEditor && !mcpLoading && !mcpLoadError &&
-            servers.map((server) => (
-              <ConfigCollectionItem
-                key={server.id}
-                label={server.name}
-                badge={renderServerBadge(server)}
-                control={renderServerControl(server)}
-                details={renderServerDetails(server)}
-              />
-            ))}
-
-          {presentation === 'catalog'
-            && catalogView === 'installed'
-            && !showJsonEditor
-            && !mcpLoading
-            && !mcpLoadError
-            && filteredCatalogServers.length === 0 && (
-            servers.length === 0 ? (
-              <div className="void-mcp-tools__catalog-starter">
-                <div className="void-mcp-tools__catalog-starter-intro">
-                  <ConnectorCatalogAvatar
-                    identity="connector-empty"
-                    name={tMcp('empty.noServersHint')}
-                    size="detail"
-                    className="void-mcp-tools__catalog-empty-avatar"
-                  />
-                  <div className="void-mcp-tools__catalog-starter-copy">
-                    <strong>{tMcp('empty.noServers')}</strong>
-                    <span>{tMcp('empty.noServersHint')}</span>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="small"
-                    onClick={() => setShowJsonEditor(true)}
-                    aria-controls="mcp-json-editor"
-                  >
-                    <FileJson size={14} />
-                    {tMcp('actions.addConnector')}
-                  </Button>
-                </div>
-                <div className="void-mcp-tools__catalog-starter-grid">
-                  <article className="void-mcp-tools__catalog-starter-card">
-                    <span className="void-mcp-tools__catalog-starter-icon is-local">
-                      <TerminalSquare size={20} aria-hidden="true" />
-                    </span>
-                    <span className="void-mcp-tools__catalog-starter-card-copy">
-                      <strong>{tMcp('catalog.starter.localTitle')}</strong>
-                      <span>{tMcp('catalog.starter.localDescription')}</span>
-                    </span>
-                  </article>
-                  <article className="void-mcp-tools__catalog-starter-card">
-                    <span className="void-mcp-tools__catalog-starter-icon is-remote">
-                      <Globe2 size={20} aria-hidden="true" />
-                    </span>
-                    <span className="void-mcp-tools__catalog-starter-card-copy">
-                      <strong>{tMcp('catalog.starter.remoteTitle')}</strong>
-                      <span>{tMcp('catalog.starter.remoteDescription')}</span>
-                    </span>
-                  </article>
-                </div>
-              </div>
-            ) : (
-              <div className="void-collection-empty void-mcp-tools__catalog-empty">
-                <ConnectorCatalogAvatar
-                  identity="connector-search-empty"
-                  name={tMcp('empty.noMatchingServers')}
-                  size="detail"
-                  className="void-mcp-tools__catalog-empty-avatar"
-                />
-                <span>{tMcp('empty.noMatchingServers')}</span>
-              </div>
-            )
-          )}
-
-          {presentation === 'catalog'
-            && catalogView === 'installed'
-            && !showJsonEditor
-            && !mcpLoading
-            && !mcpLoadError
-            && pagedCatalogServers.length > 0 && (
-            <>
-              <div className="void-mcp-tools__catalog-grid">
-                {pagedCatalogServers.map(renderCatalogServerCard)}
-              </div>
-              {catalogTotalPages > 1 && (
-                <div className="void-mcp-tools__catalog-pagination">
-                  <button
-                    type="button"
-                    className="void-mcp-tools__catalog-page-button"
-                    onClick={() => setCatalogPage((page) => Math.max(0, page - 1))}
-                    disabled={currentCatalogPage === 0}
-                    aria-label={tCommon('actions.previous')}
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                  <span>{currentCatalogPage + 1} / {catalogTotalPages}</span>
-                  <button
-                    type="button"
-                    className="void-mcp-tools__catalog-page-button"
-                    onClick={() => setCatalogPage((page) => Math.min(catalogTotalPages - 1, page + 1))}
-                    disabled={currentCatalogPage >= catalogTotalPages - 1}
-                    aria-label={tCommon('actions.next')}
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {presentation === 'catalog'
-            && catalogView === 'market'
-            && !showJsonEditor
-            && !mcpLoading
-            && !mcpLoadError && (
-            <ConnectorMarketplacePanel
-              installedIds={installedConnectorIds}
-              search={marketQuery}
-              onInstalled={async () => {
-                await loadServers();
-                await loadJsonConfig();
-              }}
-            />
-          )}
-        </ConfigPageSection>
-      </ConfigPageContent>
-      <Modal
-        isOpen={!!authDialogServer}
-        onClose={handleCloseAuthDialog}
-        title={
-          authDialogServer
-            ? tMcp('modal.remoteAuthTitle', { serverName: authDialogServer.name })
-            : tMcp('actions.remoteAuth')
-        }
-        size="medium"
-        showCloseButton={!authSubmitting && !oauthCancelling}
-      >
-        {authDialogServer && (
-          <div className="void-mcp-tools__json-editor">
-            {authDialogServer.oauthEnabled && (
-              <>
-                <p className="void-mcp-tools__json-hint">
-                  {tMcp('modal.remoteOAuthHint')}
-                </p>
-                <p className="void-mcp-tools__json-hint">
-                  {tMcp('modal.remoteOAuthCurrentStatus', {
-                    status: getOAuthStatusLabel(oauthSession),
-                  })}
-                </p>
-                {oauthSession?.redirectUri && (
-                  <p className="void-mcp-tools__json-hint">
-                    {tMcp('modal.remoteOAuthRedirectUri', {
-                      redirectUri: oauthSession.redirectUri,
-                    })}
-                  </p>
-                )}
-                {oauthSession?.message && (
-                  <p className="void-mcp-tools__json-hint">
-                    {tMcp('modal.remoteOAuthStatus', {
-                      status: getOAuthStatusLabel(oauthSession),
-                      message: oauthSession.message,
-                    })}
-                  </p>
-                )}
-                <div className="void-mcp-tools__json-actions">
-                  <Button
-                    variant="primary"
-                    onClick={handleStartRemoteOAuth}
-                    isLoading={oauthStarting}
-                    disabled={authSubmitting || oauthCancelling}
-                  >
-                    {getOAuthActionLabel(authDialogServer)}
-                  </Button>
-                </div>
-              </>
-            )}
-            <p className="void-mcp-tools__json-hint">
-              {tMcp('modal.remoteAuthHint')}
-            </p>
-            {authDialogServer.url && (
-              <p className="void-mcp-tools__json-hint">
-                {tMcp('modal.remoteAuthServerUrl', {
-                  url: authDialogServer.url,
-                })}
-              </p>
-            )}
-            <Textarea
-              value={authValue}
-              onChange={(e) => setAuthValue(e.target.value)}
-              rows={4}
-              placeholder={tMcp('modal.remoteAuthPlaceholder')}
-              variant="outlined"
-              className="void-mcp-tools__json-textarea"
-              spellCheck={false}
-            />
-            <div className="void-mcp-tools__json-actions">
-              <Button
-                variant="secondary"
-                onClick={handleCloseAuthDialog}
-                disabled={authSubmitting || oauthStarting || oauthCancelling}
-              >
-                {isOAuthFlowActive
-                  ? tMcp('actions.cancelRemoteOAuth')
-                  : tMcp('actions.cancel')}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSaveRemoteAuth}
-                isLoading={authSubmitting}
-                disabled={oauthStarting || oauthCancelling}
-              >
-                {tMcp('actions.saveRemoteAuth')}
-              </Button>
+            <div className="void-mcp-tools__catalog-starter-grid">
+              <article className="void-mcp-tools__catalog-starter-card">
+                <span className="void-mcp-tools__catalog-starter-icon is-local">
+                  <TerminalSquare size={20} aria-hidden="true" />
+                </span>
+                <span className="void-mcp-tools__catalog-starter-card-copy">
+                  <strong>{tMcp('catalog.starter.localTitle')}</strong>
+                  <span>{tMcp('catalog.starter.localDescription')}</span>
+                </span>
+              </article>
+              <article className="void-mcp-tools__catalog-starter-card">
+                <span className="void-mcp-tools__catalog-starter-icon is-remote">
+                  <Globe2 size={20} aria-hidden="true" />
+                </span>
+                <span className="void-mcp-tools__catalog-starter-card-copy">
+                  <strong>{tMcp('catalog.starter.remoteTitle')}</strong>
+                  <span>{tMcp('catalog.starter.remoteDescription')}</span>
+                </span>
+              </article>
             </div>
           </div>
-        )}
-      </Modal>
+        ) : (
+          <div className="void-collection-empty void-mcp-tools__catalog-empty">
+            <ConnectorCatalogAvatar
+              identity="connector-search-empty"
+              name={tMcp('empty.noMatchingServers')}
+              size="detail"
+              className="void-mcp-tools__catalog-empty-avatar"
+            />
+            <span>{tMcp('empty.noMatchingServers')}</span>
+          </div>
+        )
+      )}
+
+      {presentation === 'catalog'
+        && catalogView === 'installed'
+        && !showJsonEditor
+        && !mcpLoading
+        && !mcpLoadError
+        && pagedCatalogServers.length > 0 && (
+        <>
+          <div className="void-mcp-tools__catalog-grid">
+            {pagedCatalogServers.map(renderCatalogServerCard)}
+          </div>
+          <CatalogPagination
+            currentPage={currentCatalogPage}
+            totalPages={catalogTotalPages}
+            onPageChange={(page) => setCatalogPage(
+              Math.min(Math.max(0, page), catalogTotalPages - 1),
+            )}
+          />
+        </>
+      )}
+
+      {presentation === 'catalog'
+        && catalogView === 'market'
+        && !showJsonEditor
+        && !mcpLoading
+        && !mcpLoadError && (
+        <ConnectorMarketplacePanel
+          installedIds={installedConnectorIds}
+          search={marketQuery}
+          onInstalled={async () => {
+            await loadServers();
+            await loadJsonConfig();
+          }}
+        />
+      )}
+    </>
+  );
+
+  const remoteAuthDialog = (
+    <Modal
+      isOpen={!!authDialogServer}
+      onClose={handleCloseAuthDialog}
+      title={
+        authDialogServer
+          ? tMcp('modal.remoteAuthTitle', { serverName: authDialogServer.name })
+          : tMcp('actions.remoteAuth')
+      }
+      size="medium"
+      showCloseButton={!authSubmitting && !oauthCancelling}
+    >
+      {authDialogServer && (
+        <div className="void-mcp-tools__json-editor">
+          {authDialogServer.oauthEnabled && (
+            <>
+              <p className="void-mcp-tools__json-hint">
+                {tMcp('modal.remoteOAuthHint')}
+              </p>
+              <p className="void-mcp-tools__json-hint">
+                {tMcp('modal.remoteOAuthCurrentStatus', {
+                  status: getOAuthStatusLabel(oauthSession),
+                })}
+              </p>
+              {oauthSession?.redirectUri && (
+                <p className="void-mcp-tools__json-hint">
+                  {tMcp('modal.remoteOAuthRedirectUri', {
+                    redirectUri: oauthSession.redirectUri,
+                  })}
+                </p>
+              )}
+              {oauthSession?.message && (
+                <p className="void-mcp-tools__json-hint">
+                  {tMcp('modal.remoteOAuthStatus', {
+                    status: getOAuthStatusLabel(oauthSession),
+                    message: oauthSession.message,
+                  })}
+                </p>
+              )}
+              <div className="void-mcp-tools__json-actions">
+                <Button
+                  variant="primary"
+                  onClick={handleStartRemoteOAuth}
+                  isLoading={oauthStarting}
+                  disabled={authSubmitting || oauthCancelling}
+                >
+                  {getOAuthActionLabel(authDialogServer)}
+                </Button>
+              </div>
+            </>
+          )}
+          <p className="void-mcp-tools__json-hint">
+            {tMcp('modal.remoteAuthHint')}
+          </p>
+          {authDialogServer.url && (
+            <p className="void-mcp-tools__json-hint">
+              {tMcp('modal.remoteAuthServerUrl', {
+                url: authDialogServer.url,
+              })}
+            </p>
+          )}
+          <Textarea
+            value={authValue}
+            onChange={(e) => setAuthValue(e.target.value)}
+            rows={4}
+            placeholder={tMcp('modal.remoteAuthPlaceholder')}
+            variant="outlined"
+            className="void-mcp-tools__json-textarea"
+            spellCheck={false}
+          />
+          <div className="void-mcp-tools__json-actions">
+            <Button
+              variant="secondary"
+              onClick={handleCloseAuthDialog}
+              disabled={authSubmitting || oauthStarting || oauthCancelling}
+            >
+              {isOAuthFlowActive
+                ? tMcp('actions.cancelRemoteOAuth')
+                : tMcp('actions.cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveRemoteAuth}
+              isLoading={authSubmitting}
+              disabled={oauthStarting || oauthCancelling}
+            >
+              {tMcp('actions.saveRemoteAuth')}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+
+  // Catalog: a directory page in its own right, so it owns the scroll container
+  // and the shared 1280px content frame instead of borrowing the settings
+  // page's narrower column and panelled section body.
+  if (presentation === 'catalog') {
+    return (
+      <div className="void-mcp-tools void-mcp-tools--catalog">
+        {body}
+        {remoteAuthDialog}
+      </div>
+    );
+  }
+
+  return (
+    <ConfigPageLayout className="void-mcp-tools void-mcp-tools--settings">
+      <ConfigPageHeader title={tPage('title')} subtitle={tPage('subtitle')} />
+
+      <ConfigPageContent>
+        {/* MCP section */}
+        <ConfigPageSection
+          title={tMcp('section.serverList.title')}
+          description={isMcpEmpty ? undefined : tMcp('section.serverList.description')}
+          extra={!isMcpEmpty ? mcpSectionExtra : undefined}
+          className={isMcpEmpty ? 'void-mcp-tools__section--empty' : ''}
+        >
+          {body}
+        </ConfigPageSection>
+      </ConfigPageContent>
+      {remoteAuthDialog}
     </ConfigPageLayout>
   );
 };

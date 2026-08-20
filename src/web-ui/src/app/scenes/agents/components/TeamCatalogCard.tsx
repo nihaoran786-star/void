@@ -41,6 +41,9 @@ const TeamCatalogCard: React.FC<TeamCatalogCardProps> = ({
   if (team.activationSupport === 'definition_only') {
     tagNames.unshift(t('catalog.tags.definition_only'));
   }
+  const memberNames = team.members.map(member => (
+    localizeCatalogPresentation(member.identity, key => t(key)).displayName
+  ));
   return (
     <AgentTeamCard
       index={index}
@@ -57,6 +60,13 @@ const TeamCatalogCard: React.FC<TeamCatalogCardProps> = ({
         name: presentation.displayName,
       })}
       dispatching={dispatching}
+      memberNames={memberNames}
+      memberCountLabel={memberNames.length > 0
+        ? t('catalog.detail.memberCount', { count: memberNames.length })
+        : undefined}
+      statusLabel={dispatching
+        ? t('agentCard.status.running')
+        : t('agentCard.status.idle')}
     />
   );
 };

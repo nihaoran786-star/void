@@ -50,6 +50,7 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
           variant="Reasoning"
           rows={rows}
           working={isActive}
+          liveText={thinkingItem.content}
           activeLabel={t('toolCards.think.thinking')}
           doneLabel={t('toolCards.think.thinkingProcess')}
           compact

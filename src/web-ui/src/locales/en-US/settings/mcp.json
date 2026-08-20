@@ -114,6 +114,7 @@
   },
   "catalog": {
     "title": "Connectors",
+    "mission": "Channels that connect your staff to external systems",
     "chips": {
       "installed": "Installed",
       "market": "Market"

@@ -1,20 +1,22 @@
 import React from 'react';
-import { Bot, MessageSquarePlus, Trash2 } from 'lucide-react';
+import { Bot, MessageSquarePlus, Settings, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Badge, Tooltip } from '@/component-library';
+import { Tooltip } from '@/component-library';
 import type { WorkspaceInfo } from '@/shared/types';
-import { getCardGradient } from '@/shared/utils/cardGradients';
 
+/**
+ * Staff HQ person card for one assistant workspace.
+ * Presentation only — all behaviour arrives through the handler props.
+ */
 interface AssistantCardProps {
   workspace: WorkspaceInfo;
   onClick: () => void;
   onNewSession?: () => void;
   onDelete?: () => void;
-  isPrimary?: boolean;
   style?: React.CSSProperties;
 }
 
-const AssistantCard: React.FC<AssistantCardProps> = ({ workspace, onClick, onNewSession, onDelete, isPrimary, style }) => {
+const AssistantCard: React.FC<AssistantCardProps> = ({ workspace, onClick, onNewSession, onDelete, style }) => {
   const { t } = useTranslation('scenes/profile');
   const identity = workspace.identity;
 
@@ -25,7 +27,7 @@ const AssistantCard: React.FC<AssistantCardProps> = ({ workspace, onClick, onNew
   const modelPrimary = identity?.modelPrimary?.trim() || '';
   const modelFast = identity?.modelFast?.trim() || '';
 
-  const gradient = getCardGradient(workspace.id || name);
+  const personaLine = [creature, vibe].filter(Boolean).join(' · ');
 
   const handleCardKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -36,95 +38,81 @@ const AssistantCard: React.FC<AssistantCardProps> = ({ workspace, onClick, onNew
 
   return (
     <div
-      className="assistant-card"
+      className="assistant-hq-card"
       role="button"
       tabIndex={0}
       onClick={onClick}
       onKeyDown={handleCardKeyDown}
       aria-label={name}
-      style={{
-        ...style,
-        '--assistant-card-gradient': gradient,
-      } as React.CSSProperties}
+      style={style}
     >
-      {/* Header: avatar + name + badges */}
-      <div className="assistant-card__header">
-        <div className="assistant-card__avatar">
+      <div className="assistant-hq-card__head">
+        <div className="assistant-hq-card__avatar" aria-hidden>
           {emoji ? (
-            <span className="assistant-card__emoji">{emoji}</span>
+            <span className="assistant-hq-card__emoji">{emoji}</span>
           ) : (
-            <Bot className="assistant-card__avatar-icon" size={20} strokeWidth={1.6} aria-hidden />
+            <Bot className="assistant-hq-card__avatar-icon" size={20} strokeWidth={1.6} />
           )}
         </div>
-        <div className="assistant-card__header-info">
-          <div className="assistant-card__title-row">
-            <span className="assistant-card__name">{name}</span>
-            {isPrimary && (
-              <span className="assistant-card__primary-badge">
-                {t('nursery.card.primaryBadge')}
-              </span>
-            )}
-          </div>
-          <div className="assistant-card__badges">
-            {creature && <Badge variant="neutral">{creature}</Badge>}
-            {modelPrimary && <Badge variant="accent">{modelPrimary}</Badge>}
-            {modelFast && <Badge variant="neutral">{modelFast}</Badge>}
-          </div>
-        </div>
-      </div>
-
-      {/* Body: vibe / description */}
-      <div className="assistant-card__body">
-        {vibe ? (
-          <p className="assistant-card__vibe">{vibe}</p>
-        ) : (
-          <p className="assistant-card__vibe assistant-card__vibe--empty">
-            {t('nursery.card.noVibe')}
-          </p>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="assistant-card__footer">
-        <div className="assistant-card__footer-inner">
-          <span className="assistant-card__footer-hint">
-            {t('nursery.card.configure')}
+        <div className="assistant-hq-card__id">
+          <span className="assistant-hq-card__name">{name}</span>
+          <span className={`assistant-hq-card__line${personaLine ? '' : ' assistant-hq-card__line--empty'}`}>
+            {personaLine || t('nursery.card.noVibe')}
           </span>
-          {(onNewSession || onDelete) ? (
-            <div className="assistant-card__footer-actions">
-              {onNewSession && (
-                <Tooltip content={t('nursery.card.newSession')} placement="top">
-                  <button
-                    type="button"
-                    className="assistant-card__new-session-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNewSession();
-                    }}
-                    aria-label={t('nursery.card.newSession')}
-                  >
-                    <MessageSquarePlus size={15} strokeWidth={2} aria-hidden />
-                  </button>
-                </Tooltip>
-              )}
-              {onDelete && (
-                <Tooltip content={t('nursery.card.delete')} placement="top">
-                  <button
-                    type="button"
-                    className="assistant-card__delete-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
-                    aria-label={t('nursery.card.delete')}
-                  >
-                    <Trash2 size={14} strokeWidth={2} aria-hidden />
-                  </button>
-                </Tooltip>
-              )}
-            </div>
-          ) : null}
         </div>
+      </div>
+
+      {(modelPrimary || modelFast) ? (
+        <div className="assistant-hq-card__tags">
+          {modelPrimary && <span className="assistant-hq-card__tag">{modelPrimary}</span>}
+          {modelFast && modelFast !== modelPrimary && (
+            <span className="assistant-hq-card__tag">{modelFast}</span>
+          )}
+        </div>
+      ) : null}
+
+      <div className="assistant-hq-card__actions">
+        {onNewSession && (
+          <Tooltip content={t('nursery.card.newSession')} placement="top">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNewSession();
+              }}
+              aria-label={t('nursery.card.newSession')}
+            >
+              <MessageSquarePlus size={14} strokeWidth={2} aria-hidden />
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip content={t('nursery.hq.configure')} placement="top">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            aria-label={t('nursery.hq.configure')}
+          >
+            <Settings size={14} strokeWidth={2} aria-hidden />
+          </button>
+        </Tooltip>
+        {onDelete && (
+          <Tooltip content={t('nursery.card.delete')} placement="top">
+            <button
+              type="button"
+              className="assistant-hq-card__delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              aria-label={t('nursery.card.delete')}
+            >
+              <Trash2 size={14} strokeWidth={2} aria-hidden />
+            </button>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

@@ -19,6 +19,6 @@
   border: 1px solid var(--color-border-primary);
 }
 
-.u-radius-md { border-radius: var(--size-radius-md); }
+.u-radius-md { border-radius: var(--size-radius-base); }
 .u-radius-lg { border-radius: var(--size-radius-lg); }
 

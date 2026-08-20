@@ -33,6 +33,44 @@
     font-variant-numeric: tabular-nums;
   }
 
+  // Quiet inline figures after the count; middots do the separating.
+  &__stats {
+    display: inline-flex;
+    align-items: baseline;
+    min-width: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+  }
+
+  &__stat {
+    &::before {
+      margin: 0 6px;
+      content: '·';
+    }
+
+    &--success {
+      color: var(--status-success-text, var(--color-success));
+    }
+
+    &--warning {
+      color: var(--status-warning-text, var(--color-warning));
+    }
+  }
+
+  // One muted line under the bar row: why the page exists, not more chrome.
+  &__mission {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
   &__chips {
     display: flex;
     align-items: center;

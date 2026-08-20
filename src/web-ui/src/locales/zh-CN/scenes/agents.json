@@ -401,6 +401,11 @@
     "searchPlaceholder": "搜索智能体…",
     "newAgent": "新建"
   },
+  "missions": {
+    "agents": "你的专业 AI 员工名册",
+    "teams": "可复用的 AI 专家团队",
+    "assistant": "你的首席 AI 助理与分身"
+  },
   "nav": {
     "coreAgents": "推荐",
     "agents": "全部",

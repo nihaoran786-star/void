@@ -249,14 +249,14 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
   // ── Right panel: identity info ──────────────────────────────────────────
 
   const renderInfoPanel = () => (
-    <div className="acp-right-info">
-      <div className="acp-right-shell">
+    <div className="assistant-desk__side">
+      <div className="assistant-desk__side-shell">
         {/* Persona docs */}
-        <div className="acp-section acp-section--nested">
-          <div className="acp-section__head">
-            <span className="acp-section__title">{t('nursery.assistant.personaDocsTitle')}</span>
+        <div className="assistant-desk__section assistant-desk__section--nested">
+          <div className="assistant-desk__section-head">
+            <span className="assistant-desk__section-title">{t('nursery.assistant.personaDocsTitle')}</span>
           </div>
-          <div className="acp-persona-doc-list">
+          <div className="assistant-desk__doc-list">
             {PERSONA_DOC_FILES.map((fileName) => {
               const selected = personaDoc?.fileName === fileName && rightView === 'personaDoc';
               const labelKey = fileName.replace(/\.md$/i, '') as 'SOUL' | 'USER' | 'IDENTITY';
@@ -266,33 +266,33 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                   type="button"
                   variant="ghost"
                   size="small"
-                  className={`acp-persona-doc-row${selected ? ' acp-persona-doc-row--selected' : ''}`}
+                  className={`assistant-desk__doc-row${selected ? ' assistant-desk__doc-row--selected' : ''}`}
                   onClick={() => openPersonaDoc(fileName)}
                 >
-                  <span className="acp-persona-doc-row__icon"><FileText size={12} /></span>
-                  <span className="acp-persona-doc-row__label">{t(`nursery.assistant.personaDocs.${labelKey}`)}</span>
-                  <span className="acp-persona-doc-row__file">{fileName}</span>
+                  <span className="assistant-desk__doc-row-icon"><FileText size={12} /></span>
+                  <span className="assistant-desk__doc-row-label">{t(`nursery.assistant.personaDocs.${labelKey}`)}</span>
+                  <span className="assistant-desk__doc-row-file">{fileName}</span>
                 </Button>
               );
             })}
           </div>
         </div>
 
-        <div className="acp-right-shell__divider" role="separator" aria-hidden="true" />
+        <div className="assistant-desk__side-divider" role="separator" aria-hidden="true" />
 
         {/* Scheduled tasks are managed from the first-level Automation scene. */}
-        <div className="acp-section acp-section--nested acp-section--schedule">
-          <div className="acp-section__schedule-body">
-            <div className="acp-automation-entry">
+        <div className="assistant-desk__section assistant-desk__section--nested assistant-desk__section--schedule">
+          <div className="assistant-desk__section-schedule-body">
+            <div className="assistant-desk__automation">
               <div>
-                <span className="acp-automation-entry__title">{t('common:automation.assistantEntry.title')}</span>
+                <span className="assistant-desk__automation-title">{t('common:automation.assistantEntry.title')}</span>
                 <p>{t('common:automation.assistantEntry.description')}</p>
               </div>
               <Button
                 type="button"
                 variant="secondary"
                 size="small"
-                className="acp-automation-entry__action"
+                className="assistant-desk__automation-action"
                 onClick={handleOpenAutomation}
               >
                 {t('common:automation.assistantEntry.button')}
@@ -311,26 +311,26 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
     const { fileName, content, loading, error } = personaDoc;
     const docLabelKey = fileName.replace(/\.md$/i, '') as 'SOUL' | 'USER' | 'IDENTITY';
     return (
-      <div className="acp-right-info">
-        <div className="acp-right-shell acp-right-shell--editor">
-          <div className="acp-persona-editor">
-            <div className="acp-persona-editor__head">
+      <div className="assistant-desk__side">
+        <div className="assistant-desk__side-shell assistant-desk__side-shell--editor">
+          <div className="assistant-desk__editor">
+            <div className="assistant-desk__editor-head">
               <IconButton
                 type="button"
                 size="xs"
-                className="acp-persona-editor__back"
+                className="assistant-desk__editor-back"
                 onClick={closePersonaDoc}
                 aria-label={t('nursery.template.closeDetail')}
                 tooltip={t('nursery.template.closeDetail')}
               >
                 <ArrowLeft size={13} />
               </IconButton>
-              <span className="acp-persona-editor__title">{t(`nursery.assistant.personaDocs.${docLabelKey}`)}</span>
+              <span className="assistant-desk__editor-title">{t(`nursery.assistant.personaDocs.${docLabelKey}`)}</span>
               <IconButton
                 type="button"
                 size="xs"
                 variant="danger"
-                className="acp-persona-editor__close"
+                className="assistant-desk__editor-close"
                 onClick={closePersonaDoc}
                 aria-label={t('nursery.template.closeDetail')}
                 tooltip={t('nursery.template.closeDetail')}
@@ -338,10 +338,10 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                 <X size={13} />
               </IconButton>
             </div>
-            <div className="acp-persona-editor__body">
-              {error && <p className="acp-persona-editor__error">{t('nursery.assistant.personaDocLoadFailed')}: {error}</p>}
+            <div className="assistant-desk__editor-body">
+              {error && <p className="assistant-desk__editor-error">{t('nursery.assistant.personaDocLoadFailed')}: {error}</p>}
               {loading ? (
-                <div className="acp-loading"><RefreshCw size={14} className="nursery-spinning" /></div>
+                <div className="assistant-desk__loading"><RefreshCw size={14} className="assistant-hq-spin" /></div>
               ) : (
                 <MEditor
                   key={fileName}
@@ -351,7 +351,7 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                   toolbar={false}
                   mode="ir"
                   height="100%"
-                  className="acp-persona-editor__meditor"
+                  className="assistant-desk__editor-meditor"
                 />
               )}
             </div>
@@ -362,28 +362,29 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
   };
 
   return (
-    <div className="nursery-page acp-page">
-      {/* Top bar — back only */}
-      <div className="nursery-page__bar acp-page__bar">
+    <div className="assistant-subpage assistant-desk">
+      {/* Slim back bar */}
+      <div className="assistant-subpage__bar">
         <IconButton
           type="button"
           size="small"
-          className="nursery-page__back"
+          className="assistant-subpage__back"
           onClick={openGallery}
           aria-label={t('nursery.backToGallery')}
           tooltip={t('nursery.backToGallery')}
         >
           <ArrowLeft size={13} />
         </IconButton>
+        <span className="assistant-subpage__bar-label">{t('nursery.backToGallery')}</span>
       </div>
 
       {/* Two-column layout */}
-      <div className="acp-layout">
+      <div className="assistant-desk__layout">
         {/* Left: identity header + quick input + sessions */}
-        <div className="acp-layout__left">
+        <div className="assistant-desk__left">
           {/* Identity header above the input */}
-          <div className="acp-left-header">
-            <div className="acp-left-header__info">
+          <div className="assistant-desk__header">
+            <div className="assistant-desk__header-info">
               {editingField === 'name' ? (
                 <Input
                   ref={nameInputRef}
@@ -391,11 +392,11 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                   onChange={(e) => setEditValue(e.target.value)}
                   onBlur={commitEdit}
                   onKeyDown={onEditKey}
-                  className="acp-left-header__name-input"
+                  className="assistant-desk__name-input"
                 />
               ) : (
                 <span
-                  className="acp-left-header__name"
+                  className="assistant-desk__name"
                   role="button"
                   tabIndex={0}
                   onClick={() => startEdit('name')}
@@ -405,7 +406,7 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                   {identityName}
                 </span>
               )}
-              <div className="acp-left-header__meta">
+              <div className="assistant-desk__meta">
                 {editingField === 'creature' ? (
                   <Input
                     ref={metaInputRef}
@@ -414,11 +415,11 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                     onBlur={commitEdit}
                     onKeyDown={onEditKey}
                     size="small"
-                    className="acp-left-header__meta-input"
+                    className="assistant-desk__meta-input"
                   />
                 ) : (
                   <span
-                    className={`acp-left-header__meta-tag${!displayIdentity.creature ? ' is-empty' : ''}`}
+                    className={`assistant-desk__meta-tag${!displayIdentity.creature ? ' is-empty' : ''}`}
                     role="button"
                     tabIndex={0}
                     onClick={() => startEdit('creature')}
@@ -428,7 +429,7 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                   </span>
                 )}
                 {(displayIdentity.creature || displayIdentity.vibe) && (
-                  <span className="acp-left-header__meta-dot" aria-hidden>·</span>
+                  <span className="assistant-desk__meta-dot" aria-hidden>·</span>
                 )}
                 {editingField === 'vibe' ? (
                   <Input
@@ -438,11 +439,11 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                     onBlur={commitEdit}
                     onKeyDown={onEditKey}
                     size="small"
-                    className="acp-left-header__meta-input"
+                    className="assistant-desk__meta-input"
                   />
                 ) : (
                   <span
-                    className={`acp-left-header__meta-tag${!displayIdentity.vibe ? ' is-empty' : ''}`}
+                    className={`assistant-desk__meta-tag${!displayIdentity.vibe ? ' is-empty' : ''}`}
                     role="button"
                     tabIndex={0}
                     onClick={() => startEdit('vibe')}
@@ -460,8 +461,8 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
             workspaceId={workspace?.id}
             assistantName={identityName}
           />
-          <div className="acp-sessions-area">
-            <h2 className="acp-sessions-area__title">{t('nursery.assistant.sessionsSectionTitle')}</h2>
+          <div className="assistant-desk__sessions">
+            <h2 className="assistant-desk__sessions-title">{t('nursery.assistant.sessionsSectionTitle')}</h2>
             <DeferredSessionsSection
               workspaceId={workspace?.id}
               workspacePath={workspacePath}
@@ -474,7 +475,7 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
         </div>
 
         {/* Right: persona docs + schedule */}
-        <div className="acp-layout__right">
+        <div className="assistant-desk__right">
           {rightView === 'personaDoc' ? renderPersonaDocPanel() : renderInfoPanel()}
         </div>
       </div>

@@ -269,7 +269,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
 
     const frameId = requestAnimationFrame(() => {
       const firstEnabledItem = moreMenuRef.current?.querySelector<HTMLButtonElement>(
-        '[role="menuitem"]:not(:disabled)',
+        '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)',
       );
       firstEnabledItem?.focus();
     });
@@ -331,7 +331,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const handleMoreMenuKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     const enabledItems = Array.from(
       moreMenuRef.current?.querySelectorAll<HTMLButtonElement>(
-        '[role="menuitem"]:not(:disabled)',
+        '[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)',
       ) ?? [],
     );
     if (enabledItems.length === 0) return;
@@ -677,11 +677,11 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
               {showPreviewFirstToggle && (
                 <button
                   type="button"
-                  role="menuitem"
+                  role="menuitemcheckbox"
                   className={`flowchat-header__more-menu-item${isPreviewFirstActive ? ' flowchat-header__more-menu-item--active' : ''}`}
                   onClick={() => runMoreMenuAction(onPreviewFirstToggle)}
                   disabled={!onPreviewFirstToggle}
-                  aria-pressed={isPreviewFirstActive}
+                  aria-checked={isPreviewFirstActive}
                   data-testid="flowchat-header-preview-first-toggle"
                 >
                   <PictureInPicture2 size={14} aria-hidden="true" />

@@ -150,6 +150,12 @@
     word-break: break-word;
   }
 
+  // The member orb strip is a Staff HQ (minimal) affordance; the classic
+  // surface card keeps its lead-avatar-only header.
+  &__members {
+    display: none;
+  }
+
   &__footer {
     display: flex;
     align-items: center;
@@ -157,6 +163,22 @@
     gap: $size-gap-2;
     padding: $size-gap-2 $size-gap-3;
     @include surface.agent-surface-footer(var(--team-card-gradient));
+  }
+
+  &__meta {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    gap: $size-gap-2;
+    position: relative;
+    z-index: 1;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xxs);
+    white-space: nowrap;
+  }
+
+  &__status.is-success {
+    color: var(--status-success-text);
   }
 
   &:hover &__footer::after {

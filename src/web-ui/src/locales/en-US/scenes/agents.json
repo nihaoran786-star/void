@@ -401,6 +401,11 @@
     "searchPlaceholder": "Search agents by name or description…",
     "newAgent": "New Agent"
   },
+  "missions": {
+    "agents": "Your roster of specialist AI staff",
+    "teams": "Reusable teams of AI experts",
+    "assistant": "Your chief AI assistant and stand-in"
+  },
   "nav": {
     "coreAgents": "Recommended",
     "agents": "All",

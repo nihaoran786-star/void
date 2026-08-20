@@ -678,7 +678,7 @@ const TemplateConfigPage: React.FC = () => {
             </span>
             <p className="tc-template-detail__subhead">{t('nursery.template.serverToolsHeading')}</p>
             {serverTools.length === 0 ? (
-              <p className="nursery-empty">{t('nursery.template.mcpServerNoTools')}</p>
+              <p className="assistant-hq-empty">{t('nursery.template.mcpServerNoTools')}</p>
             ) : (
               <ul className="tc-template-detail__tool-names">
                 {serverTools.map((tool) => (
@@ -731,34 +731,31 @@ const TemplateConfigPage: React.FC = () => {
   };
 
   return (
-    <div className="nursery-page">
-      <div className="nursery-page__bar">
+    <div className="assistant-subpage assistant-template">
+      <div className="assistant-subpage__bar">
         <button
           type="button"
-          className="nursery-page__back"
+          className="assistant-subpage__back"
           onClick={openGallery}
           aria-label={t('nursery.backToGallery')}
         >
           <ArrowLeft size={13} />
         </button>
+        <div className="assistant-subpage__heading">
+          <h2 className="assistant-subpage__title">{t('nursery.template.title')}</h2>
+          <span className="assistant-subpage__subtitle">{t('nursery.template.subtitle')}</span>
+        </div>
       </div>
 
-      <div className="nursery-page__content">
+      <div className="assistant-subpage__content">
         {loading ? (
-          <div className="nursery-page__loading">
-            <RefreshCw size={16} className="nursery-spinning" />
+          <div className="assistant-subpage__loading">
+            <RefreshCw size={16} className="assistant-hq-spin" />
           </div>
         ) : (
           <div className={`tc-template-shell${detail ? ' tc-template-shell--has-detail' : ''}`}>
             <div className="tc-template-shell__main">
             <div className="tc-template-main-column">
-            <div className="gallery-page-header tc-template-page-header">
-              <div className="gallery-page-header__identity">
-                <h2 className="gallery-page-header__title">{t('nursery.template.title')}</h2>
-                <div className="gallery-page-header__subtitle">{t('nursery.template.subtitle')}</div>
-              </div>
-            </div>
-
             <div className="gallery-zones tc-template-shell__zones">
             <div className="tc-template-model-context-row">
             <GalleryZone
@@ -766,30 +763,28 @@ const TemplateConfigPage: React.FC = () => {
               subtitle={t('nursery.template.sectionModelsSubtitle')}
             >
               <div className="tc-template-model-panel">
-                <div className="tc-hero__models">
-                  <div className="tc-model-slot">
-                    <span className="tc-model-slot__label">{t('modelSlots.primary.label')}</span>
-                    <div className="tc-model-slot__select">
-                      <Select
-                        size="small"
-                        options={buildModelOptions('primary')}
-                        value={getSelectedValue('primary')}
-                        onChange={(v) => handleModelChange('primary', v)}
-                        placeholder={t('slotDefault.primary')}
-                      />
-                    </div>
+                <div className="tc-model-slot">
+                  <span className="tc-model-slot__label">{t('modelSlots.primary.label')}</span>
+                  <div className="tc-model-slot__select">
+                    <Select
+                      size="small"
+                      options={buildModelOptions('primary')}
+                      value={getSelectedValue('primary')}
+                      onChange={(v) => handleModelChange('primary', v)}
+                      placeholder={t('slotDefault.primary')}
+                    />
                   </div>
-                  <div className="tc-model-slot">
-                    <span className="tc-model-slot__label">{t('modelSlots.fast.label')}</span>
-                    <div className="tc-model-slot__select">
-                      <Select
-                        size="small"
-                        options={buildModelOptions('fast')}
-                        value={getSelectedValue('fast')}
-                        onChange={(v) => handleModelChange('fast', v)}
-                        placeholder={t('slotDefault.fast')}
-                      />
-                    </div>
+                </div>
+                <div className="tc-model-slot">
+                  <span className="tc-model-slot__label">{t('modelSlots.fast.label')}</span>
+                  <div className="tc-model-slot__select">
+                    <Select
+                      size="small"
+                      options={buildModelOptions('fast')}
+                      value={getSelectedValue('fast')}
+                      onChange={(v) => handleModelChange('fast', v)}
+                      placeholder={t('slotDefault.fast')}
+                    />
                   </div>
                 </div>
               </div>
@@ -837,7 +832,7 @@ const TemplateConfigPage: React.FC = () => {
               title={t('cards.skills')}
             >
               {modeSkills.length === 0 ? (
-                <p className="nursery-empty">{t('empty.skills')}</p>
+                <p className="assistant-hq-empty">{t('empty.skills')}</p>
               ) : (
                 renderSkillEnabledDisabledSplit()
               )}
@@ -858,7 +853,7 @@ const TemplateConfigPage: React.FC = () => {
               )}
             >
               {builtinTools.length === 0 ? (
-                <p className="nursery-empty">{t('empty.tools')}</p>
+                <p className="assistant-hq-empty">{t('empty.tools')}</p>
               ) : (
                 renderToolEnabledDisabledSplit(builtinToolsEnabled, builtinToolsDisabled, false)
               )}

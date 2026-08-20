@@ -73,8 +73,16 @@ If you forget to subtract reservation space, future shrink/growth calculations b
 - `mode: 'transient' | 'sticky-latest'`
 - `floorPx`: the minimum tail space needed to keep the pinned target stable
 
-`sticky-latest` is used for the "latest turn should stay pinned to top" behavior.
-Its floor can be reconciled from live DOM measurements as content grows or shrinks.
+`sticky-latest` is used for explicit "align the latest turn's top with the
+viewport top" navigation (session-open auto-pin, header jump to the latest
+turn). Its floor can be reconciled from live DOM measurements as content grows
+or shrinks.
+
+Note: `sticky-latest` is NOT used for new streaming turns anymore. A new turn
+enters bottom-follow immediately (see section C). While follow is active,
+`pinTurnToTop` treats a `sticky-latest` request for the latest turn as already
+handled and does not move the viewport, so pin alignment never fights the
+continuous follow loop.
 
 ## 2. Synchronous Footer DOM Apply
 
@@ -163,6 +171,17 @@ During those transitions, the DOM may report intermediate sizes for multiple fra
 `layoutTransitionCountRef` prevents us from consuming compensation too early while the layout is still animating. If you remove this guard, compensation can disappear mid-transition and reintroduce vertical drift.
 
 ## C. Follow-Output Mode (continuous tail)
+
+New-turn contract (deliberate product decision): when a new dialog turn
+appears (user sends a message, or a streaming session mounts),
+`armFollowOutputForNewTurn` enters follow mode immediately and snaps the
+viewport to the latest end position. The live response stays pinned to the
+BOTTOM of the viewport with text flowing upward (DSH-style). There is no
+"pin the new turn's top to the viewport top, then activate follow once the
+reserved floor collapses" phase anymore, and `MessageModule` no longer emits a
+pin-to-top event on send. User scroll-up exits follow through the existing
+intent detection, and the `ScrollToLatestBar` affordance returns the user to
+the tail (re-entering follow) while not following.
 
 When the viewport is in follow-output mode and the latest turn is still
 streaming, the user's intent is "keep the tail visible". A naive

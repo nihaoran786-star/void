@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/customization-market' as market;
+@use '../../../component-library/styles/staff-hq' as hq;
 
 @mixin styles {
   // ─── Connector catalog · approved directory language (Minimal only) ─────────
@@ -23,7 +24,8 @@
     .void-mcp-tools__catalog-empty,
     .void-mcp-tools__load-error,
     .void-connector-market,
-    .void-mcp-tools__json-editor {
+    .void-mcp-tools__json-editor,
+    > .catalog-pagination {
       @include market.content-frame;
     }
 
@@ -39,25 +41,16 @@
       padding-top: var(--workspace-space-3);
     }
 
+    // The one Staff HQ utility card, same shell as a skill card.
     .void-mcp-tools__catalog-card {
-      position: relative;
-      box-sizing: border-box;
+      @include hq.hq-card(var(--hq-card-height-utility, 132px));
+
       display: flex;
       flex-direction: column;
-      height: 132px;
-      min-height: 132px;
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-panel);
-      background: var(--workspace-surface-panel);
       box-shadow: none;
-      transition:
-        transform var(--workspace-motion-fast) var(--workspace-easing-standard),
-        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
       &:hover {
-        border-color: var(--workspace-border-strong);
         background: var(--workspace-surface-panel);
-        transform: translateY(-3px);
       }
 
       &.is-expanded {
@@ -77,8 +70,8 @@
     }
 
     .void-mcp-tools__catalog-card-avatar {
-      width: 26px;
-      height: 26px;
+      width: 36px;
+      height: 36px;
     }
 
     .void-mcp-tools__catalog-card-name {
@@ -92,23 +85,21 @@
       font-size: var(--workspace-font-size-meta);
     }
 
-    // Status is plain coloured text, not a filled pill.
+    // Status is ink, never a pill: connected → success, attention → error,
+    // transitioning → warning, stopped → muted. The dot the mixin draws is the
+    // single mark, so the badge's own status icon steps aside.
     .void-mcp-tools__status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--workspace-space-1);
+      @include hq.hq-status-ink;
+
       min-height: 0;
       padding: 0;
       border: 0;
       border-radius: 0;
       background: transparent;
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
       font-weight: var(--workspace-font-weight-regular);
 
       svg {
-        width: 10px;
-        height: 10px;
+        display: none;
       }
 
       &.is-healthy {
@@ -158,34 +149,10 @@
       background: transparent;
     }
 
+    // The category pills are the top bar's filter pills; the panel only has to
+    // stop imposing its own control-height box on top of them.
     .void-connector-market__category {
-      height: 24px;
-      padding: 0 var(--workspace-space-3);
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--workspace-text-secondary);
-      font-size: var(--workspace-font-size-label);
-
-      svg {
-        display: none;
-      }
-
-      &:hover:not(.is-active) {
-        background: var(--workspace-surface-hover);
-        color: var(--workspace-text-primary);
-      }
-
-      &.is-active {
-        background: var(--workspace-text-primary);
-        color: var(--workspace-surface-canvas);
-        font-weight: var(--workspace-font-weight-medium);
-      }
-
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: 2px;
-      }
+      min-height: 0;
     }
 
     .void-connector-market__grid {
@@ -194,26 +161,39 @@
       gap: var(--workspace-space-2);
     }
 
-    .void-mcp-tools__catalog-pagination,
+    // Market entries are the same utility card as an installed connector.
+    .void-connector-market__card {
+      @include hq.hq-card(var(--hq-card-height-utility, 132px));
+
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-3);
+      box-shadow: none;
+
+      &:hover {
+        background: var(--workspace-surface-panel);
+      }
+
+      // An install error needs room, so that one card gives up the fixed height.
+      &:has(> .void-connector-market__status) {
+        height: auto;
+        min-height: var(--hq-card-height-utility, 132px);
+      }
+    }
+
+    .void-connector-market__identity {
+      grid-template-columns: 36px minmax(0, 1fr);
+    }
+
+    .void-connector-market__avatar {
+      width: 36px;
+      height: 36px;
+    }
+
     .void-connector-market__pagination {
       gap: var(--workspace-space-2);
       padding: var(--workspace-space-2) 0 var(--workspace-space-3);
       border: 0;
       background: transparent;
-    }
-
-    .void-mcp-tools__catalog-page-button {
-      width: var(--workspace-icon-target);
-      height: var(--workspace-icon-target);
-      border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-secondary);
-
-      &:not(:disabled):hover {
-        border-color: var(--workspace-border-strong);
-        background: var(--workspace-surface-hover);
-      }
     }
   }
 

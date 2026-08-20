@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/customization-market' as market;
+@use '../../../component-library/styles/staff-hq' as hq;
 
 // Agents directory — quiet row language (approved orb design demo):
 // hairline section heads, orb avatars, monospace meta, borderless rows,
@@ -55,12 +56,24 @@
       color: var(--workspace-text-muted);
     }
 
+    /* Single-line zone caption: the title never wraps, and the count sits
+       right after the text in meta ink instead of floating to the far edge. */
+    .gallery-zone__heading {
+      flex: 0 1 auto;
+      min-width: 0;
+    }
+
+    .gallery-zone__title {
+      white-space: nowrap;
+    }
+
     .gallery-zone__tools {
-      flex: 1 1 560px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+      flex: 0 1 auto;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
       align-items: center;
       min-width: 0;
+      margin-left: 0;
       gap: var(--workspace-space-2);
     }
 
@@ -78,8 +91,8 @@
     }
 
     .team-catalog-skeleton {
-      height: var(--customization-market-card-height, 160px);
-      min-height: var(--customization-market-card-height, 160px);
+      height: var(--hq-card-height-person, 168px);
+      min-height: var(--hq-card-height-person, 168px);
     }
 
     .agent-card,
@@ -360,9 +373,9 @@
       display: none;
     }
 
-    /* Capability chips become soft accent pills */
-    .agent-card__cap-chip,
-    .agent-team-card__tag-chip {
+    /* Capability chips become soft accent pills; team scenario tags left this
+       language behind for the quiet HQ tag further down the file. */
+    .agent-card__cap-chip {
       min-height: 0;
       padding: 2px 8px;
       font-family: var(--font-family-mono);
@@ -517,7 +530,7 @@
 
       .gallery-zone__tools {
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: flex-start;
       }
 
       .void-agents-scene__agent-filters {
@@ -594,10 +607,11 @@
     }
   }
 
-  // ── Approved directory card ────────────────────────────────────────────────
-  // Orb over at most three lines (name / role / status). The orb keeps its own
-  // engine and activates on hover; the lift, the border and the revealed
-  // operations belong to the card.
+  // ── Staff HQ card ──────────────────────────────────────────────────────────
+  // One person-card language for the whole HQ floor: 168px shell, orb crowning
+  // a centred identity column (name / role·source / one-line responsibility),
+  // written status ink at the foot, operations revealed on hover. Employee,
+  // core-employee and team cards all share the same silhouette.
   .void-ui--minimal .void-agents-scene {
     .core-agents-grid,
     .gallery-grid {
@@ -606,67 +620,153 @@
     }
 
     .agent-card,
-    .core-agent-card {
-      box-sizing: border-box;
+    .core-agent-card,
+    .agent-team-card {
+      @include hq.hq-card(var(--hq-card-height-person, 168px));
+
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
       gap: 0;
-      height: 150px;
-      min-height: 150px;
       padding: var(--workspace-space-3) var(--workspace-space-3)
         var(--workspace-space-2);
-      border-color: var(--workspace-border-subtle);
-      background: var(--workspace-surface-panel);
       box-shadow: none;
       text-align: center;
-      transition:
-        transform var(--workspace-motion-fast) var(--workspace-easing-standard),
-        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
-      &:hover {
-        border-color: var(--workspace-border-strong);
-        background: var(--workspace-surface-panel);
-        box-shadow: none;
-        transform: translateY(-3px);
-      }
-
+      &:hover,
       &:active,
       &:focus-visible {
+        background: var(--workspace-surface-panel);
         box-shadow: none;
       }
     }
 
+    /* Idle employees recede without disappearing (same rule as stopped
+       connectors); full presence returns on hover, focus, or while running. */
+    .agent-card[data-state='idle'],
+    .core-agent-card[data-state='idle'] {
+      opacity: 0.65;
+
+      &:hover,
+      &:focus-within {
+        opacity: 1;
+      }
+    }
+
+    /* 44px orb crowns the person column; teams keep a lighter 40px lead orb. */
+    .agent-avatar--card {
+      width: var(--hq-avatar-lg, 44px);
+      height: var(--hq-avatar-lg, 44px);
+    }
+
+    .agent-team-card__avatar {
+      width: 40px;
+      height: 40px;
+    }
+
+    /* Mini-orb strip: the members already known to the card, as 16px beads. */
+    .agent-team-card__members {
+      @include hq.hq-member-orb-strip;
+
+      flex: none;
+      max-width: 100%;
+    }
+
     .agent-card__name,
-    .core-agent-card__name {
+    .core-agent-card__name,
+    .agent-team-card__title {
       max-width: 100%;
       margin: var(--workspace-space-2) 0 2px;
       color: var(--workspace-text-primary);
       font-size: var(--workspace-font-size-control);
-      font-weight: var(--workspace-font-weight-medium);
+      font-weight: var(--workspace-font-weight-strong);
       line-height: 1.35;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    .agent-team-card__title {
+      margin: 0;
+    }
+
     .agent-card__role,
-    .core-agent-card__role {
+    .core-agent-card__role,
+    .agent-team-card__role {
       max-width: 100%;
       margin: 0;
       color: var(--workspace-text-muted);
       font-size: var(--workspace-font-size-meta);
-      line-height: 1.4;
+      line-height: var(--workspace-line-height-meta);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    /* One-line responsibility in quiet ink; the full text lives in the
+       detail modal (and in the title attribute). */
+    .agent-card__summary,
+    .core-agent-card__summary {
+      display: block;
+      max-width: 100%;
+      margin: var(--workspace-space-1) 0 0;
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-meta);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Teams show their goal as the same single quiet line. */
+    .agent-team-card__body {
+      display: block;
+      flex: 0 0 auto;
+      width: 100%;
+      min-width: 0;
+      margin: var(--workspace-space-1) 0 0;
+      padding: 0;
+    }
+
+    .agent-team-card__desc {
+      display: block;
+      margin: 0;
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-regular);
+      line-height: var(--workspace-line-height-meta);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: normal;
+    }
+
+    /* Foot row: written status ink left, up to three quiet tags right. */
+    .agent-card__foot,
+    .core-agent-card__foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--workspace-space-2);
+      width: 100%;
+      min-width: 0;
+      margin-top: auto;
+    }
+
     .agent-card__status,
     .core-agent-card__status {
-      margin: var(--workspace-space-2) 0 0;
+      flex: none;
+      margin: 0;
       font-size: var(--workspace-font-size-meta);
-      line-height: 1.3;
+      line-height: var(--workspace-line-height-meta);
+    }
+
+    .agent-card__status-running,
+    .agent-card__status-idle,
+    .core-agent-card__status-running,
+    .core-agent-card__status-idle {
+      @include hq.hq-status-ink;
     }
 
     .agent-card__status-running,
@@ -674,21 +774,99 @@
       color: var(--workspace-status-success-text);
     }
 
-    .agent-card__status-idle,
-    .core-agent-card__status-idle {
-      color: var(--workspace-text-muted);
+    /* The status-ink mixin draws its own dot; the markup's explicit one
+       bows out so running never shows two. */
+    .agent-card__status-dot,
+    .core-agent-card__status-dot {
+      display: none;
     }
 
-    .agent-card__actions,
-    .core-agent-card__actions {
-      position: absolute;
-      top: var(--workspace-space-1);
-      right: var(--workspace-space-1);
+    .agent-card__tags,
+    .core-agent-card__tags {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 0 1 auto;
+      gap: var(--workspace-space-1);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .agent-card__tag,
+    .core-agent-card__tag-chip {
+      @include hq.hq-tag;
+    }
+
+    /* Three tags need a wide floor; narrower ones keep the first as a hint so
+       the status ink is never squeezed. */
+    @container gallery-layout (max-width: 1279.98px) {
+      .agent-card__tags > :nth-child(n + 2),
+      .core-agent-card__tags > :nth-child(n + 2) {
+        display: none;
+      }
+    }
+
+    /* Team foot: member count + status ink; tag chips stay in the detail. */
+    .agent-team-card__footer {
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
+      justify-content: center;
+      gap: var(--workspace-space-2);
+      width: 100%;
+      min-width: 0;
+      margin-top: auto;
+      padding: 0;
+    }
+
+    /* One scenario tag is enough on the floor; the rest live in the detail. */
+    .agent-team-card__tags {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 1 auto;
       gap: var(--workspace-space-1);
-      opacity: 0;
-      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .agent-team-card__tags > :nth-child(n + 2) {
+      display: none;
+    }
+
+    .agent-team-card__tag-chip {
+      @include hq.hq-tag;
+    }
+
+    .agent-team-card__meta {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--workspace-space-2);
+      min-width: 0;
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-meta);
+      white-space: nowrap;
+    }
+
+    .agent-team-card__member-count {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .agent-team-card__status {
+      @include hq.hq-status-ink;
+
+      &.is-success {
+        color: var(--workspace-status-success-text);
+      }
+    }
+
+    /* Corner operations: the shared HQ cluster of 28px icon buttons. Same
+       handlers as before — dispatch stays a button, "view" stays the quiet
+       chevron the whole card already answers to; both drop their labels to a
+       tooltip so the corner reads as icons, not as pills. */
+    .agent-card__actions,
+    .core-agent-card__actions {
+      @include hq.hq-card-corner-actions;
     }
 
     .agent-card:hover .agent-card__actions,
@@ -703,27 +881,45 @@
     .agent-card__view,
     .core-agent-card__view {
       position: static;
-      height: 24px;
-      min-height: 24px;
-      padding: 0 var(--workspace-space-2);
-      border: 1px solid var(--workspace-border-subtle);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      width: 28px;
+      height: 28px;
+      min-height: 28px;
+      padding: 0;
+      border: 0;
       border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
-      color: var(--workspace-text-secondary);
+      background: transparent;
+      color: var(--workspace-text-muted);
       font-size: var(--workspace-font-size-meta);
       opacity: 1;
       transform: none;
       pointer-events: auto;
 
-      &:hover {
-        border-color: var(--workspace-border-strong);
+      &:hover:not(:disabled) {
+        background: var(--workspace-surface-hover);
         color: var(--workspace-text-primary);
       }
     }
 
+    .agent-card__dispatch span,
+    .core-agent-card__dispatch span,
+    .agent-card__view-label,
+    .core-agent-card__view-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
     .agent-card--new {
-      height: 150px;
-      min-height: 150px;
+      box-sizing: border-box;
+      height: var(--hq-card-height-person, 168px);
+      min-height: var(--hq-card-height-person, 168px);
       border: 1px dashed var(--workspace-border-strong);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-panel);

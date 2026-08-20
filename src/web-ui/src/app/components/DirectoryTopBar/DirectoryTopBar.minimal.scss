@@ -30,6 +30,25 @@
       font-variant-numeric: tabular-nums;
     }
 
+    &__stats {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+    }
+
+    &__stat--success {
+      color: var(--workspace-status-success-text);
+    }
+
+    &__stat--warning {
+      color: var(--workspace-status-warning-text);
+    }
+
+    &__mission {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-meta);
+    }
+
     &__chips {
       gap: var(--workspace-space-3);
     }

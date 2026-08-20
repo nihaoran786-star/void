@@ -29,7 +29,6 @@ interface UseFlowChatFollowOutputOptions {
   scrollerRef: RefObject<HTMLElement | null>;
   performUserFollowScroll: () => void;
   performAutoFollowScroll: () => void;
-  performLatestTurnStickyPin: () => void;
   /**
    * Returns true when auto-follow should be suspended for layout-protection
    * reasons (collapse animation, layout transition, pending collapse intent).
@@ -75,7 +74,6 @@ export function useFlowChatFollowOutput({
   scrollerRef,
   performUserFollowScroll,
   performAutoFollowScroll,
-  performLatestTurnStickyPin,
   shouldSuspendAutoFollow,
   getAutoFollowDistanceFromBottom,
   onContinuousFollowFrame,
@@ -244,15 +242,24 @@ export function useFlowChatFollowOutput({
       return;
     }
 
+    // New turn = immediate bottom-follow (DSH-style). The live response stays
+    // pinned to the bottom of the viewport with text flowing upward, instead
+    // of pinning the new turn's top to the viewport top and activating follow
+    // later. The armed ref is still recorded so scroll-intent handlers can
+    // cancel it, but follow enters right away and the viewport snaps to the
+    // latest end position via the same path the "jump to latest" affordance
+    // uses. User scroll-up still exits follow through handleScroll /
+    // handleUserScrollIntent.
     armedAutoFollowTurnIdRef.current = latestTurnId;
     cancelScheduledFollow();
-    setFollowingOutput(false);
-    runProgrammaticScroll(performLatestTurnStickyPin);
+    explicitUserScrollIntentUntilMsRef.current = 0;
+    setFollowingOutput(true);
+    runProgrammaticScroll(performAutoFollowScroll);
   }, [
     cancelPendingAutoFollowArm,
     cancelScheduledFollow,
     latestTurnId,
-    performLatestTurnStickyPin,
+    performAutoFollowScroll,
     runProgrammaticScroll,
     setFollowingOutput,
   ]);

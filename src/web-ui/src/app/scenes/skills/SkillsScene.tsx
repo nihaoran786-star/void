@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Filter,
   FolderOpen,
@@ -21,6 +18,7 @@ import {
   GalleryDetailModal,
   type DirectoryChipGroup,
 } from '@/app/components';
+import CatalogPagination from '@/app/components/CatalogPagination';
 import type { SkillInfo, SkillLevel, SkillMarketItem } from '@/infrastructure/config/types';
 import { workspaceAPI } from '@/infrastructure/api';
 import { workspaceManager } from '@/infrastructure/services/business/workspaceManager';
@@ -29,7 +27,7 @@ import { isRemoteWorkspace } from '@/shared/types';
 import { createLogger } from '@/shared/utils/logger';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
 import { useSkillMarket } from './hooks/useSkillMarket';
-import SkillCard from './components/SkillCard';
+import SkillCard, { type SkillCardAction } from './components/SkillCard';
 import SkillCatalogAvatar from './components/SkillCatalogAvatar';
 import SkillAuthoringPage from './components/SkillAuthoringPage';
 import SkillsSuiteView from './components/SkillsSuiteView';
@@ -308,6 +306,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
       <DirectoryTopBar
         title={t('page.title')}
         count={topbarCount}
+        mission={t('page.mission')}
         groups={topbarGroups}
         search={!isSuiteFilter && (isInstalledTab ? (
           <Search
@@ -417,125 +416,71 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                   {!installed.loading && !installed.error && (
                     <>
                       <div className="skills-main__grid">
-                        {pagedInstalledSkills.map((skill, index) => (
-                          (() => {
-                            const presentation = localizeCatalogPresentation(
-                              presentationForInstalledSkill(skill),
-                              key => t(key),
-                            );
-                            return (
-                          <article
-                            key={skill.key}
-                            className={[
-                              'skills-card',
-                              skill.isShadowed && 'is-shadowed',
-                            ].filter(Boolean).join(' ')}
-                            style={{ '--card-index': index } as React.CSSProperties}
-                            aria-label={presentation.displayName}
-                            data-state={skill.isShadowed ? 'shadowed' : 'active'}
-                          >
-                            <SkillCatalogAvatar
-                              identity={skill.key}
+                        {pagedInstalledSkills.map((skill, index) => {
+                          const presentation = localizeCatalogPresentation(
+                            presentationForInstalledSkill(skill),
+                            key => t(key),
+                          );
+                          const installedActions: SkillCardAction[] = [];
+                          if (canManage
+                            && skill.isAuthorable
+                            && (skill.level !== 'project' || !installed.isRemoteWorkspace)) {
+                            installedActions.push({
+                              id: 'edit',
+                              icon: <Pencil size={13} />,
+                              ariaLabel: t('list.item.editTooltip'),
+                              title: t('list.item.editTooltip'),
+                              onClick: () => setAuthoringTarget({
+                                mode: 'edit',
+                                skillKey: skill.key,
+                              }),
+                            });
+                          }
+                          if (canManage && !skill.isBuiltin) {
+                            installedActions.push({
+                              id: 'delete',
+                              icon: <Trash2 size={13} />,
+                              ariaLabel: t('list.item.deleteTooltip'),
+                              title: t('list.item.deleteTooltip'),
+                              tone: 'danger' as const,
+                              onClick: () => setDeleteTarget(skill),
+                            });
+                          }
+                          return (
+                            <SkillCard
+                              key={skill.key}
                               name={presentation.displayName}
-                              className="skills-card__avatar"
-                            />
-                            <p className="skills-card__name">{presentation.displayName}</p>
-                            <p className="skills-card__desc">
-                              {presentation.description.trim()}
-                            </p>
-                            <p
-                              className="skills-card__status"
-                              title={skill.isShadowed ? t('list.item.shadowedTooltip') : undefined}
-                            >
-                              <span className="skills-card__status-state">
-                                {skill.isShadowed
+                              description={presentation.description}
+                              index={index}
+                              accentSeed={skill.key}
+                              state={skill.isShadowed ? 'shadowed' : 'active'}
+                              status={{
+                                label: skill.isShadowed
                                   ? t('list.item.statusShadowed')
-                                  : t('list.item.statusActive')}
-                              </span>
-                              <span className="skills-card__status-origin">
-                                {skill.isBuiltin
+                                  : t('list.item.statusActive'),
+                                tone: skill.isShadowed ? 'muted' : 'success',
+                                detail: skill.isBuiltin
                                   ? t('list.item.builtin')
                                   : skill.level === 'project'
                                     ? t('list.item.project')
-                                    : t('list.item.user')}
-                              </span>
-                            </p>
-
-                            <div
-                              className="skills-card__actions"
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                className="skills-card__detail"
-                                onClick={() => setSelectedDetail({ type: 'installed', skill })}
-                              >
-                                <span>{t('list.item.detail')}</span>
-                                <ArrowRight size={12} />
-                              </button>
-                              {canManage
-                                && skill.isAuthorable
-                                && (skill.level !== 'project' || !installed.isRemoteWorkspace) && (
-                                <button
-                                  type="button"
-                                  className="skills-card__edit"
-                                  onClick={() => setAuthoringTarget({
-                                    mode: 'edit',
-                                    skillKey: skill.key,
-                                  })}
-                                  aria-label={t('list.item.editTooltip')}
-                                  title={t('list.item.editTooltip')}
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                              )}
-                              {canManage && !skill.isBuiltin && (
-                                <button
-                                  type="button"
-                                  className="skills-card__delete"
-                                  onClick={() => setDeleteTarget(skill)}
-                                  aria-label={t('list.item.deleteTooltip')}
-                                  title={t('list.item.deleteTooltip')}
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
-                            </div>
-                          </article>
-                            );
-                          })()
-                        ))}
+                                    : t('list.item.user'),
+                                title: skill.isShadowed
+                                  ? t('list.item.shadowedTooltip')
+                                  : undefined,
+                              }}
+                              actions={installedActions}
+                              detailLabel={t('list.item.detail')}
+                              onOpenDetails={() => setSelectedDetail({ type: 'installed', skill })}
+                            />
+                          );
+                        })}
                       </div>
 
-                      {installedFiltered.length > 0 && installedTotalPages > 1 && (
-                        <div className="skills-installed__pagination">
-                          <button
-                            type="button"
-                            className="skills-installed__page-btn"
-                            onClick={() => setInstalledListPage((p) => Math.max(0, p - 1))}
-                            disabled={currentInstalledPage === 0}
-                            aria-label={t('market.pagination.prev')}
-                          >
-                            <ChevronLeft size={14} />
-                          </button>
-                          <span className="skills-installed__page-info">
-                            {t('market.pagination.info', {
-                              current: currentInstalledPage + 1,
-                              total: installedTotalPages,
-                            })}
-                          </span>
-                          <button
-                            type="button"
-                            className="skills-installed__page-btn"
-                            onClick={() => setInstalledListPage((p) => Math.min(installedTotalPages - 1, p + 1))}
-                            disabled={currentInstalledPage >= installedTotalPages - 1}
-                            aria-label={t('market.pagination.next')}
-                          >
-                            <ChevronRight size={14} />
-                          </button>
-                        </div>
-                      )}
+                      <CatalogPagination
+                        currentPage={currentInstalledPage}
+                        totalPages={installedTotalPages}
+                        onPageChange={setInstalledListPage}
+                      />
                     </>
                   )}
                 </>
@@ -656,31 +601,19 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                   </div>
 
                   {(market.totalPages > 1 || market.hasMore) && (
-                    <div className="skills-discover__pagination">
-                      <button
-                        type="button"
-                        className="skills-discover__page-btn"
-                        onClick={market.goToPrevPage}
-                        disabled={market.currentPage === 0 || market.loadingMore}
-                        aria-label={t('market.pagination.prev')}
-                      >
-                        <ChevronLeft size={14} />
-                      </button>
-                      <span className="skills-discover__page-info">
-                        {market.hasMore
-                          ? t('market.pagination.infoMore', { current: market.currentPage + 1 })
-                          : t('market.pagination.info', { current: market.currentPage + 1, total: market.totalPages })}
-                      </span>
-                      <button
-                        type="button"
-                        className="skills-discover__page-btn"
-                        onClick={() => void market.goToNextPage()}
-                        disabled={(!market.hasMore && market.currentPage >= market.totalPages - 1) || market.loadingMore}
-                        aria-label={t('market.pagination.next')}
-                      >
-                        <ChevronRight size={14} />
-                      </button>
-                    </div>
+                    <CatalogPagination
+                      currentPage={market.currentPage}
+                      totalPages={market.hasMore
+                        ? market.currentPage + 2
+                        : market.totalPages}
+                      onPageChange={(page) => {
+                        if (page > market.currentPage) {
+                          void market.goToNextPage();
+                        } else {
+                          market.goToPrevPage();
+                        }
+                      }}
+                    />
                   )}
                 </>
               )}

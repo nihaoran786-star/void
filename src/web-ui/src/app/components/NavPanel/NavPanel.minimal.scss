@@ -199,8 +199,8 @@
         background-color var(--workspace-motion-fast) var(--workspace-easing-standard);
     }
 
-    // The plus glyph is 14px inside an 18px column; centre it so it lands on
-    // the same vertical line as the 15px glyphs in the rows below.
+    // The plus glyph is 15px inside a 22px column, matching the glyph size of
+    // the rows below; centre it so it lands on the same vertical line.
     &__session-create-tech-icon {
       justify-self: center;
       color: var(--color-accent-500);
@@ -485,10 +485,12 @@
       border-radius: var(--workspace-radius-control, 4px);
     }
 
+    // 15px, matching the assistant/automation glyphs so the rail reads as one
+    // icon set in both states.
     &__session-create-action > svg {
-      width: 16px;
-      height: 16px;
-      flex: 0 0 16px;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
       opacity: 1;
     }
 
@@ -540,6 +542,31 @@
       width: 40px;
       height: 40px;
     }
+  }
+
+  // Soften the expanded <-> collapsed content swap: the rail's lists pop in
+  // via display, so settle the whole panel with a short fade. Two keyframe
+  // names keyed to the state class restart the animation on every toggle
+  // (the single play on initial mount is acceptable). The width transition
+  // itself lives in WorkspaceBody.scss.
+  @media (prefers-reduced-motion: no-preference) {
+    .void-ui--minimal .void-workspace-body__nav-area .void-nav-panel {
+      animation: void-nav-panel-expand-settle 240ms var(--workspace-easing-standard, ease-out);
+    }
+
+    .void-ui--minimal .void-workspace-body__nav-area.is-collapsed .void-nav-panel {
+      animation: void-nav-panel-collapse-settle 240ms var(--workspace-easing-standard, ease-out);
+    }
+  }
+
+  @keyframes void-nav-panel-expand-settle {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+  }
+
+  @keyframes void-nav-panel-collapse-settle {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
   }
 
   .void-ui--minimal .void-nav-panel__workspace-item:hover .void-nav-panel__workspace-item-card,

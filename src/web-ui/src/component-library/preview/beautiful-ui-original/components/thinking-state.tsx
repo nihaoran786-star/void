@@ -99,6 +99,8 @@ export interface ThinkingStateProps {
   working?: boolean;
   alwaysExpanded?: boolean;
   compact?: boolean;
+  /** Raw streaming text shown as a bottom-anchored live tail while working. */
+  liveText?: string;
 }
 
 export default function ThinkingState({
@@ -110,6 +112,7 @@ export default function ThinkingState({
   working: controlledWorking,
   alwaysExpanded = false,
   compact = false,
+  liveText,
 }: ThinkingStateProps) {
   const controlled = rows !== undefined;
   const stage = useSequence(STAGES, controlled);
@@ -124,6 +127,9 @@ export default function ThinkingState({
     ? renderedRows.length
     : stage < 2 ? 0 : stage === 2 ? Math.min(2, renderedRows.length) : renderedRows.length;
   const traceRef = useRef<HTMLDivElement>(null);
+  const tailText = (liveText ?? renderedRows.map((row) => row.primary).join("\n")).trim();
+  const showLiveTail =
+    working && !expanded && (liveText !== undefined || controlled) && tailText.length > 0;
   const [lineHeight, setLineHeight] = useState(0);
   useLayoutEffect(() => {
     if (traceRef.current) setLineHeight(traceRef.current.offsetHeight);
@@ -131,9 +137,23 @@ export default function ThinkingState({
 
   const headerContent = (
     <>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill={working ? "var(--ink-2)" : "var(--ink-3)"}>
-        <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
-      </svg>
+      <span
+        aria-hidden
+        data-thinking-orb
+        className="shrink-0"
+        style={{
+          width: 9,
+          height: 9,
+          borderRadius: "50%",
+          backgroundColor: working ? "var(--ink-2)" : "var(--ink-3)",
+          // A soft halo keeps the small orb legible on the porcelain surface
+          // without reading as a status colour.
+          boxShadow: working
+            ? "0 0 0 3px color-mix(in srgb, var(--ink-2) 14%, transparent)"
+            : "0 0 0 2px color-mix(in srgb, var(--ink-3) 12%, transparent)",
+          animation: working ? "thinking-orb-pulse 1.6s ease-in-out infinite" : undefined,
+        }}
+      />
       {working ? (
         <span
           className="bg-clip-text text-[13px] font-medium whitespace-nowrap text-transparent"
@@ -289,6 +309,38 @@ export default function ThinkingState({
           </div>
         </div>
       </div>
+
+      {/* live tail — bottom-anchored preview of the latest thinking while streaming */}
+      {showLiveTail && (
+        <div
+          aria-hidden
+          data-thinking-live-tail
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            maxHeight: "3.9em",
+            overflow: "hidden",
+            marginTop: 4,
+            fontSize: 13,
+            WebkitMaskImage: "linear-gradient(to bottom, transparent 0, black 2.2em)",
+            maskImage: "linear-gradient(to bottom, transparent 0, black 2.2em)",
+          }}
+        >
+          <div
+            style={{
+              color: "var(--ink-3)",
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
+              wordBreak: "break-word",
+              transition: "none",
+            }}
+          >
+            {tailText}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

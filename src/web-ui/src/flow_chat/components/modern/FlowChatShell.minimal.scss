@@ -36,12 +36,6 @@
       margin-inline: auto;
     }
 
-    // The loading footer owns legacy 1200/1000/900px constraints and padding.
-    // Reset those here so live activity shares the same physical left edge as
-    // restored activity groups and the final assistant reply.
-    .processing-indicator {
-      padding-inline: 0;
-    }
 
     .model-round-item {
       padding-inline: 0;
@@ -197,6 +191,82 @@
       .processing-indicator {
         width: calc(100% - 20px);
       }
+    }
+  }
+
+  // ── Transcript scrollbar ─────────────────────────────────────────────
+  // Thin overlay mark for the conversation scrollers (session transcript and
+  // the BTW/Team session panel body). Transparent track, 4px rounded thumb on
+  // a wider grab area, visible only while the pane is hovered or actively
+  // scrolling; coloured via the neutral workspace token so light and dark
+  // themes both read.
+  .void-ui--minimal
+    .virtual-message-list
+    :is([data-virtuoso-scroller], .virtual-message-list__static-scroller),
+  .void-ui--minimal .btw-session-panel__body {
+    // Firefox: thin bar, transparent until hovered.
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &:hover,
+    &.is-scrolling {
+      scrollbar-color: color-mix(
+          in srgb,
+          var(--workspace-text-muted, var(--color-text-muted)) 38%,
+          transparent
+        )
+        transparent;
+    }
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    // The transparent border + content-box clip shrink the painted thumb
+    // without shrinking what the pointer can grab.
+    &::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      background-clip: content-box;
+    }
+
+    &:hover::-webkit-scrollbar-thumb,
+    &.is-scrolling::-webkit-scrollbar-thumb {
+      background-color: color-mix(
+        in srgb,
+        var(--workspace-text-muted, var(--color-text-muted)) 38%,
+        transparent
+      );
+    }
+
+    &:hover::-webkit-scrollbar-thumb:hover {
+      background-color: color-mix(
+        in srgb,
+        var(--workspace-text-muted, var(--color-text-muted)) 60%,
+        transparent
+      );
+    }
+  }
+
+  // The transcript scroller spans the full pane height beneath the floating
+  // header and composer. Inset the *track* rather than the scroller so the
+  // thumb never rides behind either overlay: this is pure scrollbar painting —
+  // scroller geometry and the bottom-follow footer spacer contract in
+  // VirtualMessageList stay untouched. 57px matches `.message-list-header`;
+  // 104px is the resting composer footprint from flowChatScrollLayout.ts
+  // (NORMAL_INPUT_BLOCK_SAFE_PX 96 + CHAT_INPUT_DROP_ZONE_BOTTOM_PX 4) plus a
+  // 4px breathing gap. (The BTW panel keeps the default track margins: its
+  // composer sits below the scroller in normal flow.)
+  .void-ui--minimal
+    .virtual-message-list
+    :is([data-virtuoso-scroller], .virtual-message-list__static-scroller) {
+    &::-webkit-scrollbar-track {
+      margin-block: 57px 104px;
     }
   }
 }

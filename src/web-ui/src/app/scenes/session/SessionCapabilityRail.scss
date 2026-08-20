@@ -318,8 +318,22 @@
   justify-content: center;
   min-height: 26px;
   padding: 3px;
-  border-top-color: var(--workspace-border-subtle, var(--border-subtle));
+  // Match the __team-outlet separator rhythm: breathing room above the
+  // hairline, then the same 4px pause before content.
+  padding-top: 4px;
+  margin-top: var(--workspace-space-2, 6px);
+  border-top: 1px solid var(--workspace-border-subtle, var(--border-subtle));
   border-radius: 7px;
+
+  // Pressed treatment mirroring sibling `--active` modifiers. Keyed off the
+  // `aria-expanded` state the component already renders, so no logic changes.
+  &[aria-expanded='true'] {
+    border-color: var(--workspace-accent, var(--color-accent-500));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    background: var(--workspace-surface-active);
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--workspace-accent, var(--color-accent-500)) 18%, transparent);
+  }
 }
 
 // The rail is a floating control, but transcript content remains readable and
@@ -328,6 +342,15 @@
   .modern-flowchat-container__messages {
     box-sizing: border-box;
     padding-right: 52px;
+  }
+}
+
+// Minimal paints an overlay scrollbar on the scroller's right edge, which sits
+// flush against this reserved strip. A few extra pixels keep the thumb column
+// visually clear of the rail's expand toggle without moving the rail itself.
+.void-ui--minimal .void-session-scene__chat-pane:has(.session-capability-rail) {
+  .modern-flowchat-container__messages {
+    padding-right: 56px;
   }
 }
 
