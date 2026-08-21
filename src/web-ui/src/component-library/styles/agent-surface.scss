@@ -1,0 +1,397 @@
+// AGENT surface — the one shared presentation vocabulary for everything hosted
+// inside the AGENT scene (directory, create/authoring/review pages, equipment
+// panel, catalog detail, team cards).
+//
+// Rules of the surface:
+// - Tokens only: `--workspace-*` / `--status-*` with classic `--color-*`
+//   fallbacks. No colour literals.
+// - Quiet by construction: no gradients, no glow, no shadows, no keyframe
+//   animation. The only line is a hairline; the only motion is none.
+// - Status is always two channels: text plus colour.
+// - Two published card heights and no more (see `primitives` at the bottom).
+//
+// This file exports mixins plus one `primitives` mixin that emits the small
+// `.agent-surface__*` class set. Include `primitives` exactly once per style
+// graph (the AGENT scene root stylesheet does this) so selectors are not
+// duplicated across compiled entries.
+
+// ── Page scaffold ──────────────────────────────────────────────────────────
+
+// Whole-page container: flex column, scroll owner, base surface colours.
+@mixin surface {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden auto;
+  background: var(--workspace-surface-base, var(--color-bg-primary));
+  color: var(--workspace-text-primary, var(--color-text-primary));
+}
+
+// Centered reading column. Two sanctioned measures: 720px (regular) and
+// 960px (dense panels); do not invent a third.
+@mixin measure($max: 720px) {
+  width: 100%;
+  max-width: $max;
+  margin: 0 auto;
+  padding: var(--workspace-space-8, 32px) var(--workspace-space-6, 24px)
+    var(--workspace-space-10, 40px);
+}
+
+// ── Type scale ─────────────────────────────────────────────────────────────
+
+@mixin page-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+
+@mixin page-mission {
+  margin: 0;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: 12px;
+}
+
+// Small-caps-feel section header without uppercase shouting.
+@mixin section-label {
+  margin: 0;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+}
+
+// Loading / empty / error one-liners; add `.is-error` for the error tone.
+@mixin state-text {
+  margin: 0;
+  padding: var(--workspace-space-3, 12px) 0;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: 13px;
+
+  &.is-error {
+    color: var(--workspace-status-error-text, var(--color-error));
+  }
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+
+@mixin hairline-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-space-4, 16px);
+  border-bottom: 0.5px solid var(--workspace-border-subtle, var(--color-border-primary));
+}
+
+@mixin hairline-tab {
+  position: relative;
+  padding: 0 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+
+  &.is-active {
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-weight: 500;
+
+    &::after {
+      position: absolute;
+      right: 0;
+      bottom: -0.5px;
+      left: 0;
+      height: 1.5px;
+      background: currentColor;
+      content: '';
+    }
+  }
+}
+
+// ── List row ───────────────────────────────────────────────────────────────
+
+// The one list row: fixed height, hover wash bleeding 12px past the measure,
+// focus ring drawn inside the row.
+@mixin row($height: 50px) {
+  display: flex;
+  height: $height;
+  align-items: center;
+  gap: var(--workspace-space-3, 12px);
+  margin: 0 -12px;
+  padding: 0 12px;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--workspace-border-strong, var(--color-border-secondary));
+    outline-offset: -1px;
+  }
+}
+
+// ── Card ───────────────────────────────────────────────────────────────────
+
+// The one card: hairline frame on the panel surface. No shadow, no gradient,
+// no hover lift. Heights are published only through the primitives below.
+@mixin card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-panel, 8px);
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+  color: var(--workspace-text-primary, var(--color-text-primary));
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+
+// Quiet text button: borderless, ink brightens on hover.
+@mixin quiet-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--workspace-space-1, 4px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  cursor: pointer;
+  font-size: 13px;
+
+  &:hover {
+    color: var(--workspace-text-primary, var(--color-text-primary));
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--workspace-focus-ring, var(--color-accent-600));
+    outline-offset: 2px;
+  }
+}
+
+// Quiet square icon button.
+@mixin icon-button($size: 26px) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $size;
+  height: $size;
+  padding: 0;
+  border: 0;
+  border-radius: var(--workspace-radius-control, 6px);
+  background: transparent;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  cursor: pointer;
+
+  &:hover {
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+  }
+}
+
+// Bottom action strip, right aligned.
+@mixin actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--workspace-space-2, 8px);
+}
+
+// ── Status & metadata ──────────────────────────────────────────────────────
+
+// Status as ink, never a pill: a 6px dot plus quiet text, toned with
+// `.is-success` / `.is-warning` / `.is-error` / `.is-muted` modifiers.
+@mixin status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--workspace-space-1, 4px);
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: 12px;
+  line-height: var(--workspace-line-height-meta, 1.4);
+
+  &::before {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    content: '';
+  }
+
+  &.is-success {
+    color: var(--workspace-status-success-text, var(--status-success-text));
+  }
+
+  &.is-warning {
+    color: var(--workspace-status-warning-text, var(--status-warning-text));
+  }
+
+  &.is-error {
+    color: var(--workspace-status-error-text, var(--status-error-text));
+  }
+
+  &.is-muted {
+    color: var(--workspace-text-muted, var(--color-text-tertiary));
+  }
+}
+
+// Quiet capability tag: meta type inside a hairline, control radius.
+@mixin tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
+  background: transparent;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: var(--workspace-font-size-meta, 11px);
+  line-height: var(--workspace-line-height-meta, 1.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Horizontal strip of 16px overlapping member circles ringed in panel surface;
+// a trailing `.is-overflow` child renders the "+N" remainder in meta ink.
+@mixin member-strip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+
+  > :not(.is-overflow) {
+    box-sizing: border-box;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--workspace-surface-panel, var(--color-bg-secondary));
+    border-radius: 50%;
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+    object-fit: cover;
+  }
+
+  > :not(.is-overflow) + :not(.is-overflow) {
+    margin-left: -5px;
+  }
+
+  > .is-overflow {
+    flex: none;
+    margin-left: var(--workspace-space-1, 4px);
+    color: var(--workspace-text-muted, var(--color-text-tertiary));
+    font-size: var(--workspace-font-size-meta, 11px);
+    font-variant-numeric: tabular-nums;
+    line-height: var(--workspace-line-height-meta, 1.4);
+    white-space: nowrap;
+  }
+}
+
+// ── Published primitives ───────────────────────────────────────────────────
+// Emitted once from the AGENT scene root stylesheet. These class names are the
+// cross-page vocabulary; page stylesheets may also @include the mixins onto
+// their own BEM blocks when a page-scoped name is clearer.
+
+@mixin primitives {
+  // The two sanctioned card heights: regular (list/detail cards) and tall
+  // (catalog/team cards).
+  .agent-surface__card {
+    @include card;
+
+    min-height: 120px;
+
+    &--tall {
+      min-height: 200px;
+    }
+  }
+
+  .agent-surface__row {
+    @include row;
+
+    // Non-interactive variant: same anatomy, no pointer affordances, and the
+    // height relaxes so two-line copy can breathe.
+    &--static {
+      height: auto;
+      min-height: 50px;
+      margin: 0;
+      padding: var(--workspace-space-1, 4px) 0;
+      cursor: default;
+
+      &:hover,
+      &:focus-visible {
+        background: transparent;
+        outline: none;
+      }
+    }
+  }
+
+  .agent-surface__section-label {
+    @include section-label;
+  }
+
+  .agent-surface__action {
+    @include quiet-button;
+  }
+
+  .agent-surface__status {
+    @include status-dot;
+  }
+
+  .agent-surface__state {
+    @include state-text;
+  }
+
+  .agent-surface__tag {
+    @include tag;
+  }
+
+  // Vertical stack used by hosted detail bodies (e.g. the catalog detail
+  // modal): plain sections separated by whitespace, no frames.
+  .agent-surface__stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--workspace-space-5, 20px);
+  }
+
+  .agent-surface__section {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--workspace-space-2, 8px);
+  }
+
+  // Two-line copy block inside a row: 14/500 name over 13px muted line.
+  .agent-surface__row-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+
+    strong,
+    span,
+    small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      color: var(--workspace-text-primary, var(--color-text-primary));
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    span,
+    small {
+      margin-top: 2px;
+      color: var(--workspace-text-muted, var(--color-text-tertiary));
+      font-size: 13px;
+      font-weight: 400;
+    }
+  }
+}

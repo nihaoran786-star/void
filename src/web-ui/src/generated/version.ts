@@ -1,6 +1,6 @@
 /**
  * Auto-generated version info. Do not edit.
- * Generated: 2026-08-21T16:54:03.615Z
+ * Generated: 2026-08-21T16:56:13.991Z
  */
 
 import type { VersionInfo } from '../shared/types/version';
@@ -8,11 +8,11 @@ import type { VersionInfo } from '../shared/types/version';
 export const VERSION_INFO: VersionInfo = {
   "name": "void",
   "version": "0.2.8",
-  "buildDate": "2026-08-21T16:54:03.613Z",
-  "buildTimestamp": 1787331243614,
+  "buildDate": "2026-08-21T16:56:13.989Z",
+  "buildTimestamp": 1787331373990,
   "buildEnv": "development",
   "isDev": true,
-  "gitCommit": "2ed276b",
-  "gitCommitFull": "2ed276b6a29913512a5355bdc912b1e67d86c960",
+  "gitCommit": "53211d3",
+  "gitCommitFull": "53211d31f13609654931c20bbc500a7f47ccbb1e",
   "gitBranch": "codex/agent-revision-core-p1a1"
 };

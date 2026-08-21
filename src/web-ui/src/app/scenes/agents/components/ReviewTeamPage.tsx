@@ -41,7 +41,6 @@ import {
   type ReviewTeam,
   type ReviewTeamMember,
 } from '@/shared/services/reviewTeamService';
-import '../AgentsView.scss';
 import './AgentTeamCard.scss';
 import './ReviewTeamPage.scss';
 

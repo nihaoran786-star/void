@@ -1,58 +1,92 @@
-@use '../../../../component-library/styles/tokens' as *;
-@use './CreateAgentPage.minimal' as minimal;
+@use '../../../../component-library/styles/agent-surface' as surface;
+
+// Create-agent page on the shared AGENT surface. One quiet vocabulary: page
+// title over a muted mission line, hairline-framed panels, quiet segmented
+// controls. The former `AgentsView.scss` shell (page-reveal animation,
+// gradient editor bar) and the dead `.minimal` overlay are folded in here as
+// static, token-only styles.
+
+// ── Page shell (formerly AgentsView.scss `.tv`) ────────────────────────────
+
+.tv {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+
+  &__editor-bar {
+    display: flex;
+    min-height: 44px;
+    flex-shrink: 0;
+    align-items: center;
+    padding: var(--workspace-space-2, 8px) var(--workspace-space-4, 16px);
+    border-bottom: 0.5px solid var(--workspace-border-subtle, var(--color-border-primary));
+    background: transparent;
+  }
+
+  &__back-btn {
+    @include surface.quiet-button;
+
+    min-height: 28px;
+    padding: 0 var(--workspace-space-2, 8px);
+    border-radius: var(--workspace-radius-control, 6px);
+    font-size: 13px;
+
+    &:hover {
+      background: var(--workspace-surface-hover, var(--color-bg-hover));
+    }
+  }
+}
+
+// ── Two-pane create lab ────────────────────────────────────────────────────
 
 .th-create-lab {
+  display: grid;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 42%);
-  gap: $size-gap-4;
-  padding: $size-gap-4 clamp(16px, 2.2vw, 28px);
+  padding: var(--workspace-space-4, 16px);
   overflow: hidden;
+  gap: var(--workspace-space-4, 16px);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 42%);
 }
 
 .th-create-lab__chat {
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
   overflow: hidden;
-  background: var(--color-bg-flowchat);
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
+  background: var(--workspace-surface-panel, var(--color-bg-flowchat));
 }
 
 .th-create-lab__editor {
+  display: flex;
   min-width: 0;
   min-height: 0;
-  display: flex;
   flex-direction: column;
-  gap: $size-gap-4;
+  gap: var(--workspace-space-3, 12px);
+  padding-right: var(--workspace-space-1, 4px);
   overflow-y: auto;
-  padding-right: $size-gap-2;
-
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-subtle);
-    border-radius: 2px;
-  }
+  scrollbar-width: thin;
+  scrollbar-color: var(--workspace-border-strong, var(--color-border-secondary)) transparent;
 }
 
 .th-create-lab__sheet {
-  display: flex;
+  @include surface.card;
+
+  flex-shrink: 0;
+  flex-direction: row;
   align-items: flex-end;
   justify-content: space-between;
-  gap: $size-gap-3;
-  padding: $size-gap-3 $size-gap-4;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
-  background: var(--color-bg-secondary);
-  flex-shrink: 0;
+  gap: var(--workspace-space-3, 12px);
+  padding: var(--workspace-space-3, 12px) var(--workspace-space-4, 16px);
+  border-radius: var(--workspace-radius-control, 6px);
 }
 
 .th-create-lab__sheet-heading {
-  min-width: 0;
   display: grid;
-  gap: $size-gap-1;
+  min-width: 0;
+  gap: var(--workspace-space-1, 4px);
 
   .th__title,
   .th__title-sub {
@@ -61,242 +95,240 @@
 }
 
 .th-create-lab__sheet-name {
-  margin-top: $size-gap-1;
+  margin-top: var(--workspace-space-1, 4px);
   overflow: hidden;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: $font-weight-semibold;
+  color: var(--workspace-text-primary, var(--color-text-primary));
+  font-size: 14px;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .th-create-lab__sheet-meta {
-  flex-shrink: 0;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: $size-gap-2;
+  gap: var(--workspace-space-2, 8px);
 }
 
 .th-create-lab__sheet-chips {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: $size-gap-1;
+  gap: var(--workspace-space-1, 4px);
 }
 
 .th-create-lab__sheet-chip {
-  padding: 2px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-full;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-2xs);
-  white-space: nowrap;
+  @include surface.tag;
 }
 
 .th-create-lab__sheet-level {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-width: 24px;
   height: 24px;
+  align-items: center;
+  justify-content: center;
   padding: 0 6px;
-  border-radius: $size-radius-full;
-  background: rgba(var(--color-primary-rgb, 99 102 241) / 0.12);
-  color: var(--color-primary);
-  font-size: var(--font-size-2xs);
-  font-weight: $font-weight-semibold;
+  border-radius: var(--workspace-radius-control, 6px);
+  background: var(--workspace-surface-active, var(--color-bg-hover));
+  color: var(--workspace-text-primary, var(--color-text-primary));
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .th-create-lab__tabs {
   display: inline-flex;
-  gap: $size-gap-1;
-  padding: $size-gap-1;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
-  align-self: flex-start;
   flex-shrink: 0;
+  align-self: flex-start;
+  gap: var(--workspace-space-1, 4px);
+  padding: 2px;
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
 }
 
 .th-create-lab__tab {
-  min-height: 28px;
-  padding: 0 $size-gap-3;
+  min-height: 24px;
+  padding: 0 var(--workspace-space-2, 8px);
   border: 0;
-  border-radius: $size-radius-sm;
+  border-radius: calc(var(--workspace-radius-control, 6px) - 2px);
   background: transparent;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
   cursor: pointer;
-  transition:
-    background $motion-fast $easing-standard,
-    color $motion-fast $easing-standard;
+  font-size: 12px;
 
   &:hover {
-    color: var(--color-text-primary);
-    background: var(--element-bg-subtle);
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
   }
 
   &.is-active {
-    background: rgba(var(--color-primary-rgb, 99 102 241) / 0.1);
-    color: var(--color-text-primary);
-    font-weight: $font-weight-semibold;
+    background: var(--workspace-surface-active, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-weight: 500;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--workspace-focus-ring, var(--color-accent-600));
+    outline-offset: -1px;
   }
 }
 
 .th-create-lab__tab-panel {
   display: flex;
   flex-direction: column;
-  gap: $size-gap-4;
+  gap: var(--workspace-space-4, 16px);
 
   &[hidden] {
     display: none;
   }
 }
 
+// ── Form page ──────────────────────────────────────────────────────────────
+
 .th__list-body {
   flex: 1;
-  overflow-y: auto;
+  padding: var(--workspace-space-4, 16px);
   overflow-x: hidden;
-  padding: $size-gap-5 clamp(16px, 2.2vw, 28px);
-
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-subtle);
-    border-radius: 2px;
-  }
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--workspace-border-strong, var(--color-border-secondary)) transparent;
 }
 
 .th__list-inner {
-  width: min(100%, 760px);
-  margin-inline: auto;
   display: flex;
+  width: min(100%, 840px);
   flex-direction: column;
-  gap: $size-gap-4;
+  gap: var(--workspace-space-4, 16px);
+  margin-inline: auto;
 }
 
 .th__title {
-  font-size: var(--font-size-xl);
-  font-weight: $font-weight-semibold;
-  color: var(--color-text-primary);
   margin: 0;
-  line-height: $line-height-tight;
+  color: var(--workspace-text-primary, var(--color-text-primary));
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.3;
 }
 
 .th__title-sub {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: $line-height-relaxed;
+  @include surface.page-mission;
+
+  margin-top: var(--workspace-space-1, 4px);
+  font-size: 13px;
+}
+
+.th-create-page__head,
+.th-create-page__form {
+  width: min(100%, 720px);
+  margin-inline: auto;
 }
 
 .th-create-page__head {
-  margin-bottom: $size-gap-5;
+  margin-bottom: var(--workspace-space-3, 12px);
 }
 
 .th-create-page__form {
   display: flex;
   flex-direction: column;
-  gap: $size-gap-4;
-  width: 100%;
+  gap: var(--workspace-space-4, 16px);
 }
 
 .th-authoring-routes {
   display: grid;
+  gap: var(--workspace-space-2, 8px);
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: $size-gap-2;
 }
 
 .th-authoring-route {
   display: flex;
+  min-height: 42px;
   align-items: center;
   justify-content: center;
-  gap: $size-gap-2;
-  min-height: 42px;
-  padding: $size-gap-2 $size-gap-3;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
-  background: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  gap: var(--workspace-space-2, 8px);
+  padding: var(--workspace-space-2, 8px) var(--workspace-space-3, 12px);
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
   cursor: pointer;
-  transition:
-    border-color $motion-fast $easing-standard,
-    background $motion-fast $easing-standard,
-    color $motion-fast $easing-standard;
+  font-size: 13px;
 
   &:hover {
-    border-color: var(--border-medium);
-    color: var(--color-text-primary);
+    border-color: var(--workspace-border-strong, var(--color-border-secondary));
+    color: var(--workspace-text-primary, var(--color-text-primary));
   }
 
   &.is-active {
-    border-color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb, 99 102 241) / 0.08);
-    color: var(--color-text-primary);
-    font-weight: $font-weight-semibold;
+    border-color: var(--workspace-border-strong, var(--color-border-secondary));
+    background: var(--workspace-surface-active, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-weight: 500;
   }
 }
 
 .th-create-page__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: $size-gap-2;
-  padding-top: $size-gap-2;
-  border-top: 1px solid var(--border-subtle);
-  margin-top: $size-gap-2;
+  @include surface.actions;
+
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  margin-top: 0;
+  padding: var(--workspace-space-3, 12px) 0;
+  border-top: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  background: var(--workspace-surface-base, var(--color-bg-primary));
 }
 
 .th-create-panel__field {
   display: flex;
   flex-direction: column;
-  gap: $size-gap-1;
+  gap: var(--workspace-space-1, 4px);
 
   &--row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: $size-gap-2;
+    display: grid;
+    padding-block: var(--workspace-space-2, 8px);
+    border-block: 0.5px solid var(--workspace-border-subtle, var(--color-border-primary));
+    gap: var(--workspace-space-3, 12px);
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 }
 
 .th-create-panel__label {
-  font-size: var(--font-size-xs);
-  font-weight: $font-weight-medium;
-  color: var(--color-text-secondary);
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .th-create-panel__label-hint {
-  font-weight: $font-weight-normal;
-  color: var(--color-text-muted);
   margin-left: 4px;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-weight: 400;
 }
 
 .th-create-panel__error {
-  font-size: var(--font-size-xs);
-  color: var(--color-error);
+  color: var(--workspace-status-error-text, var(--color-error));
+  font-size: 12px;
 }
 
 .th-create-panel__help {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: $line-height-relaxed;
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .th-create-panel__runtime-id {
   display: flex;
   align-items: center;
-  gap: $size-gap-2;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  gap: var(--workspace-space-2, 8px);
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
+  font-size: 12px;
 
   code {
     min-width: 0;
     overflow: hidden;
-    color: var(--color-text-secondary);
-    font-family: $font-family-mono;
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    font-family: var(--font-family-mono);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -306,211 +338,230 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: $size-gap-3;
+  gap: var(--workspace-space-3, 12px);
 
   p {
     margin: 0;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
-    line-height: $line-height-relaxed;
+    color: var(--workspace-text-muted, var(--color-text-tertiary));
+    font-size: 12px;
+    line-height: 1.5;
   }
 }
 
 .th-create-panel__scenario-field {
   display: flex;
   flex-direction: column;
-  gap: $size-gap-2;
+  gap: var(--workspace-space-2, 8px);
   margin: 0;
-  padding: $size-gap-3;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
+  padding: var(--workspace-space-3, 12px);
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
 
   legend {
-    padding: 0 $size-gap-1;
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-xs);
-    font-weight: $font-weight-medium;
+    padding: 0 var(--workspace-space-1, 4px);
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    font-size: 12px;
+    font-weight: 500;
   }
 
   p {
     margin: 0;
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
+    color: var(--workspace-text-muted, var(--color-text-tertiary));
+    font-size: 12px;
   }
 }
 
 .th-create-panel__scenarios {
   display: flex;
   flex-wrap: wrap;
-  gap: $size-gap-2;
+  gap: var(--workspace-space-2, 8px);
 }
 
 .th-create-panel__scenario {
   min-height: 30px;
-  padding: 0 $size-gap-3;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-full;
+  padding: 0 var(--workspace-space-3, 12px);
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
   background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
   cursor: pointer;
+  font-size: 12px;
 
   &.is-on {
-    border-color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb, 99 102 241) / 0.08);
-    color: var(--color-text-primary);
-    font-weight: $font-weight-semibold;
+    border-color: var(--workspace-border-strong, var(--color-border-secondary));
+    background: var(--workspace-surface-active, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-weight: 500;
   }
 }
 
 .th-create-panel__configuration {
-  display: flex;
-  flex-direction: column;
-  gap: $size-gap-3;
-  padding: $size-gap-4;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
-  background: var(--color-bg-secondary);
+  @include surface.card;
+
+  gap: var(--workspace-space-3, 12px);
+  padding: var(--workspace-space-4, 16px);
+  border-radius: var(--workspace-radius-control, 6px);
 }
 
 .th-create-panel__section-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: $size-gap-3;
+  gap: var(--workspace-space-3, 12px);
 
   h3 {
     margin: 0;
-    color: var(--color-text-primary);
-    font-size: var(--font-size-sm);
-    font-weight: $font-weight-semibold;
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-size: 13px;
+    font-weight: 500;
   }
 
   span {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
+    color: var(--workspace-text-muted, var(--color-text-tertiary));
+    font-size: 12px;
   }
 }
 
 .th-create-panel__preview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: $size-gap-1;
-  padding: $size-gap-3 $size-gap-4;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-base;
-  background: var(--color-bg-primary);
+  padding: var(--workspace-space-3, 12px) var(--workspace-space-4, 16px);
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
+  background: var(--workspace-surface-base, var(--color-bg-primary));
+  gap: var(--workspace-space-1, 4px);
 
   > span,
   > div {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
+    color: var(--workspace-text-muted, var(--color-text-tertiary));
+    font-size: 12px;
   }
 
   strong {
-    color: var(--color-text-primary);
-    font-size: var(--font-size-sm);
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-size: 13px;
   }
 
   p {
     margin: 0;
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-    line-height: $line-height-relaxed;
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    font-size: 13px;
+    line-height: 1.5;
   }
 }
 
 .th-create-panel__readonly-row {
   display: flex;
-  align-items: center;
-  gap: $size-gap-2;
   flex-shrink: 0;
+  align-items: center;
+  gap: var(--workspace-space-2, 8px);
 }
 
 .th-create-panel__level-group {
-  display: inline-flex;
-  gap: $size-gap-2;
-  margin-right: auto;
+  display: inline-grid;
+  justify-self: start;
+  margin-right: 0;
+  padding: 2px;
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+  gap: 0;
+  grid-template-columns: repeat(2, minmax(0, auto));
 }
 
 .th-create-panel__level-btn {
   display: inline-flex;
+  height: 24px;
   align-items: center;
-  height: 26px;
-  padding: 0 $size-gap-3;
-  border: 1px solid var(--border-subtle);
-  border-radius: $size-radius-full;
+  border: 0;
+  border-radius: calc(var(--workspace-radius-control, 6px) - 2px);
   background: transparent;
-  font-size: var(--font-size-xs);
-  font-weight: $font-weight-medium;
-  color: var(--color-text-secondary);
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
   cursor: pointer;
-  transition:
-    border-color $motion-fast $easing-standard,
-    background $motion-fast $easing-standard,
-    color $motion-fast $easing-standard;
+  font-size: 11px;
+  padding-inline: var(--workspace-space-2, 8px);
 
   &:hover:not(:disabled) {
-    border-color: var(--border-medium);
-    color: var(--color-text-primary);
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
   }
 
   &.is-active {
-    border-color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb, 99 102 241) / 0.08);
-    color: var(--color-text-primary);
-    font-weight: $font-weight-semibold;
+    background: var(--workspace-surface-active, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-weight: 500;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--workspace-focus-ring, var(--color-accent-600));
+    outline-offset: -1px;
   }
 
   &:disabled {
-    opacity: 0.4;
     cursor: not-allowed;
+    opacity: 0.4;
   }
 }
 
 .th-create-panel__tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $size-gap-1;
+  display: grid;
+  max-height: 136px;
+  padding: var(--workspace-space-1, 4px);
+  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-control, 6px);
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+  gap: var(--workspace-space-1, 4px);
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--workspace-border-strong, var(--color-border-secondary)) transparent;
 }
 
 .th-list__tool-item {
   display: inline-flex;
+  min-width: 0;
+  min-height: 28px;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  border-radius: $size-radius-sm;
+  padding: 0 var(--workspace-space-2, 8px);
   border: 1px solid transparent;
+  border-radius: var(--workspace-radius-control, 6px);
   background: transparent;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
+  color: var(--workspace-text-muted, var(--color-text-tertiary));
   cursor: pointer;
-  transition:
-    background $motion-fast $easing-standard,
-    border-color $motion-fast $easing-standard,
-    color $motion-fast $easing-standard;
+  font-size: 11px;
 
   &:hover:not(.is-on) {
-    border-color: var(--border-medium);
-    color: var(--color-text-primary);
+    border-color: var(--workspace-border-subtle, var(--color-border-primary));
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
   }
 
   &.is-on {
-    border: 1px solid var(--color-primary);
-    background: rgba(var(--color-primary-rgb, 99 102 241) / 0.08);
-    color: var(--color-text-primary);
+    border-color: var(--workspace-border-strong, var(--color-border-secondary));
+    background: var(--workspace-surface-active, var(--color-bg-hover));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--workspace-focus-ring, var(--color-accent-600));
+    outline-offset: -1px;
   }
 }
 
 .th-list__tool-item-name {
-  font-family: $font-family-mono;
-  font-size: var(--font-size-2xs);
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .th-create-panel__runtime-unsupported {
   display: grid;
-  gap: $size-gap-2;
-  padding-block: $size-gap-8;
+  gap: var(--workspace-space-2, 8px);
+  padding-block: var(--workspace-space-8, 32px);
   text-align: center;
 
   h2,
@@ -519,20 +570,21 @@
   }
 
   h2 {
-    color: var(--color-text-primary);
-    font-size: var(--font-size-xl);
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    font-size: 18px;
+    font-weight: 500;
   }
 
   p {
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    font-size: 13px;
     line-height: 1.6;
   }
 }
 
 @container (max-width: 480px) {
   .th__list-body {
-    padding: $size-gap-4;
+    padding: var(--workspace-space-4, 16px);
   }
 
   .th-authoring-routes {
@@ -567,4 +619,26 @@
   }
 }
 
-@include minimal.styles;
+@media (max-width: 720px) {
+  .tv__editor-bar,
+  .th__list-body {
+    padding-inline: var(--workspace-space-3, 12px);
+  }
+
+  .th__list-body {
+    padding-block: var(--workspace-space-3, 12px);
+  }
+
+  .th-create-panel__field--row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .th-create-panel__level-group {
+    grid-column: 1 / -1;
+  }
+
+  .th-create-panel__tools {
+    max-height: 124px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

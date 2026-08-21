@@ -38,7 +38,6 @@ import {
   normalizeReviewModeState,
   type SubagentEditorToolInfo,
 } from './subagentEditorUtils';
-import '../AgentsView.scss';
 import './CreateAgentPage.scss';
 
 const AUTHORING_ROUTES: Array<{

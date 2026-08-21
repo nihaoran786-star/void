@@ -1,16 +1,14 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { attachOrb, resolveOrbType, type OrbHandle } from './orbAvatarEngine';
+import React, { useMemo } from 'react';
 import './AgentAvatar.scss';
 
 /**
- * Orb avatar: a deterministic point-cloud motion form per agent identity.
- * AI agents never use human portraits — identity comes from the motion form.
+ * Static identity mark: a deterministic per-agent colour behind the first
+ * letter of the agent's name. AI agents never use human portraits — identity
+ * comes from the stable colour + letter pair. No animation, ever.
  *
  * state:
- * - `idle`    static frame (enabled, not running)
- * - `off`     static frame, dimmed (disabled)
- * - `active`  animating (its row is selected)
- * - `running` animating (a dispatch/run is in flight)
+ * - `idle` / `active` / `running`  normal mark
+ * - `off`                          dimmed (disabled)
  */
 export type AgentAvatarState = 'idle' | 'off' | 'active' | 'running';
 
@@ -22,6 +20,28 @@ interface AgentAvatarProps {
   className?: string;
 }
 
+/** FNV-1a hash — stable identity -> hue assignment. */
+function hashIdentity(identity: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash ^= identity.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/** Deterministic per-agent accent; theme tokens temper it via color-mix. */
+function resolveAvatarAccent(identity: string): string {
+  const hue = hashIdentity(identity) % 360;
+  return `oklch(0.62 0.11 ${hue})`;
+}
+
+function resolveInitial(name: string, identity: string): string {
+  const source = name.trim() || identity.trim();
+  const first = Array.from(source)[0];
+  return first ? first.toLocaleUpperCase() : '·';
+}
+
 const AgentAvatar: React.FC<AgentAvatarProps> = ({
   identity,
   name,
@@ -29,41 +49,22 @@ const AgentAvatar: React.FC<AgentAvatarProps> = ({
   state = 'idle',
   className,
 }) => {
-  const orbType = useMemo(() => resolveOrbType(identity), [identity]);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const handleRef = useRef<OrbHandle | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-    const handle = attachOrb(canvas, orbType);
-    handleRef.current = handle;
-    return () => {
-      handle.dispose();
-      if (handleRef.current === handle) {
-        handleRef.current = null;
-      }
-    };
-  }, [orbType]);
-
-  useEffect(() => {
-    handleRef.current?.setAnimating(state === 'active' || state === 'running');
-  }, [orbType, state]);
+  const accent = useMemo(() => resolveAvatarAccent(identity), [identity]);
+  const initial = useMemo(() => resolveInitial(name, identity), [name, identity]);
 
   return (
     <span
       className={[
         'agent-avatar',
-        'agent-avatar--orb',
         `agent-avatar--${size}`,
         className,
       ].filter(Boolean).join(' ')}
       data-state={state}
-      data-orb={orbType}
+      style={{ '--agent-avatar-accent': accent } as React.CSSProperties}
       aria-hidden="true"
       title={name}
     >
-      <canvas ref={canvasRef} className="agent-avatar__canvas" />
+      <span className="agent-avatar__mark">{initial}</span>
     </span>
   );
 };

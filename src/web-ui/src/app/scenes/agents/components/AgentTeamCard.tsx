@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Send, Sparkles } from 'lucide-react';
+import { Send, Sparkles } from 'lucide-react';
 import AgentAvatar from './AgentAvatar';
 import './AgentTeamCard.scss';
 
@@ -71,11 +71,7 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
           }}
           onKeyDown={event => event.stopPropagation()}
         >
-          {dispatching ? (
-            <Loader2 size={13} className="agent-team-card__dispatch-spinner" aria-hidden="true" />
-          ) : (
-            <Send size={13} aria-hidden="true" />
-          )}
+          <Send size={13} aria-hidden="true" />
           <span>{dispatchLabel}</span>
         </button>
       ) : null}

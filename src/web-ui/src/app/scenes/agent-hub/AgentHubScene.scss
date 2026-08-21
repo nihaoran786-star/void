@@ -1,29 +1,20 @@
-@use '../../../component-library/styles/staff-hq' as hq;
+@use '../../../component-library/styles/agent-surface' as surface;
 @use './AgentHubScene.minimal' as minimal;
 
 // AGENT — typography-first minimal grouped list.
 // Zero cards, zero borders, zero shadows: the type scale and one hairline under
 // the tab row carry the whole hierarchy. Colour is only ever a second channel.
+// This scene is the reference implementation of the shared `agent-surface`
+// vocabulary and also emits its published primitives (once).
+
+@include surface.primitives;
 
 .void-agent-hub {
-  display: flex;
-  flex: 1 1 auto;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden auto;
-  background: var(--workspace-surface-base, var(--color-bg-primary));
-  color: var(--workspace-text-primary, var(--color-text-primary));
+  @include surface.surface;
 }
 
 .void-agent-hub__inner {
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: var(--workspace-space-8, 32px) var(--workspace-space-6, 24px)
-    var(--workspace-space-10, 40px);
+  @include surface.measure(720px);
 }
 
 // ── Page head ──────────────────────────────────────────────────────────────
@@ -35,11 +26,7 @@
 }
 
 .agent-hub-head__title {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
+  @include surface.page-title;
 }
 
 .agent-hub-head__count {
@@ -76,22 +63,7 @@
 }
 
 .agent-hub-head__tool {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--workspace-radius-control, 6px);
-  background: transparent;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  cursor: pointer;
-
-  &:hover {
-    background: var(--workspace-surface-hover, var(--color-bg-hover));
-    color: var(--workspace-text-primary, var(--color-text-primary));
-  }
+  @include surface.icon-button(26px);
 }
 
 .agent-hub-head__menu {
@@ -124,45 +96,21 @@
 }
 
 .agent-hub-head__mission {
-  margin: var(--workspace-space-2, 8px) 0 0;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  font-size: 12px;
+  @include surface.page-mission;
+
+  margin-top: var(--workspace-space-2, 8px);
 }
 
 // ── Text tabs ──────────────────────────────────────────────────────────────
 
 .agent-hub-tabs {
-  display: flex;
-  align-items: center;
-  gap: var(--workspace-space-4, 16px);
+  @include surface.hairline-tabs;
+
   margin-top: var(--workspace-space-6, 24px);
-  border-bottom: 0.5px solid var(--workspace-border-subtle, var(--color-border-primary));
 }
 
 .agent-hub-tabs__tab {
-  position: relative;
-  padding: 0 0 8px;
-  border: 0;
-  background: transparent;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 400;
-
-  &.is-active {
-    color: var(--workspace-text-primary, var(--color-text-primary));
-    font-weight: 500;
-
-    &::after {
-      position: absolute;
-      right: 0;
-      bottom: -0.5px;
-      left: 0;
-      height: 1.5px;
-      background: currentColor;
-      content: '';
-    }
-  }
+  @include surface.hairline-tab;
 }
 
 // ── Groups & rows ──────────────────────────────────────────────────────────
@@ -183,55 +131,21 @@
 }
 
 .agent-hub-group__label {
-  margin: 0;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
+  @include surface.section-label;
 }
 
 .agent-hub-group__more {
-  border: 0;
-  background: transparent;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  cursor: pointer;
-  font-size: 11px;
+  @include surface.quiet-button;
 
-  &:hover {
-    color: var(--workspace-text-primary, var(--color-text-primary));
-  }
+  font-size: 11px;
 }
 
 .agent-hub-group__state {
-  margin: 0;
-  padding: var(--workspace-space-3, 12px) 0;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  font-size: 13px;
-
-  &.is-error {
-    color: var(--workspace-status-error-text, var(--color-error));
-  }
+  @include surface.state-text;
 }
 
 .agent-hub-row {
-  display: flex;
-  height: 50px;
-  align-items: center;
-  gap: var(--workspace-space-3, 12px);
-  margin: 0 -12px;
-  padding: 0 12px;
-  border-radius: 8px;
-  cursor: pointer;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--workspace-surface-hover, var(--color-bg-hover));
-  }
-
-  &:focus-visible {
-    outline: 1px solid var(--workspace-border-strong, var(--color-border-secondary));
-    outline-offset: -1px;
-  }
+  @include surface.row(50px);
 
   &:hover .agent-hub-row__status,
   &:focus-within .agent-hub-row__status {
@@ -273,7 +187,7 @@
 }
 
 .agent-hub-row__members {
-  @include hq.hq-member-orb-strip;
+  @include surface.member-strip;
 }
 
 .agent-hub-row__name {
@@ -297,10 +211,9 @@
 }
 
 .agent-hub-row__status {
-  @include hq.hq-status-ink;
+  @include surface.status-dot;
 
   flex: none;
-  font-size: 12px;
 }
 
 .agent-hub-row__actions {
@@ -311,20 +224,10 @@
 }
 
 .agent-hub-row__action {
-  display: inline-flex;
-  width: 22px;
-  height: 22px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: var(--workspace-radius-control, 6px);
-  background: transparent;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  cursor: pointer;
+  @include surface.icon-button(22px);
 
   &:hover {
-    color: var(--workspace-text-primary, var(--color-text-primary));
+    background: transparent;
   }
 }
 
@@ -354,19 +257,7 @@
 }
 
 .agent-hub-hosted-head__back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--workspace-space-1, 4px);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  cursor: pointer;
-  font-size: 13px;
-
-  &:hover {
-    color: var(--workspace-text-primary, var(--color-text-primary));
-  }
+  @include surface.quiet-button;
 }
 
 .agent-hub-hosted-head__title {

@@ -122,9 +122,9 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
       ) : null}
     >
       {team ? (
-        <div className="team-catalog-detail">
-          <div className="team-catalog-detail__section">
-            <div className="team-catalog-detail__runtime-state">
+        <div className="team-catalog-detail agent-surface__stack">
+          <div className="team-catalog-detail__section agent-surface__section">
+            <div className="team-catalog-detail__runtime-state agent-surface__row-copy">
               <strong>
                 {!dispatchAvailable
                   ? t('catalog.detail.dispatchUnavailable')
@@ -141,8 +141,8 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
             </div>
           </div>
           {team.workflowCount !== undefined ? (
-            <div className="team-catalog-detail__section">
-              <span className="team-catalog-detail__label">
+            <div className="team-catalog-detail__section agent-surface__section">
+              <span className="team-catalog-detail__label agent-surface__section-label">
                 {t('catalog.detail.workflows')}
               </span>
               <div className="team-catalog-detail__summary">
@@ -152,22 +152,22 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
               </div>
             </div>
           ) : null}
-          <div className="team-catalog-detail__section">
-            <span className="team-catalog-detail__label">{t('catalog.detail.lead')}</span>
-            <div className="team-catalog-detail__member team-catalog-detail__member--lead">
+          <div className="team-catalog-detail__section agent-surface__section">
+            <span className="team-catalog-detail__label agent-surface__section-label">{t('catalog.detail.lead')}</span>
+            <div className="team-catalog-detail__member team-catalog-detail__member--lead agent-surface__row agent-surface__row--static">
               <AgentAvatar
                 identity={`team:${team.identity.id}:lead:${team.lead.identity.id}`}
                 name={lead?.displayName ?? team.lead.identity.displayName}
               />
-              <div className="team-catalog-detail__member-copy">
+              <div className="team-catalog-detail__member-copy agent-surface__row-copy">
                 <strong>{lead?.displayName}</strong>
                 <span>{lead?.description}</span>
               </div>
               <Badge variant="accent">{t('catalog.detail.lead')}</Badge>
             </div>
           </div>
-          <div className="team-catalog-detail__section">
-            <span className="team-catalog-detail__label">{t('catalog.detail.members')}</span>
+          <div className="team-catalog-detail__section agent-surface__section">
+            <span className="team-catalog-detail__label agent-surface__section-label">{t('catalog.detail.members')}</span>
             <div className="team-catalog-detail__members">
               {team.members.map(member => {
                 const memberPresentation = localizeCatalogPresentation(
@@ -175,12 +175,12 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
                   key => t(key),
                 );
                 return (
-                  <div key={member.identity.id} className="team-catalog-detail__member">
+                  <div key={member.identity.id} className="team-catalog-detail__member agent-surface__row agent-surface__row--static">
                     <AgentAvatar
                       identity={`team:${team.identity.id}:member:${member.identity.id}`}
                       name={memberPresentation.displayName}
                     />
-                    <div className="team-catalog-detail__member-copy">
+                    <div className="team-catalog-detail__member-copy agent-surface__row-copy">
                       <strong>{memberPresentation.displayName}</strong>
                       <span>{memberPresentation.description}</span>
                     </div>

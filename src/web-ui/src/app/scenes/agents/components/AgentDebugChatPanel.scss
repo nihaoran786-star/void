@@ -146,7 +146,6 @@
 
   &__spinner {
     color: var(--color-text-secondary);
-    animation: agent-debug-chat-panel-spin 1s linear infinite;
   }
 
   &__error-message {
@@ -223,14 +222,5 @@
       transform: none;
       z-index: auto;
     }
-  }
-}
-
-@keyframes agent-debug-chat-panel-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
   }
 }

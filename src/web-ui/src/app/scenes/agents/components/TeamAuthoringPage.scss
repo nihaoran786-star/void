@@ -253,7 +253,6 @@
       &.is-active {
         color: var(--color-text-primary);
         background: var(--color-bg-tertiary);
-        box-shadow: var(--shadow-sm);
       }
 
       &:disabled {
@@ -710,7 +709,6 @@
 
     &:focus-within {
       border-color: color-mix(in srgb, var(--color-accent-500) 55%, var(--border-subtle));
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-500) 10%, transparent);
     }
 
     input {
@@ -749,15 +747,10 @@
     text-align: left;
     background: var(--color-bg-secondary);
     cursor: pointer;
-    transition:
-      border-color $motion-fast $easing-standard,
-      background $motion-fast $easing-standard,
-      transform $motion-fast $easing-standard;
 
     &:hover:not(:disabled) {
       border-color: var(--border-medium);
       background: color-mix(in srgb, var(--color-bg-secondary) 82%, var(--element-bg-subtle));
-      transform: translateY(-1px);
     }
 
     &.is-selected {
@@ -881,8 +874,7 @@
     gap: $size-gap-3;
     padding: $size-gap-3 0;
     border-top: 1px solid var(--border-subtle);
-    background: color-mix(in srgb, var(--color-bg-primary) 94%, transparent);
-    backdrop-filter: blur(12px);
+    background: var(--color-bg-primary);
   }
 
   &__scope {
@@ -905,7 +897,6 @@
       &.is-active {
         color: var(--color-text-primary);
         background: var(--color-bg-secondary);
-        box-shadow: var(--shadow-sm);
       }
 
       &:disabled {
@@ -966,12 +957,3 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .team-roster__agent {
-    transition: none;
-
-    &:hover:not(:disabled) {
-      transform: none;
-    }
-  }
-}
