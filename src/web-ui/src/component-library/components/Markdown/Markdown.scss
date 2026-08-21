@@ -310,6 +310,50 @@
   overflow-x: auto;
 }
 
+/*
+ * Quiet chrome (`codeBlockChrome="quiet"`).
+ *
+ * The default toolbar is a full-width bar with its own background and border,
+ * which turns every code sample into a labelled widget. In a conversation that
+ * furniture outweighs the code. Here the language and copy button float over
+ * the block's top-right corner and only appear on hover, so at rest the block
+ * is a single calm rectangle.
+ */
+.markdown-renderer .code-block-wrapper--quiet {
+  position: relative;
+}
+
+.markdown-renderer .code-block-toolbar--quiet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  min-height: 0;
+  padding: 0.18rem 0.24rem;
+  border-bottom: none;
+  border-radius: 0 var(--flowchat-card-radius, 8px) 0 var(--flowchat-card-radius, 8px);
+  background: color-mix(in srgb, var(--markdown-pre-bg) 88%, transparent);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.markdown-renderer .code-block-wrapper--quiet:hover .code-block-toolbar--quiet,
+.markdown-renderer .code-block-toolbar--quiet:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.markdown-renderer .code-block-toolbar--quiet .code-block-lang {
+  padding-right: 0.2rem;
+  padding-left: 0.28rem;
+}
+
+.markdown-renderer .code-block-wrapper--quiet .code-block-body {
+  border-radius: var(--flowchat-card-radius, 8px);
+}
+
 .markdown-renderer .code-block-wrapper pre[class*="language-"],
 .markdown-renderer .code-block-wrapper pre[style] {
   margin: 0 !important;

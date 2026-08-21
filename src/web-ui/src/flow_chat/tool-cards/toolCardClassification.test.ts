@@ -37,11 +37,22 @@ describe('toolCardClassification', () => {
     expect([...COMMAND_TOOL_NAMES]).toEqual(['Bash', 'Git']);
   });
 
-  it('only classifies explicitly routine tools and thinking as collapsible', () => {
-    for (const toolName of ['GetToolSpec', 'CallDeferredTool', 'Read', 'Write', 'Grep', 'Bash']) {
+  it('collapses routine work and keeps only critical tools open', () => {
+    for (const toolName of [
+      'GetToolSpec',
+      'CallDeferredTool',
+      'Read',
+      'Write',
+      'Grep',
+      'Bash',
+      // Routine by default: an unfamiliar or third-party tool that finished
+      // successfully is still just work the reader scrolls past.
+      'UnknownFutureTool',
+      'mcp__canvas__open_panel',
+    ]) {
       expect(isCollapsibleTool(toolName)).toBe(true);
     }
-    for (const toolName of ['UnknownFutureTool', 'Task', 'GenerateImage', 'mcp__canvas__open_panel']) {
+    for (const toolName of ['Task', 'GenerateImage', 'TodoWrite', 'AskUserQuestion', 'CreatePlan']) {
       expect(isCollapsibleTool(toolName)).toBe(false);
     }
     expect(isCollapsibleItem(tool('Git'))).toBe(true);
@@ -72,8 +83,8 @@ describe('toolCardClassification', () => {
     expect(isCollapsibleToolItem(cancelled)).toBe(false);
     expect(isCollapsibleToolItem(tool('Task'))).toBe(false);
     expect(isCollapsibleToolItem(tool('GenerateVideo'))).toBe(false);
-    expect(isCollapsibleToolItem(tool('mcp__canvas__open_panel'))).toBe(false);
-    expect(isCollapsibleToolItem(tool('UnknownFutureTool'))).toBe(false);
+    expect(isCollapsibleToolItem(tool('mcp__canvas__open_panel'))).toBe(true);
+    expect(isCollapsibleToolItem(tool('UnknownFutureTool'))).toBe(true);
   });
 
   it('keeps narrative visible at the tail and groups it before exploration', () => {

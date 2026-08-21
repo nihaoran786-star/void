@@ -51,6 +51,12 @@ interface UseFlowChatFollowOutputOptions {
 
 interface UseFlowChatFollowOutputResult {
   isFollowingOutput: boolean;
+  /**
+   * True while the reader has taken the viewport over by scrolling up. Every
+   * programmatic scroll in the list must be gated on this being false.
+   */
+  isReaderControlled: boolean;
+  isReaderControlledNow: () => boolean;
   enterFollowOutput: (reason: FollowOutputEnterReason) => void;
   exitFollowOutput: (reason: FollowOutputExitReason) => void;
   armFollowOutputForNewTurn: () => void;
@@ -79,8 +85,25 @@ export function useFlowChatFollowOutput({
   onContinuousFollowFrame,
 }: UseFlowChatFollowOutputOptions): UseFlowChatFollowOutputResult {
   const [isFollowingOutput, setIsFollowingOutput] = useState(false);
+  const [isReaderControlled, setIsReaderControlled] = useState(false);
 
   const isFollowingOutputRef = useRef(isFollowingOutput);
+  /**
+   * "The reader took the viewport over."
+   *
+   * Exiting follow once is not enough: several paths can re-enter it while the
+   * same turn is still streaming, and each re-entry yanks the viewport back to
+   * the bottom. The reader scrolls up again, and the two fight at frame rate,
+   * which reads as the whole conversation flickering. While this latch is set
+   * the viewport belongs to the reader: nothing may auto-follow, and no
+   * programmatic scroll of any kind is allowed (see `canScrollProgrammatically`
+   * in VirtualMessageList).
+   *
+   * It clears in exactly two ways: the reader scrolls back to the bottom under
+   * their own steam, or they ask for the latest on purpose. A new turn does NOT
+   * clear it — sending a message while reading history must not teleport them.
+   */
+  const readerControlledRef = useRef(false);
   const followFrameRef = useRef<number | null>(null);
   const programmaticScrollUntilMsRef = useRef(0);
   const explicitUserScrollIntentUntilMsRef = useRef(0);
@@ -101,6 +124,13 @@ export function useFlowChatFollowOutput({
   onContinuousFollowFrameRef.current = onContinuousFollowFrame;
   getAutoFollowDistanceFromBottomRef.current = getAutoFollowDistanceFromBottom;
   shouldSuspendAutoFollowRef.current = shouldSuspendAutoFollow;
+
+  const setReaderControlled = useCallback((nextValue: boolean) => {
+    readerControlledRef.current = nextValue;
+    setIsReaderControlled(prev => (prev === nextValue ? prev : nextValue));
+  }, []);
+
+  const isReaderControlledNow = useCallback(() => readerControlledRef.current, []);
 
   const setFollowingOutput = useCallback((nextValue: boolean) => {
     isFollowingOutputRef.current = nextValue;
@@ -147,7 +177,12 @@ export function useFlowChatFollowOutput({
   const runContinuousFollowFrame = useCallback(() => {
     continuousFollowFrameRef.current = null;
 
-    if (!isActiveRef.current || !isFollowingOutputRef.current || !isStreamingRef.current) {
+    if (
+      !isActiveRef.current ||
+      !isFollowingOutputRef.current ||
+      !isStreamingRef.current ||
+      readerControlledRef.current
+    ) {
       return;
     }
 
@@ -207,6 +242,13 @@ export function useFlowChatFollowOutput({
 
   const enterFollowOutput = useCallback((reason: FollowOutputEnterReason) => {
     if (!isActiveRef.current) return;
+    // Jumping to the latest is the reader asking to come back; anything else
+    // must not overrule them while they are reading further up.
+    if (reason === 'jump-to-latest') {
+      setReaderControlled(false);
+    } else if (readerControlledRef.current) {
+      return;
+    }
     cancelPendingAutoFollowArm();
     cancelScheduledFollow();
     explicitUserScrollIntentUntilMsRef.current = 0;
@@ -222,6 +264,7 @@ export function useFlowChatFollowOutput({
     performUserFollowScroll,
     runProgrammaticScroll,
     setFollowingOutput,
+    setReaderControlled,
   ]);
 
   const exitFollowOutput = useCallback((_reason: FollowOutputExitReason) => {
@@ -250,6 +293,15 @@ export function useFlowChatFollowOutput({
     // latest end position via the same path the "jump to latest" affordance
     // uses. User scroll-up still exits follow through handleScroll /
     // handleUserScrollIntent.
+    // A new turn does NOT release reader control. Someone reading further up
+    // while a message is sent stays exactly where they are; the "jump to
+    // latest" affordance is how they come back. Record the arm so scroll-intent
+    // handlers can still cancel it, but move nothing.
+    if (readerControlledRef.current) {
+      armedAutoFollowTurnIdRef.current = latestTurnId;
+      return;
+    }
+
     armedAutoFollowTurnIdRef.current = latestTurnId;
     cancelScheduledFollow();
     explicitUserScrollIntentUntilMsRef.current = 0;
@@ -275,6 +327,10 @@ export function useFlowChatFollowOutput({
       return false;
     }
 
+    if (readerControlledRef.current) {
+      return false;
+    }
+
     if (isAutoFollowSuspended) {
       return false;
     }
@@ -295,6 +351,10 @@ export function useFlowChatFollowOutput({
   ]);
 
   const handleUserScrollIntent = useCallback(() => {
+    // Latch first, unconditionally: the reader is moving up, and that has to
+    // hold even when follow is currently inactive and nothing is armed yet.
+    setReaderControlled(true);
+
     if (!isFollowingOutputRef.current && armedAutoFollowTurnIdRef.current === null) {
       return;
     }
@@ -308,10 +368,11 @@ export function useFlowChatFollowOutput({
     }
 
     cancelPendingAutoFollowArm();
-  }, [cancelPendingAutoFollowArm, exitFollowOutput]);
+  }, [cancelPendingAutoFollowArm, exitFollowOutput, setReaderControlled]);
 
   const scheduleFollowToLatest = useCallback((_reason: string) => {
     if (
+      readerControlledRef.current ||
       !isActiveRef.current ||
       !isFollowingOutputRef.current ||
       !isStreaming ||
@@ -361,15 +422,44 @@ export function useFlowChatFollowOutput({
     const previousScrollTop = lastObservedScrollTopRef.current;
     lastObservedScrollTopRef.current = currentScrollTop;
 
+    // Coming back down to the bottom under their own steam means the reader is
+    // done looking back, so live output may track the tail again.
+    if (
+      readerControlledRef.current &&
+      currentScrollTop >= previousScrollTop &&
+      getDistanceFromBottom(scroller) <= AUTO_FOLLOW_BOTTOM_THRESHOLD_PX
+    ) {
+      setReaderControlled(false);
+    }
+
+    const isWithinProgrammaticGuard = performance.now() <= programmaticScrollUntilMsRef.current;
+    const upwardDelta = previousScrollTop - currentScrollTop;
+
+    // Fallback latch. The dedicated wheel / touch / keyboard / scrollbar
+    // listeners miss real upward movement from momentum scrolling, browser
+    // find-in-page, extensions and anything else that moves the scroller
+    // without one of those inputs. Any upward movement outside a programmatic
+    // scroll window is the reader's, so take it at face value.
+    // The one exception is a layout transition in flight: collapse
+    // compensation legitimately moves `scrollTop` upward to hold the visual
+    // anchor, and that is not the reader asking for anything.
+    if (
+      !isWithinProgrammaticGuard &&
+      !readerControlledRef.current &&
+      upwardDelta > USER_SCROLL_DIRECTION_EPSILON_PX &&
+      shouldSuspendAutoFollow?.() !== true
+    ) {
+      setReaderControlled(true);
+    }
+
     if (!isFollowingOutputRef.current && armedAutoFollowTurnIdRef.current === null) {
       return;
     }
 
-    if (performance.now() <= programmaticScrollUntilMsRef.current) {
+    if (isWithinProgrammaticGuard) {
       return;
     }
 
-    const upwardDelta = previousScrollTop - currentScrollTop;
     if (upwardDelta > USER_SCROLL_DIRECTION_EPSILON_PX) {
       const now = performance.now();
       const hasRecentExplicitUserIntent = now <= explicitUserScrollIntentUntilMsRef.current;
@@ -401,7 +491,7 @@ export function useFlowChatFollowOutput({
 
       exitFollowOutput('user-scroll-up');
     }
-  }, [cancelPendingAutoFollowArm, exitFollowOutput, scrollerRef, shouldSuspendAutoFollow]);
+  }, [cancelPendingAutoFollowArm, exitFollowOutput, scrollerRef, setReaderControlled, shouldSuspendAutoFollow]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -420,6 +510,8 @@ export function useFlowChatFollowOutput({
     cancelPendingAutoFollowArm();
     cancelScheduledFollow();
     explicitUserScrollIntentUntilMsRef.current = 0;
+    // Reading position does not carry across conversations.
+    setReaderControlled(false);
     const nextFollowState = Boolean(activeSessionId && virtualItemCount === 0);
 
     if (nextFollowState) {
@@ -434,6 +526,7 @@ export function useFlowChatFollowOutput({
     cancelScheduledFollow,
     latestTurnId,
     setFollowingOutput,
+    setReaderControlled,
     virtualItemCount,
   ]);
 
@@ -457,6 +550,8 @@ export function useFlowChatFollowOutput({
 
   return {
     isFollowingOutput,
+    isReaderControlled,
+    isReaderControlledNow,
     enterFollowOutput,
     exitFollowOutput,
     armFollowOutputForNewTurn,

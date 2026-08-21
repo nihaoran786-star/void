@@ -81,7 +81,26 @@ const stageStyles = `
 
   .beautiful-ui-original-root {
     --canvas: #f1f2f3;
-    --ink: #1f2124;
+    --ink: #16181c;
+    --ink-2: #4a4e56;
+    --ink-3: #6e727a;
+
+    /*
+     * One typography scale for staged components.
+     *
+     * The source components were authored with nine hand-picked pixel sizes
+     * (7 / 8 / 10 / 10.5 / 11 / 11.5 / 12 / 12.5 / 13). Inside the shadow root
+     * they are isolated from the application scale, so a transcript mixed
+     * three or four near-identical sizes in one column. These four steps are
+     * the whole scale; the class overrides below fold the source sizes into
+     * them, and the smallest support text lands one step larger so it stays
+     * readable next to the surrounding conversation.
+     */
+    --bui-fs-body: 14px;
+    --bui-fs-sm: 13px;
+    --bui-fs-xs: 12px;
+    --bui-fs-2xs: 11px;
+
     position: relative;
     color: var(--ink);
     background: transparent;
@@ -90,6 +109,36 @@ const stageStyles = `
   .beautiful-ui-original-root.dark {
     --canvas: #1c1d1f;
     --ink: #f2f3f4;
+    --ink-2: #c7ccd8;
+    --ink-3: #98a1b2;
+  }
+
+  /*
+   * Source-size folding. Written with higher specificity than the generated
+   * utility so it wins regardless of stylesheet order.
+   */
+  .beautiful-ui-original-root .text-\\[13px\\],
+  .beautiful-ui-original-root .text-\\[12\\.5px\\] {
+    font-size: var(--bui-fs-sm);
+  }
+
+  .beautiful-ui-original-root .text-\\[12px\\],
+  .beautiful-ui-original-root .text-\\[11\\.5px\\] {
+    font-size: var(--bui-fs-xs);
+  }
+
+  .beautiful-ui-original-root .text-\\[11px\\],
+  .beautiful-ui-original-root .text-\\[10\\.5px\\],
+  .beautiful-ui-original-root .text-\\[10px\\] {
+    font-size: var(--bui-fs-2xs);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* The cells carry inline animation values, so the freeze must outrank them. */
+    .beautiful-ui-original-root [data-pixel-squares] > span {
+      animation: none !important;
+      opacity: 0.34 !important;
+    }
   }
 
   .beautiful-ui-original-root[data-mode='preview'] {

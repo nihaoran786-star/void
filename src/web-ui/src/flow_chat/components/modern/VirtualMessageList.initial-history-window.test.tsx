@@ -121,6 +121,7 @@ vi.mock('../StickyTaskIndicator', () => ({
 
 vi.mock('./ProcessingIndicator', () => ({
   ProcessingIndicator: () => null,
+  ProcessingIndicatorSpacer: () => null,
 }));
 
 vi.mock('./processingIndicatorVisibility', () => ({
@@ -136,6 +137,8 @@ vi.mock('./ScrollAnchor', () => ({
 vi.mock('./useFlowChatFollowOutput', () => ({
   useFlowChatFollowOutput: () => ({
     isFollowingOutput: false,
+    isReaderControlled: false,
+    isReaderControlledNow: () => false,
     enterFollowOutput: vi.fn(),
     exitFollowOutput: vi.fn(),
     armFollowOutputForNewTurn: vi.fn(),

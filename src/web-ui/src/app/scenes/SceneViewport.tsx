@@ -15,13 +15,11 @@ import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
 import { useDialogCompletionNotify } from '../hooks/useDialogCompletionNotify';
 import { useDocumentVisibilityState } from '../hooks/useDocumentVisibilityState';
 import { ProcessingIndicator } from '@/flow_chat/components/modern/ProcessingIndicator';
-import AssistantScene from './assistant/AssistantScene';
 import SessionScene from './session/SessionScene';
 import {
-  loadAgentsScene,
+  loadAgentHubScene,
   loadAutomationScene,
   loadBrowserScene,
-  loadConnectorsScene,
   loadFileViewerScene,
   loadGitScene,
   loadInsightsScene,
@@ -31,7 +29,6 @@ import {
   loadProfileScene,
   loadSettingsScene,
   loadShellScene,
-  loadSkillsScene,
   loadTerminalScene,
   loadWelcomeScene,
 } from './sceneLoaders';
@@ -44,9 +41,7 @@ const TerminalScene = lazy(loadTerminalScene);
 const GitScene = lazy(loadGitScene);
 const FileViewerScene = lazy(loadFileViewerScene);
 const ProfileScene = lazy(loadProfileScene);
-const AgentsScene = lazy(loadAgentsScene);
-const SkillsScene = lazy(loadSkillsScene);
-const ConnectorsScene = lazy(loadConnectorsScene);
+const AgentHubScene = lazy(loadAgentHubScene);
 const MiniAppGalleryScene = lazy(loadMiniAppGalleryScene);
 const BrowserScene = lazy(loadBrowserScene);
 const InsightsScene = lazy(loadInsightsScene);
@@ -193,18 +188,12 @@ function renderScene(
       return <FileViewerScene workspacePath={workspacePath} isActive={isActive} />;
     case 'profile':
       return <ProfileScene isActive={isActive} />;
-    case 'agents':
-      return <AgentsScene />;
-    case 'skills':
-      return <SkillsScene />;
-    case 'connectors':
-      return <ConnectorsScene />;
+    case 'agent-hub':
+      return <AgentHubScene />;
     case 'miniapps':
       return <MiniAppGalleryScene />;
     case 'browser':
       return <BrowserScene isActive={isActive} />;
-    case 'assistant':
-      return <AssistantScene workspacePath={workspacePath} isActive={isActive} />;
     case 'insights':
       return <InsightsScene />;
     case 'automation':

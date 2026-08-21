@@ -21,9 +21,13 @@
   --bui-inset: #f7f8f9;
   --bui-hover: #f4f5f6;
   --bui-hover-2: #e7e9eb;
-  --bui-ink: #1f2124;
-  --bui-ink-2: #62656b;
-  --bui-ink-3: #9a9da3;
+  // Ink contrast: the original tertiary ink (#9a9da3) sits at ~2.6:1 on the
+  // porcelain surface, which is below AA for the small support text that uses
+  // it (timers, counts, secondary rows). Both support inks are deepened one
+  // step so every ink role clears AA without changing the palette's hue.
+  --bui-ink: #16181c;
+  --bui-ink-2: #4a4e56;
+  --bui-ink-3: #6e727a;
   --bui-line: #ecedef;
   --bui-line-strong: #e0e2e5;
   --bui-accent: #0285ff;

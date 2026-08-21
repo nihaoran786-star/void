@@ -21,11 +21,6 @@ vi.mock('@/infrastructure/i18n/hooks/useI18n', () => ({
 vi.mock('@/flow_chat/components/modern/ProcessingIndicator', () => ({
   ProcessingIndicator: () => null,
 }));
-vi.mock('../scenes/assistant/AssistantScene', () => ({
-  default: ({ isActive }: { isActive?: boolean }) => (
-    <div data-testid="assistant-scene" data-active={String(isActive)} />
-  ),
-}));
 vi.mock('../scenes/session/SessionScene', () => ({
   default: ({ isActive }: { isActive?: boolean }) => (
     <div data-testid="session-scene" data-active={String(isActive)} />
@@ -159,23 +154,5 @@ describe('SceneViewport presentation activity', () => {
     visibilityState = 'hidden';
     await act(async () => root.render(<SceneViewport workspacePath="C:/work" />));
     expect(profileScene?.getAttribute('data-active')).toBe('false');
-  });
-
-  it('passes retained Assistant presentation activity to its nested Profile scene', async () => {
-    visibilityState = 'visible';
-    sceneManagerMock.openTabs = [{ id: 'assistant' }, { id: 'session' }];
-    sceneManagerMock.activeTabId = 'assistant';
-
-    await act(async () => {
-      root.render(<SceneViewport workspacePath="C:/assistant" />);
-      await Promise.resolve();
-    });
-    const assistantScene = container.querySelector('[data-testid="assistant-scene"]');
-    expect(assistantScene?.getAttribute('data-active')).toBe('true');
-
-    sceneManagerMock.activeTabId = 'session';
-    await act(async () => root.render(<SceneViewport workspacePath="C:/assistant" />));
-    expect(container.querySelector('[data-testid="assistant-scene"]')).toBe(assistantScene);
-    expect(assistantScene?.getAttribute('data-active')).toBe('false');
   });
 });

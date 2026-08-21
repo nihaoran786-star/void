@@ -19,7 +19,7 @@ import { ScrollToTurnHeaderButton } from '../ScrollToTurnHeaderButton';
 import { useScrollToTurnHeader } from '../../hooks/useScrollToTurnHeader';
 import { useVisibleTaskInfo } from '../../hooks/useVisibleTaskInfo';
 import { StickyTaskIndicator } from '../StickyTaskIndicator';
-import { ProcessingIndicator } from './ProcessingIndicator';
+import { ProcessingIndicator, ProcessingIndicatorSpacer } from './ProcessingIndicator';
 import {
   readProcessingIndicatorMessageKey,
   shouldReserveProcessingIndicatorSpace,
@@ -28,9 +28,15 @@ import {
 import { ScrollAnchor } from './ScrollAnchor';
 import { useFlowChatFollowOutput } from './useFlowChatFollowOutput';
 import {
+  clearDeferredAutoCollapses,
+  setReaderControlled as setReaderControlledGate,
+} from './readerControlGate';
+import {
+  computeReaderAnchorCorrection,
   estimateVirtualMessageItemHeight,
   getVirtualMessageDefaultItemHeightForSession,
   selectInitialHistoryRenderWindow,
+  READER_ANCHOR_MIN_DRIFT_PX,
 } from './virtualMessageListLayout';
 import {
   activeSessionHistoryProjectionHandoff,
@@ -44,7 +50,11 @@ import {
   type VirtualItem,
   type VisibleTurnInfo,
 } from '../../store/modernFlowChatStore';
-import { computeFlowChatInputStackFooterPx } from '../../utils/flowChatScrollLayout';
+import {
+  computeFlowChatInputStackFooterPx,
+  computeFlowChatInputStackInsetPx,
+  settleFlowChatInputStackInsetPx,
+} from '../../utils/flowChatScrollLayout';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import {
   usePresentationActiveSession,
@@ -290,11 +300,7 @@ function VirtualMessageListFooter(
 
   return (
     <>
-      <ProcessingIndicator
-        visible={context.showBreathingIndicator}
-        reserveSpace={context.reserveSpaceForIndicator}
-        labelKey={context.activityLabelKey}
-      />
+      <ProcessingIndicatorSpacer reserve={context.reserveSpaceForIndicator} />
       <div
         ref={context.footerElementRef}
         className="message-list-footer"
@@ -340,6 +346,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const bottomReservationStateRef = useRef<BottomReservationState>(createInitialBottomReservationState());
   const previousMeasuredHeightRef = useRef<number | null>(null);
   const previousScrollTopRef = useRef(0);
+  const readerAnchorRef = useRef<{ itemIndex: string; offsetTop: number } | null>(null);
   const measureFrameRef = useRef<number | null>(null);
   const visibleTurnMeasureFrameRef = useRef<number | null>(null);
   const pinReservationReconcileFrameRef = useRef<number | null>(null);
@@ -403,6 +410,26 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   // tracking the bottom without fighting the layout-stability machinery.
   const isFollowingOutputRef = useRef(false);
   const isStreamingOutputRef = useRef(false);
+  /**
+   * Frame-accurate mirror of the follow controller's reader-control latch.
+   * Declared here (rather than read from the hook result) because the listeners
+   * and measurement callbacks below are created before the hook runs, and a
+   * `useState` mirror would lag them by a frame — a frame in which we would
+   * still be writing `scrollTop` under the reader's fingers.
+   */
+  const isReaderControlledNowRef = useRef<() => boolean>(() => false);
+  /**
+   * The single choke point for every programmatic scroll in this list.
+   *
+   * Once the reader has scrolled up, the viewport is theirs. Anchor restores,
+   * shrink compensation, deferred follow and session-open bottom snaps all pass
+   * through here, so none of them can fight the reader's own scrolling. This is
+   * what removes the frame-rate tug-of-war that read as violent flickering.
+   */
+  const canScrollProgrammatically = useCallback(
+    () => !isReaderControlledNowRef.current(),
+    [],
+  );
 
   const {
     isActive: isInputActive,
@@ -412,6 +439,12 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
   const inputStackFooterPxRef = useRef(0);
   const inputStackFooterPx = computeFlowChatInputStackFooterPx(inputHeight, isInputActive);
+  const settledInputStackInsetPxRef = useRef<number | null>(null);
+  const inputStackInsetPx = settleFlowChatInputStackInsetPx(
+    computeFlowChatInputStackInsetPx(inputHeight, isInputActive),
+    settledInputStackInsetPxRef.current,
+  );
+  settledInputStackInsetPxRef.current = inputStackInsetPx;
   inputStackFooterPxRef.current = inputStackFooterPx;
 
   const activeSessionState = useFlowChatPresentationSessionState();
@@ -521,10 +554,13 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, []);
 
   const activateAnchorLock = useCallback((targetScrollTop: number, reason: 'transition-shrink' | 'instant-shrink') => {
-    const nextTarget = Math.max(anchorLockRef.current.targetScrollTop, targetScrollTop);
+    // Always take this frame's target. Merging with the previous one via
+    // `Math.max` let a stale, further-down position win long after it stopped
+    // describing anything on screen, and the restore then teleported the
+    // viewport into the middle of the conversation.
     anchorLockRef.current = {
       active: true,
-      targetScrollTop: nextTarget,
+      targetScrollTop,
       reason,
       lockUntilMs: performance.now() + ANCHOR_LOCK_DURATION_MS,
     };
@@ -534,6 +570,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     const scroller = scrollerElementRef.current;
     const lockState = anchorLockRef.current;
     if (!scroller || !lockState.active) return false;
+    if (!canScrollProgrammatically()) {
+      releaseAnchorLock(`reader-controlled-${reason}`);
+      return false;
+    }
 
     const now = performance.now();
     if (now > lockState.lockUntilMs && layoutTransitionCountRef.current === 0) {
@@ -553,11 +593,97 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     scroller.scrollTop = targetScrollTop;
     previousScrollTopRef.current = targetScrollTop;
     return true;
-  }, [releaseAnchorLock]);
+  }, [canScrollProgrammatically, releaseAnchorLock]);
+
+  /**
+   * Reader anchoring.
+   *
+   * While the reader owns the viewport, "keep the bottom in view" is the wrong
+   * goal — the right one is "keep the line they are looking at exactly where it
+   * is". So we remember the topmost visible item and its offset inside the
+   * scroller, and after any measured layout change we put it back at the same
+   * offset. This is independent of total content height, which matters because
+   * the biggest source of drift is not content changing at all: it is
+   * react-virtuoso swapping estimated heights for real ones as older items
+   * mount during an upward scroll. Native `overflow-anchor` cannot see that,
+   * which is why this has to be explicit.
+   */
+  const captureReaderAnchor = useCallback(() => {
+    const scroller = scrollerElementRef.current;
+    if (!scroller) {
+      readerAnchorRef.current = null;
+      return;
+    }
+
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    const itemNodes = scroller.querySelectorAll<HTMLElement>('[data-index]');
+    for (const node of itemNodes) {
+      const rect = node.getBoundingClientRect();
+      if (rect.bottom > scrollerTop + READER_ANCHOR_MIN_DRIFT_PX) {
+        // Anchor on the item index, not the element. Virtuoso recycles item
+        // wrappers, so a held element reference stays `isConnected` while
+        // quietly coming to represent a completely different message — and
+        // correcting against it walks the viewport off into empty space.
+        const itemIndex = node.getAttribute('data-index');
+        readerAnchorRef.current = itemIndex === null
+          ? null
+          : { itemIndex, offsetTop: rect.top - scrollerTop };
+        return;
+      }
+    }
+
+    readerAnchorRef.current = null;
+  }, []);
+
+  const restoreReaderAnchor = useCallback(() => {
+    const scroller = scrollerElementRef.current;
+    const anchor = readerAnchorRef.current;
+    if (!scroller || !anchor) return false;
+
+    const node = scroller.querySelector<HTMLElement>(
+      `[data-index="${CSS.escape(anchor.itemIndex)}"]`,
+    );
+    // Scrolled out of the rendered window: there is nothing to hold still, and
+    // guessing would be worse than doing nothing.
+    if (!node) {
+      readerAnchorRef.current = null;
+      return false;
+    }
+
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    const nextScrollTop = computeReaderAnchorCorrection({
+      currentScrollTop: scroller.scrollTop,
+      scrollHeight: scroller.scrollHeight,
+      clientHeight: scroller.clientHeight,
+      anchoredOffsetTop: anchor.offsetTop,
+      currentOffsetTop: node.getBoundingClientRect().top - scrollerTop,
+      maxCorrectionPx: scroller.clientHeight,
+    });
+    if (nextScrollTop === null) return false;
+
+    scroller.scrollTop = nextScrollTop;
+    previousScrollTopRef.current = nextScrollTop;
+    return true;
+  }, []);
 
   const measureHeightChange = useCallback(() => {
     const scroller = scrollerElementRef.current;
     if (!scroller) return;
+
+    // Reader-controlled: hold their line still and touch nothing else. The
+    // bottom-reservation / anchor-lock machinery below exists purely to protect
+    // the bottom of the list, and running it here is what used to grab the
+    // scrollbar out of the reader's hands frame after frame.
+    if (isReaderControlledNowRef.current()) {
+      restoreReaderAnchor();
+      captureReaderAnchor();
+      previousMeasuredHeightRef.current = Math.max(
+        0,
+        scroller.scrollHeight - getTotalBottomCompensationPx() - inputStackFooterPxRef.current,
+      );
+      previousScrollTopRef.current = scroller.scrollTop;
+      return;
+    }
 
     const currentScrollTop = scroller.scrollTop;
     const previousScrollTop = previousScrollTopRef.current;
@@ -692,9 +818,11 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [
     activateAnchorLock,
     applyFooterCompensationNow,
+    captureReaderAnchor,
     consumeBottomCompensation,
     getTotalBottomCompensationPx,
     restoreAnchorLockNow,
+    restoreReaderAnchor,
     updateBottomReservationState,
   ]);
 
@@ -1285,6 +1413,12 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, []);
 
   const scheduleFollowToLatestWithViewportState = useCallback((reason: string) => {
+    // Not even deferred: a follow queued while the reader is up in the history
+    // would fire the moment a transition ends and yank them down.
+    if (!canScrollProgrammatically()) {
+      deferredFollowReasonRef.current = null;
+      return;
+    }
     const collapseIntentActive = shouldSuspendAutoFollow();
     if (collapseIntentActive) {
       deferredFollowReasonRef.current = reason;
@@ -1292,7 +1426,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     }
     deferredFollowReasonRef.current = null;
     followOutputControllerRef.current.scheduleFollowToLatest(reason);
-  }, [shouldSuspendAutoFollow]);
+  }, [canScrollProgrammatically, shouldSuspendAutoFollow]);
 
   useEffect(() => {
     previousMeasuredHeightRef.current = null;
@@ -1424,6 +1558,21 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       const now = performance.now();
       if (anchorLockRef.current.active && now > anchorLockRef.current.lockUntilMs && layoutTransitionCountRef.current === 0) {
         releaseAnchorLock('expired-before-scroll');
+      }
+
+      // The reader owns the viewport: refresh their anchor and get out of the
+      // way. Every branch below this point can write `scrollTop`, and doing so
+      // mid-gesture is exactly the tug-of-war that read as flickering. The
+      // follow controller still gets the event so it can notice them arriving
+      // back at the bottom and hand control back.
+      if (isReaderControlledNowRef.current()) {
+        releaseAnchorLock('reader-controlled');
+        previousScrollTopRef.current = scrollerElement.scrollTop;
+        previousMeasuredHeightRef.current = snapshotMeasuredContentHeight(scrollerElement);
+        captureReaderAnchor();
+        scheduleVisibleTurnMeasure();
+        followOutputControllerRef.current.handleScroll();
+        return;
       }
 
       // Reactive shrink-clamp restore: in follow + streaming mode, an upward
@@ -1718,6 +1867,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [
     activateAnchorLock,
     applyFooterCompensationNow,
+    captureReaderAnchor,
     consumeBottomCompensation,
     getTotalBottomCompensationPx,
     latestTurnId,
@@ -1993,6 +2143,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
   const {
     isFollowingOutput,
+    isReaderControlled,
+    isReaderControlledNow,
     enterFollowOutput,
     exitFollowOutput,
     armFollowOutputForNewTurn,
@@ -2032,6 +2184,19 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     },
     onContinuousFollowFrame: undefined,
   });
+
+  isReaderControlledNowRef.current = isReaderControlledNow;
+
+  // Publish reader control to the collapsible cards below, and flush whatever
+  // they queued once the reader hands the viewport back.
+  useEffect(() => {
+    setReaderControlledGate(isReaderControlled);
+  }, [isReaderControlled]);
+
+  useEffect(() => () => {
+    setReaderControlledGate(false);
+    clearDeferredAutoCollapses();
+  }, []);
 
   useEffect(() => {
     if (!isPresentationActive) return;
@@ -2788,7 +2953,17 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }
 
   return (
-    <div className="virtual-message-list">
+    <div
+      className={`virtual-message-list${isReaderControlled ? ' virtual-message-list--reader-controlled' : ''}`}
+      data-reader-controlled={isReaderControlled ? 'true' : undefined}
+      /*
+       * The composer floats over the bottom of the pane. Insetting the list by
+       * its height keeps the scroller — and with it the scrollbar, the pinned
+       * activity bar and the scroll-to-latest control — above the composer at
+       * every window size, instead of running underneath it.
+       */
+      style={{ '--flowchat-input-stack-inset': `${inputStackInsetPx}px` } as React.CSSProperties}
+    >
       {useStaticInitialHistoryWindow ? (
         <div
           ref={handleScrollerRef}
@@ -2829,11 +3004,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
               style={{ height: `${Math.round(trailingOmittedInitialHistoryEstimatedHeightPx)}px` }}
             />
           ) : null}
-          <ProcessingIndicator
-            visible={showBreathingIndicator}
-            reserveSpace={reserveSpaceForIndicator}
-            labelKey={activityLabelKey}
-          />
+          <ProcessingIndicatorSpacer reserve={reserveSpaceForIndicator} />
           <div
             ref={footerElementRef}
             className="message-list-footer"
@@ -2900,6 +3071,23 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
           />
         </div>
       ) : null}
+
+      {/*
+        One fixed place to read activity. It sits outside the scroller, at the
+        bottom edge of the transcript viewport and directly above the composer,
+        so streamed output rises past it instead of pushing it around.
+
+        It stays up for the whole processing phase. `showBreathingIndicator`
+        drops out whenever text is actively growing, which made the pinned bar
+        blink on and off about twice a second while an answer streamed and
+        restarted its elapsed timer on every remount. In the flow it only meant
+        "hide the label inside a reserved block"; pinned, it has to be steady.
+      */}
+      <ProcessingIndicator
+        pinned
+        visible={reserveSpaceForIndicator}
+        labelKey={activityLabelKey}
+      />
 
       <ScrollAnchor
         activeTurnId={visibleTurnInfo?.turnId ?? null}

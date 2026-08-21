@@ -107,7 +107,7 @@ describe('buildModelRoundItemGroups', () => {
     ]);
   });
 
-  it('preserves existing explore grouping for collapsible tool rounds', () => {
+  it('leaves a lone routine tool as its own visible step', () => {
     const textItem = makeTextItem('text-1');
     const toolItem = makeReadTool('tool-1');
 
@@ -118,16 +118,14 @@ describe('buildModelRoundItemGroups', () => {
       isCollapsibleToolItem: item => item.toolName === 'Read',
     });
 
+    // One call is one line either way; folding it would hide a step of the turn.
     expect(groups).toEqual([
-      {
-        type: 'explore',
-        items: [textItem, toolItem],
-        isLast: true,
-      },
+      { type: 'critical', item: textItem },
+      { type: 'critical', item: toolItem },
     ]);
   });
 
-  it('keeps settled routine tools and adjacent thinking in one quiet group before a critical tool', () => {
+  it('keeps reasoning at the top level between tool calls', () => {
     const firstThinking = makeThinkingItem('thinking-1');
     const routineTool = { ...makeReadTool('spec-1'), toolName: 'GetToolSpec' };
     const secondThinking = makeThinkingItem('thinking-2');
@@ -140,20 +138,16 @@ describe('buildModelRoundItemGroups', () => {
       isCollapsibleToolItem: item => item.toolName === 'GetToolSpec',
     });
 
+    // think -> call -> think -> call, one flat sequence.
     expect(groups).toEqual([
-      {
-        type: 'explore',
-        items: [firstThinking, routineTool, secondThinking],
-        isLast: false,
-      },
-      {
-        type: 'critical',
-        item: criticalTool,
-      },
+      { type: 'critical', item: firstThinking },
+      { type: 'critical', item: routineTool },
+      { type: 'critical', item: secondThinking },
+      { type: 'critical', item: criticalTool },
     ]);
   });
 
-  it('keeps completed thinking quiet even when the next tool must stay visible', () => {
+  it('never folds completed thinking away', () => {
     const thinking = makeThinkingItem('thinking-before-task');
     const criticalTool = { ...makeReadTool('task-1'), toolName: 'Task' };
 
@@ -165,7 +159,7 @@ describe('buildModelRoundItemGroups', () => {
     });
 
     expect(groups).toEqual([
-      { type: 'explore', items: [thinking], isLast: false },
+      { type: 'critical', item: thinking },
       { type: 'critical', item: criticalTool },
     ]);
   });
@@ -184,15 +178,8 @@ describe('buildModelRoundItemGroups', () => {
     });
 
     expect(groups).toEqual([
-      {
-        type: 'explore',
-        items: [completedTool],
-        isLast: false,
-      },
-      {
-        type: 'critical',
-        item: runningTool,
-      },
+      { type: 'critical', item: completedTool },
+      { type: 'critical', item: runningTool },
     ]);
   });
 
@@ -209,15 +196,8 @@ describe('buildModelRoundItemGroups', () => {
     });
 
     expect(groups).toEqual([
-      {
-        type: 'explore',
-        items: [completedTool],
-        isLast: false,
-      },
-      {
-        type: 'critical',
-        item: justCompletedTool,
-      },
+      { type: 'critical', item: completedTool },
+      { type: 'critical', item: justCompletedTool },
     ]);
   });
 
@@ -239,6 +219,68 @@ describe('buildModelRoundItemGroups', () => {
         items: [completedTool, settledTool],
         isLast: true,
       },
+    ]);
+  });
+
+  it('folds tool calls that reasoning interleaved into one summary, reasoning above it', () => {
+    const firstTool = makeReadTool('tool-1');
+    const thinking = makeThinkingItem('thinking-1');
+    const secondTool = makeReadTool('tool-2');
+    const thirdTool = makeReadTool('tool-3');
+
+    const groups = buildModelRoundItemGroups({
+      items: [firstTool, thinking, secondTool, thirdTool],
+      isStreaming: false,
+      disableExploreGrouping: false,
+      isCollapsibleToolItem: item => item.toolName === 'Read' && item.status === 'completed',
+      nowMs: 10_200,
+    });
+
+    // Without the buffering, `thinking` cut the run into two runs of one and
+    // neither folded, so the reader got four rows of chrome instead of two.
+    expect(groups).toEqual([
+      { type: 'critical', item: thinking },
+      { type: 'explore', items: [firstTool, secondTool, thirdTool], isLast: true },
+    ]);
+  });
+
+  it('lets prose cut a tool run exactly where it appeared', () => {
+    const firstTool = makeReadTool('tool-1');
+    const secondTool = makeReadTool('tool-2');
+    const text = makeTextItem('text-1');
+    const thirdTool = makeReadTool('tool-3');
+    const fourthTool = makeReadTool('tool-4');
+
+    const groups = buildModelRoundItemGroups({
+      items: [firstTool, secondTool, text, thirdTool, fourthTool],
+      isStreaming: false,
+      disableExploreGrouping: false,
+      isCollapsibleToolItem: item => item.toolName === 'Read' && item.status === 'completed',
+      nowMs: 10_200,
+    });
+
+    expect(groups).toEqual([
+      { type: 'explore', items: [firstTool, secondTool], isLast: false },
+      { type: 'critical', item: text },
+      { type: 'explore', items: [thirdTool, fourthTool], isLast: true },
+    ]);
+  });
+
+  it('keeps trailing reasoning visible when no tool run is open', () => {
+    const text = makeTextItem('text-1');
+    const thinking = makeThinkingItem('thinking-1');
+
+    const groups = buildModelRoundItemGroups({
+      items: [text, thinking],
+      isStreaming: false,
+      disableExploreGrouping: false,
+      isCollapsibleToolItem: item => item.toolName === 'Read' && item.status === 'completed',
+      nowMs: 10_200,
+    });
+
+    expect(groups).toEqual([
+      { type: 'critical', item: text },
+      { type: 'critical', item: thinking },
     ]);
   });
 

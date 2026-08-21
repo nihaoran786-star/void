@@ -124,7 +124,14 @@ export const FileOperationToolCard: React.FC<FileOperationToolCardProps> = ({
   const toolId = toolItem.id ?? toolCall?.id;
   
   const [isErrorExpanded, setIsErrorExpanded] = useState(false);
-  const [isContentExpanded, setIsContentExpanded] = useState(status !== 'completed');
+  /*
+   * A write in progress is one line: the file it is writing and how much has
+   * arrived. It used to hold a live preview open, so three files being written
+   * meant three bodies growing and auto-scrolling at once. The body is one
+   * click away and still opens by itself once the operation settles into a
+   * diff worth reading.
+   */
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [operationDiffStats, setOperationDiffStats] = useState<{ additions: number; deletions: number } | null>(null);
   
   const hasInitializedCompletionEffectRef = useRef(false);
@@ -318,10 +325,10 @@ export const FileOperationToolCard: React.FC<FileOperationToolCardProps> = ({
 
   useEffect(() => {
     if (previousStatusRef.current !== status) {
+      // Collapse on settle stays; the in-progress branch no longer force-opens
+      // the live preview, so a streaming write keeps a stable card height.
       if (status === 'completed' && !isFailed) {
         applyContentExpandedState(false, 'auto');
-      } else if (status !== 'completed') {
-        applyContentExpandedState(true, 'auto');
       }
       previousStatusRef.current = status;
     }

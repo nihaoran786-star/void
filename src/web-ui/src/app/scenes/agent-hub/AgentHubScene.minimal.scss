@@ -1,0 +1,43 @@
+// AGENT — minimal presentation overlay.
+//
+// `.void-ui--minimal` is the default presentation, so this layer only tightens
+// what the base already states: quieter ink, a narrower measure, and a page
+// head that sits closer to the top edge. No new colour literals.
+
+@mixin styles {
+  .void-ui--minimal .void-agent-hub {
+    background: var(--workspace-surface-base, var(--color-bg-primary));
+
+    .void-agent-hub__inner {
+      max-width: 680px;
+      padding-top: var(--workspace-space-7, 28px);
+    }
+
+    .agent-hub-head__title {
+      letter-spacing: 0.09em;
+    }
+
+    .agent-hub-tabs {
+      gap: var(--workspace-space-5, 20px);
+    }
+
+    .agent-hub-group__label {
+      text-transform: none;
+    }
+
+    .agent-hub-row {
+      &:hover,
+      &:focus-visible {
+        background: var(--workspace-surface-hover, var(--color-bg-hover));
+      }
+    }
+
+    .agent-hub-row__glyph {
+      background: color-mix(
+        in srgb,
+        var(--workspace-surface-hover, var(--color-bg-hover)) 70%,
+        transparent
+      );
+    }
+  }
+}

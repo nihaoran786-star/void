@@ -221,6 +221,62 @@ bottom-tracking once the animation settles:
 Outside follow mode (user reading older content), all original
 protections still apply unchanged.
 
+## D. Reader-Controlled Mode
+
+Everything above protects the *bottom* of the list. The moment the reader
+scrolls up, that is the wrong goal — the right one is "keep the line they are
+looking at exactly where it is" — and running the bottom-protection machinery
+anyway is what produced the worst reported symptom: scrolling up during (or
+just after) a response made the viewport teleport into the middle of the
+transcript and then flicker violently.
+
+Two mechanisms caused it:
+
+1. `measureHeightChange` sees a negative height delta whenever `react-virtuoso`
+   swaps an estimated item height for a real one — which happens constantly
+   while scrolling up through unmeasured history. With the reader still close
+   to the bottom, the shrink branch computed non-zero required compensation,
+   activated an anchor lock and wrote `scrollTop` back. The reader kept
+   scrolling, the next frame re-locked, and the two fought at frame rate.
+2. `activateAnchorLock` merged its target with the previous one via
+   `Math.max`, so a stale, further-down target could win long after it stopped
+   describing anything on screen. Clamped against `maxScrollTop`, that restore
+   landed anywhere.
+
+The contract now is:
+
+- `useFlowChatFollowOutput` owns a single authoritative latch, exposed as
+  `isReaderControlled` / `isReaderControlledNow()`. It is set by any upward
+  movement — the wheel/touch/keyboard/scrollbar listeners *and* a plain
+  `scroll`-event fallback that covers momentum scrolling, find-in-page and
+  anything else that moves the scroller without a recognised gesture. The
+  fallback stands down while `shouldSuspendAutoFollow()` is true, because
+  collapse compensation legitimately moves `scrollTop` upward.
+- It clears in exactly two ways: the reader scrolls back to the bottom under
+  their own steam, or they ask for the latest on purpose. **A new turn does not
+  clear it** — sending a message while reading history leaves the viewport
+  where it is and surfaces the "jump to latest" affordance instead.
+- `canScrollProgrammatically()` in `VirtualMessageList` is the single choke
+  point for every programmatic scroll. Anchor restores, shrink compensation and
+  deferred follow all pass through it, so none of them can fight the reader.
+- While reader-controlled, `measureHeightChange` and the scroll listener skip
+  the compensation branches entirely and instead run
+  `captureReaderAnchor()` / `restoreReaderAnchor()`: the topmost visible item is
+  put back at the same offset inside the scroller after any measured layout
+  change. This is independent of total content height, which is what makes it
+  work against virtualization re-measurement — native `overflow-anchor` cannot
+  see that at all.
+- `overflow-anchor` is restored to `auto` via
+  `.virtual-message-list--reader-controlled` while the reader is in control, as
+  a free backstop. It is safe there precisely because our own machinery is idle.
+- `readerControlGate.ts` publishes the latch to the collapsible cards.
+  **Automatic** collapses are queued instead of performed while the reader is in
+  control, and flushed once control returns (viewport back at the bottom, where
+  the normal collapse-intent compensation applies). Manual collapses always run.
+  Without this, the burst of auto-collapses that fires when a response finishes
+  would shrink content above the reader's eyes — the reliably reproducible
+  "scroll up right after output ends" flicker.
+
 ## Why `overflow-anchor: none` Must Stay
 
 `VirtualMessageList.scss` disables native browser scroll anchoring on:
@@ -266,6 +322,12 @@ If a future collapsible component shows the same "header drops" or "flash on col
 - Pre-collapse intent must capture the anchor before the component shrinks.
 - Compensation must not be consumed too early during active layout transitions.
 - Session changes and empty-list resets must clear compensation and anchor state.
+- No code may write `scrollTop` or call `scrollToIndex` while the reader is in
+  control, except `restoreReaderAnchor()`.
+- Anchor-lock targets must always be this frame's value, never merged with an
+  older one.
+- Automatic collapses must be deferred, not performed, while the reader is in
+  control.
 
 ## Common Ways To Break This
 
@@ -286,6 +348,11 @@ If a future collapsible component shows the same "header drops" or "flash on col
 - Removing the continuous RAF follow loop. Event-driven follow alone cannot
   keep up with dense token streams without visible jitter outside collapse
   windows.
+- Bypassing `canScrollProgrammatically()` in a new scroll path, or re-adding a
+  `Math.max` merge to `activateAnchorLock`. Either one brings back the
+  teleport-and-flicker described in section D.
+- Letting a new turn clear reader control, or dispatching an auto-collapse
+  without going through `applyExpandedState` with `reason: 'auto'`.
 
 ## If You Need To Change This Logic
 

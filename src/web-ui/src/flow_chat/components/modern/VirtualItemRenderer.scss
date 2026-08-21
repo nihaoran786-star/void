@@ -5,21 +5,20 @@
 
 .virtual-item-wrapper {
   width: 100%;
-  max-width: 1200px;
+  /*
+   * A reading column, not a page width. Combined with
+   * `--flowchat-content-inline-pad` this leaves ~760px of text: long enough to
+   * avoid ragged wrapping, short enough that the eye finds the next line
+   * without hunting. The old 1200px cap ran prose nearly edge to edge on a wide
+   * window, which is most of why the pane read as dense.
+   */
+  max-width: 800px;
   margin: 0 auto;
   box-sizing: border-box;
   min-height: 1px;
   padding: 0;
 
-  @media (max-width: 1400px) {
-    max-width: 1000px;
-  }
-
-  @media (max-width: 1200px) {
-    max-width: 900px;
-  }
-
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
     max-width: 100%;
   }
 

@@ -138,6 +138,7 @@ vi.mock('../StickyTaskIndicator', () => ({
 
 vi.mock('./ProcessingIndicator', () => ({
   ProcessingIndicator: () => null,
+  ProcessingIndicatorSpacer: () => null,
 }));
 
 vi.mock('./processingIndicatorVisibility', () => ({
@@ -153,6 +154,8 @@ vi.mock('./ScrollAnchor', () => ({
 vi.mock('./useFlowChatFollowOutput', () => ({
   useFlowChatFollowOutput: () => ({
     isFollowingOutput: false,
+    isReaderControlled: false,
+    isReaderControlledNow: () => false,
     enterFollowOutput: vi.fn(),
     exitFollowOutput: vi.fn(),
     armFollowOutputForNewTurn: vi.fn(),
@@ -185,6 +188,21 @@ describe('VirtualMessageList session boundary source contract', () => {
     expect(virtualMessageListSource).toContain('hasPrimedMountedStreamingTurnFollowRef.current = false');
     expect(virtualMessageListSource).toContain('latestTurnAutoFollowStateRef.current = {');
     expect(virtualMessageListSource).toContain('React.useLayoutEffect(() =>');
+  });
+
+  it('routes every programmatic scroll through the reader-control gate', () => {
+    // Section D of FLOWCHAT_SCROLL_STABILITY.md. Any new path that writes
+    // scrollTop while the reader is scrolling brings back the teleport-and-
+    // flicker, so the choke points are pinned here.
+    expect(virtualMessageListSource).toContain('const canScrollProgrammatically = useCallback(');
+    expect(virtualMessageListSource).toContain("if (!canScrollProgrammatically()) {");
+    expect(virtualMessageListSource).toContain('if (isReaderControlledNowRef.current()) {');
+    expect(virtualMessageListSource).toContain('restoreReaderAnchor();');
+    expect(virtualMessageListSource).toContain('captureReaderAnchor();');
+    expect(virtualMessageListSource).toContain('setReaderControlledGate(isReaderControlled)');
+
+    // A stale anchor target must never be merged forward.
+    expect(virtualMessageListSource).not.toContain('Math.max(anchorLockRef.current.targetScrollTop');
   });
 
   it('keeps the history window UI gate clear of high-risk migration surfaces', () => {

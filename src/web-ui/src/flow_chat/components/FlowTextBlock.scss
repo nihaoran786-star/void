@@ -63,16 +63,59 @@
     font-size: var(--flowchat-font-size-sm);
   }
 
-  /* Inline `code`: no chip background in chat (code blocks unchanged). */
-  .markdown-renderer .inline-code {
+  /*
+   * Inline `code`: no chip background in chat (code blocks unchanged).
+   *
+   * A paragraph naming three or four identifiers picks up a chip per mention,
+   * and the speckling costs more legibility than the chips buy. The mono face
+   * plus a slightly heavier weight is enough to mark them. The theme-scoped
+   * repeats below exist because the light/dark blocks in Markdown.scss carry
+   * the same specificity and would otherwise win on source order alone.
+   */
+  .markdown-renderer .inline-code,
+  [data-theme-type='light'] & .markdown-renderer .inline-code,
+  [data-theme-type='dark'] & .markdown-renderer .inline-code {
     background: transparent;
     border: none;
     padding: 0.1em 0.2em;
+    font-weight: 550;
   }
 
-  .markdown-renderer .inline-code:hover {
+  .markdown-renderer .inline-code:hover,
+  [data-theme-type='light'] & .markdown-renderer .inline-code:hover,
+  [data-theme-type='dark'] & .markdown-renderer .inline-code:hover {
     background: transparent;
-    border: none;
+    border-color: transparent;
+  }
+
+  /*
+   * Type scale: two levels, not six. Headings inside an answer are signposts,
+   * not document structure, so they separate by weight and the space around
+   * them rather than by growing. Six distinct sizes on one screen is most of
+   * what made the pane read as busy.
+   */
+  .markdown-renderer h1,
+  .markdown-renderer h2,
+  .markdown-renderer h3 {
+    font-size: 1.06em;
+    font-weight: 600;
+  }
+
+  .markdown-renderer h4,
+  .markdown-renderer h5,
+  .markdown-renderer h6 {
+    font-size: 1em;
+    font-weight: 600;
+  }
+
+  /* Code fences: keep the outline, drop the weight. */
+  .markdown-renderer .code-block-wrapper,
+  .markdown-renderer pre {
+    border-color: color-mix(in srgb, var(--markdown-pre-border) 55%, transparent);
+  }
+
+  .markdown-renderer .code-block-wrapper:hover {
+    border-color: color-mix(in srgb, var(--markdown-pre-border) 80%, transparent);
   }
 
   /* Tighter code fence toolbar than global Markdown.scss (flow chat only). */

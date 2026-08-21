@@ -1,0 +1,79 @@
+{
+  "page": {
+    "mission": "你的全部 AI 员工、团队与装备"
+  },
+  "tabs": {
+    "ariaLabel": "按类型筛选",
+    "all": "全部",
+    "assistant": "助理",
+    "agent": "智能体",
+    "team": "团队",
+    "skill": "技能",
+    "connector": "连接器"
+  },
+  "groups": {
+    "assistant": "助理",
+    "agent": "智能体",
+    "team": "团队",
+    "skill": "技能",
+    "connector": "连接器"
+  },
+  "status": {
+    "running": "运行中",
+    "idle": "空闲",
+    "connected": "已连接",
+    "connecting": "连接中",
+    "needsAttention": "需注意",
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "ready": "就绪"
+  },
+  "actions": {
+    "search": "搜索",
+    "create": "新建",
+    "viewAll": "查看全部 ›",
+    "dispatch": "派发任务",
+    "details": "详情",
+    "edit": "编辑",
+    "newSession": "新会话",
+    "configure": "配置"
+  },
+  "create": {
+    "assistant": "新建助理",
+    "agent": "新建智能体",
+    "team": "新建团队",
+    "skill": "新建技能",
+    "connector": "添加连接器"
+  },
+  "search": {
+    "placeholder": "搜索全部"
+  },
+  "states": {
+    "loading": "加载中…",
+    "empty": "还没有内容",
+    "error": "加载失败",
+    "noMatch": "没有匹配项"
+  },
+  "errors": {
+    "newSessionFailed": "新建会话失败",
+    "createAssistantFailed": "新建助理失败"
+  },
+  "hosted": {
+    "backToDirectory": "返回目录",
+    "connectors": {
+      "title": "连接器"
+    },
+    "skillAuthoring": {
+      "title": "技能创作"
+    },
+    "createAgent": {
+      "title": "创建智能体"
+    },
+    "teamAuthoring": {
+      "title": "团队创作"
+    },
+    "reviewTeam": {
+      "title": "评审团队"
+    }
+  }
+}

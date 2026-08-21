@@ -116,6 +116,7 @@
       "automation": "Automation"
     },
     "tooltips": {
+      "agent": "AGENT — your assistants, agents, teams, skills and connectors",
       "persona": "Assistant — create and manage all assistant instances",
       "agents": "Which agents it can call",
       "skills": "What it knows — specialized knowledge files",
@@ -1013,8 +1014,8 @@
     "settings": "Settings",
     "fileViewer": "File Viewer",
     "projectContext": "Profile",
+    "agentHub": "AGENT",
     "agents": "Agents",
-    "skills": "Skills",
     "miniApps": "Mini App",
     "browser": "Browser",
     "insights": "Insights",

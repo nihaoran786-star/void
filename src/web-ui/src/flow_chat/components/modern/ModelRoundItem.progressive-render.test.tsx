@@ -350,7 +350,7 @@ describe('ModelRoundItem progressive rendering', () => {
     expect(renderedTextItems[0]?.textContent).toBe('assistant text 0');
   });
 
-  it('renders routine tools as one collapsed disclosure inside a mixed critical round', () => {
+  it('keeps reasoning and a lone routine call visible in a mixed critical round', () => {
     act(() => {
       root.render(
         <FlowChatContext.Provider value={{ sessionId: 'session-1' }}>
@@ -370,11 +370,11 @@ describe('ModelRoundItem progressive rendering', () => {
       );
     });
 
-    const aggregate = container.querySelector('.mock-explore-group');
-    expect(aggregate?.getAttribute('aria-expanded')).toBe('false');
-    expect(aggregate?.getAttribute('data-tool-count')).toBe('1');
-    expect(container.querySelectorAll('.mock-model-thinking-display')).toHaveLength(0);
-    expect(container.querySelector('[data-tool-name="GetToolSpec"]')).toBeNull();
+    // think -> call -> think -> call stays one flat sequence: nothing here is
+    // a repeated run, so there is no batch to fold.
+    expect(container.querySelector('.mock-explore-group')).toBeNull();
+    expect(container.querySelectorAll('.mock-model-thinking-display')).toHaveLength(2);
+    expect(container.querySelector('[data-tool-name="GetToolSpec"]')).not.toBeNull();
     expect(container.querySelector('.mock-subagent-projection-view')).not.toBeNull();
   });
 });

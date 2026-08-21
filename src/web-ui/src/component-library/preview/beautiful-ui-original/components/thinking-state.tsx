@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ─────────────────────────────────────────────────────────
  * THINKING — expandable agent trace, four variants
@@ -130,30 +130,14 @@ export default function ThinkingState({
   const tailText = (liveText ?? renderedRows.map((row) => row.primary).join("\n")).trim();
   const showLiveTail =
     working && !expanded && (liveText !== undefined || controlled) && tailText.length > 0;
-  const [lineHeight, setLineHeight] = useState(0);
-  useLayoutEffect(() => {
-    if (traceRef.current) setLineHeight(traceRef.current.offsetHeight);
-  }, [visible, expanded, variant, stage, renderedRows]);
-
   const headerContent = (
     <>
-      <span
-        aria-hidden
-        data-thinking-orb
-        className="shrink-0"
-        style={{
-          width: 9,
-          height: 9,
-          borderRadius: "50%",
-          backgroundColor: working ? "var(--ink-2)" : "var(--ink-3)",
-          // A soft halo keeps the small orb legible on the porcelain surface
-          // without reading as a status colour.
-          boxShadow: working
-            ? "0 0 0 3px color-mix(in srgb, var(--ink-2) 14%, transparent)"
-            : "0 0 0 2px color-mix(in srgb, var(--ink-3) 12%, transparent)",
-          animation: working ? "thinking-orb-pulse 1.6s ease-in-out infinite" : undefined,
-        }}
-      />
+      {/*
+        No mark here. The colour square belongs to the pinned activity bar and
+        appears once; repeating it on this line put two identical animations on
+        screen saying the same thing. While reasoning runs, the shimmering
+        label carries that on its own.
+      */}
       {working ? (
         <span
           className="bg-clip-text text-[13px] font-medium whitespace-nowrap text-transparent"
@@ -215,12 +199,8 @@ export default function ThinkingState({
         }}
       >
         <div className="overflow-hidden">
+          {/* No rail beside the reasoning: the indent is the whole relationship. */}
           <div className="relative mt-1 ml-[5px] pl-4">
-            <span
-              aria-hidden
-              className="absolute left-[3px] w-px bg-line"
-              style={{ top: -8, height: lineHeight ? lineHeight - 2 : 0, transition: "height 500ms cubic-bezier(0.23,1,0.32,1)" }}
-            />
             <div ref={traceRef} className="flex flex-col gap-1 py-1">
             {(query ?? v.query) && (
               <div className="flex h-6 items-center gap-2 px-1.5" style={{ animation: expanded ? "fade-up 300ms cubic-bezier(0.23,1,0.32,1) both" : undefined }}>
@@ -322,7 +302,7 @@ export default function ThinkingState({
             maxHeight: "3.9em",
             overflow: "hidden",
             marginTop: 4,
-            fontSize: 13,
+            fontSize: "var(--bui-fs-sm, 13px)",
             WebkitMaskImage: "linear-gradient(to bottom, transparent 0, black 2.2em)",
             maskImage: "linear-gradient(to bottom, transparent 0, black 2.2em)",
           }}

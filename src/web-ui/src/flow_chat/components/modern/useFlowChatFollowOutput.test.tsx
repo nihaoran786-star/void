@@ -196,6 +196,221 @@ describe('useFlowChatFollowOutput', () => {
     expect(controller?.isFollowingOutput).toBe(false);
   });
 
+  it('does not re-follow while the reader is looking back up the transcript', () => {
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 1000,
+    });
+    const performAutoFollowScroll = vi.fn(() => {
+      scroller.scrollTop = 1000;
+    });
+
+    act(() => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={performAutoFollowScroll}
+        />,
+      );
+    });
+
+    act(() => {
+      controller?.enterFollowOutput('auto-follow');
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 400,
+    });
+
+    act(() => {
+      controller?.handleUserScrollIntent();
+    });
+
+    expect(controller?.isFollowingOutput).toBe(false);
+
+    // Any later auto re-entry has to be refused: re-entering yanks the
+    // viewport down, the reader scrolls up again, and the two fight at frame
+    // rate, which is what reads as flickering.
+    performAutoFollowScroll.mockClear();
+    act(() => {
+      controller?.enterFollowOutput('auto-follow');
+      controller?.scheduleFollowToLatest('content-grew');
+    });
+
+    expect(controller?.isFollowingOutput).toBe(false);
+    expect(performAutoFollowScroll).not.toHaveBeenCalled();
+
+    // Asking to jump to the latest is the reader coming back on purpose.
+    act(() => {
+      controller?.enterFollowOutput('jump-to-latest');
+    });
+
+    expect(controller?.isFollowingOutput).toBe(true);
+  });
+
+  it('resumes following once the reader scrolls back to the bottom', () => {
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 1000,
+    });
+    const performAutoFollowScroll = vi.fn(() => {
+      scroller.scrollTop = 1000;
+    });
+
+    act(() => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={performAutoFollowScroll}
+        />,
+      );
+    });
+
+    act(() => {
+      controller?.enterFollowOutput('auto-follow');
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 400,
+    });
+
+    act(() => {
+      controller?.handleUserScrollIntent();
+      controller?.handleScroll();
+    });
+
+    expect(controller?.isFollowingOutput).toBe(false);
+
+    // Back at the bottom under their own steam.
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 1000,
+    });
+
+    act(() => {
+      controller?.handleScroll();
+      controller?.enterFollowOutput('auto-follow');
+    });
+
+    expect(controller?.isFollowingOutput).toBe(true);
+  });
+
+  it('keeps the reader in control when a new turn starts', () => {
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 1000,
+    });
+    const performAutoFollowScroll = vi.fn(() => {
+      scroller.scrollTop = 1000;
+    });
+
+    act(() => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={performAutoFollowScroll}
+        />,
+      );
+    });
+
+    act(() => {
+      controller?.enterFollowOutput('auto-follow');
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 400,
+    });
+
+    act(() => {
+      controller?.handleUserScrollIntent();
+    });
+
+    expect(controller?.isReaderControlled).toBe(true);
+
+    // Sending a message while reading history must not teleport the reader.
+    performAutoFollowScroll.mockClear();
+    act(() => {
+      controller?.armFollowOutputForNewTurn();
+    });
+
+    expect(controller?.isReaderControlled).toBe(true);
+    expect(controller?.isFollowingOutput).toBe(false);
+    expect(performAutoFollowScroll).not.toHaveBeenCalled();
+
+    act(() => {
+      controller?.enterFollowOutput('jump-to-latest');
+    });
+
+    expect(controller?.isReaderControlled).toBe(false);
+    expect(controller?.isFollowingOutput).toBe(true);
+  });
+
+  it('takes reader control from plain upward scrolling with no recognised input gesture', () => {
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 1000,
+    });
+    const performAutoFollowScroll = vi.fn(() => {
+      scroller.scrollTop = 1000;
+    });
+
+    act(() => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={performAutoFollowScroll}
+        />,
+      );
+    });
+
+    act(() => {
+      controller?.handleScroll();
+    });
+
+    expect(controller?.isReaderControlled).toBe(false);
+
+    // Momentum scrolling, find-in-page and extensions all move the scroller
+    // without a wheel/touch/key event ever reaching us.
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 600,
+    });
+
+    act(() => {
+      controller?.handleScroll();
+    });
+
+    expect(controller?.isReaderControlled).toBe(true);
+  });
+
   it('cancels scheduled and continuous animation frames when the presentation becomes inactive', () => {
     const scroller = document.createElement('div');
     setScrollerMetrics(scroller, {

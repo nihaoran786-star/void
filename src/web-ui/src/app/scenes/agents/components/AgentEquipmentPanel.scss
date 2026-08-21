@@ -1,0 +1,236 @@
+@use '../../../../component-library/styles/tokens' as *;
+@use './AgentEquipmentPanel.minimal' as minimal;
+
+// Shared capability equipment panel: three stacked sections (tools / skills /
+// sub-agents) rendered inside a detail modal content surface. Pure presentational
+// layer — all data and persistence arrive through props. Uses only the
+// --workspace-* / --status-* token families (with classic fallbacks), never raw
+// colors; every status carries text plus color so meaning survives both channels.
+
+.agent-equipment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-space-4, var(--size-gap-4));
+  width: 100%;
+  min-width: 0;
+}
+
+.agent-equipment-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-space-2, var(--size-gap-2));
+  min-width: 0;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--workspace-space-2, var(--size-gap-2));
+    min-height: var(--workspace-icon-target, var(--control-square-sm));
+  }
+
+  &__titles {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--workspace-space-2, var(--size-gap-2));
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--workspace-font-size-label, var(--font-size-xs));
+    font-weight: var(--workspace-font-weight-strong, var(--font-weight-semibold));
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--workspace-icon-target, var(--control-square-sm));
+    padding: 1px 6px;
+    border-radius: var(--workspace-radius-control, var(--size-radius-sm));
+    background: var(--workspace-surface-active, var(--element-bg-medium));
+    color: var(--workspace-text-muted, var(--color-text-muted));
+    font-size: var(--workspace-font-size-micro, var(--font-size-2xs));
+    font-weight: var(--workspace-font-weight-medium, var(--font-weight-medium));
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-2, var(--size-gap-2));
+    flex-shrink: 0;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--workspace-space-2, var(--size-gap-2));
+    min-width: 0;
+  }
+}
+
+.agent-equipment__groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-space-2, var(--size-gap-2));
+}
+
+.agent-equipment__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-space-1, var(--size-gap-1));
+  padding: var(--workspace-space-2, var(--size-gap-2));
+  border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+  border-radius: var(--workspace-radius-control, var(--size-radius-sm));
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+
+  &-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--workspace-space-2, var(--size-gap-2));
+    min-height: var(--workspace-icon-target, var(--control-square-sm));
+  }
+
+  &-titles {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--workspace-space-2, var(--size-gap-2));
+    min-width: 0;
+  }
+
+  &-title {
+    font-size: var(--workspace-font-size-meta, var(--font-size-2xs));
+    font-weight: var(--workspace-font-weight-strong, var(--font-weight-semibold));
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  &-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--workspace-icon-target, var(--control-square-sm));
+    padding: 1px 6px;
+    border-radius: var(--workspace-radius-control, var(--size-radius-sm));
+    background: var(--workspace-surface-active, var(--element-bg-medium));
+    color: var(--workspace-text-muted, var(--color-text-muted));
+    font-size: var(--workspace-font-size-micro, var(--font-size-2xs));
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-1, var(--size-gap-1));
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+.agent-equipment__tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-space-1, var(--size-gap-1));
+}
+
+.agent-equipment__token {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+  border-radius: var(--workspace-radius-control, var(--size-radius-sm));
+  background: transparent;
+  font-size: var(--workspace-font-size-micro, var(--font-size-2xs));
+  color: var(--workspace-text-muted, var(--color-text-muted));
+  cursor: pointer;
+  transition:
+    border-color var(--workspace-motion-fast, var(--motion-fast)) var(--workspace-easing-standard, var(--easing-standard)),
+    background var(--workspace-motion-fast, var(--motion-fast)) var(--workspace-easing-standard, var(--easing-standard)),
+    color var(--workspace-motion-fast, var(--motion-fast)) var(--workspace-easing-standard, var(--easing-standard));
+
+  &:hover:not(.is-on):not(:disabled) {
+    border-color: var(--workspace-border-strong, var(--border-medium));
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+  }
+
+  &.is-on {
+    border-color: var(--workspace-accent, var(--color-accent-500));
+    background: var(--workspace-surface-active, var(--element-bg-medium));
+    color: var(--workspace-accent, var(--color-accent-500));
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--workspace-focus-ring, var(--color-accent-600));
+    outline-offset: -1px;
+  }
+}
+
+.agent-equipment__token-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-equipment__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--workspace-space-1, var(--size-gap-1));
+}
+
+.agent-equipment__chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 180px;
+  padding: 3px 9px;
+  border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+  border-radius: var(--workspace-radius-control, var(--size-radius-sm));
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+  font-size: var(--workspace-font-size-micro, var(--font-size-2xs));
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-equipment__notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--workspace-space-2, var(--size-gap-2));
+}
+
+.agent-equipment__note {
+  margin: 0;
+  font-size: var(--workspace-font-size-meta, var(--font-size-2xs));
+  line-height: var(--workspace-line-height-control, 1.4);
+  color: var(--workspace-text-muted, var(--color-text-muted));
+}
+
+// Saving state: text plus color so it is legible without relying on color alone.
+.agent-equipment-status--saving {
+  color: var(--workspace-status-info-text, var(--status-info-text));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-equipment__token {
+    animation: none;
+    transition: none;
+  }
+}
+
+@include minimal.styles;

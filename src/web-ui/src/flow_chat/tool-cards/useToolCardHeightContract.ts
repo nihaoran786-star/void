@@ -1,4 +1,6 @@
 import { useCallback, useRef } from 'react';
+import { deferAutoCollapse, isReaderControlled } from '../components/modern/readerControlGate';
+
 export type ToolCardCollapseReason = 'manual' | 'auto';
 
 interface UseToolCardHeightContractOptions {
@@ -49,8 +51,23 @@ export function useToolCardHeightContract({
     setExpanded: (nextExpanded: boolean) => void,
     options?: ApplyHeightContractOptions,
   ) => {
-    if (!nextExpanded && currentExpanded) {
-      dispatchCollapseIntent(options?.reason ?? 'manual', options?.detail);
+    const reason = options?.reason ?? 'manual';
+    const isCollapsing = !nextExpanded && currentExpanded;
+
+    // Freeze automatic collapses while the reader is reading further up: a card
+    // shrinking above them drags the text they are looking at. Queue it and let
+    // it happen once they are back at the bottom.
+    if (isCollapsing && reason === 'auto' && isReaderControlled()) {
+      deferAutoCollapse(`${toolName}:${toolId ?? 'anonymous'}`, () => {
+        dispatchCollapseIntent('auto', options?.detail);
+        setExpanded(false);
+        dispatchToolCardToggle();
+      });
+      return;
+    }
+
+    if (isCollapsing) {
+      dispatchCollapseIntent(reason, options?.detail);
     }
 
     if (nextExpanded !== currentExpanded) {
@@ -61,7 +78,7 @@ export function useToolCardHeightContract({
     if (nextExpanded) {
       options?.onExpand?.();
     }
-  }, [dispatchCollapseIntent, dispatchToolCardToggle]);
+  }, [dispatchCollapseIntent, dispatchToolCardToggle, toolId, toolName]);
 
   return {
     cardRootRef,

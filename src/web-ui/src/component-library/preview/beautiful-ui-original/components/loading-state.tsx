@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PixelSquares } from "../../../components/BeautifulUI/PixelSquares";
 
 /* ─────────────────────────────────────────────────────────
  * LOADING STATE — pixel-grid loader for long-running work
@@ -49,6 +50,9 @@ function useElapsed() {
 
 export function PixelGrid({ variant = "Drive" }: { variant?: LoadingStateVariant }) {
   const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Drive;
+
+  // The default Drive grid is the shared colour mark for live model activity.
+  if (variant === "Drive") return <PixelSquares />;
 
   return (
     <span aria-hidden className="grid grid-cols-[repeat(3,4px)] gap-[1.5px]">

@@ -292,3 +292,46 @@ export function selectInitialHistoryRenderWindow(
     isWindowed: startIndex > 0,
   };
 }
+
+/** Sub-pixel drift is not worth a scroll write, and writing one would fight smooth scrolling. */
+export const READER_ANCHOR_MIN_DRIFT_PX = 1;
+
+/**
+ * Where `scrollTop` has to go to put the reader's anchored line back exactly
+ * where it was.
+ *
+ * Deliberately expressed against an element's offset inside the viewport rather
+ * than against total content height: the dominant source of drift while reading
+ * back through a conversation is `react-virtuoso` replacing an estimated item
+ * height with the real one, which changes total height without anything
+ * visually happening. Height-delta compensation reads that as content shrinking
+ * and moves the viewport; offset compensation simply does not care.
+ *
+ * Returns `null` when nothing needs to move.
+ */
+export function computeReaderAnchorCorrection(params: {
+  currentScrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  /** The anchored element's offset from the scroller's top edge, when captured. */
+  anchoredOffsetTop: number;
+  /** The same offset, measured now. */
+  currentOffsetTop: number;
+  /**
+   * Refuse corrections larger than this. A drift bigger than a viewport is not
+   * a layout shift under the reader's eyes — it means the anchor no longer
+   * describes what it did, and acting on it would throw the viewport somewhere
+   * the reader never asked to be. Doing nothing is always the safer failure.
+   */
+  maxCorrectionPx?: number;
+}): number | null {
+  const drift = params.currentOffsetTop - params.anchoredOffsetTop;
+  if (Math.abs(drift) <= READER_ANCHOR_MIN_DRIFT_PX) return null;
+  if (params.maxCorrectionPx !== undefined && Math.abs(drift) > params.maxCorrectionPx) return null;
+
+  const maxScrollTop = Math.max(0, params.scrollHeight - params.clientHeight);
+  const nextScrollTop = Math.min(maxScrollTop, Math.max(0, params.currentScrollTop + drift));
+  if (Math.abs(nextScrollTop - params.currentScrollTop) <= READER_ANCHOR_MIN_DRIFT_PX) return null;
+
+  return nextScrollTop;
+}

@@ -15,7 +15,6 @@ export type ConfigTab =
   | 'session-permissions'
   | 'quick-actions'
   | 'review'
-  | 'mcp-tools'
   | 'acp-agents'
   // | 'lsp' // temporarily hidden from config center
   | 'editor'
@@ -197,12 +196,6 @@ export const SETTINGS_CATEGORIES: ConfigCategoryDef[] = [
           'readonly',
           'audit',
         ],
-      },
-      {
-        id: 'mcp-tools',
-        labelKey: 'configCenter.tabs.mcpTools',
-        descriptionKey: 'configCenter.tabDescriptions.mcpTools',
-        keywords: ['mcp', 'server', 'plugin', 'stdio', 'sse', 'tools'],
       },
       {
         id: 'acp-agents',

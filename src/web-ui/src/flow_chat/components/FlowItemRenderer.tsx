@@ -34,7 +34,14 @@ const FlowItemRendererComponent: React.FC<FlowItemRendererProps> = ({
   }
   
   if (item.type === 'thinking') {
-    return <ModelThinkingDisplay thinkingItem={item as FlowThinkingItem} />;
+    // The main transcript has the pinned activity bar, so reasoning does not
+    // run its own live indicator alongside it.
+    return (
+      <ModelThinkingDisplay
+        thinkingItem={item as FlowThinkingItem}
+        deferToPinnedActivity
+      />
+    );
   }
   
   if (item.type === 'user-steering') {

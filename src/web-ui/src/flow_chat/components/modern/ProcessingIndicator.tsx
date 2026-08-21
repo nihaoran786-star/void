@@ -2,7 +2,13 @@
  * Processing indicator.
  * After 1s of continuous processing, shows the Beautiful UI loading state
  * with a rotating live hint and elapsed time.
- * reserveSpace keeps layout height even when hidden.
+ *
+ * The indicator is pinned to the bottom edge of the transcript viewport rather
+ * than appended to the end of the message flow: the answer streams upward past
+ * a status line that never moves, so the eye keeps one fixed place to check
+ * "is it still working". `ProcessingIndicatorSpacer` holds the matching height
+ * inside the scrolled flow so the last line of a turn cannot settle underneath
+ * the pinned bar.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -21,9 +27,26 @@ interface ProcessingIndicatorProps {
    * over the rotating hints, so the one indicator says what is happening.
    */
   labelKey?: string;
+  /** Render as the fixed bar at the bottom of the transcript viewport. */
+  pinned?: boolean;
 }
 
-export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visible, reserveSpace = false, labelKey }) => {
+/** Height the pinned bar occupies, mirrored by the in-flow spacer. */
+export const PROCESSING_INDICATOR_RESERVED_PX = 34;
+
+/**
+ * In-flow placeholder for the pinned bar. It carries no content — its only job
+ * is to keep the tail of the transcript scrollable above the pinned status.
+ */
+export const ProcessingIndicatorSpacer: React.FC<{ reserve: boolean }> = ({ reserve }) => (
+  <div
+    className="processing-indicator-spacer"
+    aria-hidden
+    style={{ height: reserve ? `${PROCESSING_INDICATOR_RESERVED_PX}px` : 0 }}
+  />
+);
+
+export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visible, reserveSpace = false, labelKey, pinned = false }) => {
   const isPresentationActive = useFlowChatPresentationActive();
   const isEffectivelyVisible = visible && isPresentationActive;
   const { t } = useTranslation('flow-chat/processing-hints');
@@ -76,11 +99,16 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
     };
   }, [hasLabel, hints.length, isEffectivelyVisible]);
 
-  const shouldRender = isEffectivelyVisible || reserveSpace;
+  // The pinned bar overlays the transcript, so an invisible copy would sit on
+  // top of the last lines and swallow their clicks.
+  const shouldRender = isEffectivelyVisible || (reserveSpace && !pinned);
   if (!shouldRender) return null;
 
   return (
-    <div className="processing-indicator" aria-hidden={!isEffectivelyVisible}>
+    <div
+      className={`processing-indicator${pinned ? ' processing-indicator--pinned' : ''}`}
+      aria-hidden={!isEffectivelyVisible}
+    >
       <div
         className="processing-indicator__content"
         style={isEffectivelyVisible ? undefined : { visibility: 'hidden' as const }}

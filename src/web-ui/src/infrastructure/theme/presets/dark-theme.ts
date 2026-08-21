@@ -25,10 +25,13 @@ export const voidDarkTheme: ThemeConfig = {
     },
 
     text: {
-      primary: '#E9ECF2',
-      secondary: '#B7BCC8',
-      muted: '#7C8494',
-      disabled: '#4A5160',
+      primary: '#F0F3F8',
+      // Support text carried most of the transcript (tool summaries, counts,
+      // timestamps) while sitting near the AA floor. Both support roles are
+      // lifted one step so secondary reads as text rather than as decoration.
+      secondary: '#C7CCD8',
+      muted: '#98A1B2',
+      disabled: '#5A6273',
     },
 
     // Cyan: the single "live" signal — focus, selection, running states.

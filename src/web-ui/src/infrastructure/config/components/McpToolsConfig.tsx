@@ -4,7 +4,7 @@
  * Uses settings/mcp-tools for page title/subtitle, settings/mcp for the MCP section.
  */
 
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FileJson,
@@ -17,11 +17,8 @@ import {
   MinusCircle,
   KeyRound,
   Trash2,
-  ChevronDown,
-  Globe2,
-  TerminalSquare,
 } from 'lucide-react';
-import { Button, Textarea, IconButton, Modal, Search, ToolProcessingDots } from '@/component-library';
+import { Button, Textarea, IconButton, Modal, ToolProcessingDots } from '@/component-library';
 import {
   ConfigPageHeader,
   ConfigPageLayout,
@@ -29,11 +26,6 @@ import {
   ConfigPageSection,
   ConfigCollectionItem,
 } from './common';
-import {
-  DirectoryTopBar,
-  type DirectoryChipGroup,
-} from '@/app/components';
-import CatalogPagination from '@/app/components/CatalogPagination';
 import { useNotification } from '@/shared/notification-system';
 import { createLogger } from '@/shared/utils/logger';
 import {
@@ -42,8 +34,7 @@ import {
   MCPServerInfo,
 } from '../../api/service-api/MCPAPI';
 import { systemAPI } from '../../api/service-api/SystemAPI';
-import ConnectorCatalogAvatar, { type ConnectorLinkState } from './ConnectorCatalogAvatar';
-import ConnectorMarketplacePanel from './ConnectorMarketplacePanel';
+import { getCatalogStatusGroup, type CatalogStatusGroup } from './mcpServerCatalog';
 import './McpToolsConfig.scss';
 
 const log = createLogger('McpToolsConfig');
@@ -168,38 +159,7 @@ function createErrorClassifier(t: (key: string, options?: any) => any) {
   };
 }
 
-export type McpToolsPresentation = 'settings' | 'catalog';
-
-export interface McpToolsConfigProps {
-  presentation?: McpToolsPresentation;
-}
-
-type CatalogStatusFilter = 'all' | 'connected' | 'attention' | 'stopped';
-type ConnectorCatalogView = 'installed' | 'market';
-
-export type CatalogStatusGroup = Exclude<CatalogStatusFilter, 'all'> | 'transitioning';
-
-const CATALOG_PAGE_SIZE = 8;
-const CATALOG_VIEWS: readonly ConnectorCatalogView[] = ['installed', 'market'];
-
-function getCatalogStatusGroup(status: string): CatalogStatusGroup {
-  switch (status.trim().toLowerCase()) {
-    case 'connected':
-    case 'healthy':
-      return 'connected';
-    case 'uninitialized':
-    case 'stopped':
-      return 'stopped';
-    case 'starting':
-    case 'reconnecting':
-    case 'stopping':
-      return 'transitioning';
-    case 'needsauth':
-    case 'failed':
-    default:
-      return 'attention';
-  }
-}
+export type { CatalogStatusGroup };
 
 function getCatalogStatusClass(status: string): string {
   switch (getCatalogStatusGroup(status)) {
@@ -240,9 +200,7 @@ function releaseMcpServerOperationLock(locks: Set<string>, serverId: string): vo
   locks.delete(serverId);
 }
 
-const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
-  presentation = 'settings',
-}) => {
+const McpToolsConfig: React.FC = () => {
   const { t: tPage } = useTranslation('settings/mcp-tools');
   const { t: tMcp } = useTranslation('settings/mcp');
   const { t: tCommon } = useTranslation('common');
@@ -261,12 +219,6 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
   const [servers, setServers] = useState<MCPServerInfo[]>([]);
   const [mcpLoading, setMcpLoading] = useState(true);
   const [mcpLoadError, setMcpLoadError] = useState<string | null>(null);
-  const [catalogQuery, setCatalogQuery] = useState('');
-  const [marketQuery, setMarketQuery] = useState('');
-  const [catalogView, setCatalogView] = useState<ConnectorCatalogView>('installed');
-  const [catalogStatusFilter, setCatalogStatusFilter] = useState<CatalogStatusFilter>('all');
-  const [catalogPage, setCatalogPage] = useState(0);
-  const [expandedCatalogServerId, setExpandedCatalogServerId] = useState<string | null>(null);
   const [showJsonEditor, setShowJsonEditor] = useState(false);
   const [jsonConfig, setJsonConfig] = useState('');
   const [authDialogServer, setAuthDialogServer] = useState<MCPServerInfo | null>(null);
@@ -281,26 +233,6 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     column?: number;
     position?: number;
   } | null>(null);
-
-  const handleCatalogViewKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-
-    event.preventDefault();
-    const currentIndex = Math.max(0, CATALOG_VIEWS.indexOf(catalogView));
-    const nextIndex = event.key === 'Home'
-      ? 0
-      : event.key === 'End'
-        ? CATALOG_VIEWS.length - 1
-        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1)
-          + CATALOG_VIEWS.length) % CATALOG_VIEWS.length;
-    const nextView = CATALOG_VIEWS[nextIndex];
-    const tabs = event.currentTarget
-      .closest('[role="tablist"]')
-      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-
-    setCatalogView(nextView);
-    tabs?.[nextIndex]?.focus();
-  };
 
   const tryFormatJson = (input: string): string | null => {
     try {
@@ -1100,55 +1032,6 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     </IconButton>
   );
   const isMcpEmpty = !showJsonEditor && !mcpLoading && !mcpLoadError && servers.length === 0;
-  const installedConnectorIds = useMemo(
-    () => new Set(servers.map(server => server.id)),
-    [servers],
-  );
-
-  const filteredCatalogServers = useMemo(() => {
-    const normalizedQuery = catalogQuery.trim().toLowerCase();
-    return servers.filter((server) => {
-      const matchesQuery = !normalizedQuery
-        || server.name.toLowerCase().includes(normalizedQuery)
-        || server.id.toLowerCase().includes(normalizedQuery)
-        || server.transport.toLowerCase().includes(normalizedQuery);
-      const matchesStatus = catalogStatusFilter === 'all'
-        || getCatalogStatusGroup(server.status) === catalogStatusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }, [catalogQuery, catalogStatusFilter, servers]);
-
-  const catalogTotalPages = Math.max(
-    1,
-    Math.ceil(filteredCatalogServers.length / CATALOG_PAGE_SIZE),
-  );
-  const currentCatalogPage = Math.min(catalogPage, catalogTotalPages - 1);
-  const pagedCatalogServers = filteredCatalogServers.slice(
-    currentCatalogPage * CATALOG_PAGE_SIZE,
-    (currentCatalogPage + 1) * CATALOG_PAGE_SIZE,
-  );
-
-  useEffect(() => {
-    setCatalogPage(0);
-  }, [catalogQuery, catalogStatusFilter]);
-
-  useEffect(() => {
-    setCatalogPage((page) => Math.min(page, Math.max(0, catalogTotalPages - 1)));
-  }, [catalogTotalPages]);
-
-  const getCatalogLinkState = (server: MCPServerInfo): ConnectorLinkState => {
-    if (isServerControlBusy(server)) return 'connecting';
-    switch (getCatalogStatusGroup(server.status)) {
-      case 'connected':
-        return 'connected';
-      case 'transitioning':
-        return 'connecting';
-      case 'attention':
-        return 'error';
-      case 'stopped':
-        return 'idle';
-    }
-  };
 
   const renderServerBadge = (server: MCPServerInfo) => (
     <span className={`void-mcp-tools__status-badge ${getCatalogStatusClass(server.status)}`}>
@@ -1342,124 +1225,8 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     );
   };
 
-  const catalogTopBarGroups: DirectoryChipGroup[] = [
-    {
-      id: 'catalog',
-      label: tMcp('catalog.views.label'),
-      mode: 'tabs',
-      onChipKeyDown: handleCatalogViewKeyDown,
-      chips: CATALOG_VIEWS.map(view => ({
-        id: view,
-        label: tMcp(`catalog.chips.${view}`),
-        active: catalogView === view,
-        onSelect: () => setCatalogView(view),
-      })),
-    },
-    ...(catalogView === 'installed' && servers.length > 0 ? [{
-      id: 'status',
-      label: tMcp('section.serverList.description'),
-      mode: 'filters' as const,
-      chips: (['all', 'connected', 'attention', 'stopped'] as const).map(filter => ({
-        id: filter,
-        label: tMcp(`catalog.filters.${filter}`),
-        active: catalogStatusFilter === filter,
-        onSelect: () => setCatalogStatusFilter(filter),
-      })),
-    }] : []),
-  ];
-
-  const renderCatalogServerCard = (server: MCPServerInfo) => {
-    const isExpanded = expandedCatalogServerId === server.id;
-    return (
-      <article
-        key={server.id}
-        className={`void-mcp-tools__catalog-card ${isExpanded ? 'is-expanded' : ''}`}
-        data-state={getCatalogLinkState(server)}
-        aria-busy={isServerControlBusy(server) || undefined}
-      >
-        <button
-          type="button"
-          className="void-mcp-tools__catalog-card-main"
-          onClick={() => setExpandedCatalogServerId(isExpanded ? null : server.id)}
-          aria-expanded={isExpanded}
-        >
-          <ConnectorCatalogAvatar
-            identity={server.id}
-            name={server.name}
-            transport={server.transport}
-            state={getCatalogLinkState(server)}
-            className="void-mcp-tools__catalog-card-avatar"
-          />
-          <strong className="void-mcp-tools__catalog-card-name">{server.name}</strong>
-          <span className="void-mcp-tools__catalog-card-meta">
-            {server.transport}
-            {server.serverType ? ` · ${server.serverType}` : ''}
-          </span>
-          {renderServerBadge(server)}
-          <ChevronDown
-            className="void-mcp-tools__catalog-card-chevron"
-            size={15}
-            aria-hidden="true"
-          />
-        </button>
-        <div className="void-mcp-tools__catalog-card-actions">
-          {renderServerControl(server)}
-        </div>
-        {isExpanded && (
-          <div className="void-mcp-tools__catalog-card-details">
-            {renderServerDetails(server) ?? (
-              <div className="void-mcp-tools__server-detail-item">
-                <span className="void-mcp-tools__server-detail-label">
-                  {tMcp('server.transport')}:
-                </span>
-                <code className="void-mcp-tools__server-detail-value">{server.transport}</code>
-              </div>
-            )}
-          </div>
-        )}
-      </article>
-    );
-  };
-
-  // The runtime body both projections share. The settings page keeps it inside
-  // the ConfigPage wrappers so it stays a settings section; the catalog renders
-  // it on its own 1280px content frame, like the employee and skill catalogs.
   const body = (
     <>
-      {presentation === 'catalog' && !showJsonEditor && (
-        <DirectoryTopBar
-          title={tMcp('catalog.title')}
-          count={catalogView === 'installed' ? filteredCatalogServers.length : undefined}
-          mission={tMcp('catalog.mission')}
-          groups={catalogTopBarGroups}
-          search={catalogView === 'installed' ? (
-            <Search
-              value={catalogQuery}
-              onChange={setCatalogQuery}
-              onClear={() => setCatalogQuery('')}
-              placeholder={tMcp('search.placeholder')}
-              size="small"
-              clearable
-            />
-          ) : (
-            <Search
-              value={marketQuery}
-              onChange={setMarketQuery}
-              onClear={() => setMarketQuery('')}
-              placeholder={tMcp('catalog.market.searchPlaceholder')}
-              size="small"
-              clearable
-            />
-          )}
-          primary={{
-            label: tMcp('actions.addConnector'),
-            onClick: () => setShowJsonEditor(true),
-            expanded: showJsonEditor,
-            controls: 'mcp-json-editor',
-          }}
-        />
-      )}
-
       {showJsonEditor && (
         <div
           id="mcp-json-editor"
@@ -1546,7 +1313,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
         </div>
       )}
 
-      {presentation === 'settings' && isMcpEmpty && (
+      {isMcpEmpty && (
         <div className="void-collection-empty void-mcp-tools__empty">
           <div className="void-mcp-tools__empty-copy">
             <span className="void-mcp-tools__empty-title">
@@ -1569,7 +1336,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
         </div>
       )}
 
-      {presentation === 'settings' && !showJsonEditor && !mcpLoading && !mcpLoadError &&
+      {!showJsonEditor && !mcpLoading && !mcpLoadError &&
         servers.map((server) => (
           <ConfigCollectionItem
             key={server.id}
@@ -1579,104 +1346,6 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             details={renderServerDetails(server)}
           />
         ))}
-
-      {presentation === 'catalog'
-        && catalogView === 'installed'
-        && !showJsonEditor
-        && !mcpLoading
-        && !mcpLoadError
-        && filteredCatalogServers.length === 0 && (
-        servers.length === 0 ? (
-          <div className="void-mcp-tools__catalog-starter">
-            <div className="void-mcp-tools__catalog-starter-intro">
-              <ConnectorCatalogAvatar
-                identity="connector-empty"
-                name={tMcp('empty.noServersHint')}
-                size="detail"
-                className="void-mcp-tools__catalog-empty-avatar"
-              />
-              <div className="void-mcp-tools__catalog-starter-copy">
-                <strong>{tMcp('empty.noServers')}</strong>
-                <span>{tMcp('empty.noServersHint')}</span>
-              </div>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={() => setShowJsonEditor(true)}
-                aria-controls="mcp-json-editor"
-              >
-                <FileJson size={14} />
-                {tMcp('actions.addConnector')}
-              </Button>
-            </div>
-            <div className="void-mcp-tools__catalog-starter-grid">
-              <article className="void-mcp-tools__catalog-starter-card">
-                <span className="void-mcp-tools__catalog-starter-icon is-local">
-                  <TerminalSquare size={20} aria-hidden="true" />
-                </span>
-                <span className="void-mcp-tools__catalog-starter-card-copy">
-                  <strong>{tMcp('catalog.starter.localTitle')}</strong>
-                  <span>{tMcp('catalog.starter.localDescription')}</span>
-                </span>
-              </article>
-              <article className="void-mcp-tools__catalog-starter-card">
-                <span className="void-mcp-tools__catalog-starter-icon is-remote">
-                  <Globe2 size={20} aria-hidden="true" />
-                </span>
-                <span className="void-mcp-tools__catalog-starter-card-copy">
-                  <strong>{tMcp('catalog.starter.remoteTitle')}</strong>
-                  <span>{tMcp('catalog.starter.remoteDescription')}</span>
-                </span>
-              </article>
-            </div>
-          </div>
-        ) : (
-          <div className="void-collection-empty void-mcp-tools__catalog-empty">
-            <ConnectorCatalogAvatar
-              identity="connector-search-empty"
-              name={tMcp('empty.noMatchingServers')}
-              size="detail"
-              className="void-mcp-tools__catalog-empty-avatar"
-            />
-            <span>{tMcp('empty.noMatchingServers')}</span>
-          </div>
-        )
-      )}
-
-      {presentation === 'catalog'
-        && catalogView === 'installed'
-        && !showJsonEditor
-        && !mcpLoading
-        && !mcpLoadError
-        && pagedCatalogServers.length > 0 && (
-        <>
-          <div className="void-mcp-tools__catalog-grid">
-            {pagedCatalogServers.map(renderCatalogServerCard)}
-          </div>
-          <CatalogPagination
-            currentPage={currentCatalogPage}
-            totalPages={catalogTotalPages}
-            onPageChange={(page) => setCatalogPage(
-              Math.min(Math.max(0, page), catalogTotalPages - 1),
-            )}
-          />
-        </>
-      )}
-
-      {presentation === 'catalog'
-        && catalogView === 'market'
-        && !showJsonEditor
-        && !mcpLoading
-        && !mcpLoadError && (
-        <ConnectorMarketplacePanel
-          installedIds={installedConnectorIds}
-          search={marketQuery}
-          onInstalled={async () => {
-            await loadServers();
-            await loadJsonConfig();
-          }}
-        />
-      )}
     </>
   );
 
@@ -1773,18 +1442,6 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
       )}
     </Modal>
   );
-
-  // Catalog: a directory page in its own right, so it owns the scroll container
-  // and the shared 1280px content frame instead of borrowing the settings
-  // page's narrower column and panelled section body.
-  if (presentation === 'catalog') {
-    return (
-      <div className="void-mcp-tools void-mcp-tools--catalog">
-        {body}
-        {remoteAuthDialog}
-      </div>
-    );
-  }
 
   return (
     <ConfigPageLayout className="void-mcp-tools void-mcp-tools--settings">

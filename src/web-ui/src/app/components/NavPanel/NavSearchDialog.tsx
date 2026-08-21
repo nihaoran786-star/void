@@ -265,7 +265,7 @@ const NavSearchDialog: React.FC<NavSearchDialogProps> = ({ open, onClose }) => {
       openNurseryAssistant(item.id);
       await setActiveWorkspace(item.id).catch(() => {});
       switchLeftPanelTab('profile');
-      openScene('assistant');
+      openScene('profile');
     } else if (item.kind === 'session') {
       await openMainSession(item.id, {
         workspaceId: item.workspaceId,

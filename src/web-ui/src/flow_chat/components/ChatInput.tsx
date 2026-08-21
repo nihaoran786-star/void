@@ -81,7 +81,6 @@ import {
   resolveWorkspaceChatInputMode,
 } from '../utils/chatInputMode';
 import { useSceneStore } from '@/app/stores/sceneStore';
-import type { SceneTabId } from '@/app/components/SceneBar/types';
 import { configAPI } from '@/infrastructure/api';
 import type {
   ModeSkillInfo,
@@ -3583,12 +3582,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleOpenSkillsLibrary = useCallback(() => {
     dispatchMode({ type: 'CLOSE_DROPDOWN' });
-    openScene('skills' as SceneTabId);
+    openScene('agent-hub');
   }, [openScene]);
 
   const handleOpenAgentsLibrary = useCallback(() => {
     dispatchMode({ type: 'CLOSE_DROPDOWN' });
-    openScene('agents' as SceneTabId);
+    openScene('agent-hub');
   }, [openScene]);
 
   const handleSelectComposerAgent = useCallback((entry: AgentCatalogEntry) => {

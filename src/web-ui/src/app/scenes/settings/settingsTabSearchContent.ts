@@ -112,13 +112,6 @@ export const SETTINGS_TAB_SEARCH_CONTENT: Record<ConfigTab, readonly SettingsTab
     { ns: 'settings/review', key: 'extra.title' },
   ],
 
-  'mcp-tools': [
-    { ns: 'settings/mcp-tools', key: 'title' },
-    { ns: 'settings/mcp-tools', key: 'subtitle' },
-    { ns: 'settings/mcp', key: 'section.serverList.title' },
-    { ns: 'settings/mcp', key: 'section.serverList.description' },
-  ],
-
   'acp-agents': [
     { ns: 'settings/acp-agents', key: 'title' },
     { ns: 'settings/acp-agents', key: 'subtitle' },

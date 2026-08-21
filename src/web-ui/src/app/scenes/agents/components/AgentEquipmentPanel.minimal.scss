@@ -1,0 +1,63 @@
+// Agent equipment panel — minimal presentation overlay.
+//
+// `.void-ui--minimal` is the default presentation, so this layer only quiets
+// what the base already states: hairline group frames instead of filled panels,
+// meta-scale counts without a chip background, and section titles that read as
+// labels rather than headings. Tokens only — no colour literals.
+
+@mixin styles {
+  .void-ui--minimal .agent-equipment-panel {
+    gap: var(--workspace-space-5, var(--size-gap-5));
+
+    .agent-equipment-section__title {
+      color: var(--workspace-text-muted, var(--color-text-muted));
+      font-weight: var(--workspace-font-weight-medium, var(--font-weight-medium));
+      letter-spacing: 0.1em;
+    }
+
+    .agent-equipment-section__count,
+    .agent-equipment__group-count {
+      min-width: 0;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--workspace-text-muted, var(--color-text-muted));
+    }
+
+    .agent-equipment__group {
+      padding: var(--workspace-space-2, var(--size-gap-2)) 0;
+      border: 0;
+      border-top: 0.5px solid var(--workspace-border-subtle, var(--border-subtle));
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .agent-equipment__groups > .agent-equipment__group:first-child {
+      border-top: 0;
+    }
+
+    .agent-equipment__group-title {
+      color: var(--workspace-text-muted, var(--color-text-muted));
+      font-weight: var(--workspace-font-weight-medium, var(--font-weight-medium));
+      letter-spacing: 0.08em;
+      text-transform: none;
+    }
+
+    .agent-equipment__chip {
+      border-color: transparent;
+      background: var(--workspace-surface-hover, var(--element-bg-subtle));
+    }
+
+    .agent-equipment__token.is-on {
+      border-color: var(--workspace-border-strong, var(--border-medium));
+      background: var(--workspace-surface-hover, var(--element-bg-subtle));
+      color: var(--workspace-text-primary, var(--color-text-primary));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .agent-equipment-panel .agent-equipment__token {
+      transition: none;
+    }
+  }
+}

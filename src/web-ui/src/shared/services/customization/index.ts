@@ -16,7 +16,7 @@ export * from './TeamPackagePicker';
 export * from './TeamRuntimeGateway';
 export * from './ReusableTeamActivationService';
 export * from './CustomizationRuntimeCapabilityService';
-export * from './ConnectorMarketplaceService';
+export * from './connectorInstallPlan';
 export * from './adapters/ExistingAgentCatalogAdapter';
 export * from './adapters/DesktopAgentAuthoringAdapter';
 export * from './adapters/ExistingSkillCatalogAdapter';

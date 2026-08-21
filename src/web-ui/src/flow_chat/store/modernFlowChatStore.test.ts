@@ -91,9 +91,10 @@ function makeRound(overrides: Partial<ModelRound> = {}): ModelRound {
   return {
     id: overrides.id ?? 'round-1',
     index: 0,
+    // A run of routine calls: the only shape that may merge into one batch.
     items: overrides.items ?? [
-      makeTextItem('text-1', 'I will inspect the file.'),
       makeReadTool('tool-1'),
+      makeReadTool('tool-1b'),
     ],
     isStreaming: false,
     isComplete: true,
@@ -132,7 +133,7 @@ describe('sessionToVirtualItems explore grouping', () => {
     vi.useRealTimers();
   });
 
-  it('groups normal rounds containing only collapsible tools and narrative', () => {
+  it('groups a run of routine tool calls into one batch', () => {
     const session = makeSession({ sessionId: 'normal-session' });
 
     const items = sessionToVirtualItems(session);
@@ -140,7 +141,7 @@ describe('sessionToVirtualItems explore grouping', () => {
     expect(items.map(item => item.type)).toEqual(['user-message', 'explore-group']);
   });
 
-  it('merges a settled pure-thinking round into the quiet aggregate before critical work', () => {
+  it('keeps reasoning and a lone call at the top level instead of merging them', () => {
     const session = makeSession({
       sessionId: 'thinking-between-tools',
       dialogTurns: [{
@@ -159,17 +160,19 @@ describe('sessionToVirtualItems explore grouping', () => {
 
     const items = sessionToVirtualItems(session);
 
+    // read -> think -> task, one flat sequence: a single call is not a batch,
+    // and reasoning is never folded into one.
     expect(items.map(item => item.type)).toEqual([
       'user-message',
-      'explore-group',
+      'model-round',
+      'model-round',
       'model-round',
     ]);
-    expect(items[1]).toMatchObject({
-      type: 'explore-group',
-      data: {
-        rounds: [{ id: 'round-read' }, { id: 'round-thinking' }],
-      },
-    });
+    expect(items.slice(1)).toMatchObject([
+      { data: { id: 'round-read' } },
+      { data: { id: 'round-thinking' } },
+      { data: { id: 'round-task' } },
+    ]);
   });
 
   it('does not special-case ACP rounds without explicit render hints', () => {
@@ -377,8 +380,8 @@ describe('sessionToVirtualItems explore grouping', () => {
       data: {
         groupId: 'round-1',
         allItems: [
-          expect.objectContaining({ id: 'text-1' }),
           expect.objectContaining({ id: 'tool-1' }),
+          expect.objectContaining({ id: 'tool-1b' }),
           expect.objectContaining({ id: 'tool-2' }),
         ],
       },
@@ -443,8 +446,8 @@ describe('sessionToVirtualItems explore grouping', () => {
       data: {
         groupId: 'round-1',
         allItems: [
-          expect.objectContaining({ id: 'text-1' }),
           expect.objectContaining({ id: 'tool-1' }),
+          expect.objectContaining({ id: 'tool-1b' }),
           expect.objectContaining({ id: 'tool-2' }),
         ],
       },

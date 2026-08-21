@@ -31,10 +31,10 @@ export const voidLightTheme: ThemeConfig = {
     // Cool ink text: never pure black, every meaningful role stays above AA
     // on the cool-white surfaces.
     text: {
-      primary: '#14171D',          // cool ink
-      secondary: '#3A3F49',        // slate-700
-      muted: '#6B7280',            // slate-500; AA-safe on cool surfaces
-      disabled: '#9AA3AF',
+      primary: '#111419',          // cool ink
+      secondary: '#333944',        // slate-700, deepened one step
+      muted: '#5A6270',            // slate-500+; clears AA on cool surfaces
+      disabled: '#8A93A1',
     },
 
     // Pulse blue: focus, selection, and the single primary action per region.

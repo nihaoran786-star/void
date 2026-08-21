@@ -116,6 +116,7 @@
       "automation": "自动化"
     },
     "tooltips": {
+      "agent": "AGENT — 你的全部助理、智能体、团队、技能与连接器",
       "persona": "助理 — 创建与管理所有助理实例",
       "agents": "它能调用哪些 Agent",
       "skills": "它懂什么专项知识 — 技能知识文件",
@@ -1013,8 +1014,8 @@
     "settings": "设置",
     "fileViewer": "文件查看",
     "projectContext": "项目概况",
+    "agentHub": "AGENT",
     "agents": "智能体",
-    "skills": "技能",
     "miniApps": "小应用",
     "browser": "浏览器",
     "insights": "洞察",

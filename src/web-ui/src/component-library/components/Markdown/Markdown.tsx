@@ -546,6 +546,8 @@ export interface FlowCodeBlockFallbackProps {
   bodyStyle: React.CSSProperties;
   codeTagStyle: React.CSSProperties;
   gutterColor: string;
+  /** Matches the highlighter's `showLineNumbers`; see `codeBlockChrome`. */
+  showLineNumbers?: boolean;
 }
 
 /**
@@ -562,19 +564,23 @@ const CodeBlockFallback: React.FC<FlowCodeBlockFallbackProps> = ({
   bodyStyle,
   codeTagStyle,
   gutterColor,
+  showLineNumbers = true,
 }) => {
   const lineCount = code.length === 0 ? 1 : code.split('\n').length;
   let gutterText = '';
-  for (let i = 1; i <= lineCount; i++) {
-    gutterText += i === lineCount ? `${i}` : `${i}\n`;
+  if (showLineNumbers) {
+    for (let i = 1; i <= lineCount; i++) {
+      gutterText += i === lineCount ? `${i}` : `${i}\n`;
+    }
   }
 
   return (
     <pre
-      className={`language-${language} code-block-fallback code-block-fallback--linenumbers`}
+      className={`language-${language} code-block-fallback${showLineNumbers ? ' code-block-fallback--linenumbers' : ''}`}
       style={bodyStyle}
     >
       <code style={{ ...codeTagStyle, display: 'flex' }}>
+        {showLineNumbers && (
         <span
           aria-hidden="true"
           style={{
@@ -590,6 +596,7 @@ const CodeBlockFallback: React.FC<FlowCodeBlockFallbackProps> = ({
         >
           {gutterText}
         </span>
+        )}
         <span
           style={{
             flex: 1,
@@ -656,6 +663,16 @@ export interface MarkdownProps {
   onHttpLinkClick?: (url: string, event: React.MouseEvent<HTMLAnchorElement>) => boolean | void;
   showRightPanelPreviewLinks?: boolean;
   onReproductionProceed?: () => void;
+  /**
+   * How much furniture a fenced code block carries.
+   *
+   * `full` (default) keeps the line-number gutter and the always-visible
+   * language/copy bar — right for documents and panels where the code is the
+   * subject. `quiet` drops the gutter and floats the language and copy button
+   * into the corner on hover, so a code sample inside a conversation reads as
+   * one calm block rather than a boxed widget.
+   */
+  codeBlockChrome?: 'full' | 'quiet';
 }
 
 export const Markdown = React.memo<MarkdownProps>(({ 
@@ -669,7 +686,8 @@ export const Markdown = React.memo<MarkdownProps>(({
   onTabOpen,
   onHttpLinkClick,
   showRightPanelPreviewLinks = false,
-  onReproductionProceed
+  onReproductionProceed,
+  codeBlockChrome = 'full'
 }) => {
   const { isLight } = useTheme();
   const { t } = useI18n('components');
@@ -946,9 +964,13 @@ export const Markdown = React.memo<MarkdownProps>(({
       }
       
       const normalizedLang = getPrismLanguageFromAlias(language);
+      const isQuietChrome = codeBlockChrome === 'quiet';
+      const showLineNumbers = !isQuietChrome;
       const codeBodyStyle: React.CSSProperties = {
         margin: 0,
-        borderRadius: '0 0 8px 8px',
+        // Quiet blocks have no toolbar occupying the top edge, so the body owns
+        // all four corners.
+        borderRadius: isQuietChrome ? '8px' : '0 0 8px 8px',
         fontSize: '0.875rem',
         lineHeight: '1.55',
       };
@@ -958,8 +980,8 @@ export const Markdown = React.memo<MarkdownProps>(({
       const previewUrl = showRightPanelPreviewLinks ? getSingleHttpUrlFromText(code) : null;
 
       return (
-        <div className={`code-block-wrapper${hasMultipleLines ? '' : ' code-block-wrapper--single-line'}`}>
-          <div className="code-block-toolbar">
+        <div className={`code-block-wrapper${hasMultipleLines ? '' : ' code-block-wrapper--single-line'}${isQuietChrome ? ' code-block-wrapper--quiet' : ''}`}>
+          <div className={`code-block-toolbar${isQuietChrome ? ' code-block-toolbar--quiet' : ''}`}>
             <span className="code-block-lang">{formatCodeLanguageLabel(normalizedLang)}</span>
             <div className="code-block-toolbar-actions">
               {previewUrl && (
@@ -992,12 +1014,13 @@ export const Markdown = React.memo<MarkdownProps>(({
               bodyStyle={codeBodyStyle}
               codeTagStyle={codeTagStyle}
               gutterColor={isLight ? '#999' : '#666'}
+              showLineNumbers={showLineNumbers}
             />
           ) : (
             <AsyncPrismSyntaxHighlighter
               language={normalizedLang}
               style={syntaxTheme}
-              showLineNumbers={true}
+              showLineNumbers={showLineNumbers}
               customStyle={codeBodyStyle}
               codeTagProps={{ style: codeTagStyle }}
               lineNumberStyle={{
@@ -1014,6 +1037,7 @@ export const Markdown = React.memo<MarkdownProps>(({
                 bodyStyle: codeBodyStyle,
                 codeTagStyle,
                 gutterColor: isLight ? '#999' : '#666',
+                showLineNumbers,
               }}
             >
               {code}
@@ -1276,6 +1300,7 @@ export const Markdown = React.memo<MarkdownProps>(({
     }
   }), [
     basePath,
+    codeBlockChrome,
     expandDetailsByDefault,
     isStreaming,
     linkMap,

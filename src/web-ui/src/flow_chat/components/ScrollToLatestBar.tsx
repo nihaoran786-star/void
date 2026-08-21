@@ -5,10 +5,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  CHAT_INPUT_DROP_ZONE_BOTTOM_PX,
-  SCROLL_TO_LATEST_INPUT_CLEARANCE_PX,
-} from '../utils/flowChatScrollLayout';
+import { SCROLL_TO_LATEST_INPUT_CLEARANCE_PX } from '../utils/flowChatScrollLayout';
 import './ScrollToLatestBar.scss';
 
 interface ScrollToLatestBarProps {
@@ -18,7 +15,10 @@ interface ScrollToLatestBarProps {
   isInputExpanded?: boolean;
   /** Whether ChatInput is active. */
   isInputActive?: boolean;
-  /** Measured height of the ChatInput container in pixels (0 if unknown). */
+  /**
+   * Measured height of the ChatInput container in pixels (0 if unknown).
+   * @deprecated The list is inset by the composer height; kept for callers.
+   */
   inputHeight?: number;
   className?: string;
 }
@@ -28,7 +28,6 @@ export const ScrollToLatestBar: React.FC<ScrollToLatestBarProps> = ({
   onClick,
   isInputExpanded = false,
   isInputActive = true,
-  inputHeight = 0,
   className = ''
 }) => {
   const { t } = useTranslation('flow-chat');
@@ -42,26 +41,18 @@ export const ScrollToLatestBar: React.FC<ScrollToLatestBarProps> = ({
       ? 'scroll-to-latest-bar--input-expanded' 
       : '';
 
-  // Dynamically compute bar height and button position based on measured ChatInput height.
+  // The message list is already inset by the composer's height, so this control
+  // only needs its own clearance from the bottom edge of the list. It used to
+  // add the measured input height on top of that, which is now double-counting.
   //
   // IMPORTANT: __content is position:absolute within the bar, so its `bottom` is
   // relative to the bar—not to the viewport. If bottom > barHeight the content
   // overflows the bar and is clipped by virtual-message-list's overflow:hidden.
   // Therefore we always set barHeight >= contentBottom + button clearance together.
-  //
-  // Layout constants: shared with VirtualMessageList footer (flowChatScrollLayout).
   const ABOVE_BTN = 24; // gradient fade above the control
-  let dynamicStyle: React.CSSProperties = {};
-  let contentStyle: React.CSSProperties | undefined;
-
-  if (inputHeight > 0) {
-    const contentBottom =
-      inputHeight + CHAT_INPUT_DROP_ZONE_BOTTOM_PX + SCROLL_TO_LATEST_INPUT_CLEARANCE_PX;
-    const barHeight = contentBottom + ABOVE_BTN;
-
-    dynamicStyle = { height: `${barHeight}px` };
-    contentStyle = { bottom: `${contentBottom}px` };
-  }
+  const contentBottom = SCROLL_TO_LATEST_INPUT_CLEARANCE_PX;
+  const dynamicStyle: React.CSSProperties = { height: `${contentBottom + ABOVE_BTN}px` };
+  const contentStyle: React.CSSProperties = { bottom: `${contentBottom}px` };
 
   return (
     <div 

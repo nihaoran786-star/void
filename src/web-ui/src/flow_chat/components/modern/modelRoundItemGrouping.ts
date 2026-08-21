@@ -42,101 +42,94 @@ export function buildModelRoundItemGroups({
   nowMs = Date.now(),
 }: BuildModelRoundItemGroupsInput): ModelRoundItemGroup[] {
   const deferExploreGrouping = disableExploreGrouping || (isStreaming && hasActiveStreamingNarrative(items));
-  const intermediateGroups: Array<{ type: 'normal'; item: FlowItem }> = items.map(item => ({
-    type: 'normal',
-    item,
-  }));
 
   const finalGroups: ModelRoundItemGroup[] = [];
-  let exploreBuffer: FlowItem[] = [];
-  let pendingBuffer: FlowItem[] = [];
+  /*
+   * Routine tool calls and any reasoning that landed between them, in the order
+   * they arrived.
+   *
+   * Reasoning is kept in the buffer rather than emitted immediately because a
+   * turn that thinks between every call used to cut its own calls into runs of
+   * one, and a run of one never folds — so the reader got
+   * `command / think / command / command / think` as five separate rows of
+   * chrome instead of a summary.
+   */
+  let pendingRun: FlowItem[] = [];
 
-  const normalItems = intermediateGroups
-    .filter((group): group is { type: 'normal'; item: FlowItem } => group.type === 'normal')
-    .map(group => group.item);
+  /*
+   * A run of routine tool calls only becomes a summary when there is more than
+   * one of them. One call is one line either way, so folding it hid a step of
+   * the turn and bought nothing; batching starts where the repetition starts.
+   *
+   * Interleaved reasoning is only lifted above the summary when a fold actually
+   * happens — that reordering is the price of the summary, so it is not worth
+   * paying when there is no summary to show for it.
+   */
+  const flushToolRun = (isLast: boolean) => {
+    if (pendingRun.length === 0) return;
 
-  const flushExploreBuffer = (isLast: boolean) => {
-    if (exploreBuffer.length > 0) {
-      finalGroups.push({ type: 'explore', items: [...exploreBuffer], isLast });
-      exploreBuffer = [];
-    }
-  };
+    const toolItems = pendingRun.filter(item => item.type === 'tool');
 
-  const flushPendingAsCritical = () => {
-    for (const item of pendingBuffer) {
-      finalGroups.push({ type: 'critical', item });
-    }
-    pendingBuffer = [];
-  };
-
-  let normalItemIndex = 0;
-
-  for (let i = 0; i < intermediateGroups.length; i++) {
-    const group = intermediateGroups[i];
-    const isLastGroup = i === intermediateGroups.length - 1;
-
-    const item = group.item;
-    const isLastNormalItem = normalItemIndex === normalItems.length - 1;
-
-    if (
-      item.type === 'thinking' &&
-      item.status === 'completed' &&
-      !deferExploreGrouping
-    ) {
-      if (pendingBuffer.length > 0) {
-        flushExploreBuffer(false);
-        flushPendingAsCritical();
-      }
-      exploreBuffer.push(item);
-
-      if (isLastNormalItem || isLastGroup) {
-        flushExploreBuffer(true);
-      }
-    } else if (item.type === 'text' || item.type === 'thinking') {
-      pendingBuffer.push(item);
-
-      if (isLastNormalItem) {
-        flushExploreBuffer(false);
-        flushPendingAsCritical();
-      }
-    } else if (item.type === 'tool') {
-      const isExploreTool = isCollapsibleToolItem(item as FlowToolItem);
-
-      if (isExploreTool) {
-        const keepTransientlyCritical =
-          deferExploreGrouping ||
-          isActiveToolItem(item) ||
-          (isStreaming && isRecentlyCompletedToolItem(item, nowMs));
-
-        if (keepTransientlyCritical) {
-          flushExploreBuffer(false);
-          flushPendingAsCritical();
-          finalGroups.push({ type: 'critical', item });
-          normalItemIndex++;
-          continue;
-        }
-        exploreBuffer.push(...pendingBuffer, item);
-        pendingBuffer = [];
-
-        if (isLastNormalItem || isLastGroup) {
-          flushExploreBuffer(true);
-        }
-      } else {
-        flushExploreBuffer(false);
-        flushPendingAsCritical();
+    if (toolItems.length < 2) {
+      for (const item of pendingRun) {
         finalGroups.push({ type: 'critical', item });
       }
-    } else {
-      flushExploreBuffer(false);
-      flushPendingAsCritical();
-      finalGroups.push({ type: 'critical', item });
+      pendingRun = [];
+      return;
     }
 
-    normalItemIndex++;
+    for (const item of pendingRun) {
+      if (item.type !== 'tool') {
+        finalGroups.push({ type: 'critical', item });
+      }
+    }
+    finalGroups.push({ type: 'explore', items: toolItems, isLast });
+    pendingRun = [];
+  };
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const isLastItem = i === items.length - 1;
+
+    /*
+     * Reasoning and prose are the spine of the turn and always stay at the top
+     * level: think -> call -> think -> call -> answer reads as one sequence.
+     * They used to be swallowed into the same collapsed region as the tools,
+     * which nested the model's reasoning one level underneath its own tool
+     * calls and moved it around as a turn settled.
+     *
+     * Prose is the answer itself, so it always cuts a run at exactly the point
+     * it appeared. Reasoning only gets held back (see `pendingRun`).
+     */
+    if (item.type === 'thinking') {
+      pendingRun.push(item);
+      if (isLastItem) flushToolRun(true);
+      continue;
+    }
+
+    if (item.type !== 'tool') {
+      flushToolRun(false);
+      finalGroups.push({ type: 'critical', item });
+      continue;
+    }
+
+    const isRoutineTool = isCollapsibleToolItem(item as FlowToolItem);
+    const keepTransientlyCritical =
+      deferExploreGrouping ||
+      isActiveToolItem(item) ||
+      (isStreaming && isRecentlyCompletedToolItem(item, nowMs));
+
+    if (!isRoutineTool || keepTransientlyCritical) {
+      flushToolRun(false);
+      finalGroups.push({ type: 'critical', item });
+      continue;
+    }
+
+    pendingRun.push(item);
+    if (isLastItem) flushToolRun(true);
   }
 
-  flushExploreBuffer(true);
-  flushPendingAsCritical();
+  flushToolRun(true);
 
   return finalGroups;
 }

@@ -147,6 +147,10 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
           // which makes line numbers and the code body visibly shake
           // until the stream finally completes.
           isStreaming={isStreaming}
+          // A code sample in a conversation is an aside, not the subject: no
+          // line-number gutter, and the language/copy affordances stay out of
+          // sight until the reader points at the block.
+          codeBlockChrome="quiet"
           onFileViewRequest={onFileViewRequest}
           onTabOpen={onTabOpen}
           onHttpLinkClick={onHttpLinkClick}

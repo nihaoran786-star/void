@@ -1,0 +1,79 @@
+{
+  "page": {
+    "mission": "你的全部 AI 員工、團隊與裝備"
+  },
+  "tabs": {
+    "ariaLabel": "依類型篩選",
+    "all": "全部",
+    "assistant": "助理",
+    "agent": "智慧體",
+    "team": "團隊",
+    "skill": "技能",
+    "connector": "連接器"
+  },
+  "groups": {
+    "assistant": "助理",
+    "agent": "智慧體",
+    "team": "團隊",
+    "skill": "技能",
+    "connector": "連接器"
+  },
+  "status": {
+    "running": "執行中",
+    "idle": "閒置",
+    "connected": "已連線",
+    "connecting": "連線中",
+    "needsAttention": "需注意",
+    "enabled": "已啟用",
+    "disabled": "已停用",
+    "ready": "就緒"
+  },
+  "actions": {
+    "search": "搜尋",
+    "create": "新增",
+    "viewAll": "查看全部 ›",
+    "dispatch": "派發任務",
+    "details": "詳情",
+    "edit": "編輯",
+    "newSession": "新對話",
+    "configure": "設定"
+  },
+  "create": {
+    "assistant": "新增助理",
+    "agent": "新增智慧體",
+    "team": "新增團隊",
+    "skill": "新增技能",
+    "connector": "新增連接器"
+  },
+  "search": {
+    "placeholder": "搜尋全部"
+  },
+  "states": {
+    "loading": "載入中…",
+    "empty": "還沒有內容",
+    "error": "載入失敗",
+    "noMatch": "沒有符合項目"
+  },
+  "errors": {
+    "newSessionFailed": "新增對話失敗",
+    "createAssistantFailed": "新增助理失敗"
+  },
+  "hosted": {
+    "backToDirectory": "返回目錄",
+    "connectors": {
+      "title": "連接器"
+    },
+    "skillAuthoring": {
+      "title": "技能創作"
+    },
+    "createAgent": {
+      "title": "建立智慧體"
+    },
+    "teamAuthoring": {
+      "title": "團隊創作"
+    },
+    "reviewTeam": {
+      "title": "評審團隊"
+    }
+  }
+}

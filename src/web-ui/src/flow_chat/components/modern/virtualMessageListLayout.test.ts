@@ -7,6 +7,7 @@ import {
   HISTORICAL_SESSION_DEFAULT_ITEM_HEIGHT_PX,
   HISTORICAL_SESSION_MODEL_ROUND_DEFAULT_ITEM_HEIGHT_PX,
   LIVE_SESSION_DEFAULT_ITEM_HEIGHT_PX,
+  computeReaderAnchorCorrection,
   estimateTextHeightFromLength,
   estimateVirtualMessageItemHeight,
   getVirtualMessageDefaultItemHeight,
@@ -391,5 +392,76 @@ describe('VirtualMessageList integration boundary', () => {
     expect(source).not.toContain('heightEstimates=');
     expect(source).not.toContain('firstItemIndex=');
     expect(source).toContain('history-projection-handoff-overlay');
+  });
+});
+
+describe('computeReaderAnchorCorrection', () => {
+  const base = {
+    currentScrollTop: 4000,
+    scrollHeight: 20000,
+    clientHeight: 800,
+    anchoredOffsetTop: 120,
+  };
+
+  it('pulls the anchored line back down when content above it shrank', () => {
+    // The line the reader is on moved up by 300px, so the viewport has to
+    // follow it up by the same amount to leave it visually untouched.
+    expect(computeReaderAnchorCorrection({ ...base, currentOffsetTop: -180 }))
+      .toBe(3700);
+  });
+
+  it('pushes the anchored line back up when content above it grew', () => {
+    expect(computeReaderAnchorCorrection({ ...base, currentOffsetTop: 420 }))
+      .toBe(4300);
+  });
+
+  it('ignores sub-pixel drift rather than writing a fighting scroll', () => {
+    expect(computeReaderAnchorCorrection({ ...base, currentOffsetTop: 120.4 }))
+      .toBeNull();
+    expect(computeReaderAnchorCorrection({ ...base, currentOffsetTop: 120 }))
+      .toBeNull();
+  });
+
+  it('clamps to the scrollable range instead of overshooting', () => {
+    expect(computeReaderAnchorCorrection({
+      ...base,
+      currentScrollTop: 100,
+      currentOffsetTop: -900,
+    })).toBe(0);
+
+    expect(computeReaderAnchorCorrection({
+      ...base,
+      currentScrollTop: 19000,
+      currentOffsetTop: 1500,
+    })).toBe(19200);
+  });
+
+  it('refuses a correction bigger than the viewport', () => {
+    // A drift this large means the anchored item is no longer what it was —
+    // most often because the virtualizer recycled its wrapper. Acting on it
+    // would throw the reader somewhere they never asked to be.
+    expect(computeReaderAnchorCorrection({
+      ...base,
+      currentOffsetTop: 3200,
+      maxCorrectionPx: 800,
+    })).toBeNull();
+
+    // Just inside the limit still corrects.
+    expect(computeReaderAnchorCorrection({
+      ...base,
+      currentOffsetTop: 820,
+      maxCorrectionPx: 800,
+    })).toBe(4700);
+  });
+
+  it('is independent of total content height', () => {
+    // Virtuoso swapping an estimated item height for a real one changes
+    // scrollHeight without moving anything on screen. That must not produce a
+    // correction.
+    const unchangedOffset = { ...base, currentOffsetTop: base.anchoredOffsetTop };
+    expect(computeReaderAnchorCorrection({ ...unchangedOffset, scrollHeight: 20000 }))
+      .toBeNull();
+    expect(computeReaderAnchorCorrection({ ...unchangedOffset, scrollHeight: 14000 }))
+      .toBeNull();
   });
 });

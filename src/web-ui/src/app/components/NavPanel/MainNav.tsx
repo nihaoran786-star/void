@@ -3,7 +3,7 @@
  *
  * Layout (top to bottom):
  *   1. Classic: workspace search header
- *   2. Top: New sessions (Minimal search slot) | Assistant | Extensions
+ *   2. Top: New sessions (Minimal search slot) | AGENT | Automation
  *   3. Assistant sessions, Workspace
  *   4. Bottom: MiniApp
  *
@@ -13,12 +13,10 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Cable, Blocks, ChevronDown, CalendarClock } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, Hexagon, CalendarClock } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import {
-  NavTechAssistantIcon,
   NavTechAutomationIcon,
-  NavTechExtensionsIcon,
 } from './components/NavTechIcons';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
@@ -30,7 +28,6 @@ import { SessionCreateLauncher } from './components/SessionCreateLauncher';
 import WorkspaceListSection from './sections/workspaces/WorkspaceListSection';
 import SessionsSection from './sections/sessions/DeferredSessionsSection';
 import { useSceneStore } from '../../stores/sceneStore';
-import { useMyAgentStore } from '../../scenes/my-agent/myAgentStore';
 import { useMiniAppCatalogSync } from '../../scenes/miniapps/hooks/useMiniAppCatalogSync';
 import {
   beginNewSessionDraft,
@@ -51,11 +48,7 @@ import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
 import {
   readWorkspacePresentation,
 } from '@/app/presentation/workspacePresentation';
-import {
-  preloadAgentsScene,
-  preloadConnectorsScene,
-  preloadSkillsScene,
-} from '../../scenes/sceneLoaders';
+import { preloadAgentHubScene } from '../../scenes/sceneLoaders';
 
 import './NavPanel.scss';
 
@@ -87,7 +80,6 @@ const MainNav: React.FC<MainNavProps> = ({
   const { switchLeftPanelTab } = useApp();
   const { openScene } = useSceneManager();
   const activeTabId = useSceneStore(s => s.activeTabId);
-  const setSelectedAssistantWorkspaceId = useMyAgentStore((s) => s.setSelectedAssistantWorkspaceId);
   const { t } = useI18n('common');
   const {
     currentWorkspace,
@@ -97,7 +89,6 @@ const MainNav: React.FC<MainNavProps> = ({
     assistantWorkspacesList,
     normalWorkspacesList,
     switchWorkspace,
-    setActiveWorkspace,
   } = useWorkspaceContext();
 
   useMiniAppCatalogSync({
@@ -122,7 +113,6 @@ const MainNav: React.FC<MainNavProps> = ({
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [workspaceMenuClosing, setWorkspaceMenuClosing] = useState(false);
   const [workspaceMenuPos, setWorkspaceMenuPos] = useState({ top: 0, left: 0 });
-  const [isExtensionsOpen, setIsExtensionsOpen] = useState(false);
   const workspacePresentation = useMemo(readWorkspacePresentation, []);
 
   const toggleSection = useCallback((id: string) => {
@@ -266,12 +256,6 @@ const MainNav: React.FC<MainNavProps> = ({
   const selectedSessionMode = useSessionModeStore(s => s.mode);
   const isNewSessionDraft = useSessionModeStore(s => s.draftStatus !== 'idle');
   const setSessionMode = useSessionModeStore(s => s.setMode);
-  const isAssistantWorkspaceActive = currentWorkspace?.workspaceKind === WorkspaceKind.Assistant;
-
-  const defaultAssistantWorkspace = useMemo(
-    () => assistantWorkspacesList.find(w => !w.assistantId) ?? assistantWorkspacesList[0] ?? null,
-    [assistantWorkspacesList]
-  );
 
   const searchOpen = useNavSearchStore(state => state.open);
   const closeNavSearch = useNavSearchStore(state => state.closeNavSearch);
@@ -404,58 +388,12 @@ const MainNav: React.FC<MainNavProps> = ({
     };
   }, [workspaceMenuOpen, updateWorkspaceMenuPos]);
 
-  const handleOpenAssistant = useCallback(() => {
-    const targetAssistantWorkspace =
-      isAssistantWorkspaceActive && currentWorkspace?.workspaceKind === WorkspaceKind.Assistant
-        ? currentWorkspace
-        : defaultAssistantWorkspace;
-
-    if (targetAssistantWorkspace?.id) {
-      setSelectedAssistantWorkspaceId(targetAssistantWorkspace.id);
-    }
-    if (!isAssistantWorkspaceActive && targetAssistantWorkspace) {
-      void setActiveWorkspace(targetAssistantWorkspace.id).catch(error => {
-        log.warn('Failed to activate default assistant workspace', { error });
-      });
-    }
-    switchLeftPanelTab('profile');
-    openScene('assistant');
-  }, [
-    currentWorkspace,
-    defaultAssistantWorkspace,
-    isAssistantWorkspaceActive,
-    openScene,
-    setActiveWorkspace,
-    setSelectedAssistantWorkspaceId,
-    switchLeftPanelTab,
-  ]);
-
-  const handleOpenAgents = useCallback(() => {
-    openScene('agents');
-  }, [openScene]);
-
-  const handleOpenSkills = useCallback(() => {
-    openScene('skills');
-  }, [openScene]);
-
-  const handleOpenConnectors = useCallback(() => {
-    openScene('connectors');
-  }, [openScene]);
-
   const handleOpenAutomation = useCallback(() => {
     openScene('automation');
   }, [openScene]);
 
-  const isAgentsActive = activeTabId === 'agents';
-  const isSkillsActive = activeTabId === 'skills';
-  const isConnectorsActive = activeTabId === 'connectors';
+  const isAgentHubActive = activeTabId === 'agent-hub';
   const isAutomationActive = activeTabId === 'automation';
-
-  useEffect(() => {
-    if (isAgentsActive || isSkillsActive || isConnectorsActive) {
-      setIsExtensionsOpen(true);
-    }
-  }, [isAgentsActive, isSkillsActive, isConnectorsActive]);
 
   const workspaceMenuPortal = workspaceMenuOpen ? createPortal(
     <div
@@ -543,14 +481,9 @@ const MainNav: React.FC<MainNavProps> = ({
     document.body
   ) : null;
 
-  const assistantTooltip = t('nav.items.persona');
+  const agentTooltip = t('nav.tooltips.agent');
   const automationTooltip = t('nav.items.automation');
   const addWorkspaceTooltip = t('nav.tooltips.addWorkspace');
-  const isAssistantActive = activeTabId === 'assistant';
-  const agentsTooltip = t('nav.tooltips.agents');
-  const skillsTooltip = t('nav.tooltips.skills');
-  const connectorsTooltip = t('nav.tooltips.connectors');
-  const extensionsLabel = t('nav.sections.extensions');
   const createShortcutHint = useMemo(() => (NAV_NEW_SESSION_DEF
     ? shortcutManager.formatShortcut(
       shortcutManager.getEffectiveConfig(NAV_NEW_SESSION_DEF.id, NAV_NEW_SESSION_DEF.config),
@@ -586,20 +519,21 @@ const MainNav: React.FC<MainNavProps> = ({
           createShortcutHint={createShortcutHint}
         />
 
-        <Tooltip content={assistantTooltip} placement="right" followCursor>
+        <Tooltip content={agentTooltip} placement="right" followCursor>
           <button
             type="button"
-            className={`void-nav-panel__top-action-btn${isAssistantActive ? ' is-active' : ''}`}
-            onClick={handleOpenAssistant}
-            aria-label={assistantTooltip}
-            aria-pressed={isAssistantActive}
+            className={`void-nav-panel__top-action-btn${isAgentHubActive ? ' is-active' : ''}`}
+            onClick={() => openScene('agent-hub')}
+            onPointerEnter={preloadAgentHubScene}
+            onFocus={preloadAgentHubScene}
+            aria-label={agentTooltip}
+            aria-pressed={isAgentHubActive}
+            data-testid="nav-agent"
           >
             <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-              {workspacePresentation === 'minimal'
-                ? <NavTechAssistantIcon size={15} />
-                : <User size={15} />}
+              <Hexagon size={15} />
             </span>
-            <span>{t('nav.items.persona')}</span>
+            <span>AGENT</span>
           </button>
         </Tooltip>
 
@@ -619,132 +553,6 @@ const MainNav: React.FC<MainNavProps> = ({
             <span>{t('nav.items.automation')}</span>
           </button>
         </Tooltip>
-
-        <div
-          className={`void-nav-panel__top-action-expand${isExtensionsOpen ? ' is-open' : ''}`}
-        >
-          <Tooltip content={extensionsLabel} placement="right" followCursor>
-            <button
-              type="button"
-              className={[
-                'void-nav-panel__top-action-btn',
-                'void-nav-panel__top-action-btn--expand',
-                isExtensionsOpen ? 'is-open' : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => setIsExtensionsOpen(v => !v)}
-              aria-expanded={isExtensionsOpen}
-              aria-controls="void-nav-panel-extensions"
-              aria-label={extensionsLabel}
-            >
-              {workspacePresentation === 'minimal' ? (
-                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  <NavTechExtensionsIcon size={15} />
-                </span>
-              ) : (
-                <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
-                  <Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />
-                  <ChevronDown
-                    size={15}
-                    className={[
-                      'void-nav-panel__top-action-expand-icon-hover',
-                      isExtensionsOpen ? 'is-open' : '',
-                    ].filter(Boolean).join(' ')}
-                  />
-                </span>
-              )}
-              <span>{extensionsLabel}</span>
-              {workspacePresentation === 'minimal' ? (
-                <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
-                  <ChevronDown
-                    size={15}
-                    className={[
-                      'void-nav-panel__top-action-expand-icon-chevron',
-                      isExtensionsOpen ? 'is-open' : '',
-                    ].filter(Boolean).join(' ')}
-                  />
-                </span>
-              ) : null}
-            </button>
-          </Tooltip>
-
-          <div
-            id="void-nav-panel-extensions"
-            className={`void-nav-panel__top-action-sublist${isExtensionsOpen ? ' is-open' : ''}`}
-            aria-hidden={!isExtensionsOpen}
-          >
-            <Tooltip content={agentsTooltip} placement="right" followCursor>
-              <button
-                type="button"
-                className={[
-                  'void-nav-panel__top-action-btn',
-                  'void-nav-panel__top-action-btn--sub',
-                  isAgentsActive ? 'is-active' : '',
-                ].filter(Boolean).join(' ')}
-                onClick={handleOpenAgents}
-                onPointerEnter={preloadAgentsScene}
-                onFocus={preloadAgentsScene}
-                aria-label={agentsTooltip}
-                data-testid="nav-agents"
-                tabIndex={isExtensionsOpen ? 0 : -1}
-              >
-                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  {workspacePresentation === 'minimal'
-                    ? <span className="void-nav-panel__top-action-sub-dot" />
-                    : <Users size={15} />}
-                </span>
-                <span>{t('nav.items.agents')}</span>
-              </button>
-            </Tooltip>
-
-            <Tooltip content={skillsTooltip} placement="right" followCursor>
-              <button
-                type="button"
-                className={[
-                  'void-nav-panel__top-action-btn',
-                  'void-nav-panel__top-action-btn--sub',
-                  isSkillsActive ? 'is-active' : '',
-                ].filter(Boolean).join(' ')}
-                onClick={handleOpenSkills}
-                onPointerEnter={preloadSkillsScene}
-                onFocus={preloadSkillsScene}
-                aria-label={skillsTooltip}
-                data-testid="nav-skills"
-                tabIndex={isExtensionsOpen ? 0 : -1}
-              >
-                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  {workspacePresentation === 'minimal'
-                    ? <span className="void-nav-panel__top-action-sub-dot" />
-                    : <Puzzle size={15} />}
-                </span>
-                <span>{t('nav.items.skills')}</span>
-              </button>
-            </Tooltip>
-
-            <Tooltip content={connectorsTooltip} placement="right" followCursor>
-              <button
-                type="button"
-                className={[
-                  'void-nav-panel__top-action-btn',
-                  'void-nav-panel__top-action-btn--sub',
-                  isConnectorsActive ? 'is-active' : '',
-                ].filter(Boolean).join(' ')}
-                onClick={handleOpenConnectors}
-                onPointerEnter={preloadConnectorsScene}
-                onFocus={preloadConnectorsScene}
-                aria-label={connectorsTooltip}
-                data-testid="nav-connectors"
-                tabIndex={isExtensionsOpen ? 0 : -1}
-              >
-                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
-                  {workspacePresentation === 'minimal'
-                    ? <span className="void-nav-panel__top-action-sub-dot" />
-                    : <Cable size={15} />}
-                </span>
-                <span>{t('nav.items.connectors')}</span>
-              </button>
-            </Tooltip>
-          </div>
-        </div>
       </div>
 
       {/* ── Sections ────────────────────────────────── */}

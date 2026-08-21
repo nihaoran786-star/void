@@ -23,3 +23,46 @@
   justify-content: flex-start;
   padding: 0.5rem 0;
 }
+
+/*
+ * Pinned placement.
+ *
+ * The bar is a child of the message-list root, not of the scroller, so it holds
+ * the bottom edge of the transcript viewport — right above the composer — while
+ * the answer streams upward behind it. A short fade keeps the text that passes
+ * underneath from colliding with the label.
+ */
+.processing-indicator--pinned {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 9;
+  margin-bottom: 0;
+  pointer-events: none;
+
+  &::before {
+    content: '';
+    position: absolute;
+    right: -16px;
+    bottom: 0;
+    left: -16px;
+    height: calc(100% + 18px);
+    pointer-events: none;
+
+    background: var(--color-bg-flowchat, var(--color-bg-scene, transparent));
+    -webkit-mask-image: linear-gradient(to top, #000 0%, #000 58%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 0%, #000 58%, transparent 100%);
+  }
+
+  .processing-indicator__content {
+    position: relative;
+    padding: 0.32rem 0 0.42rem;
+  }
+}
+
+/* In-flow placeholder for the pinned bar. */
+.processing-indicator-spacer {
+  flex-shrink: 0;
+  pointer-events: none;
+}

@@ -1,0 +1,79 @@
+{
+  "page": {
+    "mission": "Every AI worker, team and piece of equipment you have"
+  },
+  "tabs": {
+    "ariaLabel": "Filter by type",
+    "all": "All",
+    "assistant": "Assistants",
+    "agent": "Agents",
+    "team": "Teams",
+    "skill": "Skills",
+    "connector": "Connectors"
+  },
+  "groups": {
+    "assistant": "Assistants",
+    "agent": "Agents",
+    "team": "Teams",
+    "skill": "Skills",
+    "connector": "Connectors"
+  },
+  "status": {
+    "running": "Running",
+    "idle": "Idle",
+    "connected": "Connected",
+    "connecting": "Connecting",
+    "needsAttention": "Needs attention",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "ready": "Ready"
+  },
+  "actions": {
+    "search": "Search",
+    "create": "New",
+    "viewAll": "View all ›",
+    "dispatch": "Dispatch task",
+    "details": "Details",
+    "edit": "Edit",
+    "newSession": "New session",
+    "configure": "Configure"
+  },
+  "create": {
+    "assistant": "New assistant",
+    "agent": "New agent",
+    "team": "New team",
+    "skill": "New skill",
+    "connector": "Add connector"
+  },
+  "search": {
+    "placeholder": "Search everything"
+  },
+  "states": {
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "error": "Failed to load",
+    "noMatch": "No matches"
+  },
+  "errors": {
+    "newSessionFailed": "Could not start a new session",
+    "createAssistantFailed": "Could not create the assistant"
+  },
+  "hosted": {
+    "backToDirectory": "Back to directory",
+    "connectors": {
+      "title": "Connectors"
+    },
+    "skillAuthoring": {
+      "title": "Skill Authoring"
+    },
+    "createAgent": {
+      "title": "Create Agent"
+    },
+    "teamAuthoring": {
+      "title": "Team Authoring"
+    },
+    "reviewTeam": {
+      "title": "Review Team"
+    }
+  }
+}

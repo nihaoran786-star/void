@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-08-17
+Updated: 2026-08-20
 
 ## Product state
 
@@ -66,6 +66,23 @@ Updated: 2026-08-17
   orbs; Skills and Connectors use deterministic Lucide marks whose ink carries
   connector state. Colour comes only from existing theme tokens. The active
   contract is [docs/design/catalog-and-sidebar-design-system.md](docs/design/catalog-and-sidebar-design-system.md).
+- The Staff HQ pass has since extended that language to all five directory
+  surfaces — Assistants, Employees, Teams, Skills, Connectors: the shared top
+  bar now also carries an optional `mission` line and quiet inline `stats`,
+  every card is built from the `staff-hq.scss` mixins at one of two published
+  heights (168px for people, 132px for tools), all four catalogs page through
+  one shared `CatalogPagination`, and the Assistants page has dropped the
+  "nursery" metaphor for `assistant-hq__*`. It is presentation-only: no service
+  boundary moved and `McpToolsConfig`'s `presentation="settings"` projection is
+  unchanged.
+- The AGENT page (`app/scenes/agent-hub`) is now the only catalogue door: the
+  `assistant` scene and its scene tab were removed, assistant configuration
+  lives on in the `profile` scene (`openScene('profile')` after setting
+  `selectedAssistantWorkspaceId`), and `+ → 新建助理` creates the workspace and
+  lands directly on that assistant's configuration page in one step. Agent,
+  Team, Skill and Connector creation/editing pages are hosted full-page inside
+  AGENT via the `hubPage` mechanism; MCP has a single door and it is here, not
+  in Settings.
 - The Quiet Directory design system now covers the Automation chrome and list
   view only; the Automation calendar grid and scheduling logic are
   intentionally unchanged. Its catalog sections were superseded on 2026-08-18.

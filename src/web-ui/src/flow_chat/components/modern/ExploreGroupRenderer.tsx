@@ -186,7 +186,11 @@ const ExploreItemRenderer = React.memo<ExploreItemRendererProps>(({ item, turnId
     case 'thinking': {
       const thinkingItem = item as FlowThinkingItem;
       return (
-        <ModelThinkingDisplay thinkingItem={thinkingItem} isLastItem={isLastItem} />
+        <ModelThinkingDisplay
+          thinkingItem={thinkingItem}
+          isLastItem={isLastItem}
+          deferToPinnedActivity
+        />
       );
     }
     

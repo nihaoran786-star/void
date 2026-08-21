@@ -1,6 +1,5 @@
 @use '../../../component-library/styles/tokens' as *;
 @use '../../../component-library/styles/customization-market' as market;
-@use './McpToolsConfig.minimal' as minimal;
 
 .void-mcp-tools {
   &__section--empty {
@@ -573,5 +572,3 @@
     transition: none;
   }
 }
-
-@include minimal.styles;

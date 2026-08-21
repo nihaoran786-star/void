@@ -8,11 +8,15 @@
   }
 
   .void-ui--minimal :is(.modern-flowchat-container.flow-chat-typography, .btw-session-panel) {
-    --flowchat-font-size-base: 13px;
-    --flowchat-font-size-sm: 12px;
-    --flowchat-font-size-xs: 11px;
-    --flowchat-text-line-height: 1.5;
-    --flowchat-support-line-height: 1.42;
+    // One reading scale for the whole conversation. The minimal presentation
+    // used to shrink the transcript one step below every other surface, which
+    // is what made body text, tool summaries and the composer disagree.
+    --flowchat-font-size-base: 14px;
+    --flowchat-font-size-sm: 13px;
+    --flowchat-font-size-xs: 12px;
+    --flowchat-font-size-xxs: 11px;
+    --flowchat-text-line-height: 1.6;
+    --flowchat-support-line-height: 1.5;
     --flowchat-flow-item-gap: 0.34rem;
     --flowchat-turn-gap: 0.38rem;
     --flowchat-markdown-block-gap: 0.46em;

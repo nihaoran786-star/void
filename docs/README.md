@@ -125,6 +125,13 @@ a current specification. Record the deletion here, not the document.
 
 ## Cleanup record
 
+- **2026-08-20** — `plans/agent-hub-consolidation-plan.md` and
+  `plans/staff-hq-refactor-handoff.md` were deleted after their contract was
+  merged into
+  [Catalog and Sidebar](design/catalog-and-sidebar-design-system.md) (new
+  "AGENT — the single-page directory" section) and `CONTEXT.md`; the
+  `assistant` scene was removed and assistant configuration now lives in the
+  `profile` scene.
 - **2026-08-18** — The catalog sections of the Quiet Directory design system
   (entity-glyph table, hairline directory-row language, per-catalog application
   rows) were removed rather than left contradicting the implementation: the

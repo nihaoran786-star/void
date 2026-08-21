@@ -19,6 +19,17 @@ interface ModelThinkingDisplayProps {
   /** Kept for renderer compatibility; the disclosure state is component-local. */
   isLastItem?: boolean;
   displayContext?: 'default' | 'subagent-projection';
+  /**
+   * Set where a pinned activity bar already reports live work. While reasoning
+   * streams, this component shows its own animated header and a live tail of
+   * the raw text, which next to that bar is a second running indicator saying
+   * the same thing in two places. With this set the reasoning stays out of the
+   * transcript until it settles, and then joins it as one quiet, openable line.
+   *
+   * Surfaces without a pinned bar (the compact window, the component gallery)
+   * leave it off and keep the live tail as their only progress signal.
+   */
+  deferToPinnedActivity?: boolean;
 }
 
 function toPlainThinkingSummary(content: string): string {
@@ -31,6 +42,7 @@ function toPlainThinkingSummary(content: string): string {
 
 export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
   thinkingItem,
+  deferToPinnedActivity = false,
 }) => {
   const { t } = useTranslation('flow-chat');
   const isActive = thinkingItem.isStreaming || thinkingItem.status === 'streaming';
@@ -38,6 +50,10 @@ export const ModelThinkingDisplay: React.FC<ModelThinkingDisplayProps> = ({
     const summary = toPlainThinkingSummary(thinkingItem.content);
     return summary ? [{ primary: summary }] : [];
   }, [thinkingItem.content]);
+
+  // The pinned bar is already saying "working" with a live timer; this one
+  // joins the transcript once it has something settled to show.
+  if (deferToPinnedActivity && isActive) return null;
 
   return (
     <div

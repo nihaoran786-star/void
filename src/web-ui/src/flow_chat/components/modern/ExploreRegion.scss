@@ -4,11 +4,13 @@
   position: relative;
   box-sizing: border-box;
   margin: 0 0 0.3rem;
-  padding: 0 3rem;
+  /* Share the prose column's edge, so the summary line and the text above it
+   * start at the same place instead of drifting apart when the column narrows. */
+  padding: 0 var(--flowchat-content-inline-pad, 1.25rem);
   overflow: hidden;
 
   @media (max-width: 768px) {
-    padding: 0 1.5rem;
+    padding: 0 var(--flowchat-content-inline-pad-mobile, 1.5rem);
   }
 }
 
@@ -71,12 +73,15 @@
  * model summary was pushed out of sight by the tool rows that followed it and
  * the reader had a scroller inside a scroller.
  */
+/*
+ * No rail. The indent alone shows what belongs to the batch; the vertical line
+ * read as a nesting level the conversation does not have.
+ */
 .explore-region__content {
   position: relative;
   box-sizing: border-box;
   margin: 4px 0 0 5px;
   padding: 4px 0 8px 20px;
-  border-left: 1px solid var(--workspace-border-subtle);
 }
 
 .void-ui--minimal .explore-region {

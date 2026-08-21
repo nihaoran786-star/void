@@ -6,7 +6,13 @@
 
 .virtual-message-list {
   width: 100%;
-  height: 100%;
+  /*
+   * Inset by the floating composer's height (set as an inline custom property
+   * from the measured input). The scroller therefore ends above the composer,
+   * so the scrollbar and every bottom overlay stay clear of it at any window
+   * size. Falls back to the full height before the first measurement.
+   */
+  height: calc(100% - var(--flowchat-input-stack-inset, 0px));
   position: relative;
   background: transparent; // Transparent background for glass effect.
   overflow: hidden; /* Prevent overflow. */
@@ -30,6 +36,21 @@
     margin: 0 !important;
     overflow-anchor: none;
     scrollbar-gutter: stable;
+  }
+
+  // While the reader owns the viewport we do not run the manual compensation
+  // machinery, so there is nothing for native scroll anchoring to fight — and
+  // it is a free, jitter-free backstop for height changes above the fold.
+  &--reader-controlled {
+    [data-virtuoso-scroller='true'],
+    [data-virtuoso-scroller],
+    .virtual-message-list__static-scroller {
+      overflow-anchor: auto;
+    }
+
+    .message-list-footer {
+      overflow-anchor: auto;
+    }
   }
 
   .virtual-message-list__static-scroller {

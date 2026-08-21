@@ -96,13 +96,16 @@ interface ModernFlowChatState {
 }
 
 /**
- * Check if ModelRound is explore-only (contains only exploration tools)
- * Explore-only rounds can be collapsed
- * 
- * Key check: must contain at least one collapsible tool OR be a pure thinking round.
- * Pure thinking rounds (thinking without critical tools) are merged into
- * adjacent explore groups to reduce visual noise from standalone "thinking N chars" lines.
- * Pure text rounds (like final replies) should not be collapsed.
+ * Check whether a ModelRound is nothing but a run of routine tool calls, which
+ * is the only shape that may merge with its neighbours into one batch line.
+ *
+ * A turn reads as one flat sequence: think -> call -> think -> call -> answer.
+ * Reasoning therefore never qualifies here, not even a round that holds nothing
+ * else: folding it moved the model's own reasoning one level underneath its
+ * tool calls, and a round of "thinking + one search" collapsed into a single
+ * "searched once" line that hid both steps. A single call is also left alone —
+ * batching only earns its keep once the calls repeat.
+ *
  * Keep streaming narrative visible in-place until the stream settles; otherwise
  * a mid-stream switch to explore-group remounts the text block and replays the
  * typewriter animation from the beginning.
@@ -146,27 +149,13 @@ function isExploreOnlyRound(round: ModelRound, nowMs: number): boolean {
     return false;
   }
   
-  const hasCollapsibleTool = round.items.some(item => 
+  // Reasoning and prose keep their own place in the sequence, so a round that
+  // carries any of them is rendered item by item instead of merged. How many
+  // calls it takes before a batch is worth showing is decided on the merged
+  // run, not here: consecutive calls usually arrive as one round each.
+  return round.items.every(item => (
     item.type === 'tool' && isCollapsibleToolItem(item as FlowToolItem)
-  );
-  
-  const hasAnyTool = round.items.some(item => item.type === 'tool');
-  if (!hasAnyTool) {
-    return round.items.every(item => (
-      item.type === 'thinking' && item.status === 'completed'
-    ));
-  }
-  
-  if (!hasCollapsibleTool) return false;
-  
-  const allItemsCollapsible = round.items.every(item => {
-    if (item.type === 'tool') {
-      return isCollapsibleToolItem(item as FlowToolItem);
-    }
-    return item.type === 'text' || item.type === 'thinking';
-  });
-  
-  return allItemsCollapsible;
+  ));
 }
 
 /**
@@ -459,7 +448,20 @@ export function sessionToVirtualItems(session: Session | null): VirtualItem[] {
         const round = rounds[roundIndex];
         const group = tempGroups[groupIndex];
 
-        if (group && group.startIndex === roundIndex) {
+        // A run of exactly one call is not a batch. It renders as the ordinary
+        // tool step it is, so the reader still sees which single tool ran. Such
+        // a run is always a single round, so skipping it here hands that round
+        // to the per-round branch below.
+        const groupStartsHere = Boolean(group) && group.startIndex === roundIndex;
+        const isBatchedRun =
+          groupStartsHere &&
+          group.allItems.filter(item => item.type === 'tool').length > 1;
+
+        if (groupStartsHere && !isBatchedRun) {
+          groupIndex++;
+        }
+
+        if (isBatchedRun) {
           const isLastGroup = groupIndex === tempGroups.length - 1;
           const isGroupStreaming = group.rounds.some(r => r.isStreaming);
           // A group is "cut by critical" when it is no longer the tail of the
