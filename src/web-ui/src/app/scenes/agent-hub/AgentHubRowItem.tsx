@@ -2,8 +2,12 @@
  * One AGENT directory row: avatar → name → one muted line → status word.
  *
  * No card, no border, no shadow. Hover (and keyboard focus) swaps the status
- * word for the row's two quiet actions; the status stays readable as text plus
- * a colour dot, never colour alone.
+ * word for the row's single primary action; the status stays readable as text
+ * plus a colour dot, never colour alone.
+ *
+ * Deliberately one action at most. Anything else a row could offer ("details",
+ * "configure") is what clicking the row already does, so a second button would
+ * only be a second way to reach the same place.
  */
 
 import React, { useCallback } from 'react';
@@ -23,14 +27,15 @@ export interface AgentHubRowAction {
 interface AgentHubRowItemProps {
   row: AgentHubRow;
   statusLabel: string;
-  actions: AgentHubRowAction[];
+  /** At most one. Rows without a distinct primary action simply open on click. */
+  action?: AgentHubRowAction;
   onOpen: () => void;
 }
 
 const AgentHubRowItem: React.FC<AgentHubRowItemProps> = ({
   row,
   statusLabel,
-  actions,
+  action,
   onOpen,
 }) => {
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -58,7 +63,7 @@ const AgentHubRowItem: React.FC<AgentHubRowItemProps> = ({
         {statusLabel}
       </span>
       <span className="agent-hub-row__actions">
-        {actions.map(action => (
+        {action ? (
           <button
             key={action.key}
             type="button"
@@ -72,7 +77,7 @@ const AgentHubRowItem: React.FC<AgentHubRowItemProps> = ({
           >
             <action.Icon size={15} aria-hidden="true" />
           </button>
-        ))}
+        ) : null}
       </span>
     </div>
   );

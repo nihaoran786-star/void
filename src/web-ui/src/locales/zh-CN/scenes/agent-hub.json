@@ -32,11 +32,9 @@
     "search": "搜索",
     "create": "新建",
     "viewAll": "查看全部 ›",
-    "dispatch": "派发任务",
-    "details": "详情",
+    "dispatch": "交给它做任务",
     "edit": "编辑",
-    "newSession": "新会话",
-    "configure": "配置"
+    "newSession": "开始新对话"
   },
   "create": {
     "assistant": "新建助理",
@@ -52,7 +50,8 @@
     "loading": "加载中…",
     "empty": "还没有内容",
     "error": "加载失败",
-    "noMatch": "没有匹配项"
+    "noMatch": "没有匹配项",
+    "retry": "重试"
   },
   "errors": {
     "newSessionFailed": "新建会话失败",
@@ -73,7 +72,7 @@
       "title": "团队创作"
     },
     "reviewTeam": {
-      "title": "评审团队"
+      "title": "代码审查团队"
     }
   }
 }

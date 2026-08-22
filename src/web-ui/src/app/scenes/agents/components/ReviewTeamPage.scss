@@ -82,6 +82,33 @@
     -webkit-line-clamp: 2;
   }
 
+  // Text-first overview: three plain sentences instead of a badge row plus
+  // three summary cards that repeated them.
+  &__summary-line {
+    margin: 0 0 var(--workspace-space-2, 8px);
+    color: var(--workspace-text-secondary, var(--color-text-secondary));
+    font-size: 13px;
+    line-height: 1.6;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  // Inline load failure with a text retry — no toast.
+  &__load-error {
+    @include surface.state-text;
+
+    color: var(--workspace-status-error-text, var(--color-error));
+  }
+
+  &__text-action {
+    @include surface.quiet-button;
+
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   &__header-actions,
   &__policy-strip {
     display: inline-flex;
@@ -90,29 +117,17 @@
     gap: var(--workspace-space-2, 8px);
   }
 
+  // One sentence stacked over one quiet text link; the whole panel is no
+  // longer a click target, so it carries no pointer affordance.
   &__policy-panel {
-    display: grid;
+    display: flex;
     width: 100%;
-    align-items: center;
-    grid-template-columns: minmax(200px, 0.9fr) minmax(0, 1.4fr);
-    gap: var(--workspace-space-3, 12px);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--workspace-space-2, 8px);
     padding: var(--workspace-space-3, 12px);
-    border: 0;
-    border-radius: inherit;
-    background: transparent;
     color: var(--workspace-text-primary, var(--color-text-primary));
-    cursor: pointer;
     text-align: left;
-
-    &:hover,
-    &:focus-visible {
-      background: var(--workspace-surface-hover, var(--color-bg-hover));
-    }
-
-    &:focus-visible {
-      outline: 1px solid var(--workspace-border-strong, var(--color-border-secondary));
-      outline-offset: -1px;
-    }
   }
 
   &__policy-copy {

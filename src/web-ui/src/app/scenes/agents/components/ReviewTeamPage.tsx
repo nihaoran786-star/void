@@ -1,6 +1,5 @@
 import React, { Component, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft,
   BadgeCheck,
   Blocks,
   Bot,
@@ -10,10 +9,9 @@ import {
   Lock,
   Settings,
   Shield,
-  Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Badge, Button, ConfigPageLoading } from '@/component-library';
+import { Badge, ConfigPageLoading } from '@/component-library';
 import {
   ConfigPageContent,
   ConfigPageHeader,
@@ -24,12 +22,10 @@ import type { AIModelConfig } from '@/infrastructure/config/types';
 import { getModelDisplayName } from '@/infrastructure/config/services/modelConfigs';
 import { configAPI } from '@/infrastructure/api/service-api/ConfigAPI';
 
-import { useNotification } from '@/shared/notification-system';
 import { createLogger } from '@/shared/utils/logger';
 import { useCurrentWorkspace } from '@/infrastructure/contexts/WorkspaceContext';
 import { useSettingsStore } from '@/app/scenes/settings/settingsStore';
 import { useSceneStore } from '@/app/stores/sceneStore';
-import { useAgentsStore } from '../agentsStore';
 import {
   DEFAULT_REVIEW_TEAM_CONCURRENCY_POLICY,
   DEFAULT_REVIEW_TEAM_EXECUTION_POLICY,
@@ -119,19 +115,19 @@ class ReviewTeamErrorBoundary extends Component<ReviewTeamErrorBoundaryProps, Re
 const ReviewTeamPage: React.FC = () => {
   const { t } = useTranslation('scenes/agents');
   const { t: tModel } = useTranslation('settings/default-model');
-  const { openHome } = useAgentsStore();
   const setSettingsTab = useSettingsStore((state) => state.setActiveTab);
   const openScene = useSceneStore((state) => state.openScene);
   const { workspacePath } = useCurrentWorkspace();
-  const { error: notifyError } = useNotification();
 
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [team, setTeam] = useState<ReviewTeam | null>(null);
   const [models, setModels] = useState<AIModelConfig[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     rtLog.info('loadData started', { workspacePath });
     try {
       const [loadedTeam, loadedModels] = await Promise.all([
@@ -174,11 +170,13 @@ const ReviewTeamPage: React.FC = () => {
         extraMembers: [],
       });
       setModels([]);
-      notifyError(error instanceof Error ? error.message : String(error));
+      // Inline, not a toast: the failure belongs on the page it happened on,
+      // next to the one action that can fix it.
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
-  }, [notifyError, t, workspacePath]);
+  }, [t, workspacePath]);
 
   useEffect(() => {
     void loadData();
@@ -318,21 +316,32 @@ const ReviewTeamPage: React.FC = () => {
           defaultValue:
             'Inspect the Code Review Team used by Deep Review and /DeepReview. Strategy and reviewer settings live in Settings.',
         })}
-        extra={(
-          <div className="review-team-page__header-actions">
-            <Button variant="secondary" size="small" onClick={openReviewSettings}>
-              <Settings size={14} style={{ marginRight: 6 }} />
-              {t('reviewTeams.detail.openSettings', { defaultValue: 'Review settings' })}
-            </Button>
-            <Button variant="secondary" size="small" onClick={openHome}>
-              <ArrowLeft size={14} style={{ marginRight: 6 }} />
-              {t('reviewTeams.detail.back', { defaultValue: 'Back to Agents' })}
-            </Button>
-          </div>
-        )}
       />
 
       <ConfigPageContent>
+        {loadFailed ? (
+          <p
+            className="review-team-page__load-error"
+            role="alert"
+            data-testid="review-team-load-error"
+          >
+            {t('reviewTeams.detail.loadFailed', {
+              defaultValue: 'Could not load the code review team.',
+            })}
+            {' '}
+            <button
+              type="button"
+              className="review-team-page__text-action"
+              onClick={() => { void loadData(); }}
+            >
+              {t('reviewTeams.detail.retry', { defaultValue: 'Try again' })}
+            </button>
+          </p>
+        ) : null}
+
+        {/* Text first: three sentences say what this team is, how it works and
+            what it costs. The badge row and the three cards that repeated them
+            are gone. */}
         <ConfigPageSection
           className="review-team-page__section--no-body-frame"
           title={t('reviewTeams.detail.summaryTitle', { defaultValue: 'Team Overview' })}
@@ -340,70 +349,17 @@ const ReviewTeamPage: React.FC = () => {
             defaultValue: 'The code review team launches reviewers in parallel and finishes with a quality-gate pass.',
           })}
         >
-          <div className="review-team-page__agent-team-metrics-wrap">
-            <div
-              className="agent-team-card__metrics"
-              aria-label={reviewTeamCoreMemberNames.join(', ')}
-            >
-              <Badge variant="neutral">
-                <Users size={10} />
-                {reviewTeamMembersLabel}
-              </Badge>
-              <Badge variant="accent">
-                <GitBranch size={10} />
-                {t('reviewTeams.detail.localOnly', { defaultValue: 'Code review' })}
-              </Badge>
-              <Badge variant="purple">
-                <BadgeCheck size={10} />
-                {t('reviewTeams.detail.qualityGate', { defaultValue: 'Quality gate' })}
-              </Badge>
-            </div>
-          </div>
-          <div className="review-team-page__summary-grid">
-            <div className="review-team-page__summary-card review-team-page__summary-card--primary">
-              <div className="review-team-page__summary-card-head">
-                <span className="review-team-page__summary-card-icon" aria-hidden>
-                  <GitBranch size={14} strokeWidth={1.8} />
-                </span>
-                <span className="review-team-page__summary-kicker">
-                  {t('reviewTeams.detail.localOnly', { defaultValue: 'Code review' })}
-                </span>
-              </div>
-              <p className="review-team-page__summary-value">
-                {t('reviewTeams.detail.localOnlyDescription', {
-                  defaultValue: 'Reviewers run as void subagents and report through the same review workflow.',
-                })}
-              </p>
-            </div>
-            <div className="review-team-page__summary-card">
-              <div className="review-team-page__summary-card-head">
-                <span className="review-team-page__summary-card-icon" aria-hidden>
-                  <Users size={14} strokeWidth={1.8} />
-                </span>
-                <span className="review-team-page__summary-kicker">
-                  {t('reviewTeams.detail.parallelLabel', { defaultValue: 'Parallel reviewers' })}
-                </span>
-              </div>
-              <p className="review-team-page__summary-value">
-                {t('reviewTeams.detail.parallelDescription', {
-                  defaultValue: 'Business logic, performance, security, and extra reviewers run concurrently before the judge verifies them.',
-                })}
-              </p>
-            </div>
-            <div className="review-team-page__summary-card">
-              <div className="review-team-page__summary-card-head">
-                <span className="review-team-page__summary-card-icon" aria-hidden>
-                  <BadgeCheck size={14} strokeWidth={1.8} />
-                </span>
-                <span className="review-team-page__summary-kicker">
-                  {t('reviewTeams.detail.qualityGate', { defaultValue: 'Quality gate' })}
-                </span>
-              </div>
-              <p className="review-team-page__summary-value">
-                {t('reviewTeams.detail.warning', { defaultValue: team.warning })}
-              </p>
-            </div>
-          </div>
+          <p className="review-team-page__summary-line" aria-label={reviewTeamCoreMemberNames.join(', ')}>
+            {reviewTeamMembersLabel}
+          </p>
+          <p className="review-team-page__summary-line">
+            {t('reviewTeams.detail.parallelDescription', {
+              defaultValue: 'Business logic, performance, security, and extra reviewers run concurrently before the judge verifies them.',
+            })}
+          </p>
+          <p className="review-team-page__summary-line">
+            {t('reviewTeams.detail.warning', { defaultValue: team.warning })}
+          </p>
         </ConfigPageSection>
 
         <ConfigPageSection
@@ -411,58 +367,27 @@ const ReviewTeamPage: React.FC = () => {
           description={t('reviewTeams.detail.policySummaryIntro', {
             defaultValue: 'This live snapshot comes from Review settings and updates when the team policy changes.',
           })}
-          extra={(
-            <Button variant="secondary" size="small" onClick={openReviewSettings}>
-              <Settings size={14} style={{ marginRight: 6 }} />
-              {t('reviewTeams.detail.openSettings', { defaultValue: 'Review settings' })}
-            </Button>
-          )}
         >
-          <button
-            type="button"
-            className="review-team-page__policy-panel"
-            onClick={openReviewSettings}
-            aria-label={t('reviewTeams.detail.policySummaryAction', {
-              defaultValue: 'Open Review settings to edit the current policy',
-            })}
-          >
+          {/* One sentence and one text link. The sentence already names every
+              value the five metric tiles used to repeat, and the link replaces
+              both the whole-panel click target and the duplicate button that
+              sat in the page header. */}
+          <div className="review-team-page__policy-panel">
             <div className="review-team-page__policy-copy">
-              <span className="review-team-page__policy-eyebrow">
-                {t('reviewTeams.detail.policySummaryEyebrow', { defaultValue: 'Configured behavior' })}
-              </span>
               <p className="review-team-page__policy-description">{policySummaryDescription}</p>
             </div>
-
-            <div
-              className="review-team-page__policy-metrics"
-              aria-label={t('reviewTeams.detail.policyMetricsLabel', {
-                defaultValue: 'Current policy values',
+            <button
+              type="button"
+              className="review-team-page__text-action"
+              onClick={openReviewSettings}
+              aria-label={t('reviewTeams.detail.policySummaryAction', {
+                defaultValue: 'Open Review settings to edit the current policy',
               })}
             >
-              <span className="review-team-page__policy-metric">
-                <span>{t('reviewTeams.detail.policyStrategyLabel', { defaultValue: 'Strategy' })}</span>
-                <strong>{strategyLabel}</strong>
-              </span>
-              <span className="review-team-page__policy-metric">
-                <span>{t('reviewTeams.detail.reviewerTimeout', { defaultValue: 'Reviewer timeout' })}</span>
-                <strong>{reviewerTimeoutLabel}</strong>
-              </span>
-              <span className="review-team-page__policy-metric">
-                <span>{t('reviewTeams.detail.judgeTimeout', { defaultValue: 'Judge timeout' })}</span>
-                <strong>{judgeTimeoutLabel}</strong>
-              </span>
-              <span className="review-team-page__policy-metric">
-                <span>{t('reviewTeams.detail.fileSplitThreshold', { defaultValue: 'File split threshold' })}</span>
-                <strong>{splitThresholdLabel}</strong>
-              </span>
-              <span className="review-team-page__policy-metric">
-                <span>{t('reviewTeams.detail.maxSameRoleInstances', { defaultValue: 'Max same-role instances' })}</span>
-                <strong>{sameRoleInstancesLabel}</strong>
-              </span>
-            </div>
-
-
-          </button>
+              <Settings size={13} style={{ marginRight: 6 }} />
+              {t('reviewTeams.detail.openSettings', { defaultValue: 'Review settings' })}
+            </button>
+          </div>
         </ConfigPageSection>
 
         <ConfigPageSection
@@ -471,22 +396,6 @@ const ReviewTeamPage: React.FC = () => {
           description={t('reviewTeams.detail.membersDescription', {
             defaultValue: 'Click a member to inspect its role and responsibilities. Core roles always stay in the team.',
           })}
-          extra={(
-            <div className="review-team-page__section-badges">
-              <Badge variant="info">
-                {t('reviewTeams.detail.lockedCount', {
-                  count: team.coreMembers.length,
-                  defaultValue: `${team.coreMembers.length} locked roles`,
-                })}
-              </Badge>
-              <Badge variant="neutral">
-                {t('reviewTeams.detail.extraCount', {
-                  count: team.extraMembers.length,
-                  defaultValue: `${team.extraMembers.length} extra Sub-Agents`,
-                })}
-              </Badge>
-            </div>
-          )}
         >
           <div className="review-team-page__member-layout">
             <div className="review-team-page__member-list">
@@ -543,25 +452,17 @@ const ReviewTeamPage: React.FC = () => {
                     })()}
                   </div>
                   <div className="review-team-page__detail-copy">
+                    {/* Name plus the one fact the list does not already show.
+                        The runtime id, the model and the locked badge all
+                        appear in the list row on the left. */}
                     <div className="review-team-page__detail-title-row">
-                      <div>
-                        <h3 className="review-team-page__detail-name">
-                          {getLocalizedMemberName(selectedMember)}
-                        </h3>
-                        <p className="review-team-page__detail-role">
-                          {selectedMember.subagentId}
-                        </p>
-                      </div>
+                      <h3 className="review-team-page__detail-name">
+                        {getLocalizedMemberName(selectedMember)}
+                      </h3>
                       <div className="review-team-page__detail-badges">
-                        <Badge variant="accent">{formatModelLabel(selectedMember.model)}</Badge>
                         <Badge variant={selectedMember.strategySource === 'member' ? 'info' : 'neutral'}>
                           {getStrategyLabel(selectedMember.strategyLevel)}
                         </Badge>
-                        {selectedMember.locked ? (
-                          <Badge variant="neutral">
-                            {t('reviewTeams.detail.memberTypes.core', { defaultValue: 'Core role' })}
-                          </Badge>
-                        ) : null}
                       </div>
                     </div>
                   </div>

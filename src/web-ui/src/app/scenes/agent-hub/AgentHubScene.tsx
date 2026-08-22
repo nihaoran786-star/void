@@ -13,13 +13,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   Bot,
-  Info,
   MessageSquarePlus,
   Pencil,
   Plus,
   Search,
   Send,
-  Settings2,
 } from 'lucide-react';
 import { Badge, Button } from '@/component-library';
 import { GalleryDetailModal } from '@/app/components';
@@ -274,66 +272,40 @@ const AgentHubScene: React.FC<AgentHubSceneProps> = ({
     setHubPage('skillAuthoring');
   }, []);
 
-  const actionsFor = useCallback((row: AgentHubRow): AgentHubRowAction[] => {
+  /**
+   * One action per row, at most. "Details" is dropped everywhere because
+   * clicking the row already opens the detail, and the assistant's "configure"
+   * is dropped for the same reason.
+   */
+  const actionFor = useCallback((row: AgentHubRow): AgentHubRowAction | undefined => {
     switch (row.type) {
       case 'assistant':
-        return [
-          {
-            key: 'new-session',
-            Icon: MessageSquarePlus,
-            label: t('actions.newSession'),
-            onSelect: () => { void startAssistantSession(row.id); },
-          },
-          {
-            key: 'configure',
-            Icon: Settings2,
-            label: t('actions.configure'),
-            onSelect: () => openAssistantConfig(row.id),
-          },
-        ];
+        return {
+          key: 'new-session',
+          Icon: MessageSquarePlus,
+          label: t('actions.newSession'),
+          onSelect: () => { void startAssistantSession(row.id); },
+        };
       case 'agent':
       case 'team':
-        return [
-          {
-            key: 'dispatch',
-            Icon: Send,
-            label: t('actions.dispatch'),
-            onSelect: () => { void dispatchRow(row); },
-          },
-          {
-            key: 'details',
-            Icon: Info,
-            label: t('actions.details'),
-            onSelect: () => openRow(row),
-          },
-        ];
+        return {
+          key: 'dispatch',
+          Icon: Send,
+          label: t('actions.dispatch'),
+          onSelect: () => { void dispatchRow(row); },
+        };
       case 'skill':
-        return [
-          {
-            key: 'details',
-            Icon: Info,
-            label: t('actions.details'),
-            onSelect: () => setDetailRow(row),
-          },
-          {
-            key: 'edit',
-            Icon: Pencil,
-            label: t('actions.edit'),
-            onSelect: () => openSkillAuthoring('edit', skillKeyForRow(row)),
-          },
-        ];
+        return {
+          key: 'edit',
+          Icon: Pencil,
+          label: t('actions.edit'),
+          onSelect: () => openSkillAuthoring('edit', skillKeyForRow(row)),
+        };
       case 'connector':
       default:
-        return [
-          {
-            key: 'details',
-            Icon: Info,
-            label: t('actions.details'),
-            onSelect: () => setHubPage('connectors'),
-          },
-        ];
+        return undefined;
     }
-  }, [dispatchRow, openAssistantConfig, openRow, openSkillAuthoring, skillKeyForRow, startAssistantSession, t]);
+  }, [dispatchRow, openSkillAuthoring, skillKeyForRow, startAssistantSession, t]);
 
   // ── '+' menu: each item enters the existing creation flow ────────────────
 
@@ -406,7 +378,7 @@ const AgentHubScene: React.FC<AgentHubSceneProps> = ({
       key={row.id}
       row={row}
       statusLabel={t(`status.${row.status.key}`)}
-      actions={actionsFor(row)}
+      action={actionFor(row)}
       onOpen={() => openRow(row)}
     />
   ));
@@ -423,6 +395,18 @@ const AgentHubScene: React.FC<AgentHubSceneProps> = ({
       return (
         <p className="agent-hub-group__state is-error" role="alert">
           {t('states.error')}
+          {section.retry ? (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="agent-hub-group__retry"
+                onClick={() => { void section.retry?.(); }}
+              >
+                {t('states.retry')}
+              </button>
+            </>
+          ) : null}
         </p>
       );
     }
@@ -543,7 +527,6 @@ const AgentHubScene: React.FC<AgentHubSceneProps> = ({
           <header className="agent-hub-head">
             <div className="agent-hub-head__line">
               <h1 className="agent-hub-head__title">AGENT</h1>
-              <span className="agent-hub-head__count">{directory.total}</span>
               <div className="agent-hub-head__tools">
                 {searchOpen ? (
                   <input

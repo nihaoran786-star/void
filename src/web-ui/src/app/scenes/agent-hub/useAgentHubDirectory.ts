@@ -12,7 +12,7 @@
  * for "still loading" or "failed".
  */
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MCPServerInfo } from '@/infrastructure/api/service-api/MCPAPI';
 import type { SubagentInfo } from '@/infrastructure/api/service-api/SubagentAPI';
@@ -86,6 +86,11 @@ export interface AgentHubSection {
   rows: AgentHubRow[];
   /** Present only when `status === 'error'`. */
   error?: string;
+  /**
+   * Present only when the owning hook exposes a reload, so the failed section
+   * can offer an inline retry instead of leaving the user stuck.
+   */
+  retry?: () => void;
 }
 
 /**
@@ -135,9 +140,10 @@ function sectionFrom(
   loading: boolean,
   error: string | null | undefined,
   rows: AgentHubRow[],
+  retry?: () => void,
 ): AgentHubSection {
   if (error) {
-    return { type, status: 'error', rows: [], error };
+    return { type, status: 'error', rows: [], error, ...(retry ? { retry } : {}) };
   }
   if (loading) {
     return { type, status: 'loading', rows: [] };
@@ -357,12 +363,23 @@ export function useAgentHubDirectory(): AgentHubDirectory {
     ? (teamCatalog.errors[0]?.message ?? 'team_catalog_error')
     : null;
 
+  const teamsReload = teamCatalog.reload;
+  const connectorsReload = connectors.reload;
+  const retryTeams = useCallback(() => { void teamsReload(); }, [teamsReload]);
+  const retryConnectors = useCallback(() => { void connectorsReload(); }, [connectorsReload]);
+
   const sections = useMemo<Record<AgentHubRowType, AgentHubSection>>(() => ({
     assistant: sectionFrom('assistant', assistantsLoading, assistantsError, assistants.rows),
     agent: sectionFrom('agent', agentsLoading, null, agents.rows),
-    team: sectionFrom('team', teamsLoading, teamsError, teams.rows),
+    team: sectionFrom('team', teamsLoading, teamsError, teams.rows, retryTeams),
     skill: sectionFrom('skill', skillsLoading, skillsError, skillRows.rows),
-    connector: sectionFrom('connector', connectors.loading, connectors.error, connectorRows.rows),
+    connector: sectionFrom(
+      'connector',
+      connectors.loading,
+      connectors.error,
+      connectorRows.rows,
+      retryConnectors,
+    ),
   }), [
     agents.rows,
     agentsLoading,
@@ -372,6 +389,8 @@ export function useAgentHubDirectory(): AgentHubDirectory {
     connectorRows.rows,
     connectors.error,
     connectors.loading,
+    retryConnectors,
+    retryTeams,
     skillRows.rows,
     skillsError,
     skillsLoading,

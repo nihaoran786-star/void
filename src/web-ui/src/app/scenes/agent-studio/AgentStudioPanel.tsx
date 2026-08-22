@@ -156,7 +156,6 @@ export const AgentStudioPanel: React.FC<AgentStudioPanelProps> = ({
         <AgentDebugChatPanel
           session={debugSession}
           status={state.trial === 'ready' ? 'ready' : 'idle'}
-          draftFingerprint={draft.draftFingerprint}
         />
       </section>
 

@@ -323,14 +323,8 @@ const AgentEquipmentPanel: React.FC<AgentEquipmentPanelProps> = ({
             {isMode ? (
               toolsEditing ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    disabled={savingTools}
-                    onClick={() => void resetTools()}
-                  >
-                    {t('agentsOverview.equipment.reset')}
-                  </Button>
+                  {/* Two choices while editing: keep them or drop them.
+                      "Restore defaults" is a text link down in the body. */}
                   <Button
                     variant="ghost"
                     size="small"
@@ -453,6 +447,16 @@ const AgentEquipmentPanel: React.FC<AgentEquipmentPanelProps> = ({
               ))}
             </div>
           )}
+          {toolsEditing ? (
+            <button
+              type="button"
+              className="agent-equipment__reset-link"
+              disabled={savingTools}
+              onClick={() => void resetTools()}
+            >
+              {t('agentsOverview.equipment.reset')}
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -474,14 +478,8 @@ const AgentEquipmentPanel: React.FC<AgentEquipmentPanelProps> = ({
             {isMode && hasSkillTool ? (
               skillsEditing ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    disabled={savingSkills}
-                    onClick={() => void resetSkills()}
-                  >
-                    {t('agentsOverview.equipment.reset')}
-                  </Button>
+                  {/* Two choices while editing: keep them or drop them.
+                      "Restore defaults" is a text link down in the body. */}
                   <Button
                     variant="ghost"
                     size="small"
@@ -632,6 +630,16 @@ const AgentEquipmentPanel: React.FC<AgentEquipmentPanelProps> = ({
               </Button>
             </div>
           )}
+          {skillsEditing ? (
+            <button
+              type="button"
+              className="agent-equipment__reset-link"
+              disabled={savingSkills}
+              onClick={() => void resetSkills()}
+            >
+              {t('agentsOverview.equipment.reset')}
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -653,14 +661,8 @@ const AgentEquipmentPanel: React.FC<AgentEquipmentPanelProps> = ({
             {isMode && hasTaskTool ? (
               subagentsEditing ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="small"
-                    disabled={savingSubagents}
-                    onClick={() => void resetSubagents()}
-                  >
-                    {t('agentsOverview.equipment.reset')}
-                  </Button>
+                  {/* Two choices while editing: keep them or drop them.
+                      "Restore defaults" is a text link down in the body. */}
                   <Button
                     variant="ghost"
                     size="small"
@@ -759,6 +761,16 @@ const AgentEquipmentPanel: React.FC<AgentEquipmentPanelProps> = ({
               </Button>
             </div>
           )}
+          {subagentsEditing ? (
+            <button
+              type="button"
+              className="agent-equipment__reset-link"
+              disabled={savingSubagents}
+              onClick={() => void resetSubagents()}
+            >
+              {t('agentsOverview.equipment.reset')}
+            </button>
+          ) : null}
         </div>
       </section>
     </div>

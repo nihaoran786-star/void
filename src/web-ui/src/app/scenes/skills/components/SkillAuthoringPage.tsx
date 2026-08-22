@@ -354,14 +354,13 @@ const SkillAuthoringPage: React.FC<SkillAuthoringPageProps> = ({
           <ArrowLeft size={14} />
           {t('authoring.back')}
         </button>
-        <div className="skill-authoring__status skill-authoring__status--error">
+        {/* One sentence (two when there is a file to look at). The back link
+            above is already the way out; a second one here was duplication. */}
+        <div className="skill-authoring__status skill-authoring__status--error" role="alert">
           <p>{t(`authoring.errors.${detailError}`)}</p>
           {detailRecoveryPath && (
             <p>{t('authoring.recoveryPath', { path: detailRecoveryPath })}</p>
           )}
-          <Button variant="secondary" size="small" onClick={onBack}>
-            {t('authoring.back')}
-          </Button>
         </div>
       </div>
     );

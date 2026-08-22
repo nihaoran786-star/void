@@ -241,28 +241,31 @@ describeWithJsdom('ReviewTeamPage', () => {
     expect(useSceneStore.getState().activeTabId).toBe('settings');
   });
 
-  it('opens review settings from the current policy summary', async () => {
-    const { useSettingsStore } = await import('@/app/scenes/settings/settingsStore');
-    const { useSceneStore } = await import('@/app/stores/sceneStore');
+  it('reports a failed load inline, with a retry, instead of a toast', async () => {
     const { default: ReviewTeamPage } = await import('./ReviewTeamPage');
-    useSettingsStore.setState({ activeTab: 'basics' });
-    useSceneStore.setState({ activeTabId: 'session' });
+    loadDefaultReviewTeam.mockRejectedValueOnce(new Error('offline'));
 
     await act(async () => {
       root.render(<ReviewTeamPage />);
     });
     await waitForText('Team Overview');
 
-    const policyPanel = container.querySelector<HTMLButtonElement>('.review-team-page__policy-panel');
-    expect(policyPanel).toBeTruthy();
+    const inlineError = container.querySelector('[data-testid="review-team-load-error"]');
+    expect(inlineError).toBeTruthy();
+    expect(inlineError?.getAttribute('role')).toBe('alert');
+
+    const retry = inlineError!.querySelector('button');
+    expect(retry).toBeTruthy();
 
     await act(async () => {
-      policyPanel!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      retry!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
       await Promise.resolve();
     });
+    await waitForText('Team Overview');
 
-    expect(useSettingsStore.getState().activeTab).toBe('review');
-    expect(useSceneStore.getState().activeTabId).toBe('settings');
+    // The retry re-ran the load, and the successful second attempt clears it.
+    expect(loadDefaultReviewTeam).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-testid="review-team-load-error"]')).toBeNull();
   });
 
   it('keeps rendering after selecting a review team member with missing optional fields', async () => {

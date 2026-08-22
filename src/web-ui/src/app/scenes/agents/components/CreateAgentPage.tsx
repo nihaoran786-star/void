@@ -28,7 +28,6 @@ import {
   customizationRuntimeCapabilityService,
   type CustomizationRuntimeCapabilityReader,
 } from '@/shared/services/customization/CustomizationRuntimeCapabilityService';
-import { computeAgentDraftFingerprint } from '@/shared/services/customization/AgentDebugDraft';
 import { useNotification } from '@/shared/notification-system';
 import { useAgentsStore } from '../agentsStore';
 import { useAgentDebugSession } from '../hooks/useAgentDebugSession';
@@ -49,8 +48,6 @@ const AUTHORING_ROUTES: Array<{
   { id: 'manual', icon: SlidersHorizontal },
 ];
 const SCENARIOS: AgentScenarioId[] = ['code', 'cowork', 'media'];
-
-type AgentEditorTab = 'name' | 'prompt' | 'tools';
 
 const noopStoreSubscribe = (callback: () => void) => flowChatStore.subscribe(callback);
 
@@ -87,7 +84,9 @@ const SupportedCreateAgentPage: React.FC = () => {
   const { hasWorkspace, workspacePath } = useCurrentWorkspace();
   const isEdit = agentEditorMode === 'edit' && Boolean(editingAgentId);
 
-  const [route, setRoute] = useState<AgentAuthoringRoute>('describe');
+  // The plain three-field form is the default road in; "describe" / "import"
+  // are drafting helpers, so they now live inside the advanced disclosure.
+  const [route, setRoute] = useState<AgentAuthoringRoute>('manual');
   const [level, setLevel] = useState<SubagentLevel>('user');
   const [runtimeKey, setRuntimeKey] = useState<string | null>(editingAgentKey);
   const [runtimeId, setRuntimeId] = useState<string | null>(null);
@@ -97,7 +96,7 @@ const SupportedCreateAgentPage: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [scenarios, setScenarios] = useState<AgentScenarioId[]>(['code']);
   const [diagnostics, setDiagnostics] = useState<AgentAuthoringDiagnostic[]>([]);
-  const [draftPrepared, setDraftPrepared] = useState(false);
+  const [draftPrepared, setDraftPrepared] = useState(true);
   const [readonly, setReadonly] = useState(true);
   const [review, setReview] = useState(false);
   const [toolInfos, setToolInfos] = useState<SubagentEditorToolInfo[]>([]);
@@ -105,7 +104,10 @@ const SupportedCreateAgentPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AgentEditorTab>('name');
+  const [detailReloadToken, setDetailReloadToken] = useState(0);
+  // Everything a beginner needs is on the page; the rest lives behind one
+  // disclosure so nobody has to decide about it to get an agent created.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const authoringTemplate = useMemo<AgentAuthoringTemplate>(() => ({
     describeRole: t('agentsOverview.form.template.describeRole'),
     describeResponsibilities: t('agentsOverview.form.template.describeResponsibilities'),
@@ -189,7 +191,7 @@ const SupportedCreateAgentPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [editingAgentId, editingAgentKey, isEdit, workspacePath]);
+  }, [detailReloadToken, editingAgentId, editingAgentKey, isEdit, workspacePath]);
 
   const diagnosticMessage = useCallback((diagnostic: AgentAuthoringDiagnostic) => (
     t(`agentsOverview.form.diagnostics.${diagnostic.code}`)
@@ -334,10 +336,6 @@ const SupportedCreateAgentPage: React.FC = () => {
   };
 
   const selectableTools = filterToolsForReviewMode(toolInfos, review);
-  const previewScenarios = useMemo(
-    () => scenarios.map((scenario) => t(`agentsOverview.form.scenarios.${scenario}`)),
-    [scenarios, t],
-  );
 
   const debugDraft = useMemo(() => ({
     displayName,
@@ -358,11 +356,6 @@ const SupportedCreateAgentPage: React.FC = () => {
       template: authoringTemplate,
     }).isValid,
     [displayName, description, prompt, scenarios, authoringTemplate],
-  );
-
-  const debugFingerprint = useMemo(
-    () => computeAgentDraftFingerprint(debugDraft),
-    [debugDraft],
   );
 
   const {
@@ -392,14 +385,22 @@ const SupportedCreateAgentPage: React.FC = () => {
   }
 
   if (isEdit && detailError) {
+    // One quiet sentence plus a text retry — no dialog, no raw error dump.
     return (
       <div className="tv">
         <EditorBackButton onBack={openHome} label={t('agentsOverview.backToOverview')} />
         <div className="th__list-body"><div className="th__list-inner">
-          <p className="th-create-panel__error">{detailError}</p>
-          <Button variant="secondary" size="small" onClick={openHome}>
-            {t('agentsOverview.form.cancel')}
-          </Button>
+          <p className="th__title-sub" role="alert" data-testid="agent-detail-load-error">
+            {t('agentsOverview.form.loadDetailFailed')}
+            {' '}
+            <button
+              type="button"
+              className="th-create-advanced__toggle"
+              onClick={() => setDetailReloadToken((token) => token + 1)}
+            >
+              {t('agentsOverview.debug.retry')}
+            </button>
+          </p>
         </div></div>
       </div>
     );
@@ -413,7 +414,6 @@ const SupportedCreateAgentPage: React.FC = () => {
           <AgentDebugChatPanel
             session={debugSession}
             status={debugStatus}
-            draftFingerprint={debugFingerprint}
             justReplaced={debugJustReplaced}
             error={debugError}
             onRetry={retryDebugSession}
@@ -430,293 +430,247 @@ const SupportedCreateAgentPage: React.FC = () => {
               <p className="th__title-sub">
                 {t(isEdit ? 'agentsOverview.form.subtitleEdit' : 'agentsOverview.form.subtitle')}
               </p>
-              <div className="th-create-lab__sheet-name">
-                {displayName || t('agentsOverview.form.previewUnnamed')}
-              </div>
-            </div>
-            <div className="th-create-lab__sheet-meta">
-              <div className="th-create-lab__sheet-chips">
-                {previewScenarios.map((scenario) => (
-                  <span key={scenario} className="th-create-lab__sheet-chip">{scenario}</span>
-                ))}
-              </div>
-              <div
-                className="th-create-lab__sheet-level"
-                title={t('agentsOverview.form.tools')}
-              >
-                {selectedTools.size}
-              </div>
             </div>
           </header>
 
-          <div className="th-create-lab__tabs" role="tablist">
-            {(['name', 'prompt', 'tools'] as AgentEditorTab[]).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab}
-                className={`th-create-lab__tab${activeTab === tab ? ' is-active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-                data-testid={`agent-editor-tab-${tab}`}
-              >
-                {t(`agentsOverview.debug.tab.${tab}`)}
-              </button>
-            ))}
-          </div>
-
           <div className="th-create-page__form">
-            {!isEdit && (
-              <div className="th-authoring-routes" role="tablist" aria-label={t('agentsOverview.form.routeLabel')}>
-                {AUTHORING_ROUTES.map(({ id, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="tab"
-                    aria-selected={route === id}
-                    className={`th-authoring-route${route === id ? ' is-active' : ''}`}
-                    onClick={() => handleRouteChange(id)}
-                    data-testid={`agent-route-${id}`}
-                  >
-                    <Icon size={16} />
-                    <span>{t(`agentsOverview.form.routes.${id}`)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div
-              className="th-create-lab__tab-panel"
-              role="tabpanel"
-              hidden={activeTab !== 'name'}
-              data-testid="agent-editor-panel-name"
-            >
-              <div className="th-create-panel__field">
-                <label className="th-create-panel__label" htmlFor="agent-display-name">
-                  {t('agentsOverview.form.displayName')}
-                </label>
-                <Input
-                  id="agent-display-name"
-                  value={displayName}
-                  onChange={(event) => {
-                    setDisplayName(event.target.value);
-                    setDiagnostics((current) => current.filter((item) => item.field !== 'displayName'));
-                    if (route !== 'manual') setDraftPrepared(false);
-                  }}
-                  placeholder={t('agentsOverview.form.displayNamePlaceholder')}
-                  inputSize="small"
-                  error={Boolean(firstDiagnosticFor('displayName'))}
-                />
-                {firstDiagnosticFor('displayName') && (
-                  <span className="th-create-panel__error">
-                    {diagnosticMessage(firstDiagnosticFor('displayName')!)}
-                  </span>
-                )}
-                {isEdit ? (
-                  <div className="th-create-panel__runtime-id">
-                    <span>{t('agentsOverview.form.runtimeId')}</span>
-                    <code>{runtimeId ?? editingAgentId}</code>
-                  </div>
-                ) : (
-                  <p className="th-create-panel__help">{t('agentsOverview.form.runtimeIdAuto')}</p>
-                )}
-              </div>
-
-              {!isEdit && route !== 'manual' && (
-                <div className="th-create-panel__field">
-                  <label className="th-create-panel__label" htmlFor="agent-source-text">
-                    {t(`agentsOverview.form.source.${route}.label`)}
-                  </label>
-                  <Textarea
-                    id="agent-source-text"
-                    value={sourceText}
-                    onChange={(event) => {
-                      setSourceText(event.target.value);
-                      setDraftPrepared(false);
-                      setDiagnostics((current) => current.filter((item) => item.field !== 'sourceText'));
-                    }}
-                    placeholder={t(`agentsOverview.form.source.${route}.placeholder`)}
-                    rows={6}
-                  />
-                  {firstDiagnosticFor('sourceText') && (
-                    <span className="th-create-panel__error">
-                      {diagnosticMessage(firstDiagnosticFor('sourceText')!)}
-                    </span>
-                  )}
-                  <div className="th-create-panel__organize">
-                    <p>{t('agentsOverview.form.localOrganizeHint')}</p>
-                    <Button variant="secondary" size="small" onClick={handleOrganizeDraft}>
-                      {t('agentsOverview.form.organizeDraft')}
-                    </Button>
-                  </div>
-                </div>
+            {/* The three fields a beginner has to fill in, in reading order. */}
+            <div className="th-create-panel__field">
+              <label className="th-create-panel__label" htmlFor="agent-display-name">
+                {t('agentsOverview.form.displayName')}
+              </label>
+              <Input
+                id="agent-display-name"
+                value={displayName}
+                onChange={(event) => {
+                  setDisplayName(event.target.value);
+                  setDiagnostics((current) => current.filter((item) => item.field !== 'displayName'));
+                }}
+                placeholder={t('agentsOverview.form.displayNamePlaceholder')}
+                inputSize="small"
+                error={Boolean(firstDiagnosticFor('displayName'))}
+              />
+              {firstDiagnosticFor('displayName') && (
+                <span className="th-create-panel__error">
+                  {diagnosticMessage(firstDiagnosticFor('displayName')!)}
+                </span>
               )}
+              {isEdit ? (
+                <div className="th-create-panel__runtime-id">
+                  <span>{t('agentsOverview.form.runtimeId')}</span>
+                  <code>{runtimeId ?? editingAgentId}</code>
+                </div>
+              ) : (
+                <p className="th-create-panel__help">{t('agentsOverview.form.runtimeIdAuto')}</p>
+              )}
+            </div>
 
-              <fieldset className="th-create-panel__scenario-field">
-                <legend>{t('agentsOverview.form.scenarioLabel')}</legend>
-                <p>{t('agentsOverview.form.scenarioHint')}</p>
-                <div className="th-create-panel__scenarios">
-                  {SCENARIOS.map((scenario) => (
-                    <button
-                      key={scenario}
-                      type="button"
-                      aria-pressed={scenarios.includes(scenario)}
-                      className={`th-create-panel__scenario${scenarios.includes(scenario) ? ' is-on' : ''}`}
-                      onClick={() => toggleScenario(scenario)}
+            <div className="th-create-panel__field">
+              <label className="th-create-panel__label" htmlFor="agent-description">
+                {t('agentsOverview.form.description')}
+              </label>
+              <Input
+                id="agent-description"
+                value={description}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  setDiagnostics((current) => current.filter((item) => item.field !== 'description'));
+                }}
+                placeholder={t('agentsOverview.form.descPlaceholder')}
+                inputSize="small"
+                error={Boolean(firstDiagnosticFor('description'))}
+              />
+              {firstDiagnosticFor('description') && (
+                <span className="th-create-panel__error">
+                  {diagnosticMessage(firstDiagnosticFor('description')!)}
+                </span>
+              )}
+            </div>
+
+            <div className="th-create-panel__field">
+              <label className="th-create-panel__label" htmlFor="agent-prompt">
+                {t('agentsOverview.form.prompt')}
+              </label>
+              <Textarea
+                id="agent-prompt"
+                value={prompt}
+                onChange={(event) => {
+                  setPrompt(event.target.value);
+                  setDiagnostics((current) => current.filter((item) => item.field !== 'prompt'));
+                }}
+                placeholder={t('agentsOverview.form.promptPlaceholder')}
+                rows={9}
+              />
+              {firstDiagnosticFor('prompt') && (
+                <span className="th-create-panel__error">
+                  {diagnosticMessage(firstDiagnosticFor('prompt')!)}
+                </span>
+              )}
+            </div>
+
+            {/* One disclosure for everything that already has a safe default. */}
+            <section className="th-create-advanced">
+              <button
+                type="button"
+                className="th-create-advanced__toggle"
+                aria-expanded={advancedOpen}
+                aria-controls="agent-advanced-panel"
+                data-testid="agent-advanced-toggle"
+                onClick={() => setAdvancedOpen((open) => !open)}
+              >
+                {t('agentsOverview.form.advanced')}
+              </button>
+              <div
+                id="agent-advanced-panel"
+                className="th-create-advanced__panel"
+                data-testid="agent-advanced-panel"
+                hidden={!advancedOpen}
+              >
+                {!isEdit && (
+                  <>
+                    <div
+                      className="th-authoring-routes"
+                      role="tablist"
+                      aria-label={t('agentsOverview.form.routeLabel')}
                     >
-                      {t(`agentsOverview.form.scenarios.${scenario}`)}
-                    </button>
-                  ))}
-                </div>
-                {firstDiagnosticFor('scenarios') && (
-                  <span className="th-create-panel__error">
-                    {diagnosticMessage(firstDiagnosticFor('scenarios')!)}
-                  </span>
+                      {AUTHORING_ROUTES.map(({ id, icon: Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="tab"
+                          aria-selected={route === id}
+                          className={`th-authoring-route${route === id ? ' is-active' : ''}`}
+                          onClick={() => handleRouteChange(id)}
+                          data-testid={`agent-route-${id}`}
+                        >
+                          <Icon size={16} />
+                          <span>{t(`agentsOverview.form.routes.${id}`)}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {route !== 'manual' && (
+                      <div className="th-create-panel__field">
+                        <label className="th-create-panel__label" htmlFor="agent-source-text">
+                          {t(`agentsOverview.form.source.${route}.label`)}
+                        </label>
+                        <Textarea
+                          id="agent-source-text"
+                          value={sourceText}
+                          onChange={(event) => {
+                            setSourceText(event.target.value);
+                            setDraftPrepared(false);
+                            setDiagnostics((current) => current.filter((item) => item.field !== 'sourceText'));
+                          }}
+                          placeholder={t(`agentsOverview.form.source.${route}.placeholder`)}
+                          rows={6}
+                        />
+                        {firstDiagnosticFor('sourceText') && (
+                          <span className="th-create-panel__error">
+                            {diagnosticMessage(firstDiagnosticFor('sourceText')!)}
+                          </span>
+                        )}
+                        <div className="th-create-panel__organize">
+                          <p>{t('agentsOverview.form.localOrganizeHint')}</p>
+                          <Button variant="secondary" size="small" onClick={handleOrganizeDraft}>
+                            {t('agentsOverview.form.organizeDraft')}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
-              </fieldset>
 
-              <section className="th-create-panel__configuration">
-                <div className="th-create-panel__section-head">
-                  <h3>{t('agentsOverview.form.configurationTitle')}</h3>
-                  <span>{t('agentsOverview.form.configurationHint')}</span>
-                </div>
-                <div className="th-create-panel__field">
-                  <label className="th-create-panel__label" htmlFor="agent-description">
-                    {t('agentsOverview.form.description')}
-                  </label>
-                  <Input
-                    id="agent-description"
-                    value={description}
-                    onChange={(event) => {
-                      setDescription(event.target.value);
-                      setDiagnostics((current) => current.filter((item) => item.field !== 'description'));
-                    }}
-                    placeholder={t('agentsOverview.form.descPlaceholder')}
-                    inputSize="small"
-                    error={Boolean(firstDiagnosticFor('description'))}
-                  />
-                  {firstDiagnosticFor('description') && (
-                    <span className="th-create-panel__error">
-                      {diagnosticMessage(firstDiagnosticFor('description')!)}
-                    </span>
-                  )}
-                </div>
-              </section>
-            </div>
-
-            <div
-              className="th-create-lab__tab-panel"
-              role="tabpanel"
-              hidden={activeTab !== 'prompt'}
-              data-testid="agent-editor-panel-prompt"
-            >
-              <section className="th-create-panel__configuration">
-                <div className="th-create-panel__section-head">
-                  <h3>{t('agentsOverview.form.configurationTitle')}</h3>
-                  <span>{t('agentsOverview.form.configurationHint')}</span>
-                </div>
-                <div className="th-create-panel__field">
-                  <label className="th-create-panel__label" htmlFor="agent-prompt">
-                    {t('agentsOverview.form.prompt')}
-                  </label>
-                  <Textarea
-                    id="agent-prompt"
-                    value={prompt}
-                    onChange={(event) => {
-                      setPrompt(event.target.value);
-                      setDiagnostics((current) => current.filter((item) => item.field !== 'prompt'));
-                    }}
-                    placeholder={t('agentsOverview.form.promptPlaceholder')}
-                    rows={9}
-                  />
-                  {firstDiagnosticFor('prompt') && (
-                    <span className="th-create-panel__error">
-                      {diagnosticMessage(firstDiagnosticFor('prompt')!)}
-                    </span>
-                  )}
-                </div>
-              </section>
-            </div>
-
-            <div
-              className="th-create-lab__tab-panel"
-              role="tabpanel"
-              hidden={activeTab !== 'tools'}
-              data-testid="agent-editor-panel-tools"
-            >
-              <div className="th-create-panel__field th-create-panel__field--row">
-                <div className="th-create-panel__level-group">
-                  {(['user', 'project'] as SubagentLevel[]).map((nextLevel) => {
-                    const disabled = (nextLevel === 'project' && !hasWorkspace) || isEdit;
-                    return (
+                <fieldset className="th-create-panel__scenario-field">
+                  <legend>{t('agentsOverview.form.scenarioLabel')}</legend>
+                  <p>{t('agentsOverview.form.scenarioHint')}</p>
+                  <div className="th-create-panel__scenarios">
+                    {SCENARIOS.map((scenario) => (
                       <button
-                        key={nextLevel}
+                        key={scenario}
                         type="button"
-                        disabled={disabled}
-                        className={`th-create-panel__level-btn${level === nextLevel ? ' is-active' : ''}`}
-                        onClick={() => setLevel(nextLevel)}
-                        title={disabled && !isEdit ? t('agentsOverview.form.noWorkspace') : undefined}
+                        aria-pressed={scenarios.includes(scenario)}
+                        className={`th-create-panel__scenario${scenarios.includes(scenario) ? ' is-on' : ''}`}
+                        onClick={() => toggleScenario(scenario)}
                       >
-                        {nextLevel === 'user'
-                          ? t('agentsOverview.filterUser')
-                          : t('agentsOverview.filterProject')}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="th-create-panel__readonly-row">
-                  <label className="th-create-panel__label">{t('agentsOverview.form.readonly')}</label>
-                  <Switch
-                    checked={readonly}
-                    disabled={review}
-                    onChange={(event) => setReadonly(review ? true : event.target.checked)}
-                    size="small"
-                  />
-                </div>
-                <div className="th-create-panel__readonly-row">
-                  <label className="th-create-panel__label">{t('agentsOverview.form.review')}</label>
-                  <Switch
-                    checked={review}
-                    onChange={(event) => handleReviewChange(event.target.checked)}
-                    size="small"
-                  />
-                </div>
-              </div>
-
-              {selectableTools.length > 0 && (
-                <div className="th-create-panel__field">
-                  <label className="th-create-panel__label">
-                    {t('agentsOverview.form.tools')}
-                    <span className="th-create-panel__label-hint">
-                      {review
-                        ? t('agentsOverview.form.reviewToolsHint')
-                        : t('agentsOverview.form.toolsHint', {
-                          optionalLabel: t('agentsOverview.form.toolsOptional'),
-                        })}
-                    </span>
-                  </label>
-                  <div className="th-create-panel__tools">
-                    {selectableTools.map((tool) => (
-                      <button
-                        key={tool.name}
-                        type="button"
-                        className={`th-list__tool-item${selectedTools.has(tool.name) ? ' is-on' : ''}`}
-                        onClick={() => toggleTool(tool.name)}
-                      >
-                        <span className="th-list__tool-item-name">{tool.name}</span>
+                        {t(`agentsOverview.form.scenarios.${scenario}`)}
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                  {firstDiagnosticFor('scenarios') && (
+                    <span className="th-create-panel__error">
+                      {diagnosticMessage(firstDiagnosticFor('scenarios')!)}
+                    </span>
+                  )}
+                </fieldset>
 
-            <aside className="th-create-panel__preview" data-testid="agent-draft-preview">
-              <span>{t('agentsOverview.form.previewTitle')}</span>
-              <strong>{displayName || t('agentsOverview.form.previewUnnamed')}</strong>
-              <p>{description || t('agentsOverview.form.previewEmpty')}</p>
-              <div>{previewScenarios.join(' · ') || t('agentsOverview.form.previewNoScenario')}</div>
-            </aside>
+                <div className="th-create-panel__field th-create-panel__field--row">
+                  <div className="th-create-panel__level-group">
+                    {(['user', 'project'] as SubagentLevel[]).map((nextLevel) => {
+                      const disabled = (nextLevel === 'project' && !hasWorkspace) || isEdit;
+                      return (
+                        <button
+                          key={nextLevel}
+                          type="button"
+                          disabled={disabled}
+                          className={`th-create-panel__level-btn${level === nextLevel ? ' is-active' : ''}`}
+                          onClick={() => setLevel(nextLevel)}
+                          title={disabled && !isEdit ? t('agentsOverview.form.noWorkspace') : undefined}
+                        >
+                          {nextLevel === 'user'
+                            ? t('agentsOverview.filterUser')
+                            : t('agentsOverview.filterProject')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="th-create-panel__readonly-row">
+                    <label className="th-create-panel__label">{t('agentsOverview.form.readonly')}</label>
+                    <Switch
+                      checked={readonly}
+                      disabled={review}
+                      onChange={(event) => setReadonly(review ? true : event.target.checked)}
+                      size="small"
+                    />
+                  </div>
+                  <div className="th-create-panel__readonly-row">
+                    <label className="th-create-panel__label">{t('agentsOverview.form.review')}</label>
+                    <Switch
+                      checked={review}
+                      onChange={(event) => handleReviewChange(event.target.checked)}
+                      size="small"
+                    />
+                  </div>
+                </div>
+
+                {selectableTools.length > 0 && (
+                  <div className="th-create-panel__field">
+                    <label className="th-create-panel__label">
+                      {t('agentsOverview.form.tools')}
+                      <span className="th-create-panel__label-hint">
+                        {review
+                          ? t('agentsOverview.form.reviewToolsHint')
+                          : t('agentsOverview.form.toolsHint', {
+                            optionalLabel: t('agentsOverview.form.toolsOptional'),
+                          })}
+                      </span>
+                    </label>
+                    <div className="th-create-panel__tools">
+                      {selectableTools.map((tool) => (
+                        <button
+                          key={tool.name}
+                          type="button"
+                          className={`th-list__tool-item${selectedTools.has(tool.name) ? ' is-on' : ''}`}
+                          onClick={() => toggleTool(tool.name)}
+                        >
+                          <span className="th-list__tool-item-name">{tool.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
 
             <div className="th-create-page__actions">
               <Button variant="secondary" size="small" onClick={openHome} disabled={submitting}>

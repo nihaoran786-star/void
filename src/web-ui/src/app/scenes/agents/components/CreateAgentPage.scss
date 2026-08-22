@@ -267,6 +267,36 @@
   }
 }
 
+// ── The one "advanced" disclosure ──────────────────────────────────────────
+// Everything with a safe default lives here, behind a single quiet text
+// toggle, so the page a beginner sees is three fields and one button.
+
+.th-create-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-space-3, 12px);
+  padding-top: var(--workspace-space-3, 12px);
+  border-top: 0.5px solid var(--workspace-border-subtle, var(--color-border-primary));
+}
+
+.th-create-advanced__toggle {
+  @include surface.quiet-button;
+
+  align-self: flex-start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.th-create-advanced__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--workspace-space-4, 16px);
+
+  &[hidden] {
+    display: none;
+  }
+}
+
 .th-create-page__actions {
   @include surface.actions;
 

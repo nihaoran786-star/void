@@ -12,15 +12,28 @@
   "goManage": "前往管理",
   "loading": "加載中…",
   "catalog": {
-    "tabs": { "ariaLabel": "智能體目錄", "agents": "智能體", "teams": "團隊" },
-    "page": { "title": "智能體團隊", "subtitle": "查看現有專業團隊、主理人和真實協作成員。" },
-    "zone": { "title": "推薦團隊", "subtitle": "團隊沿用現有執行能力；本頁只負責統一展示和進入原有流程。" },
+    "tabs": {
+      "ariaLabel": "智能體目錄",
+      "agents": "智能體",
+      "teams": "團隊"
+    },
+    "page": {
+      "title": "智能體團隊",
+      "subtitle": "查看現有專業團隊、主理人和真實協作成員。"
+    },
+    "zone": {
+      "title": "推薦團隊",
+      "subtitle": "團隊沿用現有執行能力；本頁只負責統一展示和進入原有流程。"
+    },
     "states": {
       "partial": "部分團隊暫時無法加載，已顯示可用團隊。",
       "error": "團隊目錄加載失敗，請重試。",
       "empty": "當前沒有可用的智能體團隊。"
     },
-    "actions": { "retry": "重試", "reload": "重新加載" },
+    "actions": {
+      "retry": "重試",
+      "reload": "重新加載"
+    },
     "errors": {
       "short_drama_team_definition_missing": "AI 短劇團隊定義暫時不可用，請重新啟動 Void 後重試。"
     },
@@ -44,7 +57,6 @@
       }
     },
     "detail": {
-      "memberCount": "{{count}} 位成員",
       "dispatchTask": "派發任務",
       "dispatchUnavailable": "暫不能派發",
       "openReviewTeam": "打開代碼審查團隊",
@@ -55,11 +67,7 @@
       "lead": "主理人",
       "members": "團隊成員",
       "qualityGate": "質檢",
-      "definitionReady": "團隊定義已就緒",
       "definitionRuntimeDeferred": "可以繼續編輯和管理；目前團隊設定不符合會話召喚條件，請調整成員權限或能力限制。",
-      "runtimeReady": "現有團隊執行環境可用",
-      "fixedRuntimeHint": "可從對應場景入口或會話輸入框使用；執行權限始終受目前會話邊界約束。",
-      "workflows": "協作流程",
       "workflowCount": "{{count}} 套流程"
     },
     "management": {
@@ -76,7 +84,11 @@
       "deleteConfirm": "確定刪除「{{name}}」？該團隊定義會從本機移除。",
       "deleteSuccess": "已刪除團隊「{{name}}」"
     },
-    "scenarios": { "code": "代碼開發", "cowork": "日常辦公", "media": "設計創意" },
+    "scenarios": {
+      "code": "代碼開發",
+      "cowork": "日常辦公",
+      "media": "設計創意"
+    },
     "tags": {
       "code_review": "代碼審查",
       "parallel_review": "並行審查",
@@ -88,56 +100,188 @@
     },
     "presentations": {
       "modes": {
-        "agentic": { "name": "代碼執行", "description": "直接分析代碼、修改文件並完成驗證。" },
-        "plan": { "name": "方案規劃", "description": "先梳理目標、邊界和實施步驟，再進入開發。" },
-        "debug": { "name": "調試診斷", "description": "定位異常原因並驗證修復方向。" },
-        "multitask": { "name": "並行任務", "description": "把獨立工作拆開並行推進，再統一彙總。" },
-        "team": { "name": "開發協作", "description": "使用現有開發協作模式組織代碼任務。" },
-        "cowork": { "name": "日常辦公", "description": "處理文檔、資料、分析和通用辦公任務。" },
-        "deepResearch": { "name": "深度研究", "description": "圍繞複雜問題收集證據並形成研究結論。" },
-        "claw": { "name": "自主助理", "description": "在辦公場景中持續推進明確目標。" },
-        "media": { "name": "設計創意", "description": "處理圖片、視頻和 AI 媒體創作任務。" },
-        "computerUse": { "name": "電腦操作", "description": "通過桌面交互完成本機應用與系統操作。" }
+        "agentic": {
+          "name": "代碼執行",
+          "description": "直接分析代碼、修改文件並完成驗證。"
+        },
+        "plan": {
+          "name": "方案規劃",
+          "description": "先梳理目標、邊界和實施步驟，再進入開發。"
+        },
+        "debug": {
+          "name": "調試診斷",
+          "description": "定位異常原因並驗證修復方向。"
+        },
+        "multitask": {
+          "name": "並行任務",
+          "description": "把獨立工作拆開並行推進，再統一彙總。"
+        },
+        "team": {
+          "name": "開發協作",
+          "description": "使用現有開發協作模式組織代碼任務。"
+        },
+        "cowork": {
+          "name": "日常辦公",
+          "description": "處理文檔、資料、分析和通用辦公任務。"
+        },
+        "deepResearch": {
+          "name": "深度研究",
+          "description": "圍繞複雜問題收集證據並形成研究結論。"
+        },
+        "claw": {
+          "name": "自主助理",
+          "description": "在辦公場景中持續推進明確目標。"
+        },
+        "media": {
+          "name": "設計創意",
+          "description": "處理圖片、視頻和 AI 媒體創作任務。"
+        },
+        "computerUse": {
+          "name": "電腦操作",
+          "description": "通過桌面交互完成本機應用與系統操作。"
+        }
       },
       "subagents": {
-        "explore": { "name": "代碼探索智能體", "description": "跨模組追蹤代碼結構、調用關係和架構線索。" },
-        "fileFinder": { "name": "文件查找智能體", "description": "快速定位與任務相關的文件、符號和配置。" },
-        "codeReview": { "name": "代碼審查智能體", "description": "檢查代碼變更中的正確性、風險和回歸問題。" },
-        "generateDoc": { "name": "文檔生成智能體", "description": "根據項目事實整理並生成結構化文檔。" },
-        "generalPurpose": { "name": "通用任務智能體", "description": "執行邊界清晰的通用子任務並返回結果。" },
-        "researchSpecialist": { "name": "研究專家智能體", "description": "圍繞一個研究方向檢索可靠來源並整理結構化證據。" },
-        "deepReview": { "name": "代碼審查主理人", "description": "組織多位審查智能體並彙總質檢結果。" },
-        "reviewBusinessLogic": { "name": "業務邏輯審查員", "description": "檢查業務規則、狀態流轉和異常恢復。" },
-        "reviewPerformance": { "name": "性能審查員", "description": "檢查熱點路徑、阻塞工作和規模化風險。" },
-        "reviewSecurity": { "name": "安全審查員", "description": "檢查權限、信任邊界、注入和敏感數據風險。" },
-        "reviewArchitecture": { "name": "架構審查員", "description": "檢查模組邊界、依賴方向和接口契約。" },
-        "reviewFrontend": { "name": "前端審查員", "description": "檢查交互、可訪問性、國際化和前端契約。" },
-        "reviewJudge": { "name": "審查質檢員", "description": "獨立核驗審查發現並過濾誤報。" },
-        "reviewFixer": { "name": "審查修復智能體", "description": "僅在用戶批准後按已確認問題實施修復。" },
-        "scriptAI": { "name": "劇本智能體", "description": "負責劇本結構、人物關係和分集內容。" },
-        "assetAI": { "name": "資產智能體", "description": "負責角色、場景和視覺資產的一致性。" },
-        "splitAI": { "name": "分鏡智能體", "description": "負責鏡頭拆分、畫面調度和分鏡規劃。" },
-        "videoAI": { "name": "視頻智能體", "description": "負責鏡頭視頻生成和結果檢查。" },
-        "editorAI": { "name": "後期智能體", "description": "負責剪輯、字幕、聲音和最終預覽。" }
+        "explore": {
+          "name": "代碼探索智能體",
+          "description": "跨模組追蹤代碼結構、調用關係和架構線索。"
+        },
+        "fileFinder": {
+          "name": "文件查找智能體",
+          "description": "快速定位與任務相關的文件、符號和配置。"
+        },
+        "codeReview": {
+          "name": "代碼審查智能體",
+          "description": "檢查代碼變更中的正確性、風險和回歸問題。"
+        },
+        "generateDoc": {
+          "name": "文檔生成智能體",
+          "description": "根據項目事實整理並生成結構化文檔。"
+        },
+        "generalPurpose": {
+          "name": "通用任務智能體",
+          "description": "執行邊界清晰的通用子任務並返回結果。"
+        },
+        "researchSpecialist": {
+          "name": "研究專家智能體",
+          "description": "圍繞一個研究方向檢索可靠來源並整理結構化證據。"
+        },
+        "deepReview": {
+          "name": "代碼審查主理人",
+          "description": "組織多位審查智能體並彙總質檢結果。"
+        },
+        "reviewBusinessLogic": {
+          "name": "業務邏輯審查員",
+          "description": "檢查業務規則、狀態流轉和異常恢復。"
+        },
+        "reviewPerformance": {
+          "name": "性能審查員",
+          "description": "檢查熱點路徑、阻塞工作和規模化風險。"
+        },
+        "reviewSecurity": {
+          "name": "安全審查員",
+          "description": "檢查權限、信任邊界、注入和敏感數據風險。"
+        },
+        "reviewArchitecture": {
+          "name": "架構審查員",
+          "description": "檢查模組邊界、依賴方向和接口契約。"
+        },
+        "reviewFrontend": {
+          "name": "前端審查員",
+          "description": "檢查交互、可訪問性、國際化和前端契約。"
+        },
+        "reviewJudge": {
+          "name": "審查質檢員",
+          "description": "獨立核驗審查發現並過濾誤報。"
+        },
+        "reviewFixer": {
+          "name": "審查修復智能體",
+          "description": "僅在用戶批准後按已確認問題實施修復。"
+        },
+        "scriptAI": {
+          "name": "劇本智能體",
+          "description": "負責劇本結構、人物關係和分集內容。"
+        },
+        "assetAI": {
+          "name": "資產智能體",
+          "description": "負責角色、場景和視覺資產的一致性。"
+        },
+        "splitAI": {
+          "name": "分鏡智能體",
+          "description": "負責鏡頭拆分、畫面調度和分鏡規劃。"
+        },
+        "videoAI": {
+          "name": "視頻智能體",
+          "description": "負責鏡頭視頻生成和結果檢查。"
+        },
+        "editorAI": {
+          "name": "後期智能體",
+          "description": "負責剪輯、字幕、聲音和最終預覽。"
+        }
       },
       "teams": {
-        "deepReview": { "name": "代碼審查團隊", "description": "多位獨立審查員並行檢查代碼，再由質檢員統一複核。" },
-        "shortDrama": { "name": "AI 短劇團隊", "description": "由劇本、資產、分鏡、視頻和後期智能體協作完成短劇。" }
+        "deepReview": {
+          "name": "代碼審查團隊",
+          "description": "多位獨立審查員並行檢查代碼，再由質檢員統一複核。"
+        },
+        "shortDrama": {
+          "name": "AI 短劇團隊",
+          "description": "由劇本、資產、分鏡、視頻和後期智能體協作完成短劇。"
+        }
       },
       "teamMembers": {
-        "deepReview": { "name": "代碼審查主理人", "description": "負責建立審查任務、分派工作包並彙總質檢結論。" },
-        "reviewBusinessLogic": { "name": "業務邏輯審查員", "description": "檢查業務規則、狀態流轉、邊界情況和恢復路徑。" },
-        "reviewPerformance": { "name": "性能審查員", "description": "檢查熱點路徑、阻塞工作和規模化性能風險。" },
-        "reviewSecurity": { "name": "安全審查員", "description": "檢查信任邊界、權限、注入和敏感數據風險。" },
-        "reviewArchitecture": { "name": "架構審查員", "description": "檢查模組邊界、依賴方向和接口契約。" },
-        "reviewFrontend": { "name": "前端審查員", "description": "檢查可訪問性、國際化、性能和前端契約。" },
-        "reviewJudge": { "name": "審查質檢員", "description": "獨立驗證審查結論，過濾誤報並確認交付質量。" },
-        "media": { "name": "短劇主理人", "description": "保留現有媒體父會話並協調短劇五個階段。" },
-        "scriptAI": { "name": "劇本智能體", "description": "負責劇本結構、人物關係和分集內容。" },
-        "assetAI": { "name": "資產智能體", "description": "負責角色、場景和視覺資產的一致性。" },
-        "splitAI": { "name": "分鏡智能體", "description": "負責鏡頭拆分、畫面調度和分鏡規劃。" },
-        "videoAI": { "name": "視頻智能體", "description": "負責鏡頭視頻生成和結果檢查。" },
-        "editorAI": { "name": "後期智能體", "description": "負責剪輯、字幕、聲音和最終預覽。" }
+        "deepReview": {
+          "name": "代碼審查主理人",
+          "description": "負責建立審查任務、分派工作包並彙總質檢結論。"
+        },
+        "reviewBusinessLogic": {
+          "name": "業務邏輯審查員",
+          "description": "檢查業務規則、狀態流轉、邊界情況和恢復路徑。"
+        },
+        "reviewPerformance": {
+          "name": "性能審查員",
+          "description": "檢查熱點路徑、阻塞工作和規模化性能風險。"
+        },
+        "reviewSecurity": {
+          "name": "安全審查員",
+          "description": "檢查信任邊界、權限、注入和敏感數據風險。"
+        },
+        "reviewArchitecture": {
+          "name": "架構審查員",
+          "description": "檢查模組邊界、依賴方向和接口契約。"
+        },
+        "reviewFrontend": {
+          "name": "前端審查員",
+          "description": "檢查可訪問性、國際化、性能和前端契約。"
+        },
+        "reviewJudge": {
+          "name": "審查質檢員",
+          "description": "獨立驗證審查結論，過濾誤報並確認交付質量。"
+        },
+        "media": {
+          "name": "短劇主理人",
+          "description": "保留現有媒體父會話並協調短劇五個階段。"
+        },
+        "scriptAI": {
+          "name": "劇本智能體",
+          "description": "負責劇本結構、人物關係和分集內容。"
+        },
+        "assetAI": {
+          "name": "資產智能體",
+          "description": "負責角色、場景和視覺資產的一致性。"
+        },
+        "splitAI": {
+          "name": "分鏡智能體",
+          "description": "負責鏡頭拆分、畫面調度和分鏡規劃。"
+        },
+        "videoAI": {
+          "name": "視頻智能體",
+          "description": "負責鏡頭視頻生成和結果檢查。"
+        },
+        "editorAI": {
+          "name": "後期智能體",
+          "description": "負責剪輯、字幕、聲音和最終預覽。"
+        }
       }
     }
   },
@@ -567,9 +711,9 @@
     "deleteFailed": "刪除失敗：",
     "form": {
       "title": "建立智能體",
-      "subtitle": "只需填寫中文名稱和用途；執行 ID 會自動產生。",
+      "subtitle": "填好三樣東西就能建立：名字、一句話職責、工作說明。",
       "titleEdit": "編輯智能體",
-      "subtitleEdit": "可修改中文名稱、適用場景、提示詞和工具；執行 ID 保持不變。",
+      "subtitleEdit": "可以隨時改名字、職責和工作說明；系統內部編號不變。",
       "loadingDetail": "加載中…",
       "save": "保存",
       "updateSuccess": "已保存「{{name}}」",
@@ -578,11 +722,11 @@
       "namePlaceholder": "字母開頭，可含字母/數字/下劃線",
       "nameRequired": "名稱不能為空",
       "nameFormat": "只能以字母開頭，包含字母/數字/下劃線/連字符",
-      "description": "描述",
-      "descPlaceholder": "簡要描述該 Agent 的用途",
+      "description": "一句話職責",
+      "descPlaceholder": "它主要幫你做什麼？一句話說清楚",
       "descRequired": "描述不能為空",
-      "prompt": "系統提示詞",
-      "promptPlaceholder": "輸入系統提示詞，定義 Agent 的行為…",
+      "prompt": "工作說明",
+      "promptPlaceholder": "告訴它該怎麼做事：做什麼、按什麼步驟、什麼算做完。",
       "promptRequired": "系統提示詞不能為空",
       "readonly": "只讀模式",
       "review": "審核",
@@ -595,7 +739,7 @@
       "submit": "創建",
       "createSuccess": "已創建 Agent「{{name}}」",
       "createFailed": "建立失敗：",
-      "displayName": "智能體名稱",
+      "displayName": "名字",
       "displayNamePlaceholder": "例如：前端開發專家",
       "runtimeId": "執行 ID",
       "runtimeIdAuto": "執行 ID 會在儲存時自動產生，無需填寫英文名稱。",
@@ -626,17 +770,11 @@
         "cowork": "日常辦公",
         "media": "設計創意"
       },
-      "configurationTitle": "智能體設定",
-      "configurationHint": "三種建立方式最終都會儲存為同一份設定",
-      "previewTitle": "儲存前預覽",
-      "previewUnnamed": "未命名智能體",
-      "previewEmpty": "填寫描述後會在這裡預覽。",
-      "previewNoScenario": "尚未選擇場景",
       "diagnostics": {
-        "display_name_required": "請輸入智能體名稱",
+        "display_name_required": "請填寫名字",
         "source_text_required": "請輸入需求描述或貼上資料",
-        "description_required": "請輸入智能體描述",
-        "prompt_required": "請輸入系統提示詞",
+        "description_required": "請填寫一句話職責",
+        "prompt_required": "請填寫工作說明",
         "scenario_required": "請至少選擇一個可使用場景"
       },
       "template": {
@@ -653,20 +791,17 @@
         "materialStep2": "2. 資料存在衝突或缺口時先說明，再給出最小可行處理建議。",
         "materialStep3": "3. 不得聲稱已執行未實際執行的工具、檔案或外部操作。",
         "materialHeading": "匯入資料："
-      }
+      },
+      "advanced": "進階設定",
+      "loadDetailFailed": "沒能讀取這個智慧體的資料。"
     },
     "debug": {
       "title": "試煉場",
-      "empty": "完成名稱和提示詞後，這裡就可以和草稿對話測試了",
+      "empty": "填好名字和工作說明後，就能在這裡試著和它對話。",
       "creating": "正在為草稿啟動試煉會話…",
       "stale": "草稿已更新，測試已重置，發送下一則訊息將使用新草稿",
       "error": "無法啟動試煉會話：{{message}}",
       "retry": "重試",
-      "tab": {
-        "name": "名稱",
-        "prompt": "提示詞",
-        "tools": "工具"
-      },
       "status": {
         "idle": "空閒",
         "creating": "啟動中",
@@ -694,7 +829,6 @@
     },
     "detail": {
       "open": "打開團隊",
-      "back": "返回專業智能體",
       "openSettings": "審核設定",
       "loading": "正在載入程式碼審核團隊...",
       "title": "程式碼審核團隊",
@@ -704,11 +838,6 @@
       "membersTitle": "團隊成員",
       "membersDescription": "選擇成員可查看職責、模型和策略覆蓋。固定角色會始終保留在團隊中。",
       "membersCount": "{{count}} 名成員",
-      "lockedCount": "{{count}} 個固定角色",
-      "extraCount": "{{count}} 個額外子智能體",
-      "localOnly": "程式碼審核",
-      "localOnlyDescription": "在 void 內以唯讀子智能體運行，並把結果回傳到當前審核線程。",
-      "parallelLabel": "並行審核",
       "parallelDescription": "邏輯、性能、安全、架構和額外審核員會並行工作，再由質檢員驗證結果。",
       "warningLabel": "審核更重",
       "warning": "建議用於風險更高的改動；它可能比普通審核耗時更久並消耗更多 token。",
@@ -717,18 +846,11 @@
       "executionPolicyDescription": "控制審核深度、超時，以及大範圍目標如何拆分給並行唯讀審核員。",
       "policySummaryTitle": "目前策略",
       "policySummaryIntro": "這裡展示的即時策略來自審核設定，團隊策略變更後會同步更新。",
-      "policySummaryEyebrow": "已配置行為",
       "policySummaryDescription": "{{strategy}}審核會為每位審核員使用 {{reviewerTimeout}} 超時，為質檢員使用 {{judgeTimeout}} 超時；每類角色在 {{splitThreshold}} 後拆分，並將同角色並發限制為 {{maxSameRoleInstances}}。",
       "policySummaryAction": "打開審核設定以編輯目前策略",
-      "policyMetricsLabel": "目前策略值",
-      "policyStrategyLabel": "策略",
-      "reviewerTimeout": "審核員超時",
       "reviewerTimeoutDescription": "單個審核員的超時時間，單位為秒。設為 0 表示不設置硬性截止時間。",
-      "judgeTimeout": "質檢員超時",
       "judgeTimeoutDescription": "質檢覆核的超時時間，單位為秒。設為 0 表示一直等待質檢員完成。",
-      "fileSplitThreshold": "文件拆分閾值",
       "fileSplitThresholdDescription": "目標文件數超過該值時，每類審核員可拆分為多個實例。設為 0 表示關閉拆分。",
-      "maxSameRoleInstances": "同角色最大實例數",
       "maxSameRoleInstancesDescription": "啟用文件拆分時，每個審核角色最多可並行運行的實例數。",
       "seconds": "秒",
       "secondsValue": "{{seconds}} 秒",
@@ -763,7 +885,9 @@
         "memberAdded": "已將額外審核員加入團隊。",
         "memberRemoved": "已將額外審核員移出團隊。",
         "saveFailed": "保存程式碼審核團隊配置失敗。"
-      }
+      },
+      "loadFailed": "沒能讀取程式碼審查團隊。",
+      "retry": "重試"
     },
     "strategy": {
       "teamTitle": "審核策略",

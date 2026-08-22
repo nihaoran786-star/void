@@ -32,11 +32,9 @@
     "search": "搜尋",
     "create": "新增",
     "viewAll": "查看全部 ›",
-    "dispatch": "派發任務",
-    "details": "詳情",
+    "dispatch": "交給它做任務",
     "edit": "編輯",
-    "newSession": "新對話",
-    "configure": "設定"
+    "newSession": "開始新對話"
   },
   "create": {
     "assistant": "新增助理",
@@ -52,7 +50,8 @@
     "loading": "載入中…",
     "empty": "還沒有內容",
     "error": "載入失敗",
-    "noMatch": "沒有符合項目"
+    "noMatch": "沒有符合項目",
+    "retry": "重試"
   },
   "errors": {
     "newSessionFailed": "新增對話失敗",
@@ -73,7 +72,7 @@
       "title": "團隊創作"
     },
     "reviewTeam": {
-      "title": "評審團隊"
+      "title": "程式碼審查團隊"
     }
   }
 }

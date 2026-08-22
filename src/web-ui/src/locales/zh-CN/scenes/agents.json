@@ -12,15 +12,28 @@
   "goManage": "前往管理",
   "loading": "加载中…",
   "catalog": {
-    "tabs": { "ariaLabel": "智能体目录", "agents": "智能体", "teams": "团队" },
-    "page": { "title": "智能体团队", "subtitle": "查看现有专业团队、主理人和真实协作成员。" },
-    "zone": { "title": "推荐团队", "subtitle": "团队沿用现有运行能力；本页只负责统一展示和进入原有流程。" },
+    "tabs": {
+      "ariaLabel": "智能体目录",
+      "agents": "智能体",
+      "teams": "团队"
+    },
+    "page": {
+      "title": "智能体团队",
+      "subtitle": "查看现有专业团队、主理人和真实协作成员。"
+    },
+    "zone": {
+      "title": "推荐团队",
+      "subtitle": "团队沿用现有运行能力；本页只负责统一展示和进入原有流程。"
+    },
     "states": {
       "partial": "部分团队暂时无法加载，已显示可用团队。",
       "error": "团队目录加载失败，请重试。",
       "empty": "当前没有可用的智能体团队。"
     },
-    "actions": { "retry": "重试", "reload": "重新加载" },
+    "actions": {
+      "retry": "重试",
+      "reload": "重新加载"
+    },
     "errors": {
       "short_drama_team_definition_missing": "AI 短剧团队定义暂时不可用，请重启 Void 后重试。"
     },
@@ -44,7 +57,6 @@
       }
     },
     "detail": {
-      "memberCount": "{{count}} 位成员",
       "dispatchTask": "派发任务",
       "dispatchUnavailable": "暂不能派发",
       "openReviewTeam": "打开代码审查团队",
@@ -55,11 +67,7 @@
       "lead": "主理人",
       "members": "团队成员",
       "qualityGate": "质检",
-      "definitionReady": "团队定义已就绪",
       "definitionRuntimeDeferred": "可以继续编辑和管理；当前团队配置不符合会话召唤条件，请调整成员权限或能力限制。",
-      "runtimeReady": "现有团队运行时可用",
-      "fixedRuntimeHint": "可从对应场景入口或会话输入框使用；运行权限始终受当前会话边界约束。",
-      "workflows": "协作流程",
       "workflowCount": "{{count}} 套流程"
     },
     "management": {
@@ -76,7 +84,11 @@
       "deleteConfirm": "确定删除「{{name}}」？该团队定义会从本机移除。",
       "deleteSuccess": "已删除团队「{{name}}」"
     },
-    "scenarios": { "code": "代码开发", "cowork": "日常办公", "media": "设计创意" },
+    "scenarios": {
+      "code": "代码开发",
+      "cowork": "日常办公",
+      "media": "设计创意"
+    },
     "tags": {
       "code_review": "代码审查",
       "parallel_review": "并行审查",
@@ -88,56 +100,188 @@
     },
     "presentations": {
       "modes": {
-        "agentic": { "name": "代码执行", "description": "直接分析代码、修改文件并完成验证。" },
-        "plan": { "name": "方案规划", "description": "先梳理目标、边界和实施步骤，再进入开发。" },
-        "debug": { "name": "调试诊断", "description": "定位异常原因并验证修复方向。" },
-        "multitask": { "name": "并行任务", "description": "把独立工作拆开并行推进，再统一汇总。" },
-        "team": { "name": "开发协作", "description": "使用现有开发协作模式组织代码任务。" },
-        "cowork": { "name": "日常办公", "description": "处理文档、资料、分析和通用办公任务。" },
-        "deepResearch": { "name": "深度研究", "description": "围绕复杂问题收集证据并形成研究结论。" },
-        "claw": { "name": "自主助理", "description": "在办公场景中持续推进明确目标。" },
-        "media": { "name": "设计创意", "description": "处理图片、视频和 AI 媒体创作任务。" },
-        "computerUse": { "name": "电脑操作", "description": "通过桌面交互完成本机应用与系统操作。" }
+        "agentic": {
+          "name": "代码执行",
+          "description": "直接分析代码、修改文件并完成验证。"
+        },
+        "plan": {
+          "name": "方案规划",
+          "description": "先梳理目标、边界和实施步骤，再进入开发。"
+        },
+        "debug": {
+          "name": "调试诊断",
+          "description": "定位异常原因并验证修复方向。"
+        },
+        "multitask": {
+          "name": "并行任务",
+          "description": "把独立工作拆开并行推进，再统一汇总。"
+        },
+        "team": {
+          "name": "开发协作",
+          "description": "使用现有开发协作模式组织代码任务。"
+        },
+        "cowork": {
+          "name": "日常办公",
+          "description": "处理文档、资料、分析和通用办公任务。"
+        },
+        "deepResearch": {
+          "name": "深度研究",
+          "description": "围绕复杂问题收集证据并形成研究结论。"
+        },
+        "claw": {
+          "name": "自主助理",
+          "description": "在办公场景中持续推进明确目标。"
+        },
+        "media": {
+          "name": "设计创意",
+          "description": "处理图片、视频和 AI 媒体创作任务。"
+        },
+        "computerUse": {
+          "name": "电脑操作",
+          "description": "通过桌面交互完成本机应用与系统操作。"
+        }
       },
       "subagents": {
-        "explore": { "name": "代码探索智能体", "description": "跨模块追踪代码结构、调用关系和架构线索。" },
-        "fileFinder": { "name": "文件查找智能体", "description": "快速定位与任务相关的文件、符号和配置。" },
-        "codeReview": { "name": "代码审查智能体", "description": "检查代码变更中的正确性、风险和回归问题。" },
-        "generateDoc": { "name": "文档生成智能体", "description": "根据项目事实整理并生成结构化文档。" },
-        "generalPurpose": { "name": "通用任务智能体", "description": "执行边界清晰的通用子任务并返回结果。" },
-        "researchSpecialist": { "name": "研究专家智能体", "description": "围绕一个研究方向检索可靠来源并整理结构化证据。" },
-        "deepReview": { "name": "代码审查主理人", "description": "组织多位审查智能体并汇总质检结果。" },
-        "reviewBusinessLogic": { "name": "业务逻辑审查员", "description": "检查业务规则、状态流转和异常恢复。" },
-        "reviewPerformance": { "name": "性能审查员", "description": "检查热点路径、阻塞工作和规模化风险。" },
-        "reviewSecurity": { "name": "安全审查员", "description": "检查权限、信任边界、注入和敏感数据风险。" },
-        "reviewArchitecture": { "name": "架构审查员", "description": "检查模块边界、依赖方向和接口契约。" },
-        "reviewFrontend": { "name": "前端审查员", "description": "检查交互、可访问性、国际化和前端契约。" },
-        "reviewJudge": { "name": "审查质检员", "description": "独立核验审查发现并过滤误报。" },
-        "reviewFixer": { "name": "审查修复智能体", "description": "仅在用户批准后按已确认问题实施修复。" },
-        "scriptAI": { "name": "剧本智能体", "description": "负责剧本结构、人物关系和分集内容。" },
-        "assetAI": { "name": "资产智能体", "description": "负责角色、场景和视觉资产的一致性。" },
-        "splitAI": { "name": "分镜智能体", "description": "负责镜头拆分、画面调度和分镜规划。" },
-        "videoAI": { "name": "视频智能体", "description": "负责镜头视频生成和结果检查。" },
-        "editorAI": { "name": "后期智能体", "description": "负责剪辑、字幕、声音和最终预览。" }
+        "explore": {
+          "name": "代码探索智能体",
+          "description": "跨模块追踪代码结构、调用关系和架构线索。"
+        },
+        "fileFinder": {
+          "name": "文件查找智能体",
+          "description": "快速定位与任务相关的文件、符号和配置。"
+        },
+        "codeReview": {
+          "name": "代码审查智能体",
+          "description": "检查代码变更中的正确性、风险和回归问题。"
+        },
+        "generateDoc": {
+          "name": "文档生成智能体",
+          "description": "根据项目事实整理并生成结构化文档。"
+        },
+        "generalPurpose": {
+          "name": "通用任务智能体",
+          "description": "执行边界清晰的通用子任务并返回结果。"
+        },
+        "researchSpecialist": {
+          "name": "研究专家智能体",
+          "description": "围绕一个研究方向检索可靠来源并整理结构化证据。"
+        },
+        "deepReview": {
+          "name": "代码审查主理人",
+          "description": "组织多位审查智能体并汇总质检结果。"
+        },
+        "reviewBusinessLogic": {
+          "name": "业务逻辑审查员",
+          "description": "检查业务规则、状态流转和异常恢复。"
+        },
+        "reviewPerformance": {
+          "name": "性能审查员",
+          "description": "检查热点路径、阻塞工作和规模化风险。"
+        },
+        "reviewSecurity": {
+          "name": "安全审查员",
+          "description": "检查权限、信任边界、注入和敏感数据风险。"
+        },
+        "reviewArchitecture": {
+          "name": "架构审查员",
+          "description": "检查模块边界、依赖方向和接口契约。"
+        },
+        "reviewFrontend": {
+          "name": "前端审查员",
+          "description": "检查交互、可访问性、国际化和前端契约。"
+        },
+        "reviewJudge": {
+          "name": "审查质检员",
+          "description": "独立核验审查发现并过滤误报。"
+        },
+        "reviewFixer": {
+          "name": "审查修复智能体",
+          "description": "仅在用户批准后按已确认问题实施修复。"
+        },
+        "scriptAI": {
+          "name": "剧本智能体",
+          "description": "负责剧本结构、人物关系和分集内容。"
+        },
+        "assetAI": {
+          "name": "资产智能体",
+          "description": "负责角色、场景和视觉资产的一致性。"
+        },
+        "splitAI": {
+          "name": "分镜智能体",
+          "description": "负责镜头拆分、画面调度和分镜规划。"
+        },
+        "videoAI": {
+          "name": "视频智能体",
+          "description": "负责镜头视频生成和结果检查。"
+        },
+        "editorAI": {
+          "name": "后期智能体",
+          "description": "负责剪辑、字幕、声音和最终预览。"
+        }
       },
       "teams": {
-        "deepReview": { "name": "代码审查团队", "description": "多位独立审查员并行检查代码，再由质检员统一复核。" },
-        "shortDrama": { "name": "AI 短剧团队", "description": "由剧本、资产、分镜、视频和后期智能体协作完成短剧。" }
+        "deepReview": {
+          "name": "代码审查团队",
+          "description": "多位独立审查员并行检查代码，再由质检员统一复核。"
+        },
+        "shortDrama": {
+          "name": "AI 短剧团队",
+          "description": "由剧本、资产、分镜、视频和后期智能体协作完成短剧。"
+        }
       },
       "teamMembers": {
-        "deepReview": { "name": "代码审查主理人", "description": "负责建立审查任务、分派工作包并汇总质检结论。" },
-        "reviewBusinessLogic": { "name": "业务逻辑审查员", "description": "检查业务规则、状态流转、边界情况和恢复路径。" },
-        "reviewPerformance": { "name": "性能审查员", "description": "检查热点路径、阻塞工作和规模化性能风险。" },
-        "reviewSecurity": { "name": "安全审查员", "description": "检查信任边界、权限、注入和敏感数据风险。" },
-        "reviewArchitecture": { "name": "架构审查员", "description": "检查模块边界、依赖方向和接口契约。" },
-        "reviewFrontend": { "name": "前端审查员", "description": "检查可访问性、国际化、性能和前后端契约。" },
-        "reviewJudge": { "name": "审查质检员", "description": "独立验证审查结论，过滤误报并确认交付质量。" },
-        "media": { "name": "短剧主理人", "description": "保留现有媒体父会话并协调短剧五个阶段。" },
-        "scriptAI": { "name": "剧本智能体", "description": "负责剧本结构、人物关系和分集内容。" },
-        "assetAI": { "name": "资产智能体", "description": "负责角色、场景和视觉资产的一致性。" },
-        "splitAI": { "name": "分镜智能体", "description": "负责镜头拆分、画面调度和分镜规划。" },
-        "videoAI": { "name": "视频智能体", "description": "负责镜头视频生成和结果检查。" },
-        "editorAI": { "name": "后期智能体", "description": "负责剪辑、字幕、声音和最终预览。" }
+        "deepReview": {
+          "name": "代码审查主理人",
+          "description": "负责建立审查任务、分派工作包并汇总质检结论。"
+        },
+        "reviewBusinessLogic": {
+          "name": "业务逻辑审查员",
+          "description": "检查业务规则、状态流转、边界情况和恢复路径。"
+        },
+        "reviewPerformance": {
+          "name": "性能审查员",
+          "description": "检查热点路径、阻塞工作和规模化性能风险。"
+        },
+        "reviewSecurity": {
+          "name": "安全审查员",
+          "description": "检查信任边界、权限、注入和敏感数据风险。"
+        },
+        "reviewArchitecture": {
+          "name": "架构审查员",
+          "description": "检查模块边界、依赖方向和接口契约。"
+        },
+        "reviewFrontend": {
+          "name": "前端审查员",
+          "description": "检查可访问性、国际化、性能和前后端契约。"
+        },
+        "reviewJudge": {
+          "name": "审查质检员",
+          "description": "独立验证审查结论，过滤误报并确认交付质量。"
+        },
+        "media": {
+          "name": "短剧主理人",
+          "description": "保留现有媒体父会话并协调短剧五个阶段。"
+        },
+        "scriptAI": {
+          "name": "剧本智能体",
+          "description": "负责剧本结构、人物关系和分集内容。"
+        },
+        "assetAI": {
+          "name": "资产智能体",
+          "description": "负责角色、场景和视觉资产的一致性。"
+        },
+        "splitAI": {
+          "name": "分镜智能体",
+          "description": "负责镜头拆分、画面调度和分镜规划。"
+        },
+        "videoAI": {
+          "name": "视频智能体",
+          "description": "负责镜头视频生成和结果检查。"
+        },
+        "editorAI": {
+          "name": "后期智能体",
+          "description": "负责剪辑、字幕、声音和最终预览。"
+        }
       }
     }
   },
@@ -572,9 +716,9 @@
     "deleteFailed": "删除失败：",
     "form": {
       "title": "创建智能体",
-      "subtitle": "只需填写中文名称和用途；运行 ID 会自动生成。",
+      "subtitle": "填好三样东西就能创建：名字、一句话职责、工作说明。",
       "titleEdit": "编辑智能体",
-      "subtitleEdit": "可修改中文名称、适用场景、提示词和工具；运行 ID 保持不变。",
+      "subtitleEdit": "可以随时改名字、职责和工作说明；系统内部编号不变。",
       "loadingDetail": "加载中…",
       "save": "保存",
       "updateSuccess": "已保存「{{name}}」",
@@ -583,11 +727,11 @@
       "namePlaceholder": "字母开头，可含字母/数字/下划线",
       "nameRequired": "名称不能为空",
       "nameFormat": "只能以字母开头，包含字母/数字/下划线/连字符",
-      "description": "描述",
-      "descPlaceholder": "简要描述该 Agent 的用途",
+      "description": "一句话职责",
+      "descPlaceholder": "它主要帮你做什么？一句话说清楚",
       "descRequired": "描述不能为空",
-      "prompt": "系统提示词",
-      "promptPlaceholder": "输入系统提示词，定义 Agent 的行为…",
+      "prompt": "工作说明",
+      "promptPlaceholder": "告诉它该怎么干活：做什么、按什么步骤、什么算做完。",
       "promptRequired": "系统提示词不能为空",
       "readonly": "只读模式",
       "review": "审核",
@@ -600,7 +744,7 @@
       "submit": "创建",
       "createSuccess": "已创建 Agent「{{name}}」",
       "createFailed": "创建失败：",
-      "displayName": "智能体名称",
+      "displayName": "名字",
       "displayNamePlaceholder": "例如：前端开发专家",
       "runtimeId": "运行 ID",
       "runtimeIdAuto": "运行 ID 会在保存时自动生成，无需填写英文名称。",
@@ -631,17 +775,11 @@
         "cowork": "日常办公",
         "media": "设计创意"
       },
-      "configurationTitle": "智能体配置",
-      "configurationHint": "三种创建方式最终都会保存为同一份配置",
-      "previewTitle": "保存前预览",
-      "previewUnnamed": "未命名智能体",
-      "previewEmpty": "填写描述后会在这里预览。",
-      "previewNoScenario": "尚未选择场景",
       "diagnostics": {
-        "display_name_required": "请输入智能体名称",
+        "display_name_required": "请填写名字",
         "source_text_required": "请输入需求描述或粘贴资料",
-        "description_required": "请输入智能体描述",
-        "prompt_required": "请输入系统提示词",
+        "description_required": "请填写一句话职责",
+        "prompt_required": "请填写工作说明",
         "scenario_required": "请至少选择一个可使用场景"
       },
       "template": {
@@ -658,20 +796,17 @@
         "materialStep2": "2. 资料存在冲突或缺口时先说明，再给出最小可行处理建议。",
         "materialStep3": "3. 不得声称已执行未实际执行的工具、文件或外部操作。",
         "materialHeading": "导入资料："
-      }
+      },
+      "advanced": "高级设置",
+      "loadDetailFailed": "没能读取这个智能体的资料。"
     },
     "debug": {
       "title": "试炼场",
-      "empty": "完成名称和提示词后，这里就可以和草稿对话测试了",
+      "empty": "填好名字和工作说明后，就能在这里试着和它对话。",
       "creating": "正在为草稿启动试炼会话…",
       "stale": "草稿已更新，测试已重置，发送下一条消息将使用新草稿",
       "error": "无法启动试炼会话：{{message}}",
       "retry": "重试",
-      "tab": {
-        "name": "名称",
-        "prompt": "提示词",
-        "tools": "工具"
-      },
       "status": {
         "idle": "空闲",
         "creating": "启动中",
@@ -694,7 +829,6 @@
     },
     "detail": {
       "open": "打开团队",
-      "back": "返回专业智能体",
       "openSettings": "审核设置",
       "loading": "正在加载代码审核团队...",
       "title": "代码审核团队",
@@ -704,11 +838,6 @@
       "membersTitle": "团队成员",
       "membersDescription": "选择成员可查看职责、模型和策略覆盖。固定角色会始终保留在团队中。",
       "membersCount": "{{count}} 名成员",
-      "lockedCount": "{{count}} 个固定角色",
-      "extraCount": "{{count}} 个额外子智能体",
-      "localOnly": "代码审核",
-      "localOnlyDescription": "在 void 内以只读子智能体运行，并把结果回传到当前审核线程。",
-      "parallelLabel": "并行审核",
       "parallelDescription": "逻辑、性能、安全、架构和额外审核员会并行工作，再由质检员验证结果。",
       "warningLabel": "审核更重",
       "warning": "建议用于风险更高的改动；它可能比普通审核耗时更久并消耗更多 token。",
@@ -717,18 +846,11 @@
       "executionPolicyDescription": "控制审核深度、超时，以及大范围目标如何拆分给并行只读审核员。",
       "policySummaryTitle": "当前策略",
       "policySummaryIntro": "这里展示的实时策略来自审核设置，团队策略变更后会同步更新。",
-      "policySummaryEyebrow": "已配置行为",
       "policySummaryDescription": "{{strategy}}审核会为每位审核员使用 {{reviewerTimeout}} 超时，为质检员使用 {{judgeTimeout}} 超时；每类角色在 {{splitThreshold}} 后拆分，并将同角色并发限制为 {{maxSameRoleInstances}}。",
       "policySummaryAction": "打开审核设置以编辑当前策略",
-      "policyMetricsLabel": "当前策略值",
-      "policyStrategyLabel": "策略",
-      "reviewerTimeout": "审核员超时",
       "reviewerTimeoutDescription": "单个审核员的超时时间，单位为秒。设为 0 表示不设置硬性截止时间。",
-      "judgeTimeout": "质检员超时",
       "judgeTimeoutDescription": "质检复核的超时时间，单位为秒。设为 0 表示一直等待质检员完成。",
-      "fileSplitThreshold": "文件拆分阈值",
       "fileSplitThresholdDescription": "目标文件数超过该值时，每类审核员可拆分为多个实例。设为 0 表示关闭拆分。",
-      "maxSameRoleInstances": "同角色最大实例数",
       "maxSameRoleInstancesDescription": "启用文件拆分时，每个审核角色最多可并行运行的实例数。",
       "seconds": "秒",
       "secondsValue": "{{seconds}} 秒",
@@ -763,7 +885,9 @@
         "memberAdded": "已将额外审核员加入团队。",
         "memberRemoved": "已将额外审核员移出团队。",
         "saveFailed": "保存代码审核团队配置失败。"
-      }
+      },
+      "loadFailed": "没能读取代码审查团队。",
+      "retry": "重试"
     },
     "strategy": {
       "teamTitle": "审核策略",

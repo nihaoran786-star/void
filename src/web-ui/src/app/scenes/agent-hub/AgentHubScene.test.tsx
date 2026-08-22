@@ -311,8 +311,29 @@ describeWithJsdom('AgentHubScene', () => {
       'groups.connector · 1',
     ]);
 
-    expect(container.querySelector('.agent-hub-head__count')?.textContent).toBe('6');
     expect(container.querySelectorAll('.agent-hub-row')).toHaveLength(6);
+  });
+
+  it('每行最多只有一个动作按钮，其余靠点整行进入详情', async () => {
+    await render();
+
+    const counts = Array.from(container.querySelectorAll('.agent-hub-row')).map(
+      element => element.querySelectorAll('.agent-hub-row__action').length,
+    );
+    expect(Math.max(...counts)).toBe(1);
+
+    // Assistants start a chat, agents/teams get a task, skills open the editor;
+    // connectors have no distinct action, so the row itself is the only target.
+    const labelsFor = (type_: AgentHubRowType) =>
+      rowsIn(type_).flatMap(element =>
+        Array.from(element.querySelectorAll('.agent-hub-row__action')).map(
+          action => action.getAttribute('aria-label'),
+        ),
+      );
+    expect(labelsFor('assistant')).toEqual(['actions.newSession']);
+    expect(labelsFor('agent')).toEqual(['actions.dispatch', 'actions.dispatch']);
+    expect(labelsFor('skill')).toEqual(['actions.edit']);
+    expect(labelsFor('connector')).toEqual([]);
   });
 
   it('每一行都用文字显式说明状态', async () => {
@@ -399,6 +420,26 @@ describeWithJsdom('AgentHubScene', () => {
     expect(stateFor('skill')).toBeNull();
   });
 
+  it('可重试的失败分组给出行内重试文字动作，而不是弹出提示', async () => {
+    const retry = vi.fn();
+    directory = buildDirectory({
+      agent: { type: 'agent', status: 'error', rows: [], error: 'boom', retry },
+      team: { type: 'team', status: 'error', rows: [], error: 'boom' },
+    });
+    await render();
+
+    const retryButton = container.querySelector(
+      '[data-testid="agent-hub-group-agent"] .agent-hub-group__retry',
+    );
+    expect(retryButton?.textContent).toBe('states.retry');
+    await click(retryButton);
+    expect(retry).toHaveBeenCalledTimes(1);
+
+    expect(
+      container.querySelector('[data-testid="agent-hub-group-team"] .agent-hub-group__retry'),
+    ).toBeNull();
+  });
+
   it('打开智能体详情后渲染装配面板并传入正确的智能体', async () => {
     const agent = {
       id: 'alpha',
@@ -441,18 +482,8 @@ describeWithJsdom('AgentHubScene', () => {
     expect(container.querySelector('.agent-hub-group')).toBeTruthy();
   });
 
-  it('连接器行的详情与 + 菜单的添加入口同样切到连接器视图', async () => {
+  it('+ 菜单的添加入口同样切到连接器视图', async () => {
     await render();
-
-    const detailsButton = rowsIn('connector')[0].querySelector(
-      '.agent-hub-row__action[aria-label="actions.details"]',
-    );
-    await click(detailsButton);
-    expect(container.querySelector('[data-testid="mcp-tools-config"]')).toBeTruthy();
-    expect(openScene).not.toHaveBeenCalled();
-
-    await click(container.querySelector('.agent-hub-hosted-head__back'));
-    expect(container.querySelector('[data-testid="mcp-tools-config"]')).toBeNull();
 
     await click(container.querySelector('.agent-hub-head__create .agent-hub-head__tool'));
     const addConnectorItem = Array.from(

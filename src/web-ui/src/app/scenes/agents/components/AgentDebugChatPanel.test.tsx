@@ -125,23 +125,22 @@ describe('AgentDebugChatPanel', () => {
     });
   };
 
-  it('renders the header title and the fingerprint badge (first 8 chars)', () => {
+  it('renders only a title and a status word in the header', () => {
     renderPanel({
       status: 'ready',
-      draftFingerprint: 'a1b2c3d4e5f6',
       session: createSession(),
     });
 
     expect(container.querySelector('.agent-debug-chat-panel__title')?.textContent)
       .toBe('agentsOverview.debug.title');
-    expect(container.querySelector('.agent-debug-chat-panel__fingerprint')?.textContent)
-      .toBe('a1b2c3d4');
+    // The draft fingerprint was developer trivia; the header is title + status.
+    expect(container.querySelector('.agent-debug-chat-panel__fingerprint')).toBeNull();
     expect(container.querySelector('.agent-debug-chat-panel__status')?.textContent)
       .toBe('agentsOverview.debug.status.ready');
   });
 
   it('renders the empty state and no composer when idle', () => {
-    renderPanel({ status: 'idle', draftFingerprint: 'a1b2c3d4' });
+    renderPanel({ status: 'idle' });
 
     expect(container.textContent).toContain('agentsOverview.debug.empty');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).toBeNull();
@@ -150,7 +149,7 @@ describe('AgentDebugChatPanel', () => {
   });
 
   it('renders the creating state and no composer while creating', () => {
-    renderPanel({ status: 'creating', draftFingerprint: 'a1b2c3d4' });
+    renderPanel({ status: 'creating' });
 
     expect(container.textContent).toContain('agentsOverview.debug.creating');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).toBeNull();
@@ -160,7 +159,6 @@ describe('AgentDebugChatPanel', () => {
   it('renders the conversation list and composer for a ready session', () => {
     renderPanel({
       status: 'ready',
-      draftFingerprint: 'a1b2c3d4',
       session: createSession(),
     });
 
@@ -175,7 +173,6 @@ describe('AgentDebugChatPanel', () => {
   it('keeps the stale conversation visible but blocks sending while the persona is being replaced', () => {
     renderPanel({
       status: 'stale',
-      draftFingerprint: 'a1b2c3d4',
       justReplaced: false,
       session: createSession(),
     });
@@ -188,7 +185,6 @@ describe('AgentDebugChatPanel', () => {
     const onMessageSent = vi.fn();
     renderPanel({
       status: 'ready',
-      draftFingerprint: 'a1b2c3d4',
       justReplaced: true,
       session: createSession(),
       onMessageSent,
@@ -209,7 +205,6 @@ describe('AgentDebugChatPanel', () => {
     const onRetry = vi.fn();
     renderPanel({
       status: 'error',
-      draftFingerprint: 'a1b2c3d4',
       error: 'boom',
       onRetry,
     });

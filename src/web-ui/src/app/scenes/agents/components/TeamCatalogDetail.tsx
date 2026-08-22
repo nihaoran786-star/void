@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button } from '@/component-library';
 import { GalleryDetailModal } from '@/app/components';
-import { Send, ShieldCheck } from 'lucide-react';
+import { Send } from 'lucide-react';
 import {
   localizeCatalogPresentation,
   type TeamCatalogEntry,
@@ -47,6 +47,18 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
         { defaultValue: t('catalog.availability.unavailable') },
       )
     : null;
+  /**
+   * The only readiness sentence worth printing is one that explains why the
+   * primary button will not work. When the team is ready to go, the enabled
+   * button already says so.
+   */
+  const blockingNote = !team
+    ? null
+    : !dispatchAvailable
+      ? `${t('catalog.detail.dispatchUnavailable')}${unavailableReason ? ` — ${unavailableReason}` : ''}`
+      : team.activationSupport === 'definition_only'
+        ? t('catalog.detail.definitionRuntimeDeferred')
+        : null;
 
   return (
     <GalleryDetailModal
@@ -62,17 +74,13 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
       title={presentation?.displayName ?? ''}
       description={presentation?.description}
       badges={team ? (
-        <>
-          <Badge variant="accent">
-            {t(`catalog.scenarios.${team.scenarioEligibility[0]}`)}
-          </Badge>
-          <Badge variant="neutral">
-            {t('catalog.detail.memberCount', { count: team.members.length + 1 })}
-          </Badge>
-        </>
+        <Badge variant="accent">
+          {t(`catalog.scenarios.${team.scenarioEligibility[0]}`)}
+        </Badge>
       ) : null}
       actions={team ? (
         <>
+          {/* One button. Everything else is a quiet text link. */}
           <Button
             variant="primary"
             size="small"
@@ -84,91 +92,75 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
             {t('catalog.detail.dispatchTask')}
           </Button>
           {isDeepReview ? (
-            <Button variant="secondary" size="small" onClick={onOpenReviewTeam}>
-              <ShieldCheck size={14} />
+            <button type="button" className="agent-surface__action" onClick={onOpenReviewTeam}>
               {t('catalog.detail.openReviewTeam')}
-            </Button>
+            </button>
           ) : null}
           {team.managementSupport === 'authorable' ? (
             <>
-              <Button
-                variant="secondary"
-                size="small"
+              <button
+                type="button"
+                className="agent-surface__action"
                 data-testid="team-catalog-edit-definition"
                 onClick={() => onEdit(team)}
               >
                 {t('catalog.detail.editDefinition')}
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                isLoading={deleting}
+              </button>
+              <button
+                type="button"
+                className="agent-surface__action"
+                disabled={deleting}
                 onClick={() => onDelete(team)}
               >
                 {t('catalog.detail.deleteDefinition')}
-              </Button>
+              </button>
             </>
           ) : team.managementSupport === 'installed_readonly' ? (
-            <Button
-              variant="secondary"
-              size="small"
-              isLoading={deleting}
+            <button
+              type="button"
+              className="agent-surface__action"
+              disabled={deleting}
               onClick={() => onDelete(team)}
             >
               {t('catalog.detail.removeInstalled')}
-            </Button>
+            </button>
           ) : null}
         </>
       ) : null}
     >
       {team ? (
         <div className="team-catalog-detail agent-surface__stack">
-          <div className="team-catalog-detail__section agent-surface__section">
-            <div className="team-catalog-detail__runtime-state agent-surface__row-copy">
-              <strong>
-                {!dispatchAvailable
-                  ? t('catalog.detail.dispatchUnavailable')
-                  : team.activationSupport === 'definition_only'
-                  ? t('catalog.detail.definitionReady')
-                  : t('catalog.detail.runtimeReady')}
-              </strong>
-              <span>
-                {unavailableReason
-                  || (team.activationSupport === 'definition_only'
-                  ? t('catalog.detail.definitionRuntimeDeferred')
-                  : t('catalog.detail.fixedRuntimeHint'))}
-              </span>
-            </div>
-          </div>
-          {team.workflowCount !== undefined ? (
+          {/* Only say something about readiness when it changes what you can
+              do; "everything is fine" is not worth a paragraph. */}
+          {blockingNote || team.workflowCount !== undefined ? (
             <div className="team-catalog-detail__section agent-surface__section">
-              <span className="team-catalog-detail__label agent-surface__section-label">
-                {t('catalog.detail.workflows')}
-              </span>
-              <div className="team-catalog-detail__summary">
-                {t('catalog.detail.workflowCount', {
-                  count: team.workflowCount,
-                })}
-              </div>
+              {blockingNote ? (
+                <p className="team-catalog-detail__runtime-state agent-surface__state">
+                  {blockingNote}
+                </p>
+              ) : null}
+              {team.workflowCount !== undefined ? (
+                <p className="team-catalog-detail__summary agent-surface__state">
+                  {t('catalog.detail.workflowCount', { count: team.workflowCount })}
+                </p>
+              ) : null}
             </div>
           ) : null}
-          <div className="team-catalog-detail__section agent-surface__section">
-            <span className="team-catalog-detail__label agent-surface__section-label">{t('catalog.detail.lead')}</span>
-            <div className="team-catalog-detail__member team-catalog-detail__member--lead agent-surface__row agent-surface__row--static">
-              <AgentAvatar
-                identity={`team:${team.identity.id}:lead:${team.lead.identity.id}`}
-                name={lead?.displayName ?? team.lead.identity.displayName}
-              />
-              <div className="team-catalog-detail__member-copy agent-surface__row-copy">
-                <strong>{lead?.displayName}</strong>
-                <span>{lead?.description}</span>
-              </div>
-              <Badge variant="accent">{t('catalog.detail.lead')}</Badge>
-            </div>
-          </div>
+          {/* Lead and members are one list; the lead is simply the first row. */}
           <div className="team-catalog-detail__section agent-surface__section">
             <span className="team-catalog-detail__label agent-surface__section-label">{t('catalog.detail.members')}</span>
             <div className="team-catalog-detail__members">
+              <div className="team-catalog-detail__member team-catalog-detail__member--lead agent-surface__row agent-surface__row--static">
+                <AgentAvatar
+                  identity={`team:${team.identity.id}:lead:${team.lead.identity.id}`}
+                  name={lead?.displayName ?? team.lead.identity.displayName}
+                />
+                <div className="team-catalog-detail__member-copy agent-surface__row-copy">
+                  <strong>{lead?.displayName}</strong>
+                  <span>{lead?.description}</span>
+                </div>
+                <Badge variant="accent">{t('catalog.detail.lead')}</Badge>
+              </div>
               {team.members.map(member => {
                 const memberPresentation = localizeCatalogPresentation(
                   member.identity,

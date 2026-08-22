@@ -214,6 +214,30 @@
   gap: var(--workspace-space-2, var(--size-gap-2));
 }
 
+// "Restore defaults" while editing: a quiet text link at the foot of the
+// section, so the header keeps only cancel + save.
+.agent-equipment__reset-link {
+  align-self: flex-start;
+  margin-top: var(--workspace-space-2, var(--size-gap-2));
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--workspace-text-muted, var(--color-text-muted));
+  cursor: pointer;
+  font-size: var(--workspace-font-size-meta, var(--font-size-2xs));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+
+  &:hover:not(:disabled) {
+    color: var(--workspace-text-primary, var(--color-text-primary));
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
 .agent-equipment__note {
   margin: 0;
   font-size: var(--workspace-font-size-meta, var(--font-size-2xs));

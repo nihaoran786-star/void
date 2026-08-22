@@ -32,11 +32,9 @@
     "search": "Search",
     "create": "New",
     "viewAll": "View all ›",
-    "dispatch": "Dispatch task",
-    "details": "Details",
+    "dispatch": "Give it a task",
     "edit": "Edit",
-    "newSession": "New session",
-    "configure": "Configure"
+    "newSession": "Start a chat"
   },
   "create": {
     "assistant": "New assistant",
@@ -52,7 +50,8 @@
     "loading": "Loading…",
     "empty": "Nothing here yet",
     "error": "Failed to load",
-    "noMatch": "No matches"
+    "noMatch": "No matches",
+    "retry": "Try again"
   },
   "errors": {
     "newSessionFailed": "Could not start a new session",
@@ -73,7 +72,7 @@
       "title": "Team Authoring"
     },
     "reviewTeam": {
-      "title": "Review Team"
+      "title": "Code review team"
     }
   }
 }

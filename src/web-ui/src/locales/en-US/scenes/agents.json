@@ -12,15 +12,28 @@
   "goManage": "Go to Manage",
   "loading": "Loading…",
   "catalog": {
-    "tabs": { "ariaLabel": "Agent catalog", "agents": "Agents", "teams": "Teams" },
-    "page": { "title": "Agent Teams", "subtitle": "Browse professional teams, their leads, and real collaborating members." },
-    "zone": { "title": "Recommended Teams", "subtitle": "Teams keep their existing runtime behavior; this page presents them consistently and opens their existing flows." },
+    "tabs": {
+      "ariaLabel": "Agent catalog",
+      "agents": "Agents",
+      "teams": "Teams"
+    },
+    "page": {
+      "title": "Agent Teams",
+      "subtitle": "Browse professional teams, their leads, and real collaborating members."
+    },
+    "zone": {
+      "title": "Recommended Teams",
+      "subtitle": "Teams keep their existing runtime behavior; this page presents them consistently and opens their existing flows."
+    },
     "states": {
       "partial": "Some teams could not be loaded. Available teams are still shown.",
       "error": "The team catalog failed to load. Try again.",
       "empty": "No agent teams are currently available."
     },
-    "actions": { "retry": "Retry", "reload": "Reload" },
+    "actions": {
+      "retry": "Retry",
+      "reload": "Reload"
+    },
     "errors": {
       "short_drama_team_definition_missing": "The AI Short Drama Team definition is unavailable. Restart Void and try again."
     },
@@ -44,7 +57,6 @@
       }
     },
     "detail": {
-      "memberCount": "{{count}} members",
       "dispatchTask": "Dispatch task",
       "dispatchUnavailable": "Dispatch unavailable",
       "openReviewTeam": "Open Code Review Team",
@@ -55,11 +67,7 @@
       "lead": "Lead",
       "members": "Team Members",
       "qualityGate": "Quality Gate",
-      "definitionReady": "Team definition ready",
       "definitionRuntimeDeferred": "You can keep managing this team, but its current member permissions or capability limits do not allow session activation.",
-      "runtimeReady": "Existing team runtime available",
-      "fixedRuntimeHint": "Use it from its scenario entry or the chat composer. Runtime permissions stay within the active session boundary.",
-      "workflows": "Workflows",
       "workflowCount": "{{count}} workflows"
     },
     "management": {
@@ -76,7 +84,11 @@
       "deleteConfirm": "Delete “{{name}}” from this device?",
       "deleteSuccess": "Deleted “{{name}}”"
     },
-    "scenarios": { "code": "Code", "cowork": "Cowork", "media": "Media" },
+    "scenarios": {
+      "code": "Code",
+      "cowork": "Cowork",
+      "media": "Media"
+    },
     "tags": {
       "code_review": "Code Review",
       "parallel_review": "Parallel Review",
@@ -88,56 +100,188 @@
     },
     "presentations": {
       "modes": {
-        "agentic": { "name": "Code Execution", "description": "Analyze code, edit files, and complete verification directly." },
-        "plan": { "name": "Planning", "description": "Clarify goals, boundaries, and implementation steps before development." },
-        "debug": { "name": "Debugging", "description": "Locate the cause of failures and validate a repair path." },
-        "multitask": { "name": "Parallel Tasks", "description": "Run independent work in parallel, then consolidate the results." },
-        "team": { "name": "Development Teamwork", "description": "Coordinate code work through the existing development team mode." },
-        "cowork": { "name": "Office Work", "description": "Handle documents, research, analysis, and everyday office tasks." },
-        "deepResearch": { "name": "Deep Research", "description": "Collect evidence and reach conclusions for complex questions." },
-        "claw": { "name": "Autonomous Assistant", "description": "Keep advancing a clear objective in the office scenario." },
-        "media": { "name": "Design & Creative", "description": "Work on images, video, and AI media creation." },
-        "computerUse": { "name": "Computer Use", "description": "Operate local apps and the system through desktop interaction." }
+        "agentic": {
+          "name": "Code Execution",
+          "description": "Analyze code, edit files, and complete verification directly."
+        },
+        "plan": {
+          "name": "Planning",
+          "description": "Clarify goals, boundaries, and implementation steps before development."
+        },
+        "debug": {
+          "name": "Debugging",
+          "description": "Locate the cause of failures and validate a repair path."
+        },
+        "multitask": {
+          "name": "Parallel Tasks",
+          "description": "Run independent work in parallel, then consolidate the results."
+        },
+        "team": {
+          "name": "Development Teamwork",
+          "description": "Coordinate code work through the existing development team mode."
+        },
+        "cowork": {
+          "name": "Office Work",
+          "description": "Handle documents, research, analysis, and everyday office tasks."
+        },
+        "deepResearch": {
+          "name": "Deep Research",
+          "description": "Collect evidence and reach conclusions for complex questions."
+        },
+        "claw": {
+          "name": "Autonomous Assistant",
+          "description": "Keep advancing a clear objective in the office scenario."
+        },
+        "media": {
+          "name": "Design & Creative",
+          "description": "Work on images, video, and AI media creation."
+        },
+        "computerUse": {
+          "name": "Computer Use",
+          "description": "Operate local apps and the system through desktop interaction."
+        }
       },
       "subagents": {
-        "explore": { "name": "Code Explorer", "description": "Trace code structure, call relationships, and architectural clues across modules." },
-        "fileFinder": { "name": "File Finder", "description": "Quickly locate files, symbols, and configuration relevant to a task." },
-        "codeReview": { "name": "Code Reviewer", "description": "Check code changes for correctness, risk, and regressions." },
-        "generateDoc": { "name": "Documentation Agent", "description": "Create structured documentation from project facts." },
-        "generalPurpose": { "name": "General-purpose Agent", "description": "Complete bounded general tasks and return the result." },
-        "researchSpecialist": { "name": "Research Specialist", "description": "Research one focused question and return structured evidence from reliable sources." },
-        "deepReview": { "name": "Code Review Lead", "description": "Coordinate multiple reviewers and consolidate quality findings." },
-        "reviewBusinessLogic": { "name": "Business Logic Reviewer", "description": "Check business rules, state transitions, and recovery paths." },
-        "reviewPerformance": { "name": "Performance Reviewer", "description": "Check hot paths, blocking work, and scaling risks." },
-        "reviewSecurity": { "name": "Security Reviewer", "description": "Check permissions, trust boundaries, injection, and sensitive data risks." },
-        "reviewArchitecture": { "name": "Architecture Reviewer", "description": "Check module boundaries, dependency direction, and interface contracts." },
-        "reviewFrontend": { "name": "Frontend Reviewer", "description": "Check interaction, accessibility, internationalization, and frontend contracts." },
-        "reviewJudge": { "name": "Review Quality Gate", "description": "Independently validate review findings and remove false positives." },
-        "reviewFixer": { "name": "Review Fixer", "description": "Implement approved fixes only after user confirmation." },
-        "scriptAI": { "name": "Script Agent", "description": "Own story structure, character relationships, and episode content." },
-        "assetAI": { "name": "Asset Agent", "description": "Own consistency across characters, scenes, and visual assets." },
-        "splitAI": { "name": "Storyboard Agent", "description": "Own shot breakdowns, visual staging, and storyboard planning." },
-        "videoAI": { "name": "Video Agent", "description": "Own shot generation and result checks." },
-        "editorAI": { "name": "Post-production Agent", "description": "Own editing, subtitles, sound, and final preview." }
+        "explore": {
+          "name": "Code Explorer",
+          "description": "Trace code structure, call relationships, and architectural clues across modules."
+        },
+        "fileFinder": {
+          "name": "File Finder",
+          "description": "Quickly locate files, symbols, and configuration relevant to a task."
+        },
+        "codeReview": {
+          "name": "Code Reviewer",
+          "description": "Check code changes for correctness, risk, and regressions."
+        },
+        "generateDoc": {
+          "name": "Documentation Agent",
+          "description": "Create structured documentation from project facts."
+        },
+        "generalPurpose": {
+          "name": "General-purpose Agent",
+          "description": "Complete bounded general tasks and return the result."
+        },
+        "researchSpecialist": {
+          "name": "Research Specialist",
+          "description": "Research one focused question and return structured evidence from reliable sources."
+        },
+        "deepReview": {
+          "name": "Code Review Lead",
+          "description": "Coordinate multiple reviewers and consolidate quality findings."
+        },
+        "reviewBusinessLogic": {
+          "name": "Business Logic Reviewer",
+          "description": "Check business rules, state transitions, and recovery paths."
+        },
+        "reviewPerformance": {
+          "name": "Performance Reviewer",
+          "description": "Check hot paths, blocking work, and scaling risks."
+        },
+        "reviewSecurity": {
+          "name": "Security Reviewer",
+          "description": "Check permissions, trust boundaries, injection, and sensitive data risks."
+        },
+        "reviewArchitecture": {
+          "name": "Architecture Reviewer",
+          "description": "Check module boundaries, dependency direction, and interface contracts."
+        },
+        "reviewFrontend": {
+          "name": "Frontend Reviewer",
+          "description": "Check interaction, accessibility, internationalization, and frontend contracts."
+        },
+        "reviewJudge": {
+          "name": "Review Quality Gate",
+          "description": "Independently validate review findings and remove false positives."
+        },
+        "reviewFixer": {
+          "name": "Review Fixer",
+          "description": "Implement approved fixes only after user confirmation."
+        },
+        "scriptAI": {
+          "name": "Script Agent",
+          "description": "Own story structure, character relationships, and episode content."
+        },
+        "assetAI": {
+          "name": "Asset Agent",
+          "description": "Own consistency across characters, scenes, and visual assets."
+        },
+        "splitAI": {
+          "name": "Storyboard Agent",
+          "description": "Own shot breakdowns, visual staging, and storyboard planning."
+        },
+        "videoAI": {
+          "name": "Video Agent",
+          "description": "Own shot generation and result checks."
+        },
+        "editorAI": {
+          "name": "Post-production Agent",
+          "description": "Own editing, subtitles, sound, and final preview."
+        }
       },
       "teams": {
-        "deepReview": { "name": "Code Review Team", "description": "Independent reviewers inspect code in parallel before a quality gate validates the result." },
-        "shortDrama": { "name": "AI Short Drama Team", "description": "Script, asset, storyboard, video, and post-production agents collaborate on a short drama." }
+        "deepReview": {
+          "name": "Code Review Team",
+          "description": "Independent reviewers inspect code in parallel before a quality gate validates the result."
+        },
+        "shortDrama": {
+          "name": "AI Short Drama Team",
+          "description": "Script, asset, storyboard, video, and post-production agents collaborate on a short drama."
+        }
       },
       "teamMembers": {
-        "deepReview": { "name": "Code Review Lead", "description": "Create review tasks, assign work packages, and consolidate validated findings." },
-        "reviewBusinessLogic": { "name": "Business Logic Reviewer", "description": "Check business rules, state transitions, edge cases, and recovery paths." },
-        "reviewPerformance": { "name": "Performance Reviewer", "description": "Check hot paths, blocking work, and scaling risks." },
-        "reviewSecurity": { "name": "Security Reviewer", "description": "Check trust boundaries, permissions, injection, and sensitive data risks." },
-        "reviewArchitecture": { "name": "Architecture Reviewer", "description": "Check module boundaries, dependency direction, and interface contracts." },
-        "reviewFrontend": { "name": "Frontend Reviewer", "description": "Check accessibility, internationalization, performance, and frontend contracts." },
-        "reviewJudge": { "name": "Review Quality Gate", "description": "Validate findings independently, remove false positives, and confirm delivery quality." },
-        "media": { "name": "Short Drama Lead", "description": "Keep the existing Media parent session and coordinate the five short-drama stages." },
-        "scriptAI": { "name": "Script Agent", "description": "Own story structure, character relationships, and episode content." },
-        "assetAI": { "name": "Asset Agent", "description": "Own consistency across characters, scenes, and visual assets." },
-        "splitAI": { "name": "Storyboard Agent", "description": "Own shot breakdowns, visual staging, and storyboard planning." },
-        "videoAI": { "name": "Video Agent", "description": "Own shot generation and result checks." },
-        "editorAI": { "name": "Post-production Agent", "description": "Own editing, subtitles, sound, and final preview." }
+        "deepReview": {
+          "name": "Code Review Lead",
+          "description": "Create review tasks, assign work packages, and consolidate validated findings."
+        },
+        "reviewBusinessLogic": {
+          "name": "Business Logic Reviewer",
+          "description": "Check business rules, state transitions, edge cases, and recovery paths."
+        },
+        "reviewPerformance": {
+          "name": "Performance Reviewer",
+          "description": "Check hot paths, blocking work, and scaling risks."
+        },
+        "reviewSecurity": {
+          "name": "Security Reviewer",
+          "description": "Check trust boundaries, permissions, injection, and sensitive data risks."
+        },
+        "reviewArchitecture": {
+          "name": "Architecture Reviewer",
+          "description": "Check module boundaries, dependency direction, and interface contracts."
+        },
+        "reviewFrontend": {
+          "name": "Frontend Reviewer",
+          "description": "Check accessibility, internationalization, performance, and frontend contracts."
+        },
+        "reviewJudge": {
+          "name": "Review Quality Gate",
+          "description": "Validate findings independently, remove false positives, and confirm delivery quality."
+        },
+        "media": {
+          "name": "Short Drama Lead",
+          "description": "Keep the existing Media parent session and coordinate the five short-drama stages."
+        },
+        "scriptAI": {
+          "name": "Script Agent",
+          "description": "Own story structure, character relationships, and episode content."
+        },
+        "assetAI": {
+          "name": "Asset Agent",
+          "description": "Own consistency across characters, scenes, and visual assets."
+        },
+        "splitAI": {
+          "name": "Storyboard Agent",
+          "description": "Own shot breakdowns, visual staging, and storyboard planning."
+        },
+        "videoAI": {
+          "name": "Video Agent",
+          "description": "Own shot generation and result checks."
+        },
+        "editorAI": {
+          "name": "Post-production Agent",
+          "description": "Own editing, subtitles, sound, and final preview."
+        }
       }
     }
   },
@@ -572,9 +716,9 @@
     "deleteFailed": "Delete failed: ",
     "form": {
       "title": "Create Agent",
-      "subtitle": "Enter a friendly name and purpose. The runtime ID is generated automatically.",
+      "subtitle": "Three things and you are done: a name, a one-line job, and how it should work.",
       "titleEdit": "Edit Agent",
-      "subtitleEdit": "Change the friendly name, scenarios, prompt, and tools. The runtime ID stays unchanged.",
+      "subtitleEdit": "Change the name, the job, and how it works at any time. The internal ID stays the same.",
       "loadingDetail": "Loading…",
       "save": "Save",
       "updateSuccess": "Saved \"{{name}}\"",
@@ -583,11 +727,11 @@
       "namePlaceholder": "Start with a letter; letters, numbers, and underscores allowed",
       "nameRequired": "Name is required",
       "nameFormat": "Must start with a letter and contain only letters, numbers, underscores, or hyphens",
-      "description": "Description",
-      "descPlaceholder": "Briefly describe what this agent does",
+      "description": "Its job, in one line",
+      "descPlaceholder": "What does it mainly do for you?",
       "descRequired": "Description is required",
-      "prompt": "System Prompt",
-      "promptPlaceholder": "Enter the system prompt that defines this agent's behavior…",
+      "prompt": "How it should work",
+      "promptPlaceholder": "Tell it what to do, in what order, and what counts as finished.",
       "promptRequired": "System prompt is required",
       "readonly": "Readonly mode",
       "review": "Review",
@@ -600,7 +744,7 @@
       "submit": "Create",
       "createSuccess": "Created agent \"{{name}}\"",
       "createFailed": "Create failed: ",
-      "displayName": "Agent name",
+      "displayName": "Name",
       "displayNamePlaceholder": "For example: Frontend development expert",
       "runtimeId": "Runtime ID",
       "runtimeIdAuto": "A runtime ID is generated when you save. No English identifier is required.",
@@ -631,17 +775,11 @@
         "cowork": "Cowork",
         "media": "Design & Creative"
       },
-      "configurationTitle": "Agent configuration",
-      "configurationHint": "All three methods save the same configuration",
-      "previewTitle": "Preview before saving",
-      "previewUnnamed": "Unnamed agent",
-      "previewEmpty": "The description preview appears here.",
-      "previewNoScenario": "No scenario selected",
       "diagnostics": {
-        "display_name_required": "Enter an agent name",
+        "display_name_required": "Please add a name",
         "source_text_required": "Describe the need or paste material",
-        "description_required": "Enter an agent description",
-        "prompt_required": "Enter a system prompt",
+        "description_required": "Please add a one-line job",
+        "prompt_required": "Please say how it should work",
         "scenario_required": "Choose at least one available scenario"
       },
       "template": {
@@ -658,20 +796,17 @@
         "materialStep2": "2. Identify conflicts or gaps before giving the smallest viable recommendation.",
         "materialStep3": "3. Never claim that an unperformed tool, file, or external operation was completed.",
         "materialHeading": "Imported material:"
-      }
+      },
+      "advanced": "Advanced settings",
+      "loadDetailFailed": "Could not load this agent's details."
     },
     "debug": {
       "title": "Testing Ground",
-      "empty": "Fill in the name and prompt, then chat with your draft here.",
+      "empty": "Fill in the name and how it works, then you can try talking to it here.",
       "creating": "Starting a test session for the draft…",
       "stale": "Draft updated — the test was reset. The next message will use the new draft.",
       "error": "Could not start the test session: {{message}}",
       "retry": "Retry",
-      "tab": {
-        "name": "Name",
-        "prompt": "Prompt",
-        "tools": "Tools"
-      },
       "status": {
         "idle": "Idle",
         "creating": "Starting",
@@ -694,7 +829,6 @@
     },
     "detail": {
       "open": "Open team",
-      "back": "Back to Agents",
       "openSettings": "Review settings",
       "loading": "Loading code review team...",
       "title": "Code Review Team",
@@ -704,11 +838,6 @@
       "membersTitle": "Team Members",
       "membersDescription": "Select a member to review its role, responsibilities, model, and strategy override. Locked roles always stay in the team.",
       "membersCount": "{{count}} members",
-      "lockedCount": "{{count}} locked roles",
-      "extraCount": "{{count}} extra Sub-Agents",
-      "localOnly": "Code review",
-      "localOnlyDescription": "Runs inside void as read-only Sub-Agents and reports back into this review thread.",
-      "parallelLabel": "Parallel reviewers",
       "parallelDescription": "Logic, performance, security, architecture, and extra reviewers work side by side before the judge validates findings.",
       "warningLabel": "Heavier review",
       "warning": "Use for higher-risk changes; it can take longer and use more tokens than a standard review.",
@@ -717,18 +846,11 @@
       "executionPolicyDescription": "Control review depth, timeouts, and how broad scopes split across parallel read-only reviewers.",
       "policySummaryTitle": "Current Policy",
       "policySummaryIntro": "This live snapshot comes from Review settings and updates when the team policy changes.",
-      "policySummaryEyebrow": "Configured behavior",
       "policySummaryDescription": "{{strategy}} review uses {{reviewerTimeout}} per reviewer, gives the judge {{judgeTimeout}}, splits each role after {{splitThreshold}}, and caps same-role parallelism at {{maxSameRoleInstances}}.",
       "policySummaryAction": "Open Review settings to edit the current policy",
-      "policyMetricsLabel": "Current policy values",
-      "policyStrategyLabel": "Strategy",
-      "reviewerTimeout": "Reviewer timeout",
       "reviewerTimeoutDescription": "Per-reviewer timeout in seconds. Set 0 to let reviewers run without a hard deadline.",
-      "judgeTimeout": "Judge timeout",
       "judgeTimeoutDescription": "Quality-gate timeout in seconds. Set 0 to wait as long as needed for the judge.",
-      "fileSplitThreshold": "File split threshold",
       "fileSplitThresholdDescription": "When target files exceed this value, each reviewer role can split into multiple instances. Set 0 to disable splitting.",
-      "maxSameRoleInstances": "Max same-role instances",
       "maxSameRoleInstancesDescription": "Maximum parallel instances per reviewer role when file splitting is active.",
       "seconds": "s",
       "secondsValue": "{{seconds}}s",
@@ -763,7 +885,9 @@
         "memberAdded": "Added the extra reviewer to the team.",
         "memberRemoved": "Removed the extra reviewer from the team.",
         "saveFailed": "Failed to save the code review team configuration."
-      }
+      },
+      "loadFailed": "Could not load the code review team.",
+      "retry": "Try again"
     },
     "strategy": {
       "teamTitle": "Review strategy",

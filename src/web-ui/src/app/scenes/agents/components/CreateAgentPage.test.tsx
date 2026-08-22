@@ -260,9 +260,30 @@ describeWithJsdom('CreateAgentPage', () => {
     });
   }
 
-  it('creates from the manual route without asking for an English runtime ID', async () => {
+  it('shows only the three beginner fields until "advanced" is opened', async () => {
     await renderPage();
-    await clickButton('agent-route-manual');
+
+    const panel = container.querySelector<HTMLElement>('[data-testid="agent-advanced-panel"]');
+    const toggle = container.querySelector<HTMLElement>('[data-testid="agent-advanced-toggle"]');
+
+    // Name, one-line job and how-it-works are always on the page…
+    expect(container.querySelector('#agent-display-name')).toBeTruthy();
+    expect(container.querySelector('#agent-description')).toBeTruthy();
+    expect(container.querySelector('#agent-prompt')).toBeTruthy();
+
+    // …everything with a safe default starts folded behind one disclosure.
+    expect(panel?.hasAttribute('hidden')).toBe(true);
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(panel?.querySelector('[data-testid="agent-route-describe"]')).toBeTruthy();
+
+    await clickButton('agent-advanced-toggle');
+
+    expect(panel?.hasAttribute('hidden')).toBe(false);
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('creates from the plain form without asking for an English runtime ID', async () => {
+    await renderPage();
 
     expect(container.querySelector('#agent-display-name')).toBeTruthy();
     expect(container.textContent).toContain('agentsOverview.form.runtimeIdAuto');
@@ -274,8 +295,6 @@ describeWithJsdom('CreateAgentPage', () => {
       setInputValue(container.querySelector('#agent-prompt')!, '你负责实现和验证前端功能。');
       await Promise.resolve();
     });
-    expect(container.querySelector('[data-testid="agent-draft-preview"]')?.textContent)
-      .toContain('前端开发专家');
     await clickButton('agentsOverview.form.submit');
 
     expect(subagentApi.createSubagent).toHaveBeenCalledWith({
@@ -348,7 +367,6 @@ describeWithJsdom('CreateAgentPage', () => {
   it('does not refresh or leave the editor when persistence fails', async () => {
     subagentApi.createSubagent.mockRejectedValueOnce(new Error('write failed'));
     await renderPage();
-    await clickButton('agent-route-manual');
 
     await act(async () => {
       setInputValue(container.querySelector('#agent-display-name')!, '失败测试专家');
@@ -388,7 +406,6 @@ describeWithJsdom('CreateAgentPage', () => {
       title: 'Debug',
     } as unknown as Record<string, unknown>);
     await renderPage();
-    await clickButton('agent-route-manual');
 
     await act(async () => {
       setInputValue(container.querySelector('#agent-display-name')!, '前端开发专家');
@@ -408,7 +425,6 @@ describeWithJsdom('CreateAgentPage', () => {
 
   it('disposes the debug session when navigating back', async () => {
     await renderPage();
-    await clickButton('agent-route-manual');
 
     await act(async () => {
       setInputValue(container.querySelector('#agent-display-name')!, '前端开发专家');

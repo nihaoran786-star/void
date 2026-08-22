@@ -7,7 +7,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Bot, Loader2, RefreshCw } from 'lucide-react';
 import { FlowChatContext } from '@/flow_chat/components/modern/FlowChatContext';
 import { FlowChatPresentationActivityProvider } from '@/flow_chat/components/modern/FlowChatPresentationActivity';
 import { VirtualItemRenderer } from '@/flow_chat/components/modern/VirtualItemRenderer';
@@ -26,7 +25,6 @@ import './AgentDebugChatPanel.scss';
 export interface AgentDebugChatPanelProps {
   session?: Session | null;
   status: 'idle' | 'creating' | 'ready' | 'stale' | 'error';
-  draftFingerprint: string;
   justReplaced?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -69,7 +67,6 @@ const isActiveTurnStatus = (status?: DialogTurn['status']): boolean =>
 export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
   session,
   status,
-  draftFingerprint,
   justReplaced = false,
   error,
   onRetry,
@@ -226,15 +223,11 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
   const activeSession = status === 'ready' || status === 'stale' ? session : null;
   const showConversation = activeSession != null;
   const canSend = status === 'ready' && activeSession != null;
-  const fingerprint = draftFingerprint.slice(0, 8);
 
   return (
     <div className="agent-debug-chat-panel">
       <div className="agent-debug-chat-panel__header">
         <span className="agent-debug-chat-panel__title">{t('agentsOverview.debug.title')}</span>
-        {fingerprint && (
-          <code className="agent-debug-chat-panel__fingerprint">{fingerprint}</code>
-        )}
         <span className="agent-debug-chat-panel__status" data-tone={STATUS_TONE[status]}>
           {t(STATUS_TEXT_KEY[status])}
         </span>
@@ -245,46 +238,46 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
           className="agent-debug-chat-panel__stale-banner"
           data-testid="agent-debug-chat-stale-banner"
         >
-          <RefreshCw size={13} />
           <span>{t('agentsOverview.debug.stale')}</span>
         </div>
       )}
 
+      {/* Idle / starting / failed are each one quiet sentence, nothing more. */}
       {status === 'idle' && (
         <div className="agent-debug-chat-panel__body agent-debug-chat-panel__body--centered">
-          <div className="agent-debug-chat-panel__state">
-            <Bot size={28} strokeWidth={1.5} />
-            <span>{t('agentsOverview.debug.empty')}</span>
-          </div>
+          <p className="agent-debug-chat-panel__state">
+            {t('agentsOverview.debug.empty')}
+          </p>
         </div>
       )}
 
       {status === 'creating' && (
         <div className="agent-debug-chat-panel__body agent-debug-chat-panel__body--centered">
-          <div className="agent-debug-chat-panel__state">
-            <Loader2 className="agent-debug-chat-panel__spinner" size={22} />
-            <span>{t('agentsOverview.debug.creating')}</span>
-          </div>
+          <p className="agent-debug-chat-panel__state" role="status">
+            {t('agentsOverview.debug.creating')}
+          </p>
         </div>
       )}
 
       {status === 'error' && (
         <div className="agent-debug-chat-panel__body agent-debug-chat-panel__body--centered">
-          <div className="agent-debug-chat-panel__state agent-debug-chat-panel__state--error">
-            <AlertTriangle size={22} strokeWidth={1.5} />
+          <p className="agent-debug-chat-panel__state agent-debug-chat-panel__state--error" role="alert">
             <span className="agent-debug-chat-panel__error-message">
               {t('agentsOverview.debug.error', { message: error ?? '' })}
             </span>
             {onRetry && (
-              <button
-                type="button"
-                className="agent-debug-chat-panel__retry-button"
-                onClick={onRetry}
-              >
-                {t('agentsOverview.debug.retry')}
-              </button>
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="agent-debug-chat-panel__retry-button"
+                  onClick={onRetry}
+                >
+                  {t('agentsOverview.debug.retry')}
+                </button>
+              </>
             )}
-          </div>
+          </p>
         </div>
       )}
 

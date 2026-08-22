@@ -29,12 +29,6 @@
   @include surface.page-title;
 }
 
-.agent-hub-head__count {
-  color: var(--workspace-text-muted, var(--color-text-tertiary));
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
 .agent-hub-head__tools {
   display: flex;
   flex: 1 1 auto;
@@ -142,6 +136,15 @@
 
 .agent-hub-group__state {
   @include surface.state-text;
+}
+
+// Inline retry inside a failed section's one-line message — a text action, so
+// nothing about a failure ever needs a toast.
+.agent-hub-group__retry {
+  @include surface.quiet-button;
+
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .agent-hub-row {
