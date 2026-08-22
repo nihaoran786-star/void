@@ -175,7 +175,13 @@ export function useVisibleTaskInfo(options: UseVisibleTaskInfoOptions): UseVisib
     const elementRect = element.getBoundingClientRect();
     const offset = elementRect.top - scrollerRect.top - VIEWPORT_TOP_OFFSET_PX + scroller.scrollTop;
 
-    scroller.scrollTo({ top: offset, behavior: 'smooth' });
+    // `Element.prototype.scrollTo` is absent under jsdom; fall back so this path
+    // stays testable and never throws in a non-browser host.
+    if (typeof scroller.scrollTo === 'function') {
+      scroller.scrollTo({ top: offset, behavior: 'smooth' });
+    } else {
+      scroller.scrollTop = offset;
+    }
   }, [visibleTaskInfo, scrollerRef]);
 
   return {

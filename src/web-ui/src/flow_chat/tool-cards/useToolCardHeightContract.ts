@@ -3,6 +3,26 @@ import { deferAutoCollapse, isReaderControlled } from '../components/modern/read
 
 export type ToolCardCollapseReason = 'manual' | 'auto';
 
+/**
+ * "Something in the transcript just changed height."
+ *
+ * The standalone half of the height contract, for content that is not a tool
+ * card and has no expand/collapse state to route through `applyExpandedState`:
+ * an image that finishes decoding, an async-rendered diagram, a syntax
+ * highlighter that swaps plain text for tokens. All of them change their box
+ * after mount, and `VirtualMessageList` otherwise has to discover it as an
+ * unsignalled delta — the path that produces blank tail space and jitter.
+ *
+ * Use this for *growth* and for changes whose direction is not known in
+ * advance. A shrink that is known before it happens should still announce
+ * itself with `flowchat:tool-card-collapse-intent` so the list can
+ * pre-compensate.
+ */
+export function notifyToolCardHeightChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('tool-card-toggle'));
+}
+
 interface UseToolCardHeightContractOptions {
   toolId: string | null | undefined;
   toolName: string;
@@ -23,7 +43,7 @@ export function useToolCardHeightContract({
   const cardRootRef = useRef<HTMLDivElement>(null);
 
   const dispatchToolCardToggle = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('tool-card-toggle'));
+    notifyToolCardHeightChanged();
   }, []);
 
   const dispatchCollapseIntent = useCallback((

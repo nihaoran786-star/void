@@ -360,6 +360,72 @@ Rules now:
 - Height estimates must match what the component actually renders. An item that
   renders nothing must be estimated as nothing.
 
+## G. Mutator Inventory (2026-08-22)
+
+Sections E and F each closed one instance of the same defect class: *content
+whose rendered height changes after mount fights the reservation machinery*.
+This section is the systematic sweep of the rest of the render tree, so the
+next instance is a lookup rather than a bug report.
+
+Classification used below:
+
+- **(a) signalled** — emits `flowchat:tool-card-collapse-intent` before a
+  shrink and/or `tool-card-toggle` after a change, normally via
+  `useToolCardHeightContract`
+- **(b) dead band** — the change is smaller than
+  `UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX`, so ignoring it is correct
+- **(c) fixed by CSS** — the outer box does not move
+- **(d) unguarded** — was a live gap; all of these are now closed
+
+| Surface | What moves | Was | Now |
+| --- | --- | --- | --- |
+| `FileOperationToolCard`, `TerminalToolCard`, `TodoWriteDisplay`, `GetFileDiffDisplay`, `GrepSearchDisplay`, `GlobSearchDisplay`, `LSDisplay`, `GitToolDisplay`, `MCPToolDisplay`, `TaskToolDisplay`, `WebSearchCard`, `CreatePlanDisplay`, `CodeReviewToolCard`, `AskUserQuestionCard`, `SessionControlToolCard`, `SessionMessageToolCard`, `MiniAppToolDisplay`, `DefaultToolCard` | expand / collapse, auto-collapse on completion | (a) | (a) |
+| `ModelThinkingDisplay` | collapse on settle; renders `null` while reasoning streams | (a) + estimate defers to 0 (§F) | unchanged |
+| `ExploreGroupRenderer` | region collapse | (a) | unchanged |
+| `SmoothHeightCollapse` (`BaseToolCard` bodies) | animated `grid-template-rows` | (a) via transition tracking | unchanged |
+| `ProcessingIndicator` / pinned activity bar | shimmer, elapsed timer | (c) fixed outer box, `ch`-reserved digits (§F) | unchanged |
+| Streaming code blocks (`CodeBlockFallback` → Prism) | fallback/highlighter swap | (c) fallback deliberately matches Prism's gutter + line layout | unchanged |
+| `ModelRoundItem` progressive render | renders more groups in 80-item chunks | growth only, drained by the consume branch | unchanged |
+| Markdown tables | tall pipe-text → compact `<table>` | (a) since §E bounded the reservation | unchanged |
+| `MediaGenerationToolCard` | media grid collapse; "show more" paging | **(d)** raw `setIsExpanded` toggle | (a) via `applyExpandedState` + toggle on paging |
+| `ReviewSessionSummaryCard` | body collapse; async snapshot file list | **(d)** raw `setIsExpanded`, silent async growth | (a) via `applyExpandedState` + toggle on arrival |
+| `GenerativeWidgetToolCard` | failure-panel toggle; self-sizing widget iframe | **(d)** raw toggle, `void-widget:resize` silent | (a) via `applyExpandedState` + `onHeightChange` bridge |
+| `ViewImageToolCard` | preview box `112px` → up to `520px` on decode | **(d)** | (a) `notifyToolCardHeightChanged()` on load/error |
+| `MermaidBlock` | streaming source text → spinner → SVG; source toggle | **(d)** — the largest unguarded shrink in the tree | (a) `transitionState()` announces before dropping source text |
+| Markdown images | no intrinsic size until the bitmap decodes | **(d)** | (a) `notifyMarkdownHeightChanged()` on load/error |
+
+Two rules generalise out of this sweep:
+
+- **The contract is not tool-card-specific.** `VirtualMessageList` does not care
+  who dispatched `flowchat:tool-card-collapse-intent` / `tool-card-toggle`, and
+  markdown content in `component-library` announces itself with plain `window`
+  events rather than importing `flow_chat` (which would invert the dependency).
+  `notifyToolCardHeightChanged()` in `useToolCardHeightContract.ts` is the
+  shared entry point for content that has no expand/collapse state of its own.
+- **Announce a shrink *before* it lands, a growth *after*.** A collapse intent
+  dispatched after `setState` is worthless: the browser has already clamped
+  `scrollTop`. A growth notification is only a request to re-measure, so it is
+  safe (and necessary) after the fact. An intent with a zero measured height is
+  dropped — it reserves nothing and protects nothing.
+
+### New invariants
+
+- Every programmatic scroll uses `scrollScrollerTo()`. `Element.prototype.scrollTo`
+  is universal in browsers but absent in jsdom, and three of the four call sites
+  used to call it unguarded — which is why
+  `perf/flowChatStreamingProfile.test.tsx` threw on mount for as long as it did.
+- The "jump to latest" affordance is gated on `!isFollowingOutput`, not on
+  Virtuoso's raw `atBottom` alone. Virtuoso measures against the *raw* bottom of
+  the scroller, and the scroller's footer holds the synthetic tail reservation:
+  while follow-output is active with a live reservation the viewport is exactly
+  where the reader asked to be, yet the raw distance is the whole reservation.
+  Gating on raw `atBottom` alone made the bar appear mid-stream and blink on
+  every reservation grow/drain tick.
+- A component that renders nothing must be estimated as nothing, and a
+  component that re-renders with unchanged props must announce nothing.
+  Announcing on every render turns the compensation machinery into the jitter
+  (the §F failure mode).
+
 ## Why `overflow-anchor: none` Must Stay
 
 `VirtualMessageList.scss` disables native browser scroll anchoring on:
@@ -391,11 +457,15 @@ shift, each one's correction firing scroll events the other reacts to, is the
 - include `cardHeight` when possible
 - purpose: pre-compensate before the browser clamps scroll position
 
-Current producer:
+Current producers:
 
-- `useToolCardHeightContract.ts`
+- `useToolCardHeightContract.ts` (and `notifyToolCardHeightChanged()` for
+  content with no expand/collapse state of its own)
 - `ModelThinkingDisplay.tsx`
 - `ExploreGroupRenderer.tsx`
+- `GenerativeWidgetToolCard.tsx` (self-sizing widget iframe)
+- `component-library/components/Markdown/MermaidBlock.tsx`
+- `component-library/components/Markdown/Markdown.tsx` (images)
 
 Most tool cards now emit these events through `useToolCardHeightContract`.
 Components that need more accurate collapse estimation can pass a custom
@@ -423,6 +493,12 @@ If a future collapsible component shows the same "header drops" or "flash on col
 - Unsignalled tail changes below the dead band must be ignored, not compensated.
 - A live indicator inside the scroller must have a fixed outer height while
   visible, and its height estimate must match what it renders.
+- Any content that changes its own height after mount must be in the section G
+  inventory under (a), (b) or (c). A new one defaults to (d) and is a bug.
+- Programmatic scrolls go through `scrollScrollerTo()`, never a raw
+  `Element.scrollTo`.
+- "Jump to latest" visibility is derived from follow-output state, never from
+  raw distance to the physical bottom.
 
 ## Common Ways To Break This
 

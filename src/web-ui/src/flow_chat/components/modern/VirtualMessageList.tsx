@@ -182,6 +182,29 @@ function sanitizeReservationPx(value: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
+/**
+ * Scroll a scroller to an absolute offset.
+ *
+ * `Element.prototype.scrollTo` is universal in browsers but absent in jsdom, so
+ * every call site has to be able to fall back to a plain `scrollTop` write.
+ * Three of the four call sites in this file used to call `scrollTo` unguarded
+ * while a fourth guarded it, which is how `perf/flowChatStreamingProfile.test.tsx`
+ * came to throw `scroller.scrollTo is not a function` on mount. Routing all of
+ * them through one helper keeps the behaviour identical in the browser and
+ * makes the list testable under jsdom.
+ */
+function scrollScrollerTo(
+  scroller: HTMLElement,
+  top: number,
+  behavior: ScrollBehavior = 'auto',
+): void {
+  if (typeof scroller.scrollTo === 'function') {
+    scroller.scrollTo({ top, behavior });
+    return;
+  }
+  scroller.scrollTop = top;
+}
+
 function isEditableElement(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -1094,11 +1117,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       : PINNED_TURN_VIEWPORT_OFFSET_PX;
     const targetScrollTop = Math.max(0, rawTargetTop - alignmentOffset);
 
-    if (typeof scroller.scrollTo === 'function') {
-      scroller.scrollTo({ top: targetScrollTop, behavior });
-    } else {
-      scroller.scrollTop = targetScrollTop;
-    }
+    scrollScrollerTo(scroller, targetScrollTop, behavior);
     previousScrollTopRef.current = targetScrollTop;
     previousMeasuredHeightRef.current = snapshotMeasuredContentHeight(scroller);
     scheduleVisibleTurnMeasure(2);
@@ -2209,16 +2228,13 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       // jump. Hold position; the reservation will be drained by future grow
       // events.
       if (effectiveBottomTop - scroller.scrollTop > COMPENSATION_EPSILON_PX) {
-        scroller.scrollTo({ top: effectiveBottomTop, behavior: 'auto' });
+        scrollScrollerTo(scroller, effectiveBottomTop, 'auto');
       }
       return;
     }
 
     clearAllBottomReservationsForUserNavigation();
-    scroller.scrollTo({
-      top: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
-      behavior,
-    });
+    scrollScrollerTo(scroller, Math.max(0, scroller.scrollHeight - scroller.clientHeight), behavior);
   }, [clearAllBottomReservationsForUserNavigation, getTotalBottomCompensationPx]);
 
   const requestTurnPinToTop = useCallback((turnId: string, options?: { behavior?: ScrollBehavior; pinMode?: FlowChatPinTurnToTopMode }) => {
@@ -2686,10 +2702,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     setStaticAnchorWindowTurnId(null);
     if (scroller) {
       clearAllBottomReservationsForUserNavigation();
-      scroller.scrollTo({
-        top: Math.max(0, scroller.scrollHeight - scroller.clientHeight),
-        behavior: 'smooth',
-      });
+      scrollScrollerTo(scroller, Math.max(0, scroller.scrollHeight - scroller.clientHeight), 'smooth');
     }
   }, [clearAllBottomReservationsForUserNavigation]);
 
@@ -3277,8 +3290,21 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
         onClick={scrollToTask}
       />
 
+      {/*
+        `isAtBottom` comes from Virtuoso, which measures against the RAW bottom
+        of the scroller — and the scroller's footer contains the synthetic tail
+        reservation. While follow-output is active with a live reservation the
+        viewport sits at the EFFECTIVE bottom, i.e. exactly where the reader
+        asked to be, yet the raw distance is the whole reservation and the bar
+        flashed on. Worse, every reservation grow/drain tick toggled it, so a
+        table laying out or a card collapsing made it blink.
+
+        Follow-output is the authority on "the reader is at the tail": while it
+        is on, there is nothing to jump to. See FLOWCHAT_SCROLL_STABILITY.md
+        section G.
+      */}
       <ScrollToLatestBar
-        visible={!isAtBottom && virtualItems.length > 0}
+        visible={!isAtBottom && !isFollowingOutput && virtualItems.length > 0}
         onClick={scrollToLatestEndPosition}
         isInputActive={isInputActive}
         isInputExpanded={isInputExpanded}

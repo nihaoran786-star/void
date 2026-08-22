@@ -385,6 +385,25 @@ interface MarkdownImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   basePath?: string;
 }
 
+/**
+ * FlowChat transcript height contract.
+ *
+ * A markdown image carries no intrinsic dimensions until its bitmap decodes, so
+ * it occupies a sliver of a line at mount and hundreds of pixels a moment
+ * later. In the virtualized transcript that is an unsignalled post-mount height
+ * change — the class of defect described in
+ * `src/web-ui/src/flow_chat/components/modern/FLOWCHAT_SCROLL_STABILITY.md`.
+ * Announcing it lets the list re-measure instead of discovering the delta and
+ * reserving tail space for it.
+ *
+ * Dispatched as a plain window event so the component-library does not have to
+ * depend on `flow_chat`; the payload matches `useToolCardHeightContract`.
+ */
+function notifyMarkdownHeightChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('tool-card-toggle'));
+}
+
 const MarkdownImage: React.FC<MarkdownImageProps> = ({ src, alt, className, basePath, ...imgProps }) => {
   const rawSrc = typeof src === 'string' ? normalizeExternalImageSrc(src) : '';
   const localPath = useMemo(() => {
@@ -462,6 +481,8 @@ const MarkdownImage: React.FC<MarkdownImageProps> = ({ src, alt, className, base
       ].filter(Boolean).join(' ')}
       loading="lazy"
       src={resolvedSrc}
+      onLoad={notifyMarkdownHeightChanged}
+      onError={notifyMarkdownHeightChanged}
     />
   );
 };

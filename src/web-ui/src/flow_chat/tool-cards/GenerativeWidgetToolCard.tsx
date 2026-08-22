@@ -16,6 +16,7 @@ import { captureElementToDownloadsPng } from '../utils/captureElementToDownloads
 import { createLogger } from '@/shared/utils/logger';
 import { notificationService } from '@/shared/notification-system';
 import { useFlowChatPresentationActive } from '../components/modern/FlowChatPresentationActivity';
+import { useToolCardHeightContract } from './useToolCardHeightContract';
 import './GenerativeWidgetToolCard.scss';
 
 const log = createLogger('GenerativeWidgetToolCard');
@@ -62,6 +63,18 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
   const [exportWidth, setExportWidth] = useState<number | null>(null);
   /** Failure body is toggled separately; BaseToolCard always renders error in `.base-tool-card-error`, so default collapsed on error. */
   const [failedBodyExpanded, setFailedBodyExpanded] = useState(false);
+  // The widget iframe sizes itself from its own content (`void-widget:resize`),
+  // and the failure panel toggles a multi-line error body. Both change this
+  // card's height after mount, so they go through the height contract.
+  const {
+    cardRootRef,
+    applyExpandedState,
+    dispatchCollapseIntent,
+    dispatchToolCardToggle,
+  } = useToolCardHeightContract({
+    toolId: toolCall?.id ?? toolItem.id,
+    toolName: toolItem.toolName,
+  });
 
   const liveParams = isParamsStreaming ? partialParams : toolCall?.input;
   const widgetCode = useMemo(() => {
@@ -161,13 +174,38 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
     (e: React.MouseEvent) => {
       if (isFailed) {
         e.preventDefault();
-        setFailedBodyExpanded((v) => !v);
+        applyExpandedState(
+          failedBodyExpanded,
+          !failedBodyExpanded,
+          setFailedBodyExpanded,
+          { reason: 'manual' },
+        );
         return;
       }
       handleOpenPanel();
     },
-    [handleOpenPanel, isFailed],
+    [applyExpandedState, failedBodyExpanded, handleOpenPanel, isFailed],
   );
+
+  /**
+   * The widget iframe measures its own content and pushes a new frame height
+   * after mount — often several hundred pixels smaller than the placeholder it
+   * replaces. That is exactly the "content whose height changes after mount"
+   * shape the transcript cannot absorb silently, so announce a shrink before it
+   * lands and ask for a re-measure after a growth.
+   */
+  const lastWidgetHeightRef = useRef<number | null>(null);
+  const handleWidgetHeightChange = useCallback((nextHeightPx: number) => {
+    const previousHeightPx = lastWidgetHeightRef.current;
+    lastWidgetHeightRef.current = nextHeightPx;
+    if (previousHeightPx !== null && previousHeightPx - nextHeightPx > 0) {
+      dispatchCollapseIntent('auto', {
+        cardHeight: previousHeightPx - nextHeightPx,
+      });
+      return;
+    }
+    dispatchToolCardToggle();
+  }, [dispatchCollapseIntent, dispatchToolCardToggle]);
 
   const handleWidgetEvent = useCallback((event: WidgetMessage) => {
     if (event.type === 'void-widget:context-menu') {
@@ -324,6 +362,7 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
         isActive={isPresentationActive}
         selectionRevision={selectionRevision}
         onWidgetEvent={handleWidgetEvent}
+        onHeightChange={handleWidgetHeightChange}
       />
     </div>
   ) : (
@@ -339,7 +378,7 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
   );
 
   return (
-    <>
+    <div ref={cardRootRef}>
       <BaseToolCard
         status={status}
         isExpanded={isCardExpanded}
@@ -365,7 +404,7 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

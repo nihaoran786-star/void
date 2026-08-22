@@ -10,6 +10,7 @@ import {
   openMediaPreview,
 } from './mediaAssetInteractions';
 import { useWorkspaceMediaToolRefreshBridge } from './useWorkspaceMediaToolRefreshBridge';
+import { useToolCardHeightContract } from './useToolCardHeightContract';
 import './MediaGenerationToolCard.scss';
 
 const EXPANDED_INITIAL_LIMIT = 24;
@@ -100,6 +101,13 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
   const isFailed = model?.status === 'failed' || model?.status === 'timeout' || model?.status === 'error';
   const [isExpanded, setIsExpanded] = useState(isFailed);
   const [visibleAssetLimit, setVisibleAssetLimit] = useState(EXPANDED_INITIAL_LIMIT);
+  // A media grid is one of the tallest bodies in the transcript, so collapsing
+  // it unsignalled is a large shrink the list can only handle through the
+  // fallback path. See FLOWCHAT_SCROLL_STABILITY.md.
+  const { cardRootRef, applyExpandedState, dispatchToolCardToggle } = useToolCardHeightContract({
+    toolId: toolItem.toolCall?.id ?? toolItem.id,
+    toolName: toolItem.toolName,
+  });
   useEffect(() => {
     setVisibleAssetLimit(EXPANDED_INITIAL_LIMIT);
     if (isFailed) {
@@ -133,12 +141,12 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
   const hiddenExpandedCount = Math.max(assets.length - visibleAssetLimit, 0);
 
   return (
-    <div className="media-generation-card-shell">
+    <div className="media-generation-card-shell" ref={cardRootRef}>
       <CompactToolCard
         status={status}
         isExpanded={isExpanded}
         clickable
-        onClick={() => setIsExpanded(value => !value)}
+        onClick={() => applyExpandedState(isExpanded, !isExpanded, setIsExpanded, { reason: 'manual' })}
         className="media-generation-card"
         header={(
           <CompactToolCardHeader
@@ -227,6 +235,9 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
                     onClick={(event) => {
                       event.stopPropagation();
                       setVisibleAssetLimit(limit => Math.min(limit + EXPANDED_PAGE_SIZE, assets.length));
+                      // Growth only, but large: tell the list to re-measure so
+                      // any live tail reservation drains in the same frame.
+                      dispatchToolCardToggle();
                     }}
                   >
                     {t('mediaToolCard.showMore', {

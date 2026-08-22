@@ -6,6 +6,7 @@ import { BaseToolCard, ToolCardHeader } from './BaseToolCard';
 import { flowChatStore } from '../store/FlowChatStore';
 import { openBtwSessionInAuxPane, openMainSession } from '../services/openBtwSession';
 import { snapshotAPI } from '@/infrastructure/api';
+import { useToolCardHeightContract } from './useToolCardHeightContract';
 import {
   collectReviewChangedFiles,
   findLatestCodeReviewResult,
@@ -36,6 +37,13 @@ export const ReviewSessionSummaryCard: React.FC<ToolCardProps> = React.memo(({
   const [isExpanded, setIsExpanded] = useState(false);
   const [flowState, setFlowState] = useState(() => flowChatStore.getState());
   const [snapshotFiles, setSnapshotFiles] = useState<string[]>([]);
+  // Collapsing a review body drops a file list plus an issue list in one frame.
+  // Route it through the height contract so the list pre-compensates instead of
+  // discovering the shrink after the browser has already clamped `scrollTop`.
+  const { cardRootRef, applyExpandedState, dispatchToolCardToggle } = useToolCardHeightContract({
+    toolId: toolItem.toolCall?.id ?? toolItem.id,
+    toolName: toolItem.toolName,
+  });
 
   const input = (toolItem.toolCall?.input || {}) as ReviewSessionSummaryInput;
   const childSessionId = input.childSessionId ?? '';
@@ -66,6 +74,9 @@ export const ReviewSessionSummaryCard: React.FC<ToolCardProps> = React.memo(({
       .then((files) => {
         if (!cancelled) {
           setSnapshotFiles(files);
+          // Async arrival: the file list appears after mount, so the list has to
+          // be told to re-measure rather than discover it as an unsignalled delta.
+          dispatchToolCardToggle();
         }
       })
       .catch(() => {
@@ -77,7 +88,7 @@ export const ReviewSessionSummaryCard: React.FC<ToolCardProps> = React.memo(({
     return () => {
       cancelled = true;
     };
-  }, [childSessionId, childSession?.lastActiveAt, childSession?.lastFinishedAt]);
+  }, [childSessionId, childSession?.lastActiveAt, childSession?.lastFinishedAt, dispatchToolCardToggle]);
 
   const reviewLabel = kind === 'deep_review'
     ? t('toolCards.reviewSessionSummary.deepTitle', { defaultValue: 'Deep review' })
@@ -97,10 +108,11 @@ export const ReviewSessionSummaryCard: React.FC<ToolCardProps> = React.memo(({
   const Icon = kind === 'deep_review' ? Sparkles : SearchCheck;
 
   return (
+    <div ref={cardRootRef}>
     <BaseToolCard
       status={status}
       isExpanded={isExpanded}
-      onClick={() => setIsExpanded((current) => !current)}
+      onClick={() => applyExpandedState(isExpanded, !isExpanded, setIsExpanded, { reason: 'manual' })}
       className="review-session-summary-card"
       header={(
         <ToolCardHeader
@@ -171,6 +183,7 @@ export const ReviewSessionSummaryCard: React.FC<ToolCardProps> = React.memo(({
         </div>
       )}
     />
+    </div>
   );
 });
 

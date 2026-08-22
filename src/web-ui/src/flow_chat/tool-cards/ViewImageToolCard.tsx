@@ -4,6 +4,7 @@ import { useI18n } from '@/infrastructure/i18n';
 import { openMediaPreviewPanel } from '@/shared/services/preview/MediaPreviewService';
 import type { ToolCardProps } from '../types/flow-chat';
 import { CompactToolCard, CompactToolCardHeader } from './CompactToolCard';
+import { notifyToolCardHeightChanged } from './useToolCardHeightContract';
 import './ViewImageToolCard.scss';
 
 type PreviewState = 'unavailable' | 'loading' | 'ready' | 'failed';
@@ -87,8 +88,18 @@ export const ViewImageToolCard: React.FC<ToolCardProps> = ({ toolItem, config })
             src={source}
             alt={t('toolCards.viewImage.imageAlt', { name: title })}
             decoding="async"
-            onLoad={() => setPreviewState('ready')}
-            onError={() => setPreviewState('failed')}
+            onLoad={() => {
+              setPreviewState('ready');
+              // The preview box is `min-height: 112px` until the bitmap decodes
+              // and then grows to as much as 520px. That is a post-mount height
+              // change the list can only see as an unsignalled delta, so ask it
+              // to re-measure. See FLOWCHAT_SCROLL_STABILITY.md section G.
+              notifyToolCardHeightChanged();
+            }}
+            onError={() => {
+              setPreviewState('failed');
+              notifyToolCardHeightChanged();
+            }}
           />
         ) : (
           <ImageIcon size={28} aria-hidden="true" />

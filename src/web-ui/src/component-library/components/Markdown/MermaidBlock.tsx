@@ -44,6 +44,28 @@ export interface MermaidBlockProps {
 
 type RenderState = 'streaming' | 'incomplete' | 'loading' | 'rendered' | 'error';
 
+/**
+ * FlowChat transcript height contract.
+ *
+ * A mermaid block is one of the most violent height mutators in a model answer:
+ * while the fence is still streaming it renders the raw diagram source (often a
+ * screenful of text), then collapses to a one-line spinner, then expands again
+ * to an SVG of an entirely unrelated size. Every one of those transitions lands
+ * *after* mount, and the virtualized transcript can only see the shrink ones as
+ * an unsignalled delta — the path that produces blank tail space and scroll
+ * jitter (see
+ * `src/web-ui/src/flow_chat/components/modern/FLOWCHAT_SCROLL_STABILITY.md`).
+ *
+ * The events are dispatched on `window` rather than imported from `flow_chat`
+ * so the component-library keeps its dependency direction; the transcript is
+ * the only listener and the payload matches `useToolCardHeightContract`.
+ */
+const FLOWCHAT_COLLAPSE_INTENT_EVENT = 'flowchat:tool-card-collapse-intent';
+const FLOWCHAT_HEIGHT_CHANGED_EVENT = 'tool-card-toggle';
+
+/** States that render the full raw diagram source, i.e. the tall ones. */
+const SOURCE_TEXT_STATES: ReadonlySet<RenderState> = new Set<RenderState>(['streaming', 'incomplete', 'error']);
+
 const isCodeComplete = (code: string): boolean => {
   const trimmed = code.trim();
   if (!trimmed) return false;
@@ -75,24 +97,64 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
   const mermaidService = useRef(MermaidService.getInstance());
   const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentCodeRef = useRef<string>('');
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const stateRef = useRef<RenderState>(state);
+
+  /** Tell the transcript a shrink is coming, while the tall box still exists. */
+  const announceCollapseIntent = useCallback(() => {
+    const cardHeight = rootRef.current?.getBoundingClientRect().height ?? 0;
+    if (!(cardHeight > 0)) return;
+    window.dispatchEvent(new CustomEvent(FLOWCHAT_COLLAPSE_INTENT_EVENT, {
+      detail: { toolId: null, toolName: 'MermaidBlock', cardHeight, reason: 'auto' },
+    }));
+  }, []);
+
+  const notifyHeightChanged = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(FLOWCHAT_HEIGHT_CHANGED_EVENT));
+  }, []);
+
+  /**
+   * Every render-state change goes through here so a transition that drops the
+   * raw source text announces itself before the DOM shrinks. Dispatching after
+   * `setState` would be too late: the browser has already clamped `scrollTop`.
+   */
+  const transitionState = useCallback((nextState: RenderState) => {
+    const previousState = stateRef.current;
+    if (previousState === nextState) return;
+    if (SOURCE_TEXT_STATES.has(previousState) && !SOURCE_TEXT_STATES.has(nextState)) {
+      announceCollapseIntent();
+    }
+    stateRef.current = nextState;
+    setState(nextState);
+    notifyHeightChanged();
+  }, [announceCollapseIntent, notifyHeightChanged]);
+
+  /** Manual source toggle: collapsing hides a full code listing. */
+  const showCodeRef = useRef(showCode);
+  showCodeRef.current = showCode;
+  const toggleShowCode = useCallback(() => {
+    if (showCodeRef.current) announceCollapseIntent();
+    setShowCode(!showCodeRef.current);
+    notifyHeightChanged();
+  }, [announceCollapseIntent, notifyHeightChanged]);
 
   const renderDiagram = useCallback(async (codeToRender: string) => {
     const trimmedCode = codeToRender.trim();
     const key = getCacheKey(trimmedCode);
     
     if (!isCodeComplete(trimmedCode)) {
-      setState('incomplete');
+      transitionState('incomplete');
       return;
     }
 
     const cached = svgCache.get(key);
     if (cached) {
       setSvgContent(cached);
-      setState('rendered');
+      transitionState('rendered');
       return;
     }
 
-    setState('loading');
+    transitionState('loading');
     setError('');
 
     try {
@@ -100,15 +162,15 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
       if (currentCodeRef.current === trimmedCode) {
         svgCache.set(key, svg);
         setSvgContent(svg);
-        setState('rendered');
+        transitionState('rendered');
       }
     } catch (err) {
       if (currentCodeRef.current === trimmedCode) {
         setError(err instanceof Error ? err.message : t('mermaidBlock.renderFailed'));
-        setState('error');
+        transitionState('error');
       }
     }
-  }, [t]);
+  }, [t, transitionState]);
 
   useEffect(() => {
     const trimmedCode = code.trim();
@@ -120,12 +182,12 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
     }
 
     if (isStreaming) {
-      setState('streaming');
+      transitionState('streaming');
       return;
     }
 
     if (!trimmedCode || !isCodeComplete(trimmedCode)) {
-      setState('incomplete');
+      transitionState('incomplete');
       return;
     }
 
@@ -133,7 +195,7 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
     const cached = svgCache.get(key);
     if (cached) {
       setSvgContent(cached);
-      setState('rendered');
+      transitionState('rendered');
       return;
     }
 
@@ -146,21 +208,21 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
         clearTimeout(renderTimeoutRef.current);
       }
     };
-  }, [code, isStreaming, renderDiagram, currentThemeVersion]);
+  }, [code, isStreaming, renderDiagram, currentThemeVersion, transitionState]);
 
   useEffect(() => {
     const handleThemeChange = () => {
       log.debug('Theme changed, triggering re-render');
       setCurrentThemeVersion(themeVersion);
       setSvgContent('');
-      setState('loading');
+      transitionState('loading');
     };
 
     window.addEventListener(MERMAID_THEME_CHANGE_EVENT, handleThemeChange);
     return () => {
       window.removeEventListener(MERMAID_THEME_CHANGE_EVENT, handleThemeChange);
     };
-  }, []);
+  }, [transitionState]);
 
   const handleCopy = useCallback(async () => {
     try {
@@ -222,7 +284,7 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
             <div className="mermaid-block__actions">
               <button
                 className="mermaid-icon-btn"
-                onClick={() => setShowCode(!showCode)}
+                onClick={toggleShowCode}
                 title={showCode ? t('mermaidBlock.hideCode') : t('mermaidBlock.showCode')}
               >
                 <Code2 size={14} />
@@ -276,7 +338,7 @@ export const MermaidBlock: React.FC<MermaidBlockProps> = ({
   };
 
   return (
-    <div className={`mermaid-block mermaid-block--${state} ${className}`}>
+    <div ref={rootRef} className={`mermaid-block mermaid-block--${state} ${className}`}>
       {renderContent()}
     </div>
   );
