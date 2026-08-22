@@ -925,7 +925,8 @@
     "unavailable": "Infinite Canvas is not available in this workspace.",
     "loadFailed": "The canvas module failed to load. Close the tab and try again.",
     "toolbar": {
-      "addText": "Add text"
+      "addText": "Add text",
+      "addImage": "Add image"
     },
     "textNode": {
       "ariaLabel": "Text node",
@@ -933,7 +934,41 @@
     },
     "imageNode": {
       "previewLoading": "Loading image...",
-      "previewUnavailable": "Image preview is unavailable"
+      "previewUnavailable": "Image preview is unavailable",
+      "styleButton": "Pick a style",
+      "toolsLabel": "Image tools"
+    },
+    "imagePicker": {
+      "title": "Pick an image from the library",
+      "close": "Close",
+      "loading": "Scanning the library...",
+      "empty": "No images in the library yet.",
+      "error": "The library could not be read."
+    },
+    "stylePicker": {
+      "title": "Pick a style preset",
+      "close": "Close",
+      "clear": "Clear style",
+      "familyLabel": "Family",
+      "categoryLabel": "Category",
+      "allCategories": "All categories",
+      "empty": "No styles match this filter.",
+      "families": {
+        "cinematic": "Live action",
+        "animation2d": "2D animation",
+        "midjourney": "Midjourney",
+        "mgMotion": "MG motion"
+      }
+    },
+    "tools": {
+      "upscale": "Smart upscale",
+      "expand": "Expand",
+      "inpaint": "Inpaint",
+      "erase": "Erase",
+      "matting": "Cutout",
+      "unavailableTitle": "Coming in phase 2",
+      "unavailableBody": "Image editing tools open in phase 2; this button is a placeholder entry.",
+      "dismiss": "Got it"
     }
   },
   "agentStudio": {

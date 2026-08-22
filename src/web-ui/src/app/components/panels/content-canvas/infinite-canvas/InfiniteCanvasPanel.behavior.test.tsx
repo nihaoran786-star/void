@@ -55,6 +55,13 @@ vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () =>
   resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
 }));
 
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
+  workspaceMediaLibraryService: {
+    checkAvailability: async () => ({ status: 'unknown' }),
+    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
+  },
+}));
+
 vi.mock('./infiniteCanvasDocumentGateway', () => ({
   getInfiniteCanvasDocumentService: () => {
     throw new Error('Tests must inject a document service.');

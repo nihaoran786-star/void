@@ -25,15 +25,24 @@ import '@xyflow/react/dist/style.css';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
+  ImageToolErrorKind,
+  ImageToolGateway,
+  ImageToolId,
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasDocumentService,
   InfiniteCanvasMutator,
 } from '@/shared/services/infinite-canvas';
+import { placeholderImageToolGateway } from '@/shared/services/infinite-canvas';
+import type { StylePresetCatalog } from '@/shared/services/style-preset';
+import { stylePresetCatalog } from '@/shared/services/style-preset';
+import type { WorkspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaTypes';
+import { workspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaLibrary';
 import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-media/WorkspaceMediaPreviewResolver';
 import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
 import { getInfiniteCanvasDocumentService } from './infiniteCanvasDocumentGateway';
 import {
+  addImageNodeContent,
   addTextNodeContent,
   connectNodesContent,
   createInfiniteCanvasId,
@@ -42,6 +51,7 @@ import {
   moveNodeContent,
   removeEdgesContent,
   removeNodesContent,
+  setNodeStylePresetContent,
   setNodeTextContent,
   setViewportContent,
   toFlowEdgeViews,
@@ -51,7 +61,10 @@ import {
   InfiniteCanvasImageNode,
   InfiniteCanvasTextNode,
   type InfiniteCanvasImagePreviewResolver,
+  type InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
+import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
+import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import './InfiniteCanvasPanel.scss';
 
 // The node renderers take their narrowed data props; reactflow's NodeTypes is
@@ -80,6 +93,11 @@ type PanelState =
   | { phase: 'ready' }
   | { phase: 'failed'; error: InfiniteCanvasDocumentError };
 
+interface ImageToolNotice {
+  toolId: ImageToolId;
+  errorKind: ImageToolErrorKind;
+}
+
 export interface InfiniteCanvasPanelProps {
   workspaceId: string;
   workspacePath: string;
@@ -87,6 +105,9 @@ export interface InfiniteCanvasPanelProps {
   /** Injection seams for tests; production uses the shared singletons. */
   service?: InfiniteCanvasDocumentService;
   resolvePreviewUrl?: InfiniteCanvasImagePreviewResolver;
+  mediaLibrary?: WorkspaceMediaLibraryService;
+  catalog?: StylePresetCatalog;
+  imageToolGateway?: ImageToolGateway;
 }
 
 export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
@@ -94,6 +115,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   workspacePath,
   service: injectedService,
   resolvePreviewUrl = defaultPreviewResolver,
+  mediaLibrary = workspaceMediaLibraryService,
+  catalog = stylePresetCatalog,
+  imageToolGateway = placeholderImageToolGateway,
 }) => {
   const { t } = useI18n('components');
   const service = React.useMemo(
@@ -115,7 +139,31 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     zoom: 1,
   });
 
+  const [imagePickerOpen, setImagePickerOpen] = React.useState(false);
+  const [stylePickerNodeId, setStylePickerNodeId] = React.useState<string | null>(null);
+  const [toolNotice, setToolNotice] = React.useState<ImageToolNotice | null>(null);
+
   const commitText = React.useRef<(nodeId: string, text: string) => void>(() => undefined);
+
+  const openStylePicker = React.useCallback((nodeId: string) => {
+    setStylePickerNodeId(nodeId);
+  }, []);
+
+  // Phase-1 tools resolve to the typed `unavailable` placeholder (K0-2): the
+  // gateway performs no network call and the notice states it explicitly.
+  const runImageTool = React.useCallback((nodeId: string, toolId: ImageToolId) => {
+    void imageToolGateway.invoke({
+      operationId: createInfiniteCanvasId('op'),
+      toolId,
+      sourceNodeId: nodeId,
+    }).then(result => {
+      if (result.status === 'failed' && result.error) {
+        setToolNotice({ toolId, errorKind: result.error.kind });
+      } else {
+        setToolNotice(null);
+      }
+    });
+  }, [imageToolGateway]);
 
   const projectDocument = React.useCallback((document: InfiniteCanvasDocument) => {
     documentRef.current = document;
@@ -131,11 +179,16 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         : {
             mediaRef: view.data.mediaRef!,
             stylePresetId: view.data.stylePresetId,
+            stylePresetName: view.data.stylePresetId
+              ? catalog.getById(view.data.stylePresetId)?.name
+              : undefined,
             resolvePreviewUrl,
+            onOpenStylePicker: openStylePicker,
+            onRunImageTool: runImageTool,
           },
     })));
     setFlowEdges(toFlowEdgeViews(document.edges));
-  }, [resolvePreviewUrl]);
+  }, [catalog, openStylePicker, resolvePreviewUrl, runImageTool]);
 
   const commit = React.useCallback(async (mutator: InfiniteCanvasMutator) => {
     const result = await service.mutateDefaultDocument(workspaceRef, mutator);
@@ -237,6 +290,30 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     ));
   }, [commit, nextSpawnPosition]);
 
+  const onPickImage = React.useCallback((mediaRef: InfiniteCanvasMediaRef) => {
+    const position = nextSpawnPosition();
+    setImagePickerOpen(false);
+    void commit(document => addImageNodeContent(
+      document,
+      createInfiniteCanvasId('node'),
+      position,
+      mediaRef,
+    ));
+  }, [commit, nextSpawnPosition]);
+
+  const onPickStyle = React.useCallback((presetId: string | undefined) => {
+    const nodeId = stylePickerNodeId;
+    setStylePickerNodeId(null);
+    if (!nodeId) return;
+    void commit(document => setNodeStylePresetContent(document, nodeId, presetId));
+  }, [commit, stylePickerNodeId]);
+
+  const stylePickerCurrentPresetId = React.useMemo(() => {
+    if (!stylePickerNodeId) return undefined;
+    return documentRef.current?.nodes
+      .find(node => node.nodeId === stylePickerNodeId)?.stylePresetId;
+  }, [stylePickerNodeId]);
+
   if (state.phase === 'failed') {
     return (
       <div
@@ -273,7 +350,48 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         >
           {t('infiniteCanvas.toolbar.addText')}
         </button>
+        <button
+          type="button"
+          className="infinite-canvas-panel__toolbar-button"
+          onClick={() => setImagePickerOpen(open => !open)}
+        >
+          {t('infiniteCanvas.toolbar.addImage')}
+        </button>
       </div>
+      {toolNotice ? (
+        <div
+          className="infinite-canvas-panel__tool-notice"
+          role="alert"
+          data-tool-id={toolNotice.toolId}
+          data-error-kind={toolNotice.errorKind}
+        >
+          <strong>{t('infiniteCanvas.tools.unavailableTitle')}</strong>
+          <span>{t('infiniteCanvas.tools.unavailableBody')}</span>
+          <button
+            type="button"
+            className="infinite-canvas-panel__tool-notice-dismiss"
+            onClick={() => setToolNotice(null)}
+          >
+            {t('infiniteCanvas.tools.dismiss')}
+          </button>
+        </div>
+      ) : null}
+      {imagePickerOpen ? (
+        <InfiniteCanvasImagePicker
+          workspacePath={workspacePath}
+          mediaLibrary={mediaLibrary}
+          onPick={onPickImage}
+          onClose={() => setImagePickerOpen(false)}
+        />
+      ) : null}
+      {stylePickerNodeId ? (
+        <InfiniteCanvasStylePicker
+          currentPresetId={stylePickerCurrentPresetId}
+          catalog={catalog}
+          onPick={onPickStyle}
+          onClose={() => setStylePickerNodeId(null)}
+        />
+      ) : null}
       <div
         className="infinite-canvas-panel__flow"
         aria-label={t('infiniteCanvas.title')}

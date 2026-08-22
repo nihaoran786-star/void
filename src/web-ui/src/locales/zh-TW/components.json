@@ -925,7 +925,8 @@
     "unavailable": "目前工作區無法使用無限畫布。",
     "loadFailed": "畫布模組載入失敗，請關閉頁籤後重試。",
     "toolbar": {
-      "addText": "新增文字"
+      "addText": "新增文字",
+      "addImage": "新增圖片"
     },
     "textNode": {
       "ariaLabel": "文字節點",
@@ -933,7 +934,41 @@
     },
     "imageNode": {
       "previewLoading": "圖片載入中…",
-      "previewUnavailable": "圖片暫時無法顯示"
+      "previewUnavailable": "圖片暫時無法顯示",
+      "styleButton": "選擇風格",
+      "toolsLabel": "圖像工具"
+    },
+    "imagePicker": {
+      "title": "從圖庫選擇圖片",
+      "close": "關閉",
+      "loading": "正在掃描圖庫…",
+      "empty": "圖庫中還沒有圖片。",
+      "error": "圖庫暫時無法讀取。"
+    },
+    "stylePicker": {
+      "title": "選擇風格預設",
+      "close": "關閉",
+      "clear": "清除風格",
+      "familyLabel": "風格族",
+      "categoryLabel": "分類",
+      "allCategories": "全部分類",
+      "empty": "沒有符合條件的風格。",
+      "families": {
+        "cinematic": "真人影像",
+        "animation2d": "2D 動畫",
+        "midjourney": "Midjourney",
+        "mgMotion": "MG 動畫"
+      }
+    },
+    "tools": {
+      "upscale": "智慧放大",
+      "expand": "智慧擴圖",
+      "inpaint": "局部重繪",
+      "erase": "智慧擦除",
+      "matting": "智慧去背",
+      "unavailableTitle": "第二期開通",
+      "unavailableBody": "圖像編輯工具將在第二期開放，目前僅提供入口佔位。",
+      "dismiss": "知道了"
     }
   },
   "agentStudio": {

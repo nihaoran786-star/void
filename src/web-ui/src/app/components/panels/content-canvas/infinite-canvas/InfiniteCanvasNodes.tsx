@@ -9,6 +9,8 @@ import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 
 import { useI18n } from '@/infrastructure/i18n';
+import type { ImageToolId } from '@/shared/services/infinite-canvas';
+import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
 
 export interface InfiniteCanvasMediaRef {
   workspacePath: string;
@@ -27,6 +29,10 @@ export interface InfiniteCanvasTextNodeData extends Record<string, unknown> {
 export interface InfiniteCanvasImageNodeData extends Record<string, unknown> {
   mediaRef: InfiniteCanvasMediaRef;
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
+  /** Resolved display name of the applied style preset, if any. */
+  stylePresetName?: string;
+  onOpenStylePicker: (nodeId: string) => void;
+  onRunImageTool: (nodeId: string, toolId: ImageToolId) => void;
 }
 
 interface NodeRendererProps<TData> {
@@ -74,7 +80,7 @@ function fileNameOf(relativePath: string): string {
 
 export const InfiniteCanvasImageNode: React.FC<
   NodeRendererProps<InfiniteCanvasImageNodeData>
-> = ({ data, selected }) => {
+> = ({ id, data, selected }) => {
   const { t } = useI18n('components');
   const { mediaRef, resolvePreviewUrl } = data;
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
@@ -123,6 +129,33 @@ export const InfiniteCanvasImageNode: React.FC<
       <p className="infinite-canvas-node__image-caption">
         {fileNameOf(mediaRef.relativePath)}
       </p>
+      <div className="infinite-canvas-node__footer">
+        <button
+          type="button"
+          className="infinite-canvas-node__style-button nodrag"
+          data-has-style={data.stylePresetName ? 'true' : undefined}
+          onClick={() => data.onOpenStylePicker(id)}
+        >
+          {data.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
+        </button>
+      </div>
+      <div
+        className="infinite-canvas-node__tools nodrag"
+        role="group"
+        aria-label={t('infiniteCanvas.imageNode.toolsLabel')}
+      >
+        {IMAGE_TOOL_DEFINITIONS.map(definition => (
+          <button
+            key={definition.toolId}
+            type="button"
+            className="infinite-canvas-node__tool"
+            data-tool-id={definition.toolId}
+            onClick={() => data.onRunImageTool(id, definition.toolId)}
+          >
+            {t(definition.labelKey)}
+          </button>
+        ))}
+      </div>
       <Handle type="source" position={Position.Right} />
     </div>
   );

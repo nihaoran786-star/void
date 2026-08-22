@@ -18,4 +18,16 @@
   .void-ui--minimal .infinite-canvas-panel__toolbar-button {
     font-size: var(--workspace-font-size-label);
   }
+
+  .void-ui--minimal .infinite-canvas-picker {
+    padding: var(--workspace-space-1) var(--workspace-space-3);
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
+
+  .void-ui--minimal .infinite-canvas-panel__tool-notice {
+    padding: var(--workspace-space-1) var(--workspace-space-3);
+    border-color: var(--workspace-border-subtle);
+    font-size: var(--workspace-font-size-label);
+  }
 }

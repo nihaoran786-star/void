@@ -119,4 +119,195 @@
   white-space: nowrap;
 }
 
+.infinite-canvas-node__footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.infinite-canvas-node__style-button {
+  overflow: hidden;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &[data-has-style='true'] {
+    border-color: var(--infinite-canvas-accent);
+    color: var(--infinite-canvas-text);
+  }
+}
+
+.infinite-canvas-node__tools {
+  display: none;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.infinite-canvas-node:hover .infinite-canvas-node__tools,
+.infinite-canvas-node[data-selected='true'] .infinite-canvas-node__tools {
+  display: flex;
+}
+
+.infinite-canvas-node__tool {
+  padding: 2px 6px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 4px;
+  background: var(--infinite-canvas-bg);
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 10px;
+
+  &:hover {
+    border-color: var(--infinite-canvas-accent);
+    color: var(--infinite-canvas-text);
+  }
+}
+
+.infinite-canvas-panel__tool-notice {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  color: var(--infinite-canvas-muted);
+  font-size: 12px;
+
+  strong {
+    color: var(--infinite-canvas-text);
+  }
+}
+
+.infinite-canvas-panel__tool-notice-dismiss {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.infinite-canvas-picker {
+  display: flex;
+  overflow: auto;
+  max-height: 45%;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  background: var(--infinite-canvas-surface);
+}
+
+.infinite-canvas-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  h4 {
+    margin: 0;
+    font-size: 12px;
+  }
+}
+
+.infinite-canvas-picker__close,
+.infinite-canvas-picker__clear {
+  padding: 2px 8px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.infinite-canvas-picker__clear {
+  align-self: flex-start;
+}
+
+.infinite-canvas-picker__state {
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+}
+
+.infinite-canvas-picker__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.infinite-canvas-picker__filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+
+  select {
+    max-width: 180px;
+    border: 1px solid var(--infinite-canvas-border);
+    border-radius: 4px;
+    background: var(--infinite-canvas-bg);
+    color: var(--infinite-canvas-text);
+    font-size: 11px;
+  }
+}
+
+.infinite-canvas-picker__list {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+  list-style: none;
+}
+
+.infinite-canvas-picker__item {
+  display: flex;
+  max-width: 200px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 6px;
+  background: var(--infinite-canvas-bg);
+  color: var(--infinite-canvas-text);
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+
+  &:hover,
+  &[data-selected='true'] {
+    border-color: var(--infinite-canvas-accent);
+  }
+}
+
+.infinite-canvas-picker__thumbnail {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.infinite-canvas-picker__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infinite-canvas-picker__item-meta {
+  color: var(--infinite-canvas-muted);
+  font-size: 10px;
+}
+
 @include minimal.styles;

@@ -925,7 +925,8 @@
     "unavailable": "当前工作区无法使用无限画布。",
     "loadFailed": "画布模块加载失败，请关闭页签后重试。",
     "toolbar": {
-      "addText": "添加文字"
+      "addText": "添加文字",
+      "addImage": "添加图片"
     },
     "textNode": {
       "ariaLabel": "文字节点",
@@ -933,7 +934,41 @@
     },
     "imageNode": {
       "previewLoading": "图片加载中…",
-      "previewUnavailable": "图片暂时无法显示"
+      "previewUnavailable": "图片暂时无法显示",
+      "styleButton": "选择风格",
+      "toolsLabel": "图像工具"
+    },
+    "imagePicker": {
+      "title": "从图库选择图片",
+      "close": "关闭",
+      "loading": "正在扫描图库…",
+      "empty": "图库中还没有图片。",
+      "error": "图库暂时无法读取。"
+    },
+    "stylePicker": {
+      "title": "选择风格预设",
+      "close": "关闭",
+      "clear": "清除风格",
+      "familyLabel": "风格族",
+      "categoryLabel": "分类",
+      "allCategories": "全部分类",
+      "empty": "没有符合条件的风格。",
+      "families": {
+        "cinematic": "真人影像",
+        "animation2d": "2D 动画",
+        "midjourney": "Midjourney",
+        "mgMotion": "MG 动画"
+      }
+    },
+    "tools": {
+      "upscale": "智能放大",
+      "expand": "智能扩图",
+      "inpaint": "局部重绘",
+      "erase": "智能擦除",
+      "matting": "智能抠图",
+      "unavailableTitle": "第二期开通",
+      "unavailableBody": "图像编辑工具将在第二期开放，当前仅提供入口占位。",
+      "dismiss": "知道了"
     }
   },
   "agentStudio": {
