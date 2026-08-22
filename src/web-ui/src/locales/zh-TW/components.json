@@ -922,7 +922,19 @@
   "infiniteCanvas": {
     "title": "無限畫布",
     "skeleton": "畫布載入中…",
-    "unavailable": "目前工作區無法使用無限畫布。"
+    "unavailable": "目前工作區無法使用無限畫布。",
+    "loadFailed": "畫布模組載入失敗，請關閉頁籤後重試。",
+    "toolbar": {
+      "addText": "新增文字"
+    },
+    "textNode": {
+      "ariaLabel": "文字節點",
+      "placeholder": "輸入文字…"
+    },
+    "imageNode": {
+      "previewLoading": "圖片載入中…",
+      "previewUnavailable": "圖片暫時無法顯示"
+    }
   },
   "agentStudio": {
     "empty": "開啟一個智慧體開始編輯。",

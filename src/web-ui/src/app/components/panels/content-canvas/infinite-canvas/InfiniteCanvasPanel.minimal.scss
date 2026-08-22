@@ -1,0 +1,21 @@
+@mixin styles {
+  .void-ui--minimal .infinite-canvas-panel {
+    --infinite-canvas-bg: var(--workspace-surface-canvas);
+    --infinite-canvas-text: var(--workspace-text-primary);
+    --infinite-canvas-muted: var(--workspace-text-muted);
+    --infinite-canvas-border: var(--workspace-border-subtle);
+    --infinite-canvas-surface: var(--workspace-surface-panel);
+    --infinite-canvas-accent: var(--workspace-accent);
+    font-family: var(--workspace-font-family);
+  }
+
+  .void-ui--minimal .infinite-canvas-panel__toolbar {
+    padding: var(--workspace-space-1) var(--workspace-space-3);
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
+
+  .void-ui--minimal .infinite-canvas-panel__toolbar-button {
+    font-size: var(--workspace-font-size-label);
+  }
+}

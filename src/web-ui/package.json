@@ -40,6 +40,7 @@
     "@xterm/addon-web-links": "^0.13.0-beta.103",
     "@xterm/addon-webgl": "^0.20.0-beta.100",
     "@xterm/xterm": "^6.1.0-beta.101",
+    "@xyflow/react": "^12.11.3",
     "diff": "^8.0.3",
     "glimm": "0.3.0",
     "highlight.js": "^11.11.1",

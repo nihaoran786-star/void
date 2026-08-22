@@ -1,0 +1,122 @@
+@use './InfiniteCanvasPanel.minimal' as minimal;
+
+.infinite-canvas-panel {
+  --infinite-canvas-bg: var(--color-bg-primary);
+  --infinite-canvas-text: var(--control-text-hover);
+  --infinite-canvas-muted: var(--control-text-muted);
+  --infinite-canvas-border: var(--control-border);
+  --infinite-canvas-surface: color-mix(in srgb, var(--control-bg) 88%, var(--color-bg-elevated));
+  --infinite-canvas-accent: var(--color-accent-500);
+  --infinite-canvas-error-text: var(--status-error-text);
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--infinite-canvas-bg);
+  color: var(--infinite-canvas-text);
+}
+
+.infinite-canvas-panel--loading,
+.infinite-canvas-panel--error {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+}
+
+.infinite-canvas-panel--error p {
+  color: var(--infinite-canvas-error-text);
+}
+
+.infinite-canvas-panel__toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+}
+
+.infinite-canvas-panel__toolbar-button {
+  padding: 4px 10px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 6px;
+  background: var(--infinite-canvas-surface);
+  color: var(--infinite-canvas-text);
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover {
+    border-color: var(--infinite-canvas-accent);
+  }
+}
+
+.infinite-canvas-panel__flow {
+  flex: 1;
+  min-height: 0;
+
+  .react-flow {
+    background: var(--infinite-canvas-bg);
+  }
+}
+
+.infinite-canvas-node {
+  display: flex;
+  min-width: 140px;
+  max-width: 280px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 8px;
+  background: var(--infinite-canvas-surface);
+  color: var(--infinite-canvas-text);
+
+  &[data-selected='true'] {
+    border-color: var(--infinite-canvas-accent);
+  }
+}
+
+.infinite-canvas-node__text-input {
+  min-height: 64px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.infinite-canvas-node__image {
+  width: 100%;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.infinite-canvas-node__image-placeholder {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--infinite-canvas-muted) 10%, transparent);
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+}
+
+.infinite-canvas-node__image-caption {
+  overflow: hidden;
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@include minimal.styles;

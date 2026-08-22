@@ -922,7 +922,19 @@
   "infiniteCanvas": {
     "title": "无限画布",
     "skeleton": "画布加载中…",
-    "unavailable": "当前工作区无法使用无限画布。"
+    "unavailable": "当前工作区无法使用无限画布。",
+    "loadFailed": "画布模块加载失败，请关闭页签后重试。",
+    "toolbar": {
+      "addText": "添加文字"
+    },
+    "textNode": {
+      "ariaLabel": "文字节点",
+      "placeholder": "输入文字…"
+    },
+    "imageNode": {
+      "previewLoading": "图片加载中…",
+      "previewUnavailable": "图片暂时无法显示"
+    }
   },
   "agentStudio": {
     "empty": "打开一个智能体开始编辑。",

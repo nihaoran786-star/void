@@ -922,7 +922,19 @@
   "infiniteCanvas": {
     "title": "Infinite Canvas",
     "skeleton": "Canvas is loading...",
-    "unavailable": "Infinite Canvas is not available in this workspace."
+    "unavailable": "Infinite Canvas is not available in this workspace.",
+    "loadFailed": "The canvas module failed to load. Close the tab and try again.",
+    "toolbar": {
+      "addText": "Add text"
+    },
+    "textNode": {
+      "ariaLabel": "Text node",
+      "placeholder": "Type here..."
+    },
+    "imageNode": {
+      "previewLoading": "Loading image...",
+      "previewUnavailable": "Image preview is unavailable"
+    }
   },
   "agentStudio": {
     "empty": "Open an agent to author it.",

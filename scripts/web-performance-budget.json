@@ -21,6 +21,7 @@
 			".void-team-window",
 			".void-ai-model-config",
 			".workspace-media-gallery",
+			".infinite-canvas-panel",
 			".short-drama-center",
 			".acp-permission-actions",
 			".ask-user-question-card",
@@ -68,6 +69,7 @@
 		"src/locales/zh-TW/tools.json",
 		"src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.tsx",
 		"src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.tsx",
+		"src/app/components/panels/content-canvas/infinite-canvas/InfiniteCanvasPanel.tsx",
 		"src/component-library/components/CodeEditor/CodeEditor.tsx",
 		"src/component-library/components/Markdown/Markdown.tsx",
 		"src/flow_chat/tool-cards/ReadFileDisplay.tsx",
@@ -122,7 +124,8 @@
 			"@tiptap/core",
 			"@tiptap/react",
 			"@tiptap/starter-kit",
-			"@tiptap/pm"
+			"@tiptap/pm",
+			"@xyflow/react"
 		],
 		"localUnreachable": [
 			"src/web-ui/src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
@@ -177,6 +180,7 @@
 			"src/web-ui/src/tools/terminal/components/TerminalOutputRenderer.tsx",
 			"src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.tsx",
 			"src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.tsx",
+			"src/web-ui/src/app/components/panels/content-canvas/infinite-canvas/InfiniteCanvasPanel.tsx",
 			"src/web-ui/src/infrastructure/index.ts"
 		]
 	}
