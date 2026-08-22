@@ -30,6 +30,7 @@
       "shortDrama": "AI Short Drama",
       "workspaceMedia": "Media",
       "agentStudio": "Agent Studio",
+      "infiniteCanvas": "Infinite Canvas",
       "open": "Open {{name}}",
       "teamWorkspace": {
         "label": "Team",

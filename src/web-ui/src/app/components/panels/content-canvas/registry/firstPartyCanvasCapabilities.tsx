@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- registration lifecycle is not a React component module */
-import { Clapperboard, Images, SlidersHorizontal } from 'lucide-react';
+import { Clapperboard, Images, LayoutGrid, SlidersHorizontal } from 'lucide-react';
 
 import {
   CanvasCapabilityContributionRegistry,
@@ -7,6 +7,7 @@ import {
 } from './CanvasCapabilityContributionRegistry';
 import {
   AGENT_STUDIO_SURFACE_ID,
+  INFINITE_CANVAS_SURFACE_ID,
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
@@ -14,6 +15,7 @@ import { resolveAgentStudioCapabilityInput } from './agentStudioCapabilityInput'
 
 export {
   AGENT_STUDIO_SURFACE_ID,
+  INFINITE_CANVAS_SURFACE_ID,
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
@@ -92,12 +94,36 @@ export function registerFirstPartyCanvasCapabilities(
     };
   }
 
+  const infiniteCanvasRegistration = registry.register({
+    capabilityId: 'infinite-canvas',
+    surfaceId: INFINITE_CANVAS_SURFACE_ID,
+    pluginVersion: '1.0.0',
+    registrationKey: 'builtin.infinite-canvas.capability.v1',
+    labelKey: 'layout.sessionCapabilities.infiniteCanvas',
+    Icon: LayoutGrid,
+    // A new surface, not a migrated panel: it must not capture an existing tab.
+    legacyContentTypes: [],
+    // Phase 1 keeps the scope narrow: media parent sessions only.
+    isAvailableForSession: isAvailableForMediaParentSession,
+  });
+  if (infiniteCanvasRegistration.status === 'conflict') {
+    agentStudioRegistration.dispose();
+    workspaceMediaRegistration.dispose();
+    shortDramaRegistration.dispose();
+    return {
+      status: 'conflict',
+      reason: infiniteCanvasRegistration.reason,
+      dispose: () => undefined,
+    };
+  }
+
   let disposed = false;
   return {
     status: 'active',
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      infiniteCanvasRegistration.dispose();
       agentStudioRegistration.dispose();
       workspaceMediaRegistration.dispose();
       shortDramaRegistration.dispose();

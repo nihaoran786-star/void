@@ -55,7 +55,7 @@ function createSession(tools: FlowToolItem[]): Pick<Session, 'dialogTurns'> {
 }
 
 describe('deriveSessionCapabilities', () => {
-  it('keeps the media capability available for an empty media session', () => {
+  it('keeps the media capabilities available for an empty media session', () => {
     expect(deriveSessionCapabilities({
       dialogTurns: [],
       mode: 'Media',
@@ -63,6 +63,12 @@ describe('deriveSessionCapabilities', () => {
     })).toEqual([
       {
         id: 'workspace-media',
+        status: 'ready',
+        usageCount: 0,
+        latestActivityAt: 0,
+      },
+      {
+        id: 'infinite-canvas',
         status: 'ready',
         usageCount: 0,
         latestActivityAt: 0,

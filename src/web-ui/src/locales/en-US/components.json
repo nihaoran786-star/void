@@ -919,6 +919,11 @@
       "noCodeContent": "No code content available"
     }
   },
+  "infiniteCanvas": {
+    "title": "Infinite Canvas",
+    "skeleton": "Canvas is loading...",
+    "unavailable": "Infinite Canvas is not available in this workspace."
+  },
   "agentStudio": {
     "empty": "Open an agent to author it.",
     "fields": {

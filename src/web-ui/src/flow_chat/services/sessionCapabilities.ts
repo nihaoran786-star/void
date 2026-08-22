@@ -1,6 +1,10 @@
 import type { FlowToolItem, Session } from '../types/flow-chat';
 
-export type SessionCapabilityId = 'short-drama' | 'workspace-media' | 'agent-studio';
+export type SessionCapabilityId =
+  | 'short-drama'
+  | 'workspace-media'
+  | 'agent-studio'
+  | 'infinite-canvas';
 
 export type SessionCapabilityStatus =
   | 'running'
@@ -122,6 +126,15 @@ export function deriveSessionCapabilities(
       usageCount: 0,
       latestActivityAt: 0,
     });
+    // Infinite Canvas shares the media parent-session scope in phase 1; the
+    // rail stays surface-agnostic and resolves the entry from the capability
+    // contribution registry.
+    presentations.set('infinite-canvas', {
+      id: 'infinite-canvas',
+      status: 'ready',
+      usageCount: 0,
+      latestActivityAt: 0,
+    });
   }
 
   // Agent Studio authors the agent this conversation is running, so it is
@@ -175,7 +188,7 @@ export function deriveSessionCapabilities(
     }
   }
 
-  return ['short-drama', 'workspace-media', 'agent-studio']
+  return ['short-drama', 'workspace-media', 'infinite-canvas', 'agent-studio']
     .map(id => presentations.get(id as SessionCapabilityId))
     .filter(
       (value): value is SessionCapabilityPresentation => Boolean(value),

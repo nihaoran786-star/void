@@ -919,6 +919,11 @@
       "noCodeContent": "無代碼內容"
     }
   },
+  "infiniteCanvas": {
+    "title": "無限畫布",
+    "skeleton": "畫布載入中…",
+    "unavailable": "目前工作區無法使用無限畫布。"
+  },
   "agentStudio": {
     "empty": "開啟一個智慧體開始編輯。",
     "fields": {

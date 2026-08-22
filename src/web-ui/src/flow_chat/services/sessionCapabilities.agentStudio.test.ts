@@ -56,6 +56,6 @@ describe('agent-studio session capability', () => {
     }));
 
     const ids = capabilities.map(capability => capability.id);
-    expect(ids).toEqual(['workspace-media', 'agent-studio']);
+    expect(ids).toEqual(['workspace-media', 'infinite-canvas', 'agent-studio']);
   });
 });

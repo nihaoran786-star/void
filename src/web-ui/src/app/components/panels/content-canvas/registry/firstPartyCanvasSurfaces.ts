@@ -10,15 +10,18 @@ import {
 } from './CanvasSurfaceRendererRegistry';
 import {
   AGENT_STUDIO_SURFACE_ID,
+  INFINITE_CANVAS_SURFACE_ID,
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
 import { AgentStudioCanvasSurfaceRenderer } from './AgentStudioCanvasSurfaceRenderer';
+import { InfiniteCanvasSurfaceRenderer } from './InfiniteCanvasSurfaceRenderer';
 import { ShortDramaCanvasSurfaceRenderer } from './ShortDramaCanvasSurfaceRenderer';
 import { WorkspaceMediaSurfaceRenderer } from './WorkspaceMediaSurfaceRenderer';
 
 export {
   AGENT_STUDIO_SURFACE_ID,
+  INFINITE_CANVAS_SURFACE_ID,
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
@@ -214,6 +217,57 @@ const agentStudioSurfaceDefinition: CanvasSurfaceDefinition = {
   },
 };
 
+/**
+ * Infinite Canvas presents the per-workspace canvas document owned by the
+ * infinite-canvas Domain Module. The tab is only a projection: its snapshot
+ * stores workspace/document references, never node data.
+ *
+ * It deliberately declares no legacyContentType — a brand-new surface must not
+ * capture an existing panel — and it is fail-closed on remote workspaces, the
+ * same rule as Workspace Media and Agent Studio.
+ */
+const infiniteCanvasSurfaceDefinition: CanvasSurfaceDefinition = {
+  surfaceId: INFINITE_CANVAS_SURFACE_ID,
+  pluginVersion: '1.0.0',
+  registrationKey: 'builtin.infinite-canvas.surface.v1',
+  existingInstanceStrategy: 'focus',
+  checkWorkspace: workspace => workspace.backend === 'remote'
+    ? {
+        status: 'unavailable',
+        reason: 'Infinite Canvas remote workspace I/O routing is not available.',
+      }
+    : { status: 'available' },
+  // Phase 1 uses one default document per workspace, so no input payload is
+  // required; anything but an empty object or undefined is rejected.
+  validateInput: input => {
+    if (input === undefined || input === null) {
+      return { status: 'valid', value: {} };
+    }
+    if (typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length > 0) {
+      return {
+        status: 'invalid',
+        reason: 'Infinite Canvas surface input must be empty in phase 1.',
+      };
+    }
+    return { status: 'valid', value: {} };
+  },
+  createInstanceKey: context => (
+    `${INFINITE_CANVAS_SURFACE_ID}:${context.workspace.workspaceId}`
+  ),
+  createPresentation: context => ({
+    title: 'Infinite Canvas',
+    data: {
+      workspacePath: context.workspace.workspacePath,
+    },
+    metadata: {
+      duplicateCheckKey: `infinite-canvas:${context.workspace.workspaceId}`,
+      ...(context.sourceSessionId
+        ? { sourceSessionId: context.sourceSessionId }
+        : {}),
+    },
+  }),
+};
+
 export type FirstPartyCanvasSurfaceActivation =
   | { status: 'active'; dispose: () => void }
   | { status: 'conflict'; reason: string; dispose: () => void };
@@ -309,12 +363,51 @@ export function registerFirstPartyCanvasSurfaces(
     };
   }
 
+  const infiniteCanvasSurfaceRegistration = surfaces.register(infiniteCanvasSurfaceDefinition);
+  if (infiniteCanvasSurfaceRegistration.status === 'conflict') {
+    agentStudioRendererRegistration.dispose();
+    agentStudioSurfaceRegistration.dispose();
+    rendererRegistration.dispose();
+    surfaceRegistration.dispose();
+    shortDramaRendererRegistration.dispose();
+    shortDramaSurfaceRegistration.dispose();
+    return {
+      status: 'conflict',
+      reason: infiniteCanvasSurfaceRegistration.reason ?? 'Infinite Canvas surface registration conflict.',
+      dispose: () => undefined,
+    };
+  }
+
+  const infiniteCanvasRendererRegistration = renderers.register({
+    surfaceId: INFINITE_CANVAS_SURFACE_ID,
+    pluginVersion: '1.0.0',
+    registrationKey: 'builtin.infinite-canvas.renderer.v1',
+    legacyContentTypes: [],
+    Renderer: InfiniteCanvasSurfaceRenderer,
+  });
+  if (infiniteCanvasRendererRegistration.status === 'conflict') {
+    infiniteCanvasSurfaceRegistration.dispose();
+    agentStudioRendererRegistration.dispose();
+    agentStudioSurfaceRegistration.dispose();
+    rendererRegistration.dispose();
+    surfaceRegistration.dispose();
+    shortDramaRendererRegistration.dispose();
+    shortDramaSurfaceRegistration.dispose();
+    return {
+      status: 'conflict',
+      reason: infiniteCanvasRendererRegistration.reason ?? 'Infinite Canvas renderer registration conflict.',
+      dispose: () => undefined,
+    };
+  }
+
   let disposed = false;
   return {
     status: 'active',
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      infiniteCanvasRendererRegistration.dispose();
+      infiniteCanvasSurfaceRegistration.dispose();
       agentStudioRendererRegistration.dispose();
       agentStudioSurfaceRegistration.dispose();
       rendererRegistration.dispose();
