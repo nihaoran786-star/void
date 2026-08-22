@@ -24,6 +24,11 @@ the area you are changing.
   surface/domain/Agent/Team/Workflow contribution boundaries, Agent Studio, hot
   configuration versus revision-frozen execution, and the P0-A/P0-B/P1-A staged
   plan
+- [Infinite Canvas and media tools contracts](features/infinite-canvas-and-media-tools-prd.md)
+  — the K0 contracts: style-preset asset catalog (MIT kunpeng data), phase-2
+  image-tool and media-provider placeholders, and the infinite canvas
+  document/persistence rules; staged by the
+  [phase-1 plan](plans/2026-08-22-infinite-canvas-plugin-phase1.md)
 - [Customization Center and active persona](features/customization-center-prd.md)
   — Agent/Team/Skill catalogs, per-conversation persona binding, and the
   Desktop/Tauri reusable-Team runtime status
