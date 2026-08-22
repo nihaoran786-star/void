@@ -156,10 +156,57 @@ describe('composer persona presentation contract', () => {
     ).toBe('false');
     expect(container.querySelectorAll('.void-chat-input__persona-item-check'))
       .toHaveLength(1);
-    expect(container.querySelectorAll('.void-chat-input__persona-item-avatar'))
-      .toHaveLength(3);
+    // Text-first rows: no avatar imagery anywhere in the popover.
+    expect(container.querySelectorAll('img')).toHaveLength(0);
     expect(
       radioItems.find(item => item.textContent?.includes('AI 短剧团队'))?.textContent,
-    ).toContain('customization.composerPersona.summon');
+    ).toContain('teamWorkspace.members.count');
+  });
+
+  it('filters both sections from the pinned search input', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    mountedRoots.push({ root, container });
+
+    act(() => {
+      root.render(
+        <ComposerPersonaPicker
+          agents={[agentEntry]}
+          teams={[teamEntry, fixedTeamEntry]}
+          loading={false}
+          status="ready"
+          onSelectAgent={vi.fn()}
+          onSelectTeam={vi.fn()}
+          onOpenLibrary={vi.fn()}
+        />,
+      );
+    });
+
+    const search = container.querySelector<HTMLInputElement>(
+      '.void-chat-input__persona-search-input',
+    );
+    expect(search).not.toBeNull();
+
+    const setValue = (value: string) => {
+      act(() => {
+        const setter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          'value',
+        )?.set;
+        setter?.call(search, value);
+        search?.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+
+    setValue('文案');
+    let radioItems = container.querySelectorAll('[role="menuitemradio"]');
+    expect(radioItems).toHaveLength(1);
+    expect(radioItems[0]?.textContent).toContain('文案智能体');
+
+    setValue('no-such-persona');
+    radioItems = container.querySelectorAll('[role="menuitemradio"]');
+    expect(radioItems).toHaveLength(0);
+    expect(container.textContent).toContain('customization.composerPersona.noMatches');
   });
 });

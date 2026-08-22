@@ -3,25 +3,26 @@
  *
  * The map is a left-to-right flow graph: the lead on the left, every
  * specialist in a column to its right, and each member's delegated workers in
- * a further column to theirs. Nodes are rectangular cards with a port on each
- * side; links leave and arrive horizontally.
+ * a further column to theirs. Nodes are rectangular cards; links leave and
+ * arrive horizontally at the middle of a card's left or right edge. Those
+ * anchor points are geometry only — nothing is drawn on the card for them.
  *
  * Keeping the maths here means the layout contract — reading order, even
  * spacing, no overlap — can be tested without a DOM.
  */
 
-export const TEAM_NODE_WIDTH = 132;
-export const TEAM_NODE_HEIGHT = 52;
-export const TEAM_WORKER_NODE_WIDTH = 108;
-export const TEAM_WORKER_NODE_HEIGHT = 36;
+export const TEAM_NODE_WIDTH = 168;
+export const TEAM_NODE_HEIGHT = 68;
+export const TEAM_WORKER_NODE_WIDTH = 140;
+export const TEAM_WORKER_NODE_HEIGHT = 44;
 /** Gap between the lead column and the member column. */
-export const TEAM_COLUMN_GAP = 96;
+export const TEAM_COLUMN_GAP = 88;
 /** Gap between the member column and the worker column. */
-export const TEAM_WORKER_COLUMN_GAP = 76;
+export const TEAM_WORKER_COLUMN_GAP = 72;
 /** Vertical pitch between two member nodes, label included. */
-export const TEAM_MEMBER_PITCH = 84;
+export const TEAM_MEMBER_PITCH = 96;
 /** Vertical pitch between a member's workers. */
-export const TEAM_WORKER_PITCH = 46;
+export const TEAM_WORKER_PITCH = 54;
 
 export interface TeamTopologyInput {
   memberId: string;

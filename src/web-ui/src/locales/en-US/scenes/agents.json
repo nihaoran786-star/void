@@ -175,7 +175,13 @@
       "emptyAgents": "There are no Agents ready to join a team yet.",
       "createAgentFirst": "Create an Agent first",
       "noSearchResult": "No matching Agents",
-      "customAgent": "Custom Agent"
+      "customAgent": "Custom Agent",
+      "removeAction": "Remove"
+    },
+    "steps": {
+      "identity": "1. Name and goal",
+      "members": "2. Pick members",
+      "save": "3. Save"
     },
     "routeLabel": "Team creation method",
     "routes": {
@@ -285,7 +291,8 @@
     "actions": {
       "cancel": "Cancel",
       "create": "Create team",
-      "save": "Save changes"
+      "save": "Save changes",
+      "retry": "Retry"
     },
     "messages": {
       "prepared": "Team draft prepared",

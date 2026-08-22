@@ -175,7 +175,13 @@
       "emptyAgents": "還沒有可加入團隊的智能體。",
       "createAgentFirst": "先建立智能體",
       "noSearchResult": "沒有找到符合的智能體",
-      "customAgent": "自訂智能體"
+      "customAgent": "自訂智能體",
+      "removeAction": "移除"
+    },
+    "steps": {
+      "identity": "① 名字和目標",
+      "members": "② 選擇成員",
+      "save": "③ 儲存"
     },
     "routeLabel": "團隊建立方式",
     "routes": {
@@ -285,7 +291,8 @@
     "actions": {
       "cancel": "取消",
       "create": "建立團隊",
-      "save": "儲存修改"
+      "save": "儲存修改",
+      "retry": "重試"
     },
     "messages": {
       "prepared": "團隊草稿已整理，可繼續檢查和修改",

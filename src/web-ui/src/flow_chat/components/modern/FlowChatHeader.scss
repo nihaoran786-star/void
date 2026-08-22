@@ -442,6 +442,20 @@
     -webkit-backdrop-filter: blur(14px) saturate(1.2);
   }
 
+  // Frozen conversation identity: one quiet, non-removable text label. Pure
+  // text on purpose — no avatar, no pill fill, no motion.
+  &__persona-identity {
+    max-width: 180px;
+    padding: 0 6px;
+    overflow: hidden;
+    color: var(--color-text-tertiary);
+    font-size: 11px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+  }
+
   @media (max-width: 900px) {
     &__search {
       min-width: min(220px, 52vw);

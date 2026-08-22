@@ -7,7 +7,7 @@ import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } 
 import '../BeautifulUIFlowBindings.scss';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
-import { Bot, Image, Loader2, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
+import { Image, Loader2, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
 import { ContextDropZone } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import {
@@ -46,7 +46,7 @@ import {
   type AgentCatalogEntry,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
-import { resolveEmployeeAvatarUrl } from '@/app/scenes/agents/components/employeeAvatar';
+import { publishSessionPersonaLabel } from '../utils/sessionPersonaLabel';
 import { useChatInputState } from '../store/chatInputStateStore';
 import { useInputHistoryStore } from '../store/inputHistoryStore';
 import { startBtwThread } from '../services/BtwThreadService';
@@ -789,30 +789,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const hasActiveComposerPersona = Boolean(
     composerActiveAgent || composerActiveTeam || composerActivePersonaBinding,
   );
-  const isActiveComposerTeam = Boolean(
-    composerActiveTeam || composerActivePersonaBinding?.kind === 'team_lead',
-  );
-  const activePersonaAvatarIdentity = composerActiveTeam?.identity.id
-    ?? composerActiveAgent?.identity.id
-    ?? (composerActivePersonaBinding?.kind === 'team_lead'
-      ? composerActivePersonaBinding.teamDefinitionId
-        ?? composerActivePersonaBinding.personaId
-      : composerActivePersonaBinding?.personaId)
-    ?? null;
-  const activePersonaAvatarSrc = useMemo(
-    () => activePersonaAvatarIdentity
-      ? resolveEmployeeAvatarUrl(activePersonaAvatarIdentity)
-      : null,
-    [activePersonaAvatarIdentity],
-  );
-  const [failedPersonaAvatarSrc, setFailedPersonaAvatarSrc] = useState<string | null>(null);
+  // Pure-text identity label: "@名称", teams append "· N人".
+  const activePersonaLabel = useMemo(() => {
+    if (!hasActiveComposerPersona) return null;
+    const base = `@${activePersonaDisplayName}`;
+    return composerActiveTeam
+      ? `${base} · ${t('teamWorkspace.members.count', {
+          count: composerActiveTeam.members.length + 1,
+        })}`
+      : base;
+  }, [activePersonaDisplayName, composerActiveTeam, hasActiveComposerPersona, t]);
 
+  // After the first send freezes the binding, the composer shows no capsule;
+  // the frozen identity is published for the conversation header instead.
   useEffect(() => {
-    setFailedPersonaAvatarSrc(null);
-  }, [activePersonaAvatarIdentity]);
-
-  const activePersonaAvatarFailed = activePersonaAvatarSrc === null
-    || failedPersonaAvatarSrc === activePersonaAvatarSrc;
+    if (!effectiveTargetSessionId) return;
+    publishSessionPersonaLabel(
+      effectiveTargetSessionId,
+      composerPersonaLocked ? activePersonaLabel : null,
+    );
+  }, [activePersonaLabel, composerPersonaLocked, effectiveTargetSessionId]);
   const canSwitchModes =
     !isChildComposerTarget
     && !isAssistantWorkspace
@@ -4029,49 +4025,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     </div>
                   )}
 
-                  {hasActiveComposerPersona && (
-                    <div
-                      className="void-chat-input__agent-capsule void-chat-input__persona-capsule"
-                      data-persona-locked={composerPersonaLocked || undefined}
-                      title={composerPersonaLocked
-                        ? tCommon('customization.composerPersona.lockedPersona')
-                        : undefined}
-                    >
-                      {activePersonaAvatarFailed ? (
-                        <span className="void-chat-input__persona-avatar-fallback" aria-hidden>
-                          {isActiveComposerTeam ? (
-                            <Users size={12} />
-                          ) : (
-                            <Bot size={12} />
-                          )}
-                        </span>
-                      ) : (
-                        <img
-                          className="void-chat-input__persona-avatar"
-                          src={activePersonaAvatarSrc}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          onError={() => setFailedPersonaAvatarSrc(activePersonaAvatarSrc)}
-                        />
-                      )}
+                  {hasActiveComposerPersona && !composerPersonaLocked && (
+                    <div className="void-chat-input__agent-capsule void-chat-input__persona-capsule">
                       <span className="void-chat-input__agent-capsule-label">
-                        {activePersonaDisplayName}
+                        {activePersonaLabel}
                       </span>
-                      {!composerPersonaLocked && (
-                        <button
-                          type="button"
-                          className="void-chat-input__agent-capsule-close"
-                          aria-label={tCommon('customization.composerPersona.clearPersona')}
-                          disabled={customizationInteractionPending}
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleClearComposerAgent();
-                          }}
-                        >
-                          <X size={12} strokeWidth={2.5} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="void-chat-input__agent-capsule-close"
+                        aria-label={tCommon('customization.composerPersona.clearPersona')}
+                        disabled={customizationInteractionPending}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleClearComposerAgent();
+                        }}
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                      </button>
                     </div>
                   )}
 

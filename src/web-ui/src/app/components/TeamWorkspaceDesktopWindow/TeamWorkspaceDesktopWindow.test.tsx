@@ -90,8 +90,10 @@ vi.mock('react-i18next', () => ({
         'teamWorkspace.ariaLabel': '团队工作区',
         'teamWorkspace.states.loadingTitle': '正在读取团队',
         'teamWorkspace.states.loadingDescription': '正在恢复成员和流程状态。',
-        'teamWorkspace.memberStatus.not_started': '未开始',
-        'teamWorkspace.memberStatus.running': '工作中',
+        'teamWorkspace.status.notStarted': '未开始',
+        'teamWorkspace.status.inProgress': '进行中',
+        'teamWorkspace.status.done': '完成',
+        'teamWorkspace.status.error': '出错',
         'teamWorkspace.memberConversation.notStartedTitle': '尚未开始对话',
         'teamWorkspace.roles.lead': '主理人',
         'teamWorkspace.runStatus.running': '运行中',
@@ -509,7 +511,7 @@ describe('TeamWorkspaceDesktopWindow', () => {
     const region = container.querySelector('aside[aria-label="团队工作区"]');
     expect(region).not.toBeNull();
     expect(region?.hasAttribute('data-running')).toBe(true);
-    expect(container.querySelector('[role="status"]')?.textContent).toContain('运行中');
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('进行中');
   });
 
   it('loads once, then keeps the member conversation mounted across equivalent polls', async () => {

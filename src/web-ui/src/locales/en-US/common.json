@@ -16,6 +16,8 @@
       "trigger": "Agents and teams",
       "agents": "Agents",
       "teams": "Teams",
+      "searchPlaceholder": "Search agents and teams",
+      "noMatches": "No matching agents or teams",
       "loading": "Loading available agents…",
       "empty": "No agents or teams are available in this scenario yet",
       "loadFailed": "Could not load agents and teams. Try again later.",

@@ -1,3 +1,13 @@
+@use '../../component-library/styles/agent-surface' as surface;
+
+// Team Workspace — the quiet reading of a team.
+//
+// Rules of this surface, matching the shared AGENT surface vocabulary:
+// - Hairlines only. No gradients, no glow, no shadow, no corner badges.
+// - No animation, anywhere. Motion is not a status channel.
+// - Status is exactly two things: one 6px dot and one word out of four
+//   (not started / in progress / done / error).
+
 .team-workspace-panel {
   position: relative;
   display: flex;
@@ -13,112 +23,188 @@
   container-type: inline-size;
 
   button { font: inherit; }
-  button:focus-visible { outline: 2px solid var(--workspace-focus-ring); outline-offset: -2px; }
+  button:focus-visible { outline: 1px solid var(--workspace-focus-ring); outline-offset: -1px; }
 
-  /* ── 悬浮关闭:始终可发现,悬停时只增强对比 ── */
-  &__icon-button { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 8px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
-  &__icon-button:hover { background: var(--element-bg-soft); color: var(--color-text-primary); }
+  /* ── 悬浮关闭:安静的图标按钮 ── */
+  &__icon-button { @include surface.icon-button(32px); }
   &__icon-button svg { width: 16px; }
-  &__icon-button--floating { position: absolute; z-index: 3; top: 10px; right: 10px; width: 28px; height: 28px; flex-basis: 28px; border: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); opacity: .72; transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard); }
-  &:hover &__icon-button--floating,
-  &__icon-button--floating:focus-visible { opacity: 1; }
+  &__icon-button--floating {
+    position: absolute;
+    z-index: 3;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    background: var(--workspace-surface-panel);
+  }
 
   /* ── 无限画布:拖拽平移 + 滚轮缩放 ── */
   &__map { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--color-bg-primary); cursor: grab; touch-action: none; }
   &__map.is-dragging { cursor: grabbing; }
-  &__map-grid { position: absolute; top: 50%; left: 50%; width: 3200px; height: 3200px; margin: -1600px 0 0 -1600px; background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1.2px); background-size: 28px 28px; pointer-events: none; }
   &__map-world { position: absolute; top: 50%; left: 50%; width: 0; height: 0; }
+
+  /* 连线:统一 1px 发丝线,不区分状态 */
   &__map-wires { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
-  &__map-wires path { fill: none; stroke: var(--border-base); stroke-width: 1; }
-  &__map-wires path.is-live { stroke: var(--color-accent-500); stroke-dasharray: 5 6; }
-  &__map-wires path.is-worker { stroke-dasharray: 3 6; opacity: .7; }
+  &__map-wires path {
+    fill: none;
+    stroke: var(--workspace-border-subtle, var(--border-subtle));
+    stroke-width: 1;
+  }
 
-  /* ── 顶栏:两个视图一致的 36px 细栏,本身即拖拽区 ── */
-  &__map-topbar { position: absolute; z-index: 2; top: 0; right: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; min-height: 36px; padding: 0 16px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .12em; white-space: nowrap; }
+  /* ── 顶栏:36px 细栏,只说明这里是谁,本身即拖拽区 ── */
+  &__map-topbar {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: 36px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+    background: var(--workspace-surface-panel);
+    color: var(--color-text-muted);
+    font-size: var(--flowchat-font-size-xxs);
+    white-space: nowrap;
+  }
   &__map-topbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  &__map-topbar-live { flex: 0 0 auto; color: var(--color-accent-500); }
-  &__map-topbar-live::before { content: "●"; margin-right: 5px; }
 
-  /* ── 拓扑节点:一张矩形卡 + 两侧端口,运行中发光 ── */
-  &__node { position: absolute; top: 0; left: 0; box-sizing: border-box; border: 1px solid var(--border-base); border-radius: 10px; background: var(--workspace-surface-panel); transition: border-color var(--workspace-motion-fast) var(--workspace-easing-standard), box-shadow var(--workspace-motion-fast) var(--workspace-easing-standard); }
-  &__node:hover { border-color: var(--border-medium); }
-  &__node[data-live] { border-color: var(--color-accent-500); box-shadow: 0 0 0 1px var(--color-accent-500), 0 0 20px -4px var(--color-accent-500); }
-  &__node[data-tone='warning'] { border-color: var(--status-warning-text); }
-  &__node[data-tone='error'] { border-color: var(--status-error-text); }
-  &__node--lead { border-color: var(--border-medium); }
-  &__node--worker { border-style: dashed; }
+  /* ── 节点:一张安静的发丝卡片 ── */
+  &__node {
+    @include surface.card;
 
-  /* 端口:贴在卡片左右边缘中线上的小圆点,连线从这里进出 */
-  &__node-port { position: absolute; top: 50%; width: 7px; height: 7px; border: 1px solid var(--border-medium); border-radius: 50%; background: var(--color-bg-primary); transform: translateY(-50%); }
-  &__node-port[data-side='left'] { left: -4px; }
-  &__node-port[data-side='right'] { right: -4px; }
-  &__node[data-live] &__node-port { border-color: var(--color-accent-500); background: var(--color-accent-500); }
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+  }
+  &__node:hover { border-color: var(--workspace-border-strong, var(--border-medium)); }
+  &__node--worker { background: transparent; }
 
-  &__node-body { display: flex; align-items: center; gap: 9px; width: 100%; height: 100%; box-sizing: border-box; padding: 0 11px; border: 0; border-radius: inherit; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+  &__node-body {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 0 12px;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
   &__node-body:disabled { cursor: default; opacity: .55; }
-  &__node-glyph { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: 0 0 auto; border: 1px solid var(--border-subtle); border-radius: 7px; background: var(--element-bg-soft); color: var(--color-text-secondary); }
-  &__node-glyph svg { width: 14px; }
-  &__node[data-live] &__node-glyph { border-color: var(--color-accent-500); color: var(--color-accent-500); }
-  &__node-text { display: flex; min-width: 0; flex-direction: column; gap: 1px; }
-  &__node-name { overflow: hidden; color: var(--color-text-primary); font-size: var(--flowchat-font-size-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 静态身份标记:确定性色块 + 首字母,永不动画 */
+  &__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--team-mark-accent, currentColor) 16%, transparent);
+    color: color-mix(
+      in srgb,
+      var(--team-mark-accent, currentColor) 62%,
+      var(--workspace-text-primary, var(--color-text-primary))
+    );
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    user-select: none;
+  }
+
+  &__node-text { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: 2px; }
+  &__node-name { overflow: hidden; color: var(--color-text-primary); font-size: var(--flowchat-font-size-xs); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
   &__node-role { overflow: hidden; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); text-overflow: ellipsis; white-space: nowrap; }
 
-  &__node-chip { position: absolute; top: -8px; right: 8px; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--workspace-surface-panel); color: var(--color-text-secondary); cursor: pointer; font-size: var(--flowchat-font-size-xxs); font-variant-numeric: tabular-nums; }
-  &__node-chip:hover { border-color: var(--border-medium); color: var(--color-text-primary); }
-  &__node-chip[aria-expanded='true'] { border-color: var(--color-accent-500); color: var(--color-accent-500); }
-  &__node-delegation { position: absolute; top: calc(100% + 3px); left: 11px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
+  /* 状态:一个圆点 + 一个词,四种之一 */
+  &__node-status {
+    @include surface.status-dot;
+
+    font-size: var(--flowchat-font-size-xxs);
+    white-space: nowrap;
+  }
+  &__node-status[data-status='inProgress'] { color: var(--color-text-primary); }
+  &__node-status[data-status='done'] { color: var(--workspace-status-success-text, var(--status-success-text)); }
+  &__node-status[data-status='error'] { color: var(--workspace-status-error-text, var(--status-error-text)); }
+
+  /* 分身展开:纯文字 “+N” / “−N”,不是装饰按钮 */
+  &__node-expander {
+    @include surface.quiet-button;
+
+    position: absolute;
+    top: 50%;
+    right: 9px;
+    font-size: var(--flowchat-font-size-xxs);
+    font-variant-numeric: tabular-nums;
+    transform: translateY(-50%);
+  }
+  &__node-expander[aria-expanded='true'] { color: var(--color-text-secondary); }
+  &__node:has(&__node-expander) &__node-body { padding-right: 32px; }
+
+  &__node-delegation { position: absolute; top: calc(100% + 3px); left: 12px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
   &__node-delegation[data-state='partial'],
-  &__node-delegation[data-state='error'] { color: var(--status-warning-text); }
+  &__node-delegation[data-state='error'] { color: var(--workspace-status-error-text, var(--status-error-text)); }
 
   &__map-empty { position: absolute; top: 0; left: 0; margin: 0; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); white-space: nowrap; transform: translate(-50%, -50%); }
 
-  /* ── 浮动层:缩放 HUD(悬停浮现) / 异常 ── */
-  &__map-hud { position: absolute; z-index: 3; top: 10px; right: 44px; display: flex; align-items: center; gap: 6px; opacity: 0; transition: opacity .18s ease; }
-  &:hover &__map-hud,
-  &__map-hud:focus-within { opacity: 1; }
-  &__map-hud button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--workspace-surface-panel); color: var(--color-text-muted); cursor: pointer; }
-  &__map-hud button:hover { border-color: var(--border-medium); color: var(--color-text-primary); }
+  /* ── 浮动层:复位视图 ── */
+  &__map-hud { position: absolute; z-index: 3; top: 10px; right: 44px; display: flex; align-items: center; gap: 6px; }
+  &__map-hud button { @include surface.icon-button(28px); }
   &__map-hud svg { width: 14px; }
 
   /* ── 阶段:一根发丝进度线 ── */
-  &__map-phases { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 10px 20px 12px; border-top: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); }
-  &__map-phases-cap { flex: 0 0 auto; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); letter-spacing: .12em; white-space: nowrap; }
-  &__map-phases-track { position: relative; flex: 1; height: 1px; background: var(--border-base); }
-  &__map-phases-fill { position: absolute; top: -0.5px; left: 0; height: 2px; border-radius: 2px; background: var(--color-accent-500); transition: width .6s cubic-bezier(.22, 1, .36, 1); }
+  &__map-phases { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 10px 20px 12px; border-top: 1px solid var(--workspace-border-subtle, var(--border-subtle)); background: var(--workspace-surface-panel); }
+  &__map-phases-cap { @include surface.section-label; flex: 0 0 auto; font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
+  &__map-phases-track { position: relative; flex: 1; height: 1px; background: var(--workspace-border-subtle, var(--border-subtle)); }
+  &__map-phases-fill { position: absolute; top: 0; left: 0; height: 1px; background: var(--color-text-secondary); }
   &__map-phases-label { display: inline-flex; align-items: baseline; gap: 5px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
-  &__map-phases-label strong { max-width: 120px; overflow: hidden; color: var(--color-text-secondary); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  &__map-phases-label strong { max-width: 120px; overflow: hidden; color: var(--color-text-secondary); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ── 异常提示(地图内浮动) ── */
-  &__issue { display: flex; align-items: center; gap: 8px; padding: 9px 8px 9px 11px; border: 1px solid var(--status-warning-border); border-radius: 9px; background: var(--status-warning-bg); color: var(--status-warning-text); font-size: var(--flowchat-font-size-xs); }
-  &__issue--map { position: absolute; z-index: 2; top: 10px; left: 50%; max-width: min(420px, 86%); transform: translateX(-50%); }
+  &__issue { display: flex; align-items: center; gap: 8px; padding: 9px 8px 9px 11px; border: 1px solid var(--workspace-border-subtle, var(--border-subtle)); border-radius: var(--workspace-radius-panel, 8px); background: var(--workspace-surface-panel); color: var(--workspace-status-error-text, var(--status-error-text)); font-size: var(--flowchat-font-size-xs); }
+  &__issue--map { position: absolute; z-index: 2; top: 46px; left: 50%; max-width: min(420px, 86%); transform: translateX(-50%); }
   &__issue > span { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; line-height: 1.4; }
   &__issue strong { color: var(--color-text-primary); }
-  &__issue button, &__retry { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; }
-  &__issue button:hover, &__retry:hover { background: var(--element-bg-soft); }
+  &__issue button, &__retry { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--workspace-radius-control, 6px); background: transparent; color: inherit; cursor: pointer; }
+  &__issue button:hover, &__retry:hover { background: var(--workspace-surface-hover, var(--element-bg-soft)); }
   &__issue svg, &__retry svg { width: 16px; }
   &__muted { margin: 0; color: var(--color-text-muted); font-size: var(--flowchat-font-size-xs); }
 
-  /* ── 空态 / 对话分支(保持不变) ── */
+  /* ── 空态 / 对话分支 ── */
   &__empty { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; flex-direction: column; padding: 64px 28px; text-align: center; }
-  &__empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; flex: 0 0 auto; margin-bottom: 16px; border: 1px solid var(--border-base); border-radius: 14px; background: var(--element-bg-soft); color: var(--color-text-secondary); }
+  &__empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; flex: 0 0 auto; margin-bottom: 16px; border: 1px solid var(--workspace-border-subtle, var(--border-subtle)); border-radius: 14px; background: transparent; color: var(--color-text-muted); }
   &__empty-icon svg { width: 20px; }
-  &__empty > strong { font-size: var(--flowchat-font-size-base); font-weight: 650; }
+  &__empty > strong { font-size: var(--flowchat-font-size-base); font-weight: 500; }
   &__empty p { max-width: 260px; margin: 7px 0 12px; color: var(--color-text-muted); font-size: var(--flowchat-font-size-sm); line-height: 1.55; }
   &__retry { background: var(--element-bg-medium); color: var(--color-text-primary); }
-  &__spinner { animation: team-workspace-spin 900ms linear infinite; }
   &--conversation { background: var(--color-bg-flowchat); }
 
-  /* ── 成员对话条:返回 + 文字标签切换(与 Canvas 顶栏共享 36px 条高契约) ── */
-  &__strip { display: flex; align-items: baseline; gap: 16px; box-sizing: border-box; min-height: 36px; flex: 0 0 auto; padding: 12px 16px 9px; border-bottom: 1px solid var(--border-subtle); background: var(--workspace-surface-panel); }
-  &__strip-back { display: inline-flex; align-items: center; padding: 0; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; transition: color .18s ease, transform .25s cubic-bezier(.22, 1, .36, 1); }
-  &__strip-back:hover { color: var(--color-text-primary); transform: translateX(-2px); }
-  &__strip-back svg { width: 14px; }
-  &__strip-tabs { display: inline-flex; align-items: baseline; gap: 14px; min-width: 0; overflow: hidden; }
-  &__member-tab { position: relative; padding: 0 0 2px; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; font-size: var(--flowchat-font-size-xs); letter-spacing: .06em; white-space: nowrap; transition: color .18s ease; }
-  &__member-tab:hover { color: var(--color-text-secondary); }
-  &__member-tab[data-active] { color: var(--color-text-primary); font-weight: 600; }
-  &__member-tab[data-active]::after { content: ""; position: absolute; right: 0; bottom: -10px; left: 0; height: 1px; background: var(--color-accent-500); }
-  &__member-tab--worker { padding-left: 10px; border-left: 1px solid var(--border-subtle); }
+  /* ── 成员对话条:文字优先的返回 + 成员切换(与地图顶栏共享 36px 条高) ── */
+  &__strip { display: flex; align-items: center; gap: 16px; box-sizing: border-box; min-height: 36px; flex: 0 0 auto; padding: 0 16px; border-bottom: 1px solid var(--workspace-border-subtle, var(--border-subtle)); background: var(--workspace-surface-panel); }
+  &__strip-back { @include surface.quiet-button; flex: 0 0 auto; gap: 5px; font-size: var(--flowchat-font-size-xxs); white-space: nowrap; }
+  &__strip-back svg { width: 13px; }
+  &__strip-tabs { display: inline-flex; align-items: center; gap: 14px; min-width: 0; overflow: hidden; }
+  &__member-tab {
+    @include surface.quiet-button;
+
+    max-width: 12ch;
+    overflow: hidden;
+    font-size: var(--flowchat-font-size-xxs);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__member-tab[data-active] { color: var(--color-text-primary); }
+  &__member-tab--worker { padding-left: 10px; border-left: 1px solid var(--workspace-border-subtle, var(--border-subtle)); }
   &__strip, &__map-topbar { cursor: grab; }
   &__conversation { flex: 1; min-height: 0; overflow: hidden; }
 }
@@ -129,33 +215,19 @@
 
   &__strip {
     min-height: 36px;
-    padding: 12px 48px 9px 16px;
+    padding: 0 48px 0 16px;
   }
 }
 
-@keyframes team-workspace-spin { to { transform: rotate(360deg); } }
-
 @container (max-width: 300px) {
-  .team-workspace-panel__map-node-role,
   .team-workspace-panel__map-phases-cap { display: none; }
   .team-workspace-panel__issue { align-items: flex-start; flex-direction: column; }
   .team-workspace-panel__map-topbar { padding: 0 12px; }
 }
 
-/* ── 轻微动效:全部尊重 prefers-reduced-motion ── */
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes team-workspace-live { 50% { opacity: .3; } }
-  @keyframes team-workspace-flow { to { stroke-dashoffset: -22; } }
+/* 唯一的动效例外:等待指示器。其余表面一律静止。 */
+@keyframes team-workspace-spin { to { transform: rotate(360deg); } }
 
-  .team-workspace-panel__map-wires path.is-live {
-    animation: team-workspace-flow 900ms linear infinite;
-  }
-
-  .team-workspace-panel {
-    &__map-world, &__map-grid { transition: transform var(--motion-base) var(--easing-standard); }
-    &__map.is-dragging &__map-world, &__map.is-dragging &__map-grid { transition: none; }
-    &__map-topbar-live::before { animation: team-workspace-live 2.2s ease-in-out infinite; }
-  }
-}
+.team-workspace-panel__spinner { animation: team-workspace-spin 900ms linear infinite; }
 
 @media (prefers-reduced-motion: reduce) { .team-workspace-panel__spinner { animation: none; } }

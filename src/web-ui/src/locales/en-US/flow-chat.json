@@ -2360,6 +2360,12 @@
     "map": {
       "resetView": "Reset view"
     },
+    "status": {
+      "notStarted": "Not started",
+      "inProgress": "In progress",
+      "done": "Done",
+      "error": "Error"
+    },
     "phases": {
       "title": "Workflow phases",
       "count": "{{count}} phases",

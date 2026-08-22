@@ -384,19 +384,19 @@ describeWithJsdom('TeamAuthoringPage', () => {
     expect(container.textContent).toContain('前端开发智能体');
     await clickButton('产品主理人');
     await clickButton('前端开发智能体');
-    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
-    expect(Array.from(container.querySelectorAll('.team-roster__agent'))
-      .every(agent => agent.getAttribute('aria-pressed') === 'true'))
+    expect(container.querySelectorAll('.team-authoring__slot')).toHaveLength(2);
+    expect(Array.from(container.querySelectorAll('.team-authoring__pick'))
+      .every(agent => agent.getAttribute('aria-checked') === 'true'))
       .toBe(true);
-    expect(container.querySelector('.team-roster__slot.is-lead')?.textContent)
+    expect(container.querySelector('.team-authoring__slot.is-lead')?.textContent)
       .toContain('产品主理人');
 
     const inputs = container.querySelectorAll<HTMLInputElement>('input');
     const displayName = Array.from(inputs).find(
       input => input.placeholder === 'teamAuthoring.roster.namePlaceholder',
     );
-    const description = container.querySelector<HTMLTextAreaElement>(
-      'textarea[placeholder="teamAuthoring.roster.goalPlaceholder"]',
+    const description = Array.from(inputs).find(
+      input => input.placeholder === 'teamAuthoring.roster.goalPlaceholder',
     );
     expect(displayName).toBeTruthy();
     expect(description).toBeTruthy();
@@ -426,7 +426,7 @@ describeWithJsdom('TeamAuthoringPage', () => {
         agentId: 'user::void::product-lead',
       })]);
     const userScope = Array.from(container.querySelectorAll<HTMLButtonElement>(
-      '.team-roster__scope button',
+      '.team-authoring__scope button',
     )).find(button => button.textContent === 'teamAuthoring.scope.user');
     expect(userScope?.disabled).toBe(true);
   });
@@ -439,19 +439,19 @@ describeWithJsdom('TeamAuthoringPage', () => {
     await clickButton('产品主理人');
     await clickButton('前端开发智能体');
 
-    const makeLead = container.querySelector<HTMLButtonElement>(
-      '.team-roster__lead-action',
-    );
+    const makeLead = Array.from(container.querySelectorAll<HTMLButtonElement>(
+      '.team-authoring__slot button',
+    )).find(button => button.textContent === 'teamAuthoring.members.makeLead');
     expect(makeLead).toBeTruthy();
     await act(async () => {
       makeLead!.click();
       await Promise.resolve();
     });
 
-    expect(container.querySelector('.team-roster__slot.is-lead')?.textContent)
+    expect(container.querySelector('.team-authoring__slot.is-lead')?.textContent)
       .toContain('前端开发智能体');
-    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
-    expect(Array.from(container.querySelectorAll('.team-roster__slot'))
+    expect(container.querySelectorAll('.team-authoring__slot')).toHaveLength(2);
+    expect(Array.from(container.querySelectorAll('.team-authoring__slot'))
       .filter(slot => slot.textContent?.includes('前端开发智能体')))
       .toHaveLength(1);
   });
@@ -481,10 +481,10 @@ describeWithJsdom('TeamAuthoringPage', () => {
     await flush();
 
     expect(container.textContent).toContain('teamAuthoring.roster.loadFailed');
-    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    expect(container.querySelectorAll('.team-authoring__slot')).toHaveLength(2);
     await clickButton('teamAuthoring.roster.retry');
     await flush();
-    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    expect(container.querySelectorAll('.team-authoring__slot')).toHaveLength(2);
     expect(container.textContent).not.toContain('teamAuthoring.roster.loadFailed');
   });
 
@@ -502,8 +502,8 @@ describeWithJsdom('TeamAuthoringPage', () => {
     const displayName = container.querySelector<HTMLInputElement>(
       'input[placeholder="teamAuthoring.roster.namePlaceholder"]',
     );
-    const goal = container.querySelector<HTMLTextAreaElement>(
-      'textarea[placeholder="teamAuthoring.roster.goalPlaceholder"]',
+    const goal = container.querySelector<HTMLInputElement>(
+      'input[placeholder="teamAuthoring.roster.goalPlaceholder"]',
     );
     await act(async () => {
       setInputValue(displayName!, '保留现场团队');
@@ -513,10 +513,31 @@ describeWithJsdom('TeamAuthoringPage', () => {
     await clickButton('teamAuthoring.actions.create');
     await flush();
 
-    expect(notifications.error).toHaveBeenCalledWith('teamAuthoring.errors.write_failed');
+    const saveError = container.querySelector('[data-testid="team-authoring-save-error"]');
+    expect(saveError?.textContent).toContain('teamAuthoring.errors.write_failed');
+    expect(saveError?.textContent).toContain('teamAuthoring.actions.retry');
     expect(displayName?.value).toBe('保留现场团队');
     expect(goal?.value).toBe('创建失败后可以直接重试。');
-    expect(container.querySelectorAll('.team-roster__slot')).toHaveLength(2);
+    expect(container.querySelectorAll('.team-authoring__slot')).toHaveLength(2);
+  });
+
+  it('少于两位成员时给出一句安静的提示，选满后提示消失', async () => {
+    const gateway = gatewayFixture();
+
+    await renderPage(gateway);
+    await flush();
+
+    expect(container.querySelector(
+      '[data-testid="team-authoring-minimum"]',
+    )?.textContent).toBe('teamAuthoring.roster.minimum');
+    await clickButton('产品主理人');
+    expect(container.querySelector(
+      '[data-testid="team-authoring-minimum"]',
+    )).toBeTruthy();
+    await clickButton('前端开发智能体');
+    expect(container.querySelector(
+      '[data-testid="team-authoring-minimum"]',
+    )).toBeNull();
   });
 
   it('编辑时保留定义、成员、工作流和阶段 ID 并携带 expectedRevision', async () => {
@@ -530,7 +551,10 @@ describeWithJsdom('TeamAuthoringPage', () => {
 
     await renderPage(gateway);
     await flush();
-    expect(container.textContent).toContain(existing.displayName);
+    expect(container.querySelector<HTMLInputElement>(
+      'input[placeholder="teamAuthoring.roster.namePlaceholder"]',
+    )?.value).toBe(existing.displayName);
+    expect(container.querySelectorAll('.team-authoring__slot')).toHaveLength(2);
     await clickButton('teamAuthoring.actions.save');
 
     expect(gateway.get).toHaveBeenCalledWith({

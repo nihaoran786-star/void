@@ -40,20 +40,76 @@ export interface TeamWorkspacePanelProps {
   onSelectedMemberChange?: (memberId: string | null) => void;
 }
 
-const SUCCESS = new Set(['ready', 'completed']);
-const INFO = new Set(['provisioning', 'queued', 'running']);
-const WARNING = new Set(['waiting_user', 'waiting', 'blocked', 'interrupted']);
-const ERROR = new Set(['unavailable', 'failed', 'cancelled']);
+/**
+ * The four words this surface is allowed to say about any piece of work.
+ * Stored statuses keep their full vocabulary; this is display only.
+ */
+type TeamDisplayStatus = 'notStarted' | 'inProgress' | 'done' | 'error';
 
-function statusTone(status: string) {
-  if (SUCCESS.has(status)) return 'success';
-  if (INFO.has(status)) return 'info';
-  if (WARNING.has(status)) return 'warning';
-  if (ERROR.has(status)) return 'error';
-  return 'neutral';
+/** Statuses that mean "someone is working on it right now". */
+const RUNNING = new Set(['provisioning', 'queued', 'running']);
+/** Work has started but is parked on something; still "in progress" to a reader. */
+const PENDING_ATTENTION = new Set(['waiting_user', 'waiting', 'blocked']);
+const FINISHED = new Set(['completed', 'skipped', 'archived']);
+const BROKEN = new Set(['failed', 'cancelled', 'interrupted', 'unavailable']);
+
+function displayStatus(status: string): TeamDisplayStatus {
+  if (RUNNING.has(status) || PENDING_ATTENTION.has(status)) return 'inProgress';
+  if (FINISHED.has(status)) return 'done';
+  if (BROKEN.has(status)) return 'error';
+  // `idle` / `pending` / `ready` / `created` / `not_started` all read the same
+  // to a beginner: nothing has happened yet.
+  return 'notStarted';
 }
 
 const issueKey = (issue: TeamWorkspaceIssue) => `teamWorkspace.issues.${issue.code}`;
+
+/** FNV-1a hash — stable identity -> hue assignment. */
+function hashIdentity(identity: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash ^= identity.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function resolveInitial(name: string, identity: string): string {
+  const source = name.trim() || identity.trim();
+  const first = Array.from(source)[0];
+  return first ? first.toLocaleUpperCase() : '·';
+}
+
+/**
+ * Static identity mark: a deterministic colour block behind the first letter of
+ * the name, matching the AGENT surface avatar. No portrait, no animation.
+ */
+function TeamMark({ identity, name }: { identity: string; name: string }) {
+  const accent = useMemo(
+    () => `oklch(0.62 0.11 ${hashIdentity(identity) % 360})`,
+    [identity],
+  );
+  const initial = useMemo(() => resolveInitial(name, identity), [identity, name]);
+  return (
+    <span
+      className="team-workspace-panel__mark"
+      style={{ '--team-mark-accent': accent } as React.CSSProperties}
+      aria-hidden="true"
+    >
+      {initial}
+    </span>
+  );
+}
+
+/** One dot plus one word — the only status channel on this surface. */
+function StatusLine({ status }: { status: TeamDisplayStatus }) {
+  const { t } = useTranslation('flow-chat');
+  return (
+    <span className="team-workspace-panel__node-status" data-status={status}>
+      {t(`teamWorkspace.status.${status}`)}
+    </span>
+  );
+}
 
 function EmptyState({
   icon,
@@ -97,16 +153,17 @@ function sortedDelegatedTasks(
   ));
 }
 
-/** Nodes light up only while their member is actually executing. */
-function isLiveStatus(status: string): boolean {
-  return INFO.has(status);
-}
-
 function PhaseSegBar({ phases }: { phases: TeamWorkspacePhaseProjection[] }) {
   const { t } = useTranslation('flow-chat');
-  const done = phases.filter(phase => SUCCESS.has(phase.state.status)).length;
-  const current = phases.find(phase => INFO.has(phase.state.status))
-    ?? [...phases].reverse().find(phase => SUCCESS.has(phase.state.status))
+  const done = phases.filter(
+    phase => displayStatus(phase.state.status) === 'done',
+  ).length;
+  const current = phases.find(
+    phase => displayStatus(phase.state.status) === 'inProgress',
+  )
+    ?? [...phases].reverse().find(
+      phase => displayStatus(phase.state.status) === 'done',
+    )
     ?? phases[0];
   const progress = phases.length > 0 ? Math.round((done / phases.length) * 100) : 0;
   return (
@@ -126,7 +183,7 @@ function PhaseSegBar({ phases }: { phases: TeamWorkspacePhaseProjection[] }) {
             {done}/{phases.length}
             <span className="sr-only">
               {phases.map(phase => (
-                `${phase.definition.displayName} ${t(`teamWorkspace.phaseStatus.${phase.state.status}`)}`
+                `${phase.definition.displayName} ${t(`teamWorkspace.status.${displayStatus(phase.state.status)}`)}`
               )).join(' · ')}
             </span>
           </span>
@@ -140,7 +197,7 @@ function TeamMapView({
   team,
   members,
   issue,
-  running,
+  teamStatus,
   reload,
   openMember,
   openWorker,
@@ -149,7 +206,7 @@ function TeamMapView({
   team: TeamWorkspaceTeamProjection;
   members: TeamWorkspaceMemberProjection[];
   issue?: TeamWorkspaceIssue | null;
-  running: boolean;
+  teamStatus: TeamDisplayStatus;
   reload: () => void;
   openMember: (member: TeamWorkspaceMemberProjection) => void;
   openWorker: (member: TeamWorkspaceMemberProjection, task: TeamDelegatedTask) => void;
@@ -274,14 +331,10 @@ function TeamMapView({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
-      <div className="team-workspace-panel__map-grid" style={{ transform }} aria-hidden="true" />
       <div className="team-workspace-panel__map-topbar" data-map-static data-team-drag>
         <span className="team-workspace-panel__map-topbar-title">
           {t('teamWorkspace.members.title')} · {members.length + 1}
         </span>
-        {running && (
-          <span className="team-workspace-panel__map-topbar-live">{t('teamWorkspace.runStatus.running')}</span>
-        )}
       </div>
       <section
         className="team-workspace-panel__map-world"
@@ -293,7 +346,6 @@ function TeamMapView({
           {members.map((member, index) => {
             const node = layout.members[index];
             if (!node) return null;
-            const live = isLiveStatus(member.state.status);
             return (
               <React.Fragment key={member.definition.memberId}>
                 <path
@@ -301,7 +353,6 @@ function TeamMapView({
                     teamNodePort(layout.lead, 'right'),
                     teamNodePort(node, 'left'),
                   )}
-                  className={live ? 'is-live' : undefined}
                   vectorEffect="non-scaling-stroke"
                 />
                 {node.workers.map((worker, workerIndex) => (
@@ -311,7 +362,6 @@ function TeamMapView({
                       teamNodePort(node, 'right'),
                       teamNodePort(worker, 'left'),
                     )}
-                    className="is-worker"
                     vectorEffect="non-scaling-stroke"
                   />
                 ))}
@@ -322,7 +372,6 @@ function TeamMapView({
 
         <span
           className="team-workspace-panel__node team-workspace-panel__node--lead"
-          data-live={running || undefined}
           data-testid="team-lead-node"
           style={{
             transform: `translate(${layout.lead.x}px, ${layout.lead.y}px)`,
@@ -330,11 +379,11 @@ function TeamMapView({
             height: `${layout.lead.height}px`,
           }}
         >
-          <span className="team-workspace-panel__node-port" data-side="right" />
           <span className="team-workspace-panel__node-body">
-            <span className="team-workspace-panel__node-glyph" aria-hidden="true">
-              <ShieldCheck />
-            </span>
+            <TeamMark
+              identity={team.teamDefinitionId}
+              name={team.definition.displayName}
+            />
             <span className="team-workspace-panel__node-text">
               <span className="team-workspace-panel__node-name">
                 {team.definition.displayName}
@@ -342,6 +391,7 @@ function TeamMapView({
               <span className="team-workspace-panel__node-role">
                 {t('teamWorkspace.roles.lead')}
               </span>
+              <StatusLine status={teamStatus} />
             </span>
           </span>
         </span>
@@ -352,15 +402,12 @@ function TeamMapView({
           const node = layout.members[index];
           if (!node) return null;
           const memberId = member.definition.memberId;
-          const tone = statusTone(member.state.status);
           const tasks = memberTasks.get(memberId) ?? [];
           const isExpanded = expandedMemberIds.has(memberId);
           return (
             <React.Fragment key={memberId}>
               <span
                 className="team-workspace-panel__node"
-                data-tone={tone}
-                data-live={isLiveStatus(member.state.status) || undefined}
                 data-testid="team-member-node"
                 style={{
                   transform: `translate(${node.x}px, ${node.y}px)`,
@@ -368,10 +415,6 @@ function TeamMapView({
                   height: `${node.height}px`,
                 }}
               >
-                <span className="team-workspace-panel__node-port" data-side="left" />
-                {tasks.length > 0 && (
-                  <span className="team-workspace-panel__node-port" data-side="right" />
-                )}
                 <button
                   ref={button => registerButton(memberId, button)}
                   type="button"
@@ -379,9 +422,7 @@ function TeamMapView({
                   onClick={() => openMember(member)}
                   aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
                 >
-                  <span className="team-workspace-panel__node-glyph" aria-hidden="true">
-                    <CircleUserRound />
-                  </span>
+                  <TeamMark identity={memberId} name={member.definition.displayName} />
                   <span className="team-workspace-panel__node-text">
                     <span className="team-workspace-panel__node-name">
                       {member.definition.displayName}
@@ -389,13 +430,13 @@ function TeamMapView({
                     <span className="team-workspace-panel__node-role">
                       {member.definition.professionalRole}
                     </span>
+                    <StatusLine status={displayStatus(member.state.status)} />
                   </span>
-                  <span className="sr-only">{t(`teamWorkspace.memberStatus.${member.state.status}`)}</span>
                 </button>
                 {tasks.length > 0 && (
                   <button
                     type="button"
-                    className="team-workspace-panel__node-chip"
+                    className="team-workspace-panel__node-expander"
                     aria-expanded={isExpanded}
                     onClick={() => toggleMemberWorkers(memberId)}
                     aria-label={t('teamWorkspace.delegation.toggle', {
@@ -403,7 +444,7 @@ function TeamMapView({
                       count: tasks.length,
                     })}
                   >
-                    {tasks.length}
+                    {isExpanded ? '−' : '+'}{tasks.length}
                   </button>
                 )}
                 {member.delegation.status !== 'ready' && (
@@ -423,8 +464,6 @@ function TeamMapView({
                   <span
                     key={task.taskId}
                     className="team-workspace-panel__node team-workspace-panel__node--worker"
-                    data-tone={statusTone(task.status)}
-                    data-live={isLiveStatus(task.status) || undefined}
                     data-depth={task.depth}
                     style={{
                       transform: `translate(${worker.x}px, ${worker.y}px)`,
@@ -432,7 +471,6 @@ function TeamMapView({
                       height: `${worker.height}px`,
                     }}
                   >
-                    <span className="team-workspace-panel__node-port" data-side="left" />
                     <button
                       ref={button => registerButton(`task:${task.taskId}`, button)}
                       type="button"
@@ -446,7 +484,9 @@ function TeamMapView({
                         <span className="team-workspace-panel__node-name">{task.owner}</span>
                         <span className="team-workspace-panel__node-role">{task.objective}</span>
                       </span>
-                      <span className="sr-only">{t(`teamWorkspace.delegation.status.${task.status}`)}</span>
+                      <span className="sr-only">
+                        {t(`teamWorkspace.status.${displayStatus(task.status)}`)}
+                      </span>
                     </button>
                   </span>
                 );
@@ -506,8 +546,8 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
     [selectedMember, selectedTaskId],
   );
   const isTeamRunning = useMemo(
-    () => INFO.has(team?.activeRun?.status ?? '')
-      || members.some(member => INFO.has(member.state.status)),
+    () => RUNNING.has(team?.activeRun?.status ?? '')
+      || members.some(member => RUNNING.has(member.state.status)),
     [members, team],
   );
 
@@ -565,9 +605,9 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
             className="team-workspace-panel__strip-back"
             onClick={returnToTeam}
             aria-label={t('teamWorkspace.actions.backToTeam')}
-            title={t('teamWorkspace.actions.backToTeam')}
           >
             <ArrowLeft aria-hidden="true" />
+            {t('teamWorkspace.actions.backToTeam')}
           </button>
           <span className="team-workspace-panel__strip-tabs" role="group" aria-label={t('teamWorkspace.members.title')}>
             {members.map(member => (
@@ -576,13 +616,12 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
                 type="button"
                 className="team-workspace-panel__member-tab"
                 data-active={member.definition.memberId === selectedMember.definition.memberId || undefined}
-                data-tone={statusTone(member.state.status)}
                 onClick={() => openMember(member)}
                 aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
                 aria-current={member.definition.memberId === selectedMember.definition.memberId ? 'true' : undefined}
                 title={member.definition.displayName}
               >
-                {member.definition.displayName.slice(0, 2)}
+                {member.definition.displayName}
               </button>
             ))}
             {selectedMember.delegation.tasks.filter(task => task.childSessionId).map(task => (
@@ -591,13 +630,12 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
                 type="button"
                 className="team-workspace-panel__member-tab team-workspace-panel__member-tab--worker"
                 data-active={task.taskId === selectedTask?.taskId || undefined}
-                data-tone={statusTone(task.status)}
                 onClick={() => openWorker(selectedMember, task)}
                 aria-label={t('teamWorkspace.delegation.open', { name: task.owner })}
                 aria-current={task.taskId === selectedTask?.taskId ? 'true' : undefined}
                 title={task.objective}
               >
-                {task.owner.slice(0, 2)}
+                {task.owner}
               </button>
             ))}
           </span>
@@ -656,12 +694,11 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
   }
   if (!team) return <aside className="team-workspace-panel" aria-label={t('teamWorkspace.ariaLabel')}>{closeButton}<EmptyState icon={<UsersRound />} title={t('teamWorkspace.states.emptyTitle')} description={t('teamWorkspace.states.emptyDescription')} /></aside>;
 
-  const teamStatusValue = team.activeRun?.status ?? team.lifecycle;
-  const teamStatusNamespace = team.activeRun?.status ? 'runStatus' : 'lifecycle';
+  const teamStatus = displayStatus(team.activeRun?.status ?? team.lifecycle);
   return (
     <aside className="team-workspace-panel" aria-label={t('teamWorkspace.ariaLabel')} data-running={isTeamRunning || undefined}>
       <span className="sr-only">{team.definition.displayName}</span>
-      <span className="sr-only" role="status">{t(`teamWorkspace.${teamStatusNamespace}.${teamStatusValue}`)}</span>
+      <span className="sr-only" role="status">{t(`teamWorkspace.status.${teamStatus}`)}</span>
       {onClose && (
         <button type="button" className="team-workspace-panel__icon-button team-workspace-panel__icon-button--floating" onClick={onClose} aria-label={t('teamWorkspace.actions.close')}>
           <X aria-hidden="true" />
@@ -671,7 +708,7 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
         team={team}
         members={members}
         issue={issue}
-        running={isTeamRunning}
+        teamStatus={teamStatus}
         reload={state.reload}
         openMember={openMember}
         openWorker={openWorker}

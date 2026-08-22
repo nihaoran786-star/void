@@ -41,9 +41,10 @@ vi.mock('react-i18next', () => ({
         'teamWorkspace.roles.lead': '主理人',
         'teamWorkspace.roles.specialist': '专业成员',
         'teamWorkspace.runStatus.running': '运行中',
-        'teamWorkspace.memberStatus.not_started': '未开始',
-        'teamWorkspace.memberStatus.running': '工作中',
-        'teamWorkspace.phaseStatus.running': '进行中',
+        'teamWorkspace.status.notStarted': '未开始',
+        'teamWorkspace.status.inProgress': '进行中',
+        'teamWorkspace.status.done': '完成',
+        'teamWorkspace.status.error': '出错',
         'teamWorkspace.phaseKinds.serial': '依次进行',
         'teamWorkspace.delegation.loading': '正在加载委派工作…',
         'teamWorkspace.delegation.partial': '部分委派工作暂不可用',
@@ -264,7 +265,7 @@ describe('TeamWorkspacePanel', () => {
     expect(container.textContent).not.toContain('研发主理人');
     expect(container.textContent).toContain('开发工程师');
     expect(container.textContent).toContain('实现');
-    expect(container.querySelector('[role="status"]')?.textContent).toContain('运行中');
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('进行中');
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
     expect(container.querySelector('aside')?.hasAttribute('data-running')).toBe(true);
     expect(container.querySelector('.team-workspace-panel__map-topbar')?.hasAttribute('data-team-drag')).toBe(true);
@@ -530,7 +531,7 @@ describe('TeamWorkspacePanel', () => {
     expect(stateLabel?.getAttribute('data-state')).toBe('loading');
     expect(stateLabel?.textContent).toBe('正在加载委派工作…');
     // A member with no readable worker list must not offer the expander.
-    expect(container.querySelector('.team-workspace-panel__node-chip')).toBeNull();
+    expect(container.querySelector('.team-workspace-panel__node-expander')).toBeNull();
   });
 
   it('主理人是自己的节点，不进成员列', async () => {
@@ -549,14 +550,18 @@ describe('TeamWorkspacePanel', () => {
     expect(container.querySelector('button[aria-label*="研发主理人"]')).toBeNull();
   });
 
-  it('只有正在执行的节点发光，未派发的成员不发光但仍可点开', async () => {
+  it('每个成员只用一个状态点和四种状态词之一说明进展', async () => {
     const team = activeTeam();
     await render(readyState(team));
 
     const running = container.querySelector('[data-testid="team-member-node"]');
-    expect(running?.hasAttribute('data-live')).toBe(true);
-    expect(container.querySelector('[data-testid="team-lead-node"]')?.hasAttribute('data-live'))
-      .toBe(true);
+    const status = running?.querySelector('.team-workspace-panel__node-status');
+    expect(status?.getAttribute('data-status')).toBe('inProgress');
+    expect(status?.textContent).toBe('进行中');
+    // No glow, no tone badge: the dot plus the word is the only status channel.
+    expect(running?.hasAttribute('data-live')).toBe(false);
+    expect(running?.hasAttribute('data-tone')).toBe(false);
+    expect(running?.querySelectorAll('.team-workspace-panel__node-status')).toHaveLength(1);
 
     const idle = activeTeam();
     idle.members[1] = {
@@ -567,21 +572,45 @@ describe('TeamWorkspacePanel', () => {
     await render(readyState(idle));
 
     const node = container.querySelector('[data-testid="team-member-node"]');
-    expect(node?.hasAttribute('data-live')).toBe(false);
-    // Not glowing is not the same as unavailable: it stays selectable.
+    expect(node?.querySelector('.team-workspace-panel__node-status')?.textContent)
+      .toBe('未开始');
+    // Not started is not the same as unavailable: it stays selectable.
     expect(container.querySelector<HTMLButtonElement>(
       'button[aria-label="查看开发工程师的会话"]',
     )?.disabled).toBe(false);
   });
 
-  it('每条连线从上游节点的端口出发，运行中的那条走强调色', async () => {
+  it('失败的成员映射为“出错”，完成的成员映射为“完成”', async () => {
+    const failed = activeTeam();
+    failed.members[1] = {
+      definition: failed.definition.members[1]!,
+      state: { source: 'definition', status: 'failed' },
+      delegation: { status: 'ready', tasks: [] },
+    };
+    await render(readyState(failed));
+    expect(container.querySelector(
+      '[data-testid="team-member-node"] .team-workspace-panel__node-status',
+    )?.textContent).toBe('出错');
+
+    const completed = activeTeam();
+    completed.members[1] = {
+      definition: completed.definition.members[1]!,
+      state: { source: 'definition', status: 'completed' },
+      delegation: { status: 'ready', tasks: [] },
+    };
+    await render(readyState(completed));
+    expect(container.querySelector(
+      '[data-testid="team-member-node"] .team-workspace-panel__node-status',
+    )?.textContent).toBe('完成');
+  });
+
+  it('连线是不区分状态的发丝线，没有端口装饰', async () => {
     await render(readyState());
 
-    const ports = container.querySelectorAll('.team-workspace-panel__node-port');
-    expect(ports.length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.team-workspace-panel__node-port')).toHaveLength(0);
     const link = container.querySelector('.team-workspace-panel__map-wires path');
     expect(link?.getAttribute('d')).toMatch(/^M -?[\d.]+ -?[\d.]+ C /);
-    expect(link?.classList.contains('is-live')).toBe(true);
+    expect(link?.getAttribute('class')).toBeNull();
   });
 
   it('错误状态显示本地化恢复信息，重试走注入的 reload', async () => {

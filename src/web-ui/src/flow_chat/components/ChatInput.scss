@@ -893,8 +893,37 @@
     }
   }
 
+  // Quiet popover: no slide/scale animation, unlike the shared boost panel.
   &__persona-panel {
     overflow: hidden;
+    animation: none;
+  }
+
+  // Search pinned above the sections.
+  &__persona-search {
+    flex-shrink: 0;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  &__persona-search-input {
+    width: 100%;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 4px;
+    background: var(--element-bg-subtle);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: var(--flowchat-font-size-xs);
+
+    &::placeholder {
+      color: var(--color-text-tertiary);
+    }
+
+    &:focus-visible {
+      outline: 1px solid var(--focus-ring-color, var(--color-accent-600));
+      outline-offset: -1px;
+    }
   }
 
   &__persona-list {
@@ -947,23 +976,6 @@
     }
   }
 
-  &__persona-item-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 28px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    color: var(--color-accent-primary, rgba(96, 165, 250, 0.95));
-    background: color-mix(in srgb, var(--color-accent-primary, #60a5fa) 12%, transparent);
-
-    &--team {
-      color: var(--color-text-primary);
-      background: var(--element-bg-subtle);
-    }
-  }
-
   &__persona-item-copy {
     display: flex;
     flex: 1 1 auto;
@@ -984,6 +996,11 @@
     font-weight: 550;
   }
 
+  &__persona-item-count {
+    color: var(--color-text-tertiary);
+    font-weight: 400;
+  }
+
   &__persona-item-description {
     color: var(--color-text-tertiary);
     font-size: var(--flowchat-font-size-2xs);
@@ -994,48 +1011,11 @@
     color: var(--color-accent-primary, rgba(96, 165, 250, 0.95));
   }
 
-  &__persona-item-action {
-    flex: 0 0 auto;
-    padding: 2px 6px;
-    border-radius: 999px;
-    background: var(--element-bg-subtle);
-    color: var(--color-text-secondary);
-    font-size: var(--flowchat-font-size-2xs);
-    font-weight: 550;
-  }
-
+  // Pre-send capsule: pure text inside a quiet hairline, no fill, no glow.
   &__persona-capsule {
-    max-width: 180px;
-    background: color-mix(in srgb, var(--color-accent-primary, #60a5fa) 13%, transparent);
-    color: var(--color-text-primary);
-  }
-
-  &__persona-item-avatar {
-    display: block;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-
-  &__persona-avatar,
-  &__persona-avatar-fallback {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 16px;
-    border-radius: 50%;
-  }
-
-  &__persona-avatar {
-    display: block;
-    object-fit: cover;
-  }
-
-  &__persona-avatar-fallback {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--element-bg-medium);
+    max-width: 220px;
+    border: 1px solid var(--border-subtle);
+    background: transparent;
     color: var(--color-text-secondary);
   }
 

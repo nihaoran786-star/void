@@ -2360,6 +2360,12 @@
     "map": {
       "resetView": "复位视图"
     },
+    "status": {
+      "notStarted": "未开始",
+      "inProgress": "进行中",
+      "done": "完成",
+      "error": "出错"
+    },
     "phases": {
       "title": "工作阶段",
       "count": "{{count}} 个",

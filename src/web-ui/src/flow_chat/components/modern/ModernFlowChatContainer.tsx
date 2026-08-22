@@ -10,6 +10,7 @@ import { FlowChatManager } from '@/flow_chat/services/FlowChatManager';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import { VirtualMessageList, VirtualMessageListRef } from './VirtualMessageList';
 import { FlowChatHeader, type FlowChatHeaderTurnSummary } from './FlowChatHeader';
+import { useSessionPersonaLabel } from '../../utils/sessionPersonaLabel';
 import { WelcomePanel } from '../WelcomePanel';
 import { HistorySessionPlaceholder } from './HistorySessionPlaceholder';
 import { FlowChatContext, FlowChatContextValue } from './FlowChatContext';
@@ -221,6 +222,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   const turnSummariesRef = useRef<FlowChatHeaderTurnSummary[]>([]);
   const activeSessionIdRef = useRef<string | null>(null);
   const { workspacePath } = useWorkspaceContext();
+  const personaIdentityLabel = useSessionPersonaLabel(activeSession?.sessionId);
   const allowUserMessageRollback = !isAcpFlowSession(activeSession);
   const sessionOpenIntent = useMemo(
     () => resolveSessionOpenIntent({ session: activeSession }),
@@ -691,6 +693,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
           showPreviewFirstToggle={showPreviewFirstToggle}
           isPreviewFirstActive={isPreviewFirstActive}
           onPreviewFirstToggle={onPreviewFirstToggle}
+          personaIdentityLabel={personaIdentityLabel}
         />
 
         <div className="modern-flowchat-container__messages">

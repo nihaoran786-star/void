@@ -89,6 +89,11 @@ export interface FlowChatHeaderProps {
   isPreviewFirstActive?: boolean;
   /** Toggle preview-first / compact floating chat presentation. */
   onPreviewFirstToggle?: () => void;
+  /**
+   * Frozen conversation identity ("@名称", teams "@名称 · N人"). Display text
+   * only — resolved by the composer from the session's persona binding.
+   */
+  personaIdentityLabel?: string;
 }
 export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   currentTurn,
@@ -113,8 +118,10 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   showPreviewFirstToggle = false,
   isPreviewFirstActive = false,
   onPreviewFirstToggle,
+  personaIdentityLabel,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const { t: tCommon } = useTranslation('common');
   const { currentWorkspace } = useWorkspaceContext();
   const isPresentationActive = useFlowChatPresentationActive();
   const [isTurnListOpen, setIsTurnListOpen] = useState(false);
@@ -402,6 +409,16 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   return (
     <div className="flowchat-header">
       <div className="flowchat-header__actions">
+        {personaIdentityLabel ? (
+          <span
+            className="flowchat-header__persona-identity"
+            title={tCommon('customization.composerPersona.lockedPersona')}
+            data-testid="flowchat-header-persona-identity"
+          >
+            {personaIdentityLabel}
+          </span>
+        ) : null}
+
         {isPresentationActive && (
           <SessionFilesBadge sessionId={sessionId} />
         )}

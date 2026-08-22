@@ -16,6 +16,8 @@
       "trigger": "智能體與團隊",
       "agents": "智能體",
       "teams": "團隊",
+      "searchPlaceholder": "搜尋智能體與團隊",
+      "noMatches": "沒有符合的智能體或團隊",
       "loading": "正在載入可用智能體…",
       "empty": "目前場景還沒有可用的智能體或團隊",
       "loadFailed": "載入失敗，請稍後重試",
