@@ -55,7 +55,26 @@ function getFlowItemTextLength(item: AnyFlowItem): number {
   return 0;
 }
 
+/**
+ * A thinking item that is still streaming renders nothing in the main
+ * transcript: the pinned activity bar already reports the work, so
+ * `ModelThinkingDisplay` defers and returns `null` until the reasoning settles.
+ * Estimating it from its text length (up to 3200px) against a DOM box of zero
+ * is a guaranteed large mis-measure at the tail, corrected as a shrink the
+ * moment the item mounts.
+ */
+function isDeferredStreamingThinkingItem(item: AnyFlowItem): boolean {
+  return (
+    item.type === 'thinking' &&
+    (item.isStreaming === true || item.status === 'streaming')
+  );
+}
+
 function estimateFlowItemHeight(item: AnyFlowItem): number {
+  if (isDeferredStreamingThinkingItem(item)) {
+    return 0;
+  }
+
   const textLength = getFlowItemTextLength(item);
   if (textLength > 0) {
     return Math.min(
@@ -291,6 +310,39 @@ export function selectInitialHistoryRenderWindow(
     totalEstimatedHeightPx,
     isWindowed: startIndex > 0,
   };
+}
+
+/**
+ * Dead band for unsignalled tail height changes.
+ *
+ * The tail of a live turn wobbles by a pixel or two constantly: a shimmering
+ * label re-rasterises, a live elapsed counter changes digit count, a bottom
+ * anchored preview re-wraps, a font metric settles. None of it is content
+ * moving under the reader's eyes, but each wobble used to clear
+ * `COMPENSATION_EPSILON_PX` (0.5px) and run the whole shrink-protection path —
+ * reservation, anchor lock, `scrollTop` write — several times a second for as
+ * long as the model was thinking. That is the "it jumps while it is thinking"
+ * report.
+ *
+ * Signalled collapses (`flowchat:tool-card-collapse-intent`) are never subject
+ * to this: a real collapse announces itself and is compensated at any size.
+ */
+export const UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX = 8;
+
+/**
+ * Whether an *unsignalled* shrink is worth protecting the visual anchor for.
+ *
+ * Returns false for sub-perceptual wobble and for shrinks the reader is already
+ * far enough from the bottom to absorb.
+ */
+export function shouldProtectUnsignalledShrink(params: {
+  shrinkPx: number;
+  distanceFromBottomPx: number;
+  deadBandPx?: number;
+}): boolean {
+  const deadBandPx = params.deadBandPx ?? UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX;
+  if (!(params.shrinkPx > deadBandPx)) return false;
+  return params.shrinkPx - Math.max(0, params.distanceFromBottomPx) > deadBandPx;
 }
 
 /**

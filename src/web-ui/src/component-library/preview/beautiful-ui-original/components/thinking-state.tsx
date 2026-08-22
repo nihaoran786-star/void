@@ -299,6 +299,14 @@ export default function ThinkingState({
             display: "flex",
             flexDirection: "column",
             justifyContent: "flex-end",
+            // Fixed outer box. The tail text grows line by line as reasoning
+            // streams; letting the box grow with it changes the height of the
+            // last item in the virtualized transcript several times a second,
+            // which the scroll-stability machinery reads as content shrinking
+            // and growing. The text stays bottom-anchored either way, so
+            // reserving the final height costs nothing visually.
+            height: "3.9em",
+            minHeight: "3.9em",
             maxHeight: "3.9em",
             overflow: "hidden",
             marginTop: 4,

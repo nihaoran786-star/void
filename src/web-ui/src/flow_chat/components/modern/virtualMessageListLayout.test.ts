@@ -8,6 +8,8 @@ import {
   HISTORICAL_SESSION_MODEL_ROUND_DEFAULT_ITEM_HEIGHT_PX,
   LIVE_SESSION_DEFAULT_ITEM_HEIGHT_PX,
   MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO,
+  UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX,
+  shouldProtectUnsignalledShrink,
   computeCollapseReservationPx,
   computeReaderAnchorCorrection,
   estimateTextHeightFromLength,
@@ -555,5 +557,118 @@ describe('computeCollapseReservationPx', () => {
       requestedPx: 100,
       isFollowingOutput: true,
     })).toBe(0);
+  });
+});
+
+describe('tail oscillation while the model is thinking', () => {
+  // While the model thinks, the last item in the transcript wobbles by a pixel
+  // or two several times a second: a shimmering label re-rasterises, the live
+  // elapsed counter changes digit count, a bottom-anchored reasoning preview
+  // re-wraps. None of it is content moving under the reader's eyes.
+  const OSCILLATION_SEQUENCE_PX = [1, -1, 2, -2, 0.75, -0.75, 6, -6, 3, -3];
+
+  it('protects no unsignalled shrink inside the dead band, at the bottom', () => {
+    // Following output: the reader is pinned to the tail, distance 0. Every one
+    // of these used to clear COMPENSATION_EPSILON_PX and run the anchor lock.
+    const protectedShrinks = OSCILLATION_SEQUENCE_PX
+      .filter(delta => delta < 0)
+      .filter(delta => shouldProtectUnsignalledShrink({
+        shrinkPx: -delta,
+        distanceFromBottomPx: 0,
+      }));
+
+    expect(protectedShrinks).toEqual([]);
+  });
+
+  it('protects no unsignalled shrink inside the dead band while reading history', () => {
+    // Reader is 900px up the transcript. Nothing at the tail can justify moving
+    // the line they are looking at.
+    const protectedShrinks = OSCILLATION_SEQUENCE_PX
+      .filter(delta => delta < 0)
+      .filter(delta => shouldProtectUnsignalledShrink({
+        shrinkPx: -delta,
+        distanceFromBottomPx: 900,
+      }));
+
+    expect(protectedShrinks).toEqual([]);
+  });
+
+  it('issues no reader-anchor correction for a tail-only oscillation', () => {
+    // The anchored item is above the tail, so its offset inside the scroller
+    // does not move at all — only total content height does. Zero corrections.
+    const corrections = OSCILLATION_SEQUENCE_PX.map(delta => computeReaderAnchorCorrection({
+      currentScrollTop: 4200,
+      scrollHeight: 18000 + delta,
+      clientHeight: 900,
+      anchoredOffsetTop: 120,
+      currentOffsetTop: 120,
+      maxCorrectionPx: 900,
+    }));
+
+    expect(corrections.every(correction => correction === null)).toBe(true);
+  });
+
+  it('still protects a real shrink beyond the dead band', () => {
+    expect(shouldProtectUnsignalledShrink({
+      shrinkPx: 240,
+      distanceFromBottomPx: 0,
+    })).toBe(true);
+
+    // Exactly at the band is still wobble.
+    expect(shouldProtectUnsignalledShrink({
+      shrinkPx: UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX,
+      distanceFromBottomPx: 0,
+    })).toBe(false);
+  });
+
+  it('does not protect a shrink the reader is already far enough from', () => {
+    // 240px of shrink but the reader is 900px from the bottom: nothing they can
+    // see moves, so there is nothing to compensate.
+    expect(shouldProtectUnsignalledShrink({
+      shrinkPx: 240,
+      distanceFromBottomPx: 900,
+    })).toBe(false);
+  });
+});
+
+describe('estimateVirtualMessageItemHeight for deferred thinking items', () => {
+  function thinkingItem(overrides: Record<string, unknown>) {
+    return {
+      id: 'think-1',
+      type: 'thinking' as const,
+      content: 'x'.repeat(4000),
+      timestamp: 0,
+      ...overrides,
+    };
+  }
+
+  function modelRound(items: unknown[]) {
+    return {
+      type: 'model-round' as const,
+      id: 'round-1',
+      turnId: 'turn-1',
+      data: { items },
+    };
+  }
+
+  it('estimates a still-streaming thinking item as zero height', () => {
+    // `ModelThinkingDisplay` renders null while the pinned activity bar is
+    // reporting the work, so the DOM box is zero. Estimating 3200px against it
+    // guarantees a large mis-measure at the tail.
+    const streaming = estimateVirtualMessageItemHeight(
+      modelRound([thinkingItem({ isStreaming: true })]) as never,
+    );
+    const settled = estimateVirtualMessageItemHeight(
+      modelRound([thinkingItem({ isStreaming: false })]) as never,
+    );
+
+    expect(streaming).toBeLessThan(settled);
+    expect(streaming).toBe(LIVE_SESSION_DEFAULT_ITEM_HEIGHT_PX);
+  });
+
+  it('treats a "streaming" status the same as the isStreaming flag', () => {
+    expect(estimateVirtualMessageItemHeight(
+      modelRound([thinkingItem({ status: 'streaming' })]) as never,
+    )).toBe(LIVE_SESSION_DEFAULT_ITEM_HEIGHT_PX);
   });
 });

@@ -94,7 +94,16 @@ export default function LoadingState({
       >
         {label}
       </span>
-      <span className="font-mono text-[12px] text-ink-3 tabular-nums">
+      {/*
+        The timer re-renders every 100ms and its string grows ("9.9s" ->
+        "10.0s" -> "1m 0.0s"). Reserving the width keeps that tick from ever
+        re-flowing the row it sits in — a row that, on surfaces where this
+        renders inside the scrolled transcript, is the last measured item.
+      */}
+      <span
+        className="font-mono text-[12px] text-ink-3 tabular-nums"
+        style={{ minWidth: "7ch", display: "inline-block" }}
+      >
         {elapsed}
       </span>
     </div>

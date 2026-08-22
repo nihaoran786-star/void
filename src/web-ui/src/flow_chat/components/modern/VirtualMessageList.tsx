@@ -37,7 +37,9 @@ import {
   estimateVirtualMessageItemHeight,
   getVirtualMessageDefaultItemHeightForSession,
   selectInitialHistoryRenderWindow,
+  shouldProtectUnsignalledShrink,
   READER_ANCHOR_MIN_DRIFT_PX,
+  UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX,
 } from './virtualMessageListLayout';
 import {
   activeSessionHistoryProjectionHandoff,
@@ -749,7 +751,16 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     // viewport is still pinned near the bottom when the user has already moved
     // away. That misclassification re-arms anchor restore and causes jitter.
     const currentCollapseCompensation = getReservationTotalPx(bottomReservationStateRef.current.collapse);
-    const fallbackRequiredCollapseCompensation = Math.max(0, shrinkAmount - distanceFromBottom);
+    // Sub-perceptual tail wobble (shimmering label, live elapsed counter,
+    // bottom-anchored reasoning preview) is not content moving under the
+    // reader's eyes. Protecting it runs the anchor lock several times a second
+    // for as long as the model is thinking, which is the jitter itself.
+    const fallbackRequiredCollapseCompensation = shouldProtectUnsignalledShrink({
+      shrinkPx: shrinkAmount,
+      distanceFromBottomPx: distanceFromBottom,
+    })
+      ? Math.max(0, shrinkAmount - distanceFromBottom)
+      : 0;
     const cumulativeShrinkPx = hasValidCollapseIntent
       ? collapseIntent.cumulativeShrinkPx + shrinkAmount
       : 0;
@@ -1616,7 +1627,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       const intentCheckScrollDelta = intentCheckScrollTop - intentCheckPreviousScrollTop;
       const hasRecentUserUpwardIntent = now <= userInitiatedUpwardScrollUntilMsRef.current;
       if (
-        intentCheckScrollDelta < -COMPENSATION_EPSILON_PX &&
+        // Dead band, not `COMPENSATION_EPSILON_PX`: a one-pixel clamp from tail
+        // wobble while the model thinks is cheaper to accept than to fight, and
+        // fighting it every tick is what the reader sees as jumping.
+        intentCheckScrollDelta < -UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX &&
         isFollowingOutputRef.current &&
         isStreamingOutputRef.current &&
         !hasRecentUserUpwardIntent &&

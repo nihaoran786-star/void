@@ -323,6 +323,43 @@ The rules that now guard it:
   measures the **effective** bottom (`getAutoFollowDistanceFromBottom`), never the
   raw one.
 
+## F. Tail Wobble While Thinking (2026-08-22)
+
+Follow-up report: the viewport still jumped, specifically while the model was
+*thinking* — no tokens landing in the transcript, nothing visibly changing.
+
+The tail of a live turn is never geometrically still. A shimmering label
+re-rasterises, the live elapsed counter in `loading-state.tsx` re-renders every
+100 ms and grows a character (`9.9s` → `10.0s` → `1m 0.0s`), the bottom-anchored
+reasoning preview in `thinking-state.tsx` grows a line at a time up to its
+`max-height`. Each of those is one or two pixels, and `COMPENSATION_EPSILON_PX`
+is 0.5px, so every one of them cleared the bar and ran the full unsignalled
+shrink path — reservation, anchor lock, `scrollTop` write — several times a
+second for the whole thinking phase. The machinery was the jitter.
+
+A second contributor: `ModelThinkingDisplay` renders `null` while reasoning is
+still streaming (`deferToPinnedActivity`), because the pinned bar already
+reports the work. `estimateVirtualMessageItemHeight` still costed that item from
+its text length — up to 3200px against a DOM box of zero — so Virtuoso's
+placeholder for the round was wildly wrong and correcting it on mount was a
+large tail shrink.
+
+Rules now:
+
+- **Unsignalled** tail changes inside
+  `UNSIGNALLED_TAIL_OSCILLATION_DEAD_BAND_PX` are ignored outright
+  (`shouldProtectUnsignalledShrink`), in both `measureHeightChange` and the
+  follow-mode clamp restore in `handleScroll`. Accepting a one-pixel clamp is
+  always cheaper than fighting it every tick. Signalled collapses
+  (`flowchat:tool-card-collapse-intent`) are never subject to the dead band —
+  they announce themselves and are compensated at any size.
+- A live indicator rendered inside the scroller must occupy a **fixed outer
+  height** while visible. Internal animation (shimmer, typewriter, elapsed text,
+  wavefront) must not change the outer box. The reasoning live tail is a fixed
+  `3.9em`; the elapsed timer reserves its width in `ch`.
+- Height estimates must match what the component actually renders. An item that
+  renders nothing must be estimated as nothing.
+
 ## Why `overflow-anchor: none` Must Stay
 
 `VirtualMessageList.scss` disables native browser scroll anchoring on:
@@ -383,6 +420,9 @@ If a future collapsible component shows the same "header drops" or "flash on col
   control.
 - Tail reservations must be bounded and must be handed back once nothing can
   drain them.
+- Unsignalled tail changes below the dead band must be ignored, not compensated.
+- A live indicator inside the scroller must have a fixed outer height while
+  visible, and its height estimate must match what it renders.
 
 ## Common Ways To Break This
 
