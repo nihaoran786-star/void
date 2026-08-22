@@ -1,335 +1,243 @@
 # Current collaboration context
 
-Updated: 2026-08-20
+What this is: the single current-truth summary of Void's product state,
+architecture boundaries, and quality baseline. Read it first in any new session,
+before touching code. Dated evidence and per-domain detail live under `docs/`;
+this file never duplicates them.
+
+Updated: 2026-08-22 (head `d0904e0ea`)
+
+## Repository and references
+
+- Work happens on `main`. On 2026-08-17 the owner promoted this line to
+  `origin/main`; the previous remote main was an unrelated 2026-02..05 showcase
+  history, preserved as `legacy/main-20260525`.
+- Void is the product and implementation repository. BitFun is a capability/fix
+  reference; DeepSeek Harness (local clone `D:\codex\DSH`) is a
+  plugin-architecture reference. Neither replaces Void's product identity or its
+  stable runtime contracts.
 
 ## Product state
 
-- Active implementation branch: `codex/agent-revision-core-p1a1`. On
-  2026-08-17 the owner promoted this line to `origin/main` (fast-forward
-  impossible: the previous remote main was an unrelated 2026-02..05 showcase
-  history, preserved as `legacy/main-20260525`). The branch and main are
-  pushed; keep them in sync after each verified slice.
-- Void is the primary product and implementation repository. BitFun is an
-  upstream capability/fix reference, while DeepSeek Harness is a rapidly
-  evolving plugin-architecture and ecosystem reference; neither reference
-  replaces Void's product identity or stable runtime contracts.
-- Local DeepSeek Harness clone: `D:\codex\DSH`.
-- The product north star is a conversation-centered workspace: the main AI
-  conversation remains in the center and the existing right Content Canvas is
-  the stable collapsible/expandable host for typed plugin surfaces such as AI
-  Short Drama, Workspace Media, Agent Studio, AI Customer Service, and a future
-  Infinite Canvas. Scenario presets and installable business bundles may
-  compose Agent, Team, Workflow, Skill, Tool, Provider, and Canvas
-  contributions, but they must reuse the existing session, permission,
-  workspace, Team, and tool runtimes. Canvas owns presentation layout and
-  references only; every domain still writes through its own Module Interface.
-  The active staged contract is
-  [docs/features/canvas-plugin-platform-prd.md](docs/features/canvas-plugin-platform-prd.md).
-- Canvas plugin P0-A and P0-B are implemented: a pure typed registry/service/workspace
-  facts layer opens one real first-party Workspace Media surface through a
-  context-bound host adapter and renderer registry. Stable workspace identity
-  uses `WorkspaceInfo.id`; delivery idempotency is separate from surface
-  instance identity. Restore intent requires workspace/session facts and cannot
-  replay across workspaces. Workspace Media remains deliberately unavailable
-  for remote workspaces until `remoteConnectionId` is carried through its real
-  file IO Module Interface. P0-B adds the typed command port and capability
-  contribution registry, migrates Workspace Media and AI Short Drama opening,
-  restore, composer, rail and renderer paths off business DOM events/central
-  switches, and rejects stale Team restore deliveries with typed
-  `scopeId + revision + activationId`. P1-A1 now adds the platform-neutral
-  Agent revision core: user and authoritative local-project catalogs,
-  generated opaque definition/draft/revision identities, exact draft/base/default
+### North star
+
+A conversation-centered workspace. The main AI conversation stays in the centre;
+the right Content Canvas is the stable collapsible host for typed plugin
+surfaces (AI Short Drama, Workspace Media, Agent Studio, AI Customer Service, a
+future Infinite Canvas). Scenario presets and installable bundles may compose
+Agent, Team, Workflow, Skill, Tool, Provider, and Canvas contributions, but must
+reuse the existing session, permission, workspace, Team, and tool runtimes.
+Canvas owns presentation layout and references only; every domain still writes
+through its own Module Interface. Active contract:
+[docs/features/canvas-plugin-platform-prd.md](docs/features/canvas-plugin-platform-prd.md).
+
+### Canvas plugin platform
+
+- **P0-A / P0-B (landed).** A typed registry/service/workspace-facts layer opens
+  first-party Canvas surfaces through a context-bound host adapter and renderer
+  registry. `CanvasSurfaceCommandService` and
+  `CanvasCapabilityContributionRegistry` are the typed opening/contribution
+  seams; Session rail, Team restore, and the Short Drama composer action emit no
+  business DOM events. Stable workspace identity is `WorkspaceInfo.id`; delivery
+  idempotency is separate from surface instance identity. Team restore
+  activation facts carry `scopeId`, semantic `revision`, and a unique
+  `activationId`, so stale deliveries cannot regain mutation authority.
+- **P1-A1 (landed).** The platform-neutral Agent revision core: user and
+  local-project catalogs, opaque definition/draft/revision identities, exact
   compare-and-swap, bounded idempotency receipts, revision-bound validation
-  evidence, separate publish/default commands, atomic recovery, and exact
-  runtime resolution for legacy aliases and catalog-only Agents. Legacy Agent
-  source files are imported non-destructively and remain a compatibility
-  authority; if the old source changes after import, catalog authoring fails
-  closed instead of dual-writing. Remote project authoring remains explicitly
-  unavailable. P1-A2 has since landed its three parts as isolated, individually
-  tested checkpoints: A2-1 a read-only `agent-studio` Canvas contribution
-  (`4508c743f`), A2-2 `AgentDebugSessionBinding` pinning an isolated debug
-  session to one exact draft revision (`d019d4d48`), and A2-3
-  `AgentRevisionActivation` publishing a validated draft and applying exactly
-  one activation action — continue, fork, or future-default — none of which
-  rebinds the source conversation (`d2f5586af`). The three parts are
-  deliberately unwired and have no production UI caller, so no real session
-  binding or default pointer has changed yet. Wiring them together, the Canvas
-  opening entry, legacy creation-page migration, and the P1-A exit gate
-  (including post-restart binding recovery) are A2-4 and still require
-  explicit user approval.
-- The Catalog and Sidebar design system is the current catalog and navigation
-  language: the Employees, Teams, Skills and Connectors catalogs mount one
-  shared directory top bar (page name + count, filter pills, elastic gap, quiet
-  search, icon-only utilities, a single `+` action) over a three-line card
-  grid, and the Minimal sidebar keeps one icon column, one scroller with pinned
-  section heads, and a remembered per-workspace fold. Employees keep animated
-  orbs; Skills and Connectors use deterministic Lucide marks whose ink carries
-  connector state. Colour comes only from existing theme tokens. The active
-  contract is [docs/design/catalog-and-sidebar-design-system.md](docs/design/catalog-and-sidebar-design-system.md).
-- The Staff HQ pass has since extended that language to all five directory
-  surfaces — Assistants, Employees, Teams, Skills, Connectors: the shared top
-  bar now also carries an optional `mission` line and quiet inline `stats`,
-  every card is built from the `staff-hq.scss` mixins at one of two published
-  heights (168px for people, 132px for tools), all four catalogs page through
-  one shared `CatalogPagination`, and the Assistants page has dropped the
-  "nursery" metaphor for `assistant-hq__*`. It is presentation-only: no service
-  boundary moved and `McpToolsConfig`'s `presentation="settings"` projection is
-  unchanged.
-- The AGENT page (`app/scenes/agent-hub`) is now the only catalogue door: the
-  `assistant` scene and its scene tab were removed, assistant configuration
-  lives on in the `profile` scene (`openScene('profile')` after setting
-  `selectedAssistantWorkspaceId`), and `+ → 新建助理` creates the workspace and
-  lands directly on that assistant's configuration page in one step. Agent,
-  Team, Skill and Connector creation/editing pages are hosted full-page inside
-  AGENT via the `hubPage` mechanism; MCP has a single door and it is here, not
-  in Settings.
-- The Quiet Directory design system now covers the Automation chrome and list
-  view only; the Automation calendar grid and scheduling logic are
-  intentionally unchanged. Its catalog sections were superseded on 2026-08-18.
-  The active contract is [docs/design/quiet-directory-design-system.md](docs/design/quiet-directory-design-system.md).
+  evidence, separate publish/default commands, and atomic recovery. Legacy Agent
+  source files import non-destructively and stay a compatibility authority; if
+  the old source changes after import, catalog authoring fails closed instead of
+  dual-writing.
+- **P1-A2 (landed).** A read-only `agent-studio` Canvas contribution,
+  `AgentDebugSessionBinding` (an isolated debug session pinned to one exact
+  draft revision), and `AgentRevisionActivation` (publish a validated draft and
+  apply exactly one action — continue, fork, or future-default — none of which
+  rebinds the source conversation).
+- Remote project authoring is explicitly unavailable. Workspace Media stays
+  unavailable for remote workspaces until `remoteConnectionId` is carried
+  through its real file IO Module Interface.
+
+### AGENT hub and catalogs
+
+- `app/scenes/agent-hub` is the only catalogue door. The `assistant` scene and
+  its tab are gone; assistant configuration lives in the `profile` scene
+  (`openScene('profile')` after `setSelectedAssistantWorkspaceId`). Agent, Team,
+  Skill and Connector creation/editing pages are hosted full-page inside AGENT
+  through the `hubPage` mechanism. MCP has one door and it is here, not
+  Settings.
+- `component-library/styles/agent-surface.scss` is the shared style system for
+  the AGENT scene and every page it hosts: token-only mixins, zero cards,
+  borders and shadows, one type scale, hairline separators only. Animated orb
+  avatars were removed on 2026-08-22 (`orbAvatarEngine.ts` deleted); avatars are
+  now static deterministic marks.
+- `CreateAgentPage` fronts three fields (name, description, prompt) with one
+  `高级设置` disclosure for everything else, plus a `试一试` debug panel beside
+  the form.
+- `TeamAuthoringPage` is a one-screen three-step flow — identity, roster, save —
+  with inline one-sentence edge states. `TeamAuthoringService` semantics are
+  unchanged: a name plus a one-line goal, then two to twelve user/project
+  Agents, the first of which becomes lead. Only source-qualified raw Agent IDs
+  are persisted, any project Agent forces project-scoped persistence, and
+  incompatible rosters fail closed.
+- The Skills catalog keeps authoring, import, suite visibility, and local/market
+  install behind its existing services; the 45 standard user Skills discovered
+  from the exact `user::home.codex::{dirName}` identity are localized in zh-CN,
+  en-US, and zh-TW.
+- Connectors open a dedicated view over the existing MCP infrastructure
+  component, so JSON configuration, lifecycle, deletion, remote authentication
+  and OAuth keep the established adapter, and Settings retains the original MCP
+  presentation. The audited catalog is six fixed local-command templates
+  (argument arrays, not shell snippets) plus the fixed Context7 endpoint — not
+  an arbitrary remote connector store.
+- Design contracts:
+  [catalog and sidebar](docs/design/catalog-and-sidebar-design-system.md) for the
+  directory language and Minimal sidebar;
+  [quiet directory](docs/design/quiet-directory-design-system.md) for the
+  Automation chrome and list view only (its catalog sections were superseded on
+  2026-08-18; the Automation calendar grid and scheduling logic are unchanged).
+
+### Persona binding
+
+- Code, Cowork, and Media are **scenario workspaces**, not personas. A parent
+  conversation separately owns one **active persona**: its scenario default, a
+  selected single Agent, or a selected team lead.
+- The composer persona picker is one click-to-open popover with search on top
+  and two flat text sections (智能体 / 团队). Before the first send the selection
+  shows as a pure-text capsule; after the first send the composer returns to
+  empty and the identity appears as a quiet label in the chat header. Persona
+  selection is editable only while composing an unpersisted new-session draft;
+  the first send freezes the binding as the conversation's identity, and using
+  another Agent or Team requires a new conversation.
+- Scenario, execution policy, workspace, permissions, Canvas, and top-level
+  history remain separate from this binding. A running Team instance/run also
+  freezes its semantic Team definition revision; the current trusted-fixed-Team
+  in-place revision path is migration debt and must not be generalized. Active
+  contract:
+  [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
+
+### Team Workspace
+
+- Bound Teams use one desktop presentation path: a second system window
+  (resizable, not always-on-top, taskbar-visible), opened from the Team capsule
+  in the session capability rail. The two windows open as one paired layout —
+  centred and inset, main window left two thirds, Team window right third, edges
+  aligned; a display too narrow to split keeps the previous maximized startup.
+  The Team window has no native title bar and draws the same top bar as the main
+  window. The in-app floating Team panel was removed. It reuses the compact-chat
+  multi-window pipeline (Tauri window, `?voidWindow=team-workspace` route, event
+  bridge); the compact chat entry in the titlebar overflow menu is a protected
+  capability and is unchanged.
+- It is a host, not a mirror: the main window publishes only the typed Team
+  binding identity, and the window resolves the projection through the same
+  typed reader while member transcripts stay on the existing `/btw`
+  child-session interface. Equivalent binding snapshots are not republished, so
+  typing or streaming in either window cannot remount or flash the other. Only
+  the first read for a new binding may show a loading state.
+- The map is quiet: static deterministic member marks (never human portraits),
+  hairline wires from a lead spine, four display states — not started / in
+  progress / done / error — and zero surface animation. Delegated workers
+  collapse behind a per-card expander. It supports bounded pan/zoom and explicit
+  selection, stays free of prose, and is a presentation over the same typed Team
+  snapshot; team identity and run status remain available to assistive
+  technology.
+- The window switches in place between the map and the selected member
+  conversation; that chrome is one slim strip with back-to-map and a member
+  switcher. Closing the window — including a native close — collapses the
+  presentation only and must never delete or cancel child sessions or stop the
+  Team. The Canvas control and the Team presentation are independent.
+- The workspace is reserved for durable Team members. Ordinary Task and `/btw`
+  temporary child conversations keep their existing compatibility presentation.
+  The Team lead is the active persona in the left parent conversation and is
+  never repeated as a right-side child. Every specialist is selectable before
+  its first dispatch, showing an explicit not-started conversation. Active
+  contract:
+  [docs/features/team-workspace-prd.md](docs/features/team-workspace-prd.md).
+
+### Team runtime
+
+- Compatible reusable `prompt_orchestrated` Teams create durable
+  `TeamInstance`s, activate their lead as the parent persona through a trusted
+  `Team` tool, and expose typed start/observe/recover/message/stop paths.
+- Orchestration authority stays on the parent lead while members delegate
+  through the shared Task runtime. Every non-lead member has an explicit
+  `disabled` or `bounded` delegation policy (default: eight workers, at most
+  three in parallel); a member may create only one worker level, and those
+  workers deny both `Task` and `Team`. Durable launch authority records the
+  exact Team, run, member run, parents, depth, and budget, so recovery never
+  widens an older launch. Reconciliation closes cancelled runs, releases the
+  active-run lock, and dispatches dependency-ready successor phases; a
+  successful `Team start` reports only the specialists dispatched at that
+  moment.
+- Member and worker permissions are intersections of the scenario, workspace,
+  user, Agent, Skill, and Team policies. Each durable member request carries a
+  concise positive workflow-phase assignment rather than a lead-style command;
+  typed runtime restrictions, not prompt obedience, enforce the boundary.
+- Reusable-Team policy is deliberately narrow and fails closed. Definitions
+  asking for specialist tool narrowing, specialist readonly behaviour, a
+  readonly lead, or a lead tool set without `Task` stay visible but resolve as
+  `definition_only`. Typed pause/resume exists across Core, the trusted Team
+  tool, Desktop commands, and the Web runtime gateway; Team Workspace
+  pause/resume controls and browser/server runtime parity are deferred. Exact
+  policy-intersection rules live in the Team Workspace PRD.
+- Deep Review remains an adapter over its dedicated fixed runtime. AI Short
+  Drama ships as a trusted, read-only `prompt_orchestrated` Team definition: its
+  lead uses the shared durable Team runtime and its five member sessions remain
+  `ScriptAI`, `AssetAI`, `SplitAI`, `VideoAI`, `EditorAI`, whose fixed policies,
+  `ShortDramaProject` tools, media routing, project state, and dedicated Canvas
+  it still owns. Team-bound short-drama sessions do not run the legacy
+  five-session bootstrap; the retired stage-agent Canvas composer is never
+  reopened. After creation the Short Drama Team chip is a locked room-identity
+  badge.
+
+### Platform rules
+
+- Void's plugin contract is **stable core + open capability layer**. The
+  configuration plane hot-edits, but a started session/Team execution is
+  revision-frozen: only layout, theme, tab, surface-display, and
+  presentation-metadata changes apply hot. Agent prompt/Skills/tools/model
+  policy and Team/workflow semantics require a published revision and a new
+  session/run; permission expansion requires confirmation; permission
+  revocation, emergency stop, and quarantine apply immediately. Session logs,
+  agent loop, lineage, recovery, checkpoints, plugin isolation, and domain write
+  boundaries are not runtime-replaceable plugins.
+- An **execution policy** controls how the active persona may act; a **Skill**
+  is reusable operating guidance. Neither is a synonym for scenario or persona.
+- The session owns one stable Canvas toggle and one Team Workspace control. Team
+  binding opens the right workspace by default; a persisted Short Drama binding
+  restores its Canvas content in the background while the Canvas stays
+  collapsed. Canvas tabs and restored content never expand the right pane. Both
+  controls are presentation-only.
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
-- Bound Teams use one desktop presentation path: the Team Workspace is a second
-  system window (resizable, not always-on-top, taskbar-visible), opened from the
-  Team capsule in the session capability rail. The two windows open as one
-  paired layout — centred and inset from the screen edges, main window left two
-  thirds, Team window right third, top and bottom edges aligned and outer
-  margins equal — so the main window no longer starts maximized. A display too
-  narrow to split keeps the previous maximized startup. The Team window has no
-  native title bar; it draws the same top bar as the main window.
-  The in-app floating Team panel has been removed, so the main window's scene is
-  never overlapped and a second-display user can move the Team window across.
-  The window reuses the compact-chat multi-window pipeline (Tauri window,
-  `?voidWindow=team-workspace` route, event bridge); the compact chat entry in
-  the titlebar overflow menu is a protected capability and is unchanged. The
-  window is not a mirror: the main window publishes only the typed Team binding
-  identity, and the window resolves the projection through the same typed reader
-  while member transcripts stay on the existing `/btw` child-session interface.
-  Equivalent binding snapshots are not republished, so typing or streaming in
-  either window cannot remount or flash the other. Team member conversations
-  never become sibling Canvas tabs, and closing the window — including a native
-  close — collapses the presentation only and must not delete or cancel child
-  sessions or stop the Team. The window switches in place between the operations
-  map and the selected member conversation; the member conversation chrome is one
-  slim strip with a back-to-map action and a member switcher. The
-  Canvas expand/collapse control and the Team presentation are now independent.
-- The right Team Workspace is reserved for durable Team members. Ordinary Task
-  and `/btw` temporary child conversations keep their existing compatibility
-  presentation and are not promoted into the formal Team member surface.
-  The Team lead remains the active persona in the left parent conversation and
-  is never repeated as a right-side child. Every specialist is selectable from
-  the roster before its first runtime dispatch; an explicit not-started
-  conversation is shown until the durable child session exists.
-- Future Review, Finance, Short Drama, Customer Service, and other expert teams
-  share one durable Team Workspace domain: reusable team definitions contain a
-  lead, specialist members, workflow phases, and policy; session-bound team
-  instances project into a dedicated coordination container beside Canvas.
-  Teams are not ordinary Canvas tabs, and an individual member conversation
-  remains an existing `/btw` child session. The active contract is
-  [docs/features/team-workspace-prd.md](docs/features/team-workspace-prd.md).
-- Code, Cowork, and Media are stable **scenario workspaces**, not professional
-  personas. A parent conversation separately owns one **active persona**:
-  its scenario default, a selected single Agent, or a selected team lead.
-  Persona selection is editable only while composing an unpersisted new-session
-  draft. The first send freezes that binding as the identity of the created
-  conversation; its capsule becomes read-only, and using another Agent or Team
-  requires a new conversation. Scenario, execution policy, workspace,
-  permissions, Canvas, and top-level history remain separate from this binding.
-  The target contract also freezes the semantic Team definition revision for a
-  running Team instance/run: member, Lead, workflow, policy, or stop-semantics
-  changes require a new run. The current trusted-fixed-Team in-place revision
-  compatibility path is migration debt and must not be generalized. The active
-  contract is
-  [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
-- The Desktop/Tauri customization slice now provides one localized
-  Agent/Team/Skill catalog, per-parent Agent or Team-lead selection in the
-  composer, Agent and Skill authoring, and validated user/project Team
-  definition create/edit/install/delete flows. Compatible reusable
-  `prompt_orchestrated` Teams create durable `TeamInstance`s, activate their
-  lead as the parent persona through a trusted `Team` tool, expose typed
-  start/observe/recover/message/stop paths, and project live Team Workspace
-  state plus BTW member conversations.
-- Team creation now uses a minimal roster builder instead of exposing the full
-  `TeamDefinition` schema. Users provide a Team name and one-line goal, then
-  select two to twelve available user/project Agents like a game lineup. The
-  first selection becomes lead, lead changes and removals rebuild canonical
-  member/workflow references in `TeamAuthoringService`, and only source-qualified
-  raw Agent IDs are persisted. Common room eligibility is derived from the
-  selected Agents; incompatible rosters fail closed, and any project Agent
-  forces project-scoped persistence. Catalog loading, empty, retry, and save
-  failure states are explicit and never fall back to runtime modes.
-- Reusable-Team policy remains deliberately narrow. A lead Skill allowlist can
-  only intersect the scenario/workspace/user effective Skill set, and an
-  explicit lead tool policy is supported only when it retains `Task`.
-  Team members now persist a typed `no_policy` or `restricted` Skill policy
-  bound to the pinned definition/revision, instance, member, and Agent. Skill
-  listing and direct invocation enforce the same effective intersection, while
-  dynamic cache identity includes the policy hash and effective Skill
-  key/revision set. Team-tagged recovery performs Team-side preflight before
-  generic child recovery; eligible legacy empty-policy records migrate to an
-  explicit `no_policy` marker through compare-and-swap. The Web composer now
-  admits otherwise-compatible ordinary Teams with member Skill allowlists.
-  Definitions requesting specialist tool narrowing, specialist readonly
-  behavior, a readonly lead, or an explicit lead tool set without `Task`
-  remain visible but fail closed as `definition_only`. Typed Team pause/resume
-  is implemented across the Core runtime, trusted Team tool, Desktop commands,
-  and Web runtime gateway; direct Team Workspace pause/resume controls,
-  browser/server runtime and persistence parity, and future flagship-adapter
-  expansion remain deferred.
-- Deep Review remains an adapter over its dedicated fixed runtime. AI Short
-  Drama now ships as a trusted, read-only `prompt_orchestrated` Team definition:
-  its lead uses the shared durable Team runtime and its five member sessions
-  remain the existing `ScriptAI`, `AssetAI`, `SplitAI`, `VideoAI`, and
-  `EditorAI` personas. Their fixed policies, `ShortDramaProject` tools, media
-  routing, project state, and dedicated Canvas remain owned by Short Drama.
-  Team-bound short-drama sessions do not run the legacy five-session bootstrap.
-  The retired stage-agent Canvas composer is never reopened. After creation the
-  AI Short Drama Team chip is a locked room-identity badge, so the Team cannot
-  be detached from that conversation. The Canvas remains artifact-only and
-  member chat uses the canonical right Team Workspace. Existing child sessions
-  and project data are preserved during this presentation cleanup.
-- Prompt-orchestrated Team execution keeps Team orchestration authority on the
-  parent lead while allowing bounded member delegation through the shared Task
-  runtime. Every non-lead member has an explicit `disabled` or `bounded`
-  delegation policy; new and legacy definitions resolve to a default of eight
-  workers with at most three active in parallel unless the member is explicitly
-  disabled. A member may create only one worker level, and those workers deny
-  both `Task` and `Team`. Durable launch authority records the exact Team,
-  Team run, member run, direct parent, root parent, depth, and budget facts, so
-  recovery never widens an older launch. Member and worker permissions remain
-  intersections of the scenario, workspace, user, Agent, Skill, and Team
-  policies. Every durable member request still carries a concise positive
-  workflow-phase assignment rather than copying a lead-style command or
-  repeating natural-language authority warnings. The member Agent's own persona
-  defines its professional identity; the phase assignment defines the current
-  deliverable; typed runtime restrictions, not prompt obedience, enforce the
-  delegation boundary.
-  Reconciliation closes
-  cancelled or interrupted runs, releases the active-run lock, and
-  automatically dispatches dependency-ready successor phases. A successful
-  `Team start` reports only the specialists dispatched at that moment; it must
-  never be described as every member already running.
-- Team Workspace refresh is presentation-stable. Only the first read for a new
-  binding may replace the panel with a loading state. Polling, parent-turn
-  updates, and equivalent snapshots keep the last usable projection mounted;
-  semantically unchanged snapshots are no-ops, and typing or streaming in the
-  left lead conversation must not remount or flash the selected member panel.
-- The canonical Team Workspace now presents the durable Team as an operations
-  map rather than a second member list. The lead anchors a spine on the left and
-  each specialist is one member card — status-coloured corner badge, the
-  member's Agent orb (never a human portrait), name, professional role and
-  output responsibility — joined to the spine by a right-angle hairline.
-  Delegated workers are collapsed behind a per-card expander and open as rows
-  inside their own card. It supports bounded pan/zoom, explicit selection, and
-  the existing member-conversation projection. This is a presentation over the
-  same typed Team snapshot; it does not create another runtime, roster, or
-  child-session path. The map is free of prose (no header bar, mission
-  briefing, or zoom readout); team identity and run status remain available to
-  assistive technology. On the desktop host this map is the content of the
-  separate Team window.
-- The Agent catalog is presented as a localized AI employee market: the
-  existing left-side Customization navigation remains the only section
-  navigation, the duplicate in-page top navigation is removed, and Agent cards
-  show a stable generated portrait, Chinese-facing name, professional role,
-  short responsibility description, capability tags, and one detail action.
-  Portrait assignment is deterministic and presentation-only; it does not
-  change runtime identity, persona composition, cache keys, permissions, Team
-  execution, or session state.
-- The Skills and Connectors entries follow the same standalone catalog pattern.
-  Skills keeps authoring, import, suite visibility, local/market install and
-  detail behavior behind its existing services, while presenting twenty cards
-  per page in a compact four/two/one-column responsive grid with 36 px
-  icon-forward cards, two-line purpose copy, and lightweight management
-  actions. The 45 standard user
-  Skills discovered from the exact `user::home.codex::{dirName}` identity have
-  localized names and purpose copy in Simplified Chinese, English, and
-  Traditional Chinese; project Skills, other sources, custom display names,
-  raw runtime keys, and marketplace install identity remain unchanged.
-  Connectors opens a
-  dedicated scene instead of redirecting into Settings; that scene selects a
-  catalog presentation on the existing MCP infrastructure component, so JSON
-  configuration, lifecycle controls, deletion, remote authentication and OAuth
-  still use the established adapter. Settings retains the original MCP
-  presentation. Configured Connectors and the curated market use the shared
-  compact four-column desktop gallery and collapse responsively on narrower
-  containers. A
-  deliberately small audited catalog offers six fixed local-command templates
-  plus the fixed Context7 remote endpoint. Templates use argument arrays rather
-  than user-authored shell snippets; required runtime/path inputs are validated.
-  Desktop installation validates the MCP config, performs transactional
-  initialize/verification, and rolls configuration back on failure. The true
-  empty state still explains local-command and remote-URL paths and preserves
-  the JSON add action. Connector loading and installation failures are explicit
-  and retryable. This is not an online or arbitrary remote connector store.
-- Agent authoring currently includes a live draft debug chat beside the
-  configuration form. A typed runtime service installs a temporary user Agent,
-  creates a persona-bound temporary session, sends through the existing Flow
-  Chat path, and disposes or sweeps orphaned debug artifacts. Draft replacement
-  is fail-closed: the composer is available only when the current fingerprint
-  and temporary session are ready, so a stale persona cannot receive the next
-  message. The approved target moves this same real debug path into a
-  first-party `agent-studio` Content Canvas Tab. The left source conversation
-  remains pinned to its running revision while the right Studio edits and tests
-  the next draft revision in an isolated `agent_debug` session. Publication is
-  atomic and never rewrites the source binding: the user may continue the old
-  revision, fork from an explicit boundary into a new session on the published
-  revision, or set it as the default for future sessions. The current page is a
-  compatibility presentation until that staged migration is implemented.
-- Void's plugin contract is **stable core + open capability layer**. The
-  configuration plane supports hot editing, but started session/Team execution
-  is revision-frozen. Only low-risk layout, theme, tab, surface-display, and
-  presentation metadata changes may apply hot. Agent prompt/Skills/tools/model
-  policy and Team/workflow semantics require a published revision and a new
-  session/run; permission expansion requires confirmation. Permission
-  revocation, emergency stop, and plugin quarantine apply immediately. Session
-  logs, agent loop, lineage, recovery, checkpoints, plugin isolation, and
-  domain write boundaries are not runtime-replaceable plugins.
-- An **execution policy** controls how the active persona may act; a **Skill**
-  is reusable operating guidance. Neither term is a synonym for scenario or
-  persona.
-- The session owns one stable Canvas toggle and one Team Workspace control.
-  Team binding opens the right workspace by default; a persisted AI Short Drama
-  binding restores its Canvas content in the background while the Canvas stays
-  collapsed. Canvas tabs and restored content do not expand the right pane;
-  only an explicit Canvas or capability control does. Both controls are
-  presentation-only and never cancel a run, delete a child, or clear Canvas
-  state.
 - Runtime, persistence, Skill policy, media tool routing, session history, and
-  desktop host behavior remain outside presentation-only changes.
+  desktop host behaviour stay outside presentation-only changes.
 
-The next presentation phase is governed by
-[docs/features/interaction-theme-governance.md](docs/features/interaction-theme-governance.md).
-It covers interaction consistency, theme tokens, responsive layout,
-accessibility, full-window evidence, and presentation performance without
-authorizing runtime or domain changes.
+### Visual direction
 
-The selected visual direction is **Porcelain Air / 瓷白轻盈工作台**. The
-reference image is authoritative for warmth, openness, hierarchy, whitespace,
-edge softness, and interaction quietness. The current navigation/chat slice
-keeps the existing token architecture but may correct the concrete light-theme
-semantic values it owns; preserving a cold or severe existing value is not a
-design goal. Enterprise-admin, finance-console, dense-IDE, and gray-card-wall
-results fail visual acceptance even when functional checks pass.
-
-For Flow Chat activity presentation, the user accepted all 19 source components
-from Beautiful UI as the production visual baseline on 2026-08-14. Production
-bindings map the existing transcript, composer, navigation, tool, approval,
-task, table, loading, and thinking surfaces to those source patterns. Loading,
-task status, and thinking mount the source components directly; Flow Chat no
-longer adds a second typewriter, loader, completion ring, auto-collapse, or
-hidden-group animation around them. Existing model summaries and typed tool
-events remain the only content source. Permissions, Team runtime, session
-lifecycle, routing, persistence, and the tool-card registry remain unchanged.
-
-The user-approved promotional workspace image, not OpenWork's live application
-or source code, is the visual reference for density, whitespace, translucent
-navigation, and quiet interaction. An OpenWork checkout was evaluated on
-2026-08-09 and rejected as a product-level UI reference; its historical name
-must not drive new implementation or test terminology. The compact shell,
-48 px collapsed navigation, bounded conversation measure, flat transcript,
-compact tool rows, composer, customization markets, Content Canvas, and Team
-Workspace share the Porcelain Air language while retaining every existing
-Module Interface.
+- The selected direction is **Porcelain Air / 瓷白轻盈工作台**: warm, open,
+  quiet, generous whitespace, soft edges, colour only from existing theme
+  tokens. Enterprise-admin, finance-console, dense-IDE, and gray-card-wall
+  results fail visual acceptance even when functional checks pass. The
+  owner-approved promotional workspace image is the visual reference; an
+  OpenWork checkout was evaluated on 2026-08-09 and rejected as a product-level
+  UI reference, and its name must not appear in implementation or test
+  terminology.
+- Presentation work is governed by
+  [docs/features/interaction-theme-governance.md](docs/features/interaction-theme-governance.md)
+  (interaction states, theme tokens, responsive layout, accessibility,
+  full-window evidence, performance) — it authorizes no runtime or domain
+  change.
+- Flow Chat activity presentation mounts the 19 Beautiful UI source components
+  accepted on 2026-08-14; Flow Chat adds no second typewriter, loader,
+  completion ring, auto-collapse, or hidden-group animation, and existing model
+  summaries plus typed tool events remain the only content source.
+- **Flow Chat scroll stability is a hard contract:**
+  [src/web-ui/src/flow_chat/components/modern/FLOWCHAT_SCROLL_STABILITY.md](src/web-ui/src/flow_chat/components/modern/FLOWCHAT_SCROLL_STABILITY.md),
+  current through section G. Every transcript height mutator must announce
+  height changes through the collapse-intent contract via
+  `notifyToolCardHeightChanged`. Read it before changing the message list, tool
+  cards, or scroll anchoring.
 
 ## Architecture map
 
@@ -356,17 +264,12 @@ UI / route -> Module Interface -> Adapter / service -> external system
   connector discovery plus parent-conversation persona selection.
   **Interface:** capability catalog and persona activation contracts; adapters
   alone may compose runtime prompts, resolve permissions, or activate Agents.
-  Agent and Team market details dispatch through a typed application service:
-  it opens a compatible unpersisted new-session draft with a removable target
+  Agent and Team market details dispatch through a typed application service: it
+  opens a compatible unpersisted new-session draft with a removable target
   capsule and leaves workspace choice and task text to the user. The first send
   creates the parent, awaits canonical Agent or reusable Team-lead activation,
-  freezes the persona snapshot, and only then sends. The created session shows
-  the same capsule as a non-removable identity badge; selecting a different
-  Agent or Team is rejected and requires a new-session draft. Failed activation
-  removes the empty parent and leaves the draft retryable. Fixed Deep Review
-  continues
-  to delegate to its dedicated Code flow; AI Short Drama binds its trusted Team
-  lead and restores the dedicated Media Canvas from the durable session facts.
+  freezes the persona snapshot, and only then sends. Failed activation removes
+  the empty parent and leaves the draft retryable.
 - **Module:** Short Drama owns project facts and stage workflow.
   **Interface:** short-drama services, runtime bridge, workspace manifest, and
   explicit view models.
@@ -385,107 +288,57 @@ stronger evidence than their apparent convenience.
 
 ## Current quality state
 
-Repository-wide verified baseline on 2026-08-17:
+Verified on 2026-08-22 at `d0904e0ea`:
 
-- the default parallel Web suite passes 465/465 files and 2771/2771 tests
-  (test counts dropped from the 2026-08-14 baseline because 101 stylesheet-text
-  test files were deliberately deleted, not because coverage regressed);
-- `cargo check --workspace` and `cargo test --locked -p void-core` pass on the
-  new `src/crates/<layer>/<crate>` layout (B4 step 1, `0c8104f8f`);
-- `cargo fmt --check` is clean; the i18n contract generator formats its
-  generated Rust at emission time;
-- Web test files are inside the ESLint gate; full `lint:web` passes with zero
-  errors;
-- Web type checking, core boundaries, repository hygiene, i18n contract
-  (15/15) and i18n audit pass;
+- the full parallel Web suite is 100% green: **476 files / 2963 tests**;
+- `pnpm run type-check:web`, `pnpm run build:web`, and `pnpm run lint:web` all
+  pass with zero errors;
+- Web test files are inside the ESLint gate; core boundaries, repository
+  hygiene, i18n contract (15/15) and i18n audit pass;
+- `cargo check --workspace`, `cargo test --locked -p void-core`, and
+  `cargo fmt --check` pass on the `src/crates/<layer>/<crate>` layout;
 - the Flow Chat Beautiful UI production binding and the 2026-08-14 full-window
   visual review remain the accepted presentation baseline.
 
-Exact historical commands and checkpoint evidence belong in
-[the repository stability audit](docs/qa/repository-stability-audit-2026-07-28.md),
-[design QA](design-qa.md), and the active feature specifications, not in this
-collaboration summary.
-
-Canvas plugin P0-A checkpoint on 2026-08-15:
-
-- 14 focused Canvas/Session/Store/Renderer/performance test files pass 134/134;
-- Web type checking, core boundaries, repository hygiene, targeted production
-  ESLint, production build, Monaco assets and Web performance budgets pass;
-- the production entry measures 2,270,306 raw JS bytes and 667,513 gzip bytes,
-  leaving 129,262 raw bytes below budget and 33,141 gzip bytes below reference;
-- no Media/Short Drama runtime, FlowChatStore, ChatInput, Rust, persistence or
-  dependency changes are part of P0-A.
-- the Canvas host rejects stale async plugin loads after workspace route changes
-  or unmount; inactive Session scenes queue bounded capability intents and only
-  drain them after AuxPane readiness with matching session/workspace facts.
-- the final full Web suite has 546 files / 3183 tests passing; its remaining
-  three failures are outside P0-A in the user's in-progress SessionCapabilityRail
-  visual contract and ScrollAnchor font-size debt changes.
-
-Canvas plugin P0-B checkpoint on 2026-08-15:
-
-- `CanvasSurfaceCommandService` and `CanvasCapabilityContributionRegistry` are
-  the typed opening/contribution seams; Session rail, Team restore and the
-  authorized ChatInput Short Drama action no longer emit business DOM events.
-- Workspace Media and AI Short Drama resolve through first-party definitions
-  and renderer aliases; `FlexiblePanel` has no direct import or content switch
-  for either domain panel.
-- Short Drama policy is read-only and dynamically loaded. Its Team Canvas
-  reconciliation is a two-phase commit hook executed only after the final
-  scene/session/workspace/delivery freshness gate.
-- Team restore activation facts include `scopeId`, semantic `revision` and a
-  unique `activationId`; stale promises, same-session binding switches,
-  inactive/active transitions and component remounts cannot regain mutation
-  authority or coalesce with a newer delivery.
-- 8 final focused files / 104 tests pass; Web type checking, full Web lint,
-  core boundaries, repository hygiene, production build, Monaco verification
-  and performance budgets pass. The full Web suite has 552 files / 3225 tests
-  passing, with only the same three user-owned SessionCapabilityRail/ScrollAnchor
-  presentation-debt failures outside P0-B.
-- P1 follow-up: add one real command-to-ContentCanvas delayed-prepare
-  integration test in addition to the existing service, adapter and scene
-  tests. No P0 production blocker remains.
-
 Open baseline debt:
 
-- the E2E project has 127 strict TypeScript errors (measured 2026-08-17) and
-  CI does not type check it;
+- the E2E project has 127 strict TypeScript errors (measured 2026-08-17) and CI
+  does not type check it;
 - Clippy reports 326 warnings / 0 errors workspace-wide and is not enforced in
-  CI; Rust formatting is clean as of 2026-08-17;
-- test files are inside Web UI ESLint but still excluded from TypeScript
-  project checks;
+  CI;
+- test files are inside Web UI ESLint but still excluded from TypeScript project
+  checks;
 - `ChatInput` remains a high-coupling orchestration hotspot;
-- Browser UI still contains registered direct-Tauri lifecycle exceptions.
+- Browser UI still contains registered direct-Tauri lifecycle exceptions;
 - Workspace Media remote IO is intentionally fail-closed: its Canvas identity
-  already carries the typed remote route, but the real Media file adapter is
-  still path-only and must not be described as remote-safe until a later
-  Module Interface slice propagates `remoteConnectionId` end to end.
+  carries the typed remote route, but the real Media file adapter is still
+  path-only and must not be described as remote-safe;
 - legacy non-Team short-drama stage-agent binding persistence and bounded retry
-  still have a confirmed async state gap; Team-bound short-drama sessions no
-  longer use that bootstrap path.
-- Agent draft debug chat currently validates the real transport and lifecycle
-  through automated tests and Desktop runtime wiring. A provider-backed manual
-  response still depends on the user's configured model/provider and should be
-  included in the next full-window Desktop acceptance pass.
+  still have a confirmed async state gap;
+- the Agent draft debug chat validates transport and lifecycle through automated
+  tests and Desktop wiring; a provider-backed manual response still depends on
+  the owner's configured model/provider;
 - final release evidence still needs one broad full-window pass over Welcome,
-  ordinary sessions, all customization tabs, Team authoring, Team member
-  conversations, and protected Code/Cowork/Media flows after a clean restart.
+  ordinary sessions, all AGENT tabs, Team authoring, Team member conversations,
+  and protected Code/Cowork/Media flows after a clean restart.
+
+Exact historical commands and checkpoint evidence belong in
+[the repository stability audit](docs/qa/repository-stability-audit-2026-07-28.md),
+[design QA](design-qa.md), and the active feature specifications — not here.
 
 ## Documentation policy
 
-- [docs/README.md](docs/README.md) is the documentation index.
-- Current specifications define active Interfaces and gates.
-- Dated audits/results record checkpoint evidence and must not claim permanent
-  authority.
-- The 2026-07 upstream migration consensus files are retained as a frozen
-  historical program ledger because they contain unique decisions and
-  verification evidence.
-- The BitFun-inspired capability branches were integrated by `6c3e651a3`;
-  their plans, decisions, and results are completed evidence rather than active
-  queues.
-- The disposable aggressive-Minimal A/B/C prototype was removed on 2026-07-28
-  after its accepted constraints were incorporated into the current Minimal
-  workspace and Team Workspace specifications.
-- `docs/obsidian/` was deleted on 2026-08-16; its accepted constraints already
-  live in the current specifications.
-- Untracked prototypes are user-owned until explicitly accepted or discarded.
+- [docs/README.md](docs/README.md) is the documentation index. A document is
+  current only if that index links it; unlinked documents are deletable by
+  default.
+- Current specifications define active Interfaces and gates. Dated audits and
+  results record checkpoint evidence and must not claim permanent authority.
+- One fact, one home. Do not restate a specification here; link it.
+- The 2026-07 upstream migration consensus files
+  ([ledger archive](docs/ledger-archive.md),
+  [migration PRD](docs/PRD.md), [migration decisions](docs/DECISIONS.md)) are a
+  frozen historical program ledger and are retained deliberately.
+- Evidence documents are deleted once their unique contract has been merged into
+  a current specification; record the deletion in `docs/README.md`, not in the
+  deleted document.
+- Untracked prototypes are owner-owned until explicitly accepted or discarded.

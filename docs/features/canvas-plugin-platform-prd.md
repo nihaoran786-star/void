@@ -1,5 +1,9 @@
 # Void Canvas 插件平台产品与架构规范
 
+> 这是什么：Void 的产品北极星与 Canvas 插件平台契约（中央会话 + 右侧可折叠
+> Content Canvas、类型化贡献边界、修订冻结执行）。改动 Canvas、插件注册表、
+> Agent Studio 或任何 surface 贡献前先读本文；仓库当前状态先看 `CONTEXT.md`。
+
 状态：当前产品北极星与分阶段实施规范；P0-A、P0-B 已实现并通过退出门，等待 P1-A 批准
 更新：2026-08-15
 主产品：Void

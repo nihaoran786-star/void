@@ -1,5 +1,9 @@
 # Frontend Minimal Workspace Capability Parity
 
+What this is: the capability-by-capability release gate for the `minimal`
+workspace. Read it when a minimal slice is about to replace a classic
+counterpart, to confirm nothing became unreachable.
+
 ## Purpose
 
 This checklist is the release gate for the minimal workspace. A minimal slice

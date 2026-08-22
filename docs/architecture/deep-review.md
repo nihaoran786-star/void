@@ -1,5 +1,10 @@
 # DeepReview Architecture
 
+What this is: how the DeepReview child-session workflow is layered across the
+Web UI, the desktop adapter, and the Rust core. Read it before changing Deep
+Review launch, its manifest, or its specialist agents. Deep Review stays an
+adapter over its own fixed runtime and is not a reusable Team.
+
 ## Scope
 
 DeepReview is a child-session workflow that runs a configurable Code Review Team against a review target. The current implementation has three layers:

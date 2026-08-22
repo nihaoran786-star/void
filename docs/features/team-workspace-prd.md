@@ -1,5 +1,10 @@
 # Team Workspace Product And Architecture Specification
 
+What this is: the current contract for durable Teams — definitions, runtime,
+member delegation, and the Team Workspace presentation. Read it before touching
+anything named Team, `/btw` member conversations, or the Team desktop window.
+For repository-wide current state read `CONTEXT.md` first.
+
 Status: reusable Team definition management, prompt-orchestrated Team-lead
 activation, typed Team-member Skill authority, and the unified right-side Team
 Workspace are implemented for Desktop/Tauri. AI Short Drama uses a trusted
@@ -7,7 +12,8 @@ built-in definition over the shared Team runtime while retaining its dedicated
 project tools and Canvas. Deep Review remains adapter-owned, and specialist
 tool/readonly expansion remains staged.
 
-Updated: 2026-08-09
+Updated: 2026-08-22 (map presentation corrected to the shipped quiet four-state
+map)
 
 ## Product decision
 
@@ -319,16 +325,21 @@ not disturb the other.
 
 The window has two in-place views:
 
-1. an operations map — a 36px top bar (member count with an accent live
-   marker), the lead as one solid dot anchoring a spine on the left, each
+1. an operations map — a 36px top bar (team name and a `done/total` phase
+   count), the lead as one solid dot anchoring a spine on the left, each
    specialist as one member card joined to that spine by a right-angle
    hairline, and a hairline phase progress line. A member card carries a
-   status-coloured corner badge, the member's Agent orb, its name, its
-   professional role and its output responsibility. Delegated workers are
-   collapsed behind an explicit per-card expander and open as rows inside their
-   own member's card, so a busy Team stays readable. Cards scale with the
-   camera; the map stays free of prose, and team identity, run status, member
-   status and delegation state remain available to assistive technology;
+   status-coloured corner badge, the member's static identity mark (a
+   deterministic colour behind the first letter of its name — never a human
+   portrait and never animated), its name, its professional role and its output
+   responsibility. Member state is presented in exactly four display states —
+   not started / in progress / done / error — always as word plus colour, never
+   colour alone. There is **no animation on this surface**; motion is not a
+   status channel. Delegated workers are collapsed behind an explicit per-card
+   expander and open as rows inside their own member's card, so a busy Team
+   stays readable. Cards scale with the camera; the map stays free of prose, and
+   team identity, run status, member status and delegation state remain
+   available to assistive technology;
 2. the selected member conversation behind a text-tab strip — a plain
    back-to-map arrow and member tabs whose active state is one 1px accent
    underline, sharing the 36px chrome-height contract with the Canvas topbar,
@@ -377,18 +388,21 @@ Teams need a recognizable identity without turning the workspace into an avatar
 dashboard.
 
 - Use one compact team emblem as the primary identity.
-- Show at most three overlapping member portraits in the collapsed entry, then
-  a `+N` count.
-- Use a thin status ring or a single semantic dot; avoid multiple competing
-  badges.
+- Show at most three overlapping member marks in the collapsed entry, then a
+  `+N` count. Member marks are static deterministic colour-and-letter blocks;
+  human portraits are never used for AI members.
+- Use a single semantic dot plus a status word; avoid multiple competing badges.
 - Keep the default capsule approximately icon-sized and expand only on hover,
   focus, or active use.
 - Use the current Minimal presentation typography, neutral surfaces, thin
-  dividers, and token-backed focus treatment.
+  dividers, and token-backed focus treatment; the chrome is built on the shared
+  `component-library/styles/agent-surface.scss` primitives.
 - Give each team one restrained accent for recognition; status colors remain
   semantic and must not be replaced by team accent colors.
-- Running state may use a subtle progress stroke or quiet pulse that respects
-  reduced-motion settings. Avoid glow, glass, mascots, and decorative motion.
+- **No animation is a status channel and no surface animates.** The only
+  permitted motion is the generic pending spinner, which honours
+  `prefers-reduced-motion`. Avoid glow, glass, mascots, pulses, and decorative
+  motion entirely.
 - The selected member receives one clear active treatment. Idle members remain
   visually quiet.
 
@@ -621,8 +635,8 @@ The Desktop/Tauri reusable-Team slice implements:
   the compact-chat multi-window pipeline and publishes binding identity only;
   the main window's floating Team panel has been removed, and the Canvas
   expand/collapse control no longer has to collapse the Team presentation;
-- the Team Workspace roster is presented as one operations map with bounded
-  pan/zoom, semantic orbit sizing, constant-screen-size member nodes, status,
+- the Team Workspace roster is presented as one operations map: a lead spine,
+  hairline wires, static member marks, four display states, bounded pan/zoom,
   selection, and entry into the existing member conversation. It is a view of
   the typed Team snapshot, not a second Team model or runtime path;
 - stable Team Workspace background refresh: only a new binding uses the initial

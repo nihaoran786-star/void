@@ -1,5 +1,10 @@
 # Interaction And Theme Governance Specification
 
+What this is: the presentation-only rulebook — interaction states, theme token
+ownership, responsive layout, accessibility, visual evidence, and presentation
+performance. Read it before any UI-only change. It authorizes no runtime,
+persistence, or domain change.
+
 Status: current specification for the next presentation-quality phase. This
 document governs interaction consistency, theme ownership, responsive layout,
 visual verification, and presentation performance. It does not authorize

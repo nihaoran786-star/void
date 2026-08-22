@@ -1,5 +1,9 @@
 # Frontend Minimal Workspace Migration
 
+What this is: the contract for the `minimal` workspace presentation and its
+classic rollback path. Read it before changing the shell, navigation, composer,
+or any workspace-level layout. Long: use the section headings.
+
 ## Status
 
 Default-switch slice complete on 2026-07-18. Minimal is now the clean-profile

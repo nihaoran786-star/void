@@ -608,8 +608,6 @@ baseline gaps remain governed by the current repository audit.
 
 ## 17. Fresh-agent execution prompt
 
-The only current self-contained execution prompt is
-[Porcelain Air Navigation And Chat Execution Prompt](../handoffs/porcelain-graphite-nav-chat-prompt.md).
-It applies the selected light, friendly tone while limiting implementation to
-collapsed navigation, AI/user message flow, tool-call presentation, and the
-composer.
+The 2026-08-08 navigation/chat/composer execution prompt was deleted on
+2026-08-22 after that slice shipped. This document plus `CONTEXT.md` are the
+brief for any new presentation slice.

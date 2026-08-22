@@ -1,5 +1,10 @@
 # Customization Center And Active Persona Specification
 
+What this is: the current contract for Agent/Team/Skill catalogs and for the one
+active persona a conversation owns. Read it before changing the composer persona
+picker, Agent or Team authoring, or persona activation. For repository-wide
+current state read `CONTEXT.md` first.
+
 Status: Desktop/Tauri persona activation and the compatible reusable
 `prompt_orchestrated` Team runtime, including typed member Skill authority, are
 implemented. Typed Team pause/resume is implemented through the Core runtime,

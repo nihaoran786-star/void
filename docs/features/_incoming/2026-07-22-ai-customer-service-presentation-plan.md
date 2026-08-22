@@ -1,7 +1,7 @@
 # AI 客服面板 · 呈现层落地实现方案 v2
 
 日期：2026-07-22（2026-07-23 v2：定稿交互模型、最终视觉契约、调研修正、cowork 门控）
-配套设计：[2026-07-22-ai-customer-service-design.md](../specs/2026-07-22-ai-customer-service-design.md)
+配套设计：[2026-07-22-ai-customer-service-design.md](2026-07-22-ai-customer-service-design.md)
 交互样机（用户已确认）：Widget `widget_3d90c948-8ed5-4217-9527-f098d0b9bed1`（极简定稿）；`widget_00ffe78e-5cf9-4688-b948-d6225d905b9e`（三主态样机间）
 
 > 状态说明（2026-08-14）：本文的客服产品、交互、状态和 Cowork 门控契约仍有效；

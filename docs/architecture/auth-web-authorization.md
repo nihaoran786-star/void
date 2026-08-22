@@ -1,5 +1,10 @@
 # Web authorization boundary
 
+What this is: the ownership and dependency rules for account authentication in
+the Web/desktop shell. Read it before touching Settings account UI,
+`app/auth-session`, or credential storage. The skeleton is implemented;
+external authorization is not connected.
+
 Status: skeleton implemented, external authorization not connected.
 
 ## Ownership and dependency direction

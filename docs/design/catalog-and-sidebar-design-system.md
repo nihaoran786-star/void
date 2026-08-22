@@ -1,5 +1,12 @@
 # Catalog and Sidebar Design System — One Directory Bar, One Icon Column
 
+What this is: the current presentation contract for Void's directory surfaces
+and the Minimal navigation sidebar. Read it before changing any catalog top
+bar, card, row, entity glyph, or sidebar section. It is presentation-only.
+
+Updated: 2026-08-22 (avatars corrected to static identity marks; stale file
+paths refreshed)
+
 Status: current specification for the five Staff HQ surfaces (Assistants,
 Employees, Teams, Skills, Connectors) and the Minimal navigation sidebar. It
 supersedes the
@@ -11,9 +18,10 @@ and
 [Interaction and Theme Governance](../features/interaction-theme-governance.md)
 (presentation-only boundaries).
 
-Selected: 2026-08-18, from the owner-approved mock-ups in
-`design-lab/redesign-handoff/` (01–04). Colour was explicitly excluded from the
-mock-ups by owner direction: the shapes come from the mock-ups, every colour
+Selected: 2026-08-18, from the owner-approved mock-ups formerly in
+`design-lab/redesign-handoff/` (01–04; the scaffold directory was deleted on
+2026-08-17). Colour was explicitly excluded from the mock-ups by owner
+direction: the shapes come from the mock-ups, every colour
 comes from Void's existing theme tokens.
 
 Scope discipline: every rule below is presentation-only. Runtime, persistence,
@@ -83,8 +91,9 @@ keeps counting the *listed* items, so mission and count never contradict.
 next, and it renders nothing at all when `totalPages <= 1`. Pages keep their own
 page-size and page-index state and hand it in. Its `pagination.previous` /
 `pagination.next` accessible names are contract — several catalog tests select
-on them. `app/scenes/agents/components/CatalogPagination.tsx` remains as a thin
-re-export for old imports; new code imports the shared path.
+on them. The former `app/scenes/agents/components/CatalogPagination.tsx`
+re-export was deleted once its last importer moved; there is only the shared
+path.
 
 ## 3. The catalog card
 
@@ -117,9 +126,9 @@ through the mixins in `component-library/styles/staff-hq.scss`:
 | --- | --- | --- |
 | `--hq-card-height-person` | **168px** | Assistants, Employees, Teams — anything with a face |
 | `--hq-card-height-utility` | **132px** | Skills, Connectors — anything that is a tool |
-| `--hq-avatar-lg` | 44px | the person card's orb / avatar |
+| `--hq-avatar-lg` | 44px | the person card's identity mark |
 
-168px, not the old 150px: at 150 the employee card could not hold an orb, a
+168px, not the old 150px: at 150 the employee card could not hold a mark, a
 name, a role meta line, one line of duty *and* a status line without the
 capability tags colliding with the status ink. A page card and a tool card
 differ in height on purpose — that difference is how a directory says whether
@@ -144,13 +153,14 @@ it in with `@use '.../staff-hq' as hq;`. Do not re-implement any of it:
 
 | Species | Glyph | Behaviour |
 | --- | --- | --- |
-| Employee 智能体 | **Orb** — animated dot-field sphere | Living: animates on hover, when selected, and while dispatching |
+| Employee 智能体 | **Identity mark** — deterministic colour block behind the name's first letter | Static; state only dims it (`off`) |
 | Skill 技能 | **Lucide mark** — chosen by what the skill does | Tool: never moves |
 | Connector 连接器 | **Lucide mark** — chosen by what the connector is | Channel: never moves; its ink *is* its state |
 
-- The orb keeps its own engine
-  (`app/scenes/agents/components/orbAvatarEngine.ts`). Colour is read from
-  computed style, so themes stay authoritative.
+- The animated dot-field orb and its `orbAvatarEngine.ts` were deleted on
+  2026-08-22. `AgentAvatar` now hashes the stable agent identity (FNV-1a) to one
+  hue and renders the name's first letter; theme tokens temper it through
+  `color-mix`. AI agents never use human portraits, and no avatar animates.
 - Skill and Connector marks come from `lucide-react` — already a dependency,
   ISC licensed, so no new asset pipeline or attribution surface.
 - Matching runs over the display name plus the **last** segment of the runtime
@@ -224,9 +234,9 @@ quiet `查看全部 >` that jumps to the type tab. Section state is explicit —
 for "still loading" or "failed".
 
 A row is 50px, one rhythm: avatar → name → one muted line → status word.
-Avatars come from the species tables: a 28px orb for assistants and agents, a
-28px glyph tile for skills and connectors, a lead orb plus the 16px
-member-orb strip for teams. The name is 14px / 500, at most 40% width and
+Avatars come from the species tables: a 28px identity mark for assistants and
+agents, a 28px glyph tile for skills and connectors, a lead mark plus the 16px
+member strip for teams. The name is 14px / 500, at most 40% width and
 ellipsized. The line is 13px muted, flex-fills and ellipsizes: one role or
 purpose, never a second sentence. The status is the `hq-status-ink` dot plus
 a 12px word (`connected` / `running` = success, `needs attention` = warning,
@@ -329,7 +339,7 @@ only the fold control does.
    `stats`, chip groups, search, utilities and the one primary action. Do not
    build a look-alike header.
 2. Give the entity a glyph from its species table; never invent a fourth
-   animated species without owner sign-off.
+   species, and never an animated one.
 3. Use the three-line card, the shared content frame and the state inks above.
    Pick 168px if the entity has a face, 132px if it is a tool; build the shell
    with the `hq-*` mixins rather than a fresh copy.
@@ -345,9 +355,10 @@ only the fold control does.
 | Shared top bar | `app/components/DirectoryTopBar/` |
 | Shared pager | `app/components/CatalogPagination/` |
 | Card mixins / geometry | `component-library/styles/staff-hq.scss`, `component-library/styles/tokens.scss` (`--hq-*`) |
+| Shared AGENT style system | `component-library/styles/agent-surface.scss` (token-only mixins; see `CONTEXT.md`) |
 | Assistants | `app/scenes/profile/views/AssistantHq.scss` + `.minimal.scss`, `NurseryGallery.tsx`, `AssistantCard.tsx`, `AssistantConfigPage.tsx`, `TemplateConfigPage.tsx` |
-| Employees / Teams | `app/scenes/agents/AgentsScene*.scss`, `components/AgentCard*`, `components/CoreAgentCard*`, `components/TeamsCatalogView*` |
-| Skills | `app/scenes/skills/SkillsScene*.scss`, `components/skillCatalogIcons.ts`, `components/SkillCatalogAvatar*` |
+| Employees / Teams | `app/scenes/agents/` (`agentsStore.ts`, `teamCatalogViewModel.ts`, `components/AgentAvatar*`, `components/AgentTeamCard*`, `components/TeamCatalogDetail.tsx`) — the standalone `AgentsScene`/`AgentsView`/`AgentCard`/`CoreAgentCard`/`TeamsCatalogView` files were deleted when AGENT absorbed the catalogs |
+| Skills | `app/scenes/skills/components/skillCatalogIcons.ts`, `components/SkillCatalogAvatar*`, `components/SkillAuthoringPage*` |
 | Connectors | `infrastructure/config/components/McpToolsConfig*.scss`, `ConnectorCatalogAvatar*`, `connectorCatalogIcons.ts` |
 | AGENT single page | `app/scenes/agent-hub/` (`AgentHubScene.tsx`, `AgentHubScene.scss` + `.minimal.scss`, `AgentHubRowItem.tsx`, `useAgentHubDirectory.ts`), row glyphs via `AgentAvatar` / `SkillCatalogAvatar` / `ConnectorCatalogAvatar` |
 | Sidebar | `app/components/NavBar/`, `app/components/NavPanel/`, `app/stores/navSearchStore.ts`, `app/stores/navWorkspaceFoldStore.ts` |
@@ -355,9 +366,9 @@ only the fold control does.
 
 Contract coverage: `AgentHubScene.test.tsx` (five creation entries, explicit
 loading/empty/error states, connector hosted-page round-trip, skill authoring
-hosted page, assembly panel), `SkillsScene.directory.test.tsx` (one search, one
-primary action, explicit per-card state), `SkillCatalogAvatar.test.tsx` (stable
-and varied glyph resolution), `navWorkspaceFoldStore.test.ts` (fold survives
-and is per workspace), `AgentsScene.test.tsx` and `TeamsCatalogView.test.tsx`
-(top-bar structure and paging). Per repository test policy, none of these read
-a stylesheet as text.
+hosted page, assembly panel), `SkillCatalogAvatar.test.tsx` (stable and varied
+glyph resolution), `navWorkspaceFoldStore.test.ts` (fold survives and is per
+workspace), `AgentEquipmentPanel.test.tsx` (assembly sections). The former
+`SkillsScene.directory.test.tsx`, `AgentsScene.test.tsx` and
+`TeamsCatalogView.test.tsx` went with their scenes. Per repository test policy,
+none of these read a stylesheet as text.
