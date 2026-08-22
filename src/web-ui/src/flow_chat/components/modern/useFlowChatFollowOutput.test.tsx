@@ -25,11 +25,13 @@ function Harness({
   onController,
   performAutoFollowScroll,
   isActive = true,
+  getAutoFollowDistanceFromBottom,
 }: {
   scroller: HTMLElement;
   onController: (controller: FollowOutputController) => void;
   performAutoFollowScroll: () => void;
   isActive?: boolean;
+  getAutoFollowDistanceFromBottom?: (scroller: HTMLElement) => number;
 }) {
   const scrollerRef = React.useRef<HTMLElement | null>(scroller);
   scrollerRef.current = scroller;
@@ -43,6 +45,7 @@ function Harness({
     scrollerRef,
     performUserFollowScroll: vi.fn(),
     performAutoFollowScroll,
+    getAutoFollowDistanceFromBottom,
   });
 
   onController(controller);
@@ -147,6 +150,97 @@ describe('useFlowChatFollowOutput', () => {
     });
 
     expect(controller?.isFollowingOutput).toBe(false);
+  });
+
+  it('releases reader control at the effective bottom, past a synthetic tail reservation', () => {
+    // A `collapse` bottom reservation is invisible tail space the reader can
+    // never scroll past. Measured raw, the reader is permanently "away from the
+    // bottom", so reader control never clears and the list stays frozen out of
+    // follow for the rest of the session.
+    const RESERVATION_PX = 400;
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500 + RESERVATION_PX,
+      clientHeight: 500,
+      scrollTop: 600,
+    });
+
+    act(() => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={vi.fn()}
+          getAutoFollowDistanceFromBottom={target => Math.max(
+            0,
+            target.scrollHeight - target.clientHeight - target.scrollTop - RESERVATION_PX,
+          )}
+        />,
+      );
+    });
+
+    act(() => {
+      controller?.handleUserScrollIntent();
+    });
+    expect(controller?.isReaderControlledNow()).toBe(true);
+
+    // Reader scrolls back down to the effective bottom (the top edge of the
+    // reservation), which is 400px short of the raw maximum.
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500 + RESERVATION_PX,
+      clientHeight: 500,
+      scrollTop: 1000,
+    });
+
+    act(() => {
+      controller?.handleScroll();
+    });
+
+    expect(controller?.isReaderControlledNow()).toBe(false);
+  });
+
+  it('keeps reader control while the reader is genuinely away from the effective bottom', () => {
+    const RESERVATION_PX = 400;
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500 + RESERVATION_PX,
+      clientHeight: 500,
+      scrollTop: 200,
+    });
+
+    act(() => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={vi.fn()}
+          getAutoFollowDistanceFromBottom={target => Math.max(
+            0,
+            target.scrollHeight - target.clientHeight - target.scrollTop - RESERVATION_PX,
+          )}
+        />,
+      );
+    });
+
+    act(() => {
+      controller?.handleUserScrollIntent();
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500 + RESERVATION_PX,
+      clientHeight: 500,
+      scrollTop: 500,
+    });
+
+    act(() => {
+      controller?.handleScroll();
+    });
+
+    expect(controller?.isReaderControlledNow()).toBe(true);
   });
 
   it('enters bottom-follow immediately for a new turn and still exits on upward intent', () => {

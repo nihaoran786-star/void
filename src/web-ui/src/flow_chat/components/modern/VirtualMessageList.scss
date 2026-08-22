@@ -38,20 +38,13 @@
     scrollbar-gutter: stable;
   }
 
-  // While the reader owns the viewport we do not run the manual compensation
-  // machinery, so there is nothing for native scroll anchoring to fight — and
-  // it is a free, jitter-free backstop for height changes above the fold.
-  &--reader-controlled {
-    [data-virtuoso-scroller='true'],
-    [data-virtuoso-scroller],
-    .virtual-message-list__static-scroller {
-      overflow-anchor: auto;
-    }
-
-    .message-list-footer {
-      overflow-anchor: auto;
-    }
-  }
+  // NOTE: reader-controlled mode deliberately does NOT re-enable native
+  // `overflow-anchor`. It used to, on the theory that our own machinery was
+  // idle there — it is not: `restoreReaderAnchor()` runs on every measured
+  // layout change while the reader is in control. Two anchoring systems
+  // correcting the same shift, each one's correction firing scroll events the
+  // other reacts to, is precisely the violent flicker reported when scrolling
+  // up through a transcript with large tables.
 
   .virtual-message-list__static-scroller {
     width: 100%;

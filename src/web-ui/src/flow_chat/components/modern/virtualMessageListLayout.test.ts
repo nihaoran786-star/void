@@ -7,6 +7,8 @@ import {
   HISTORICAL_SESSION_DEFAULT_ITEM_HEIGHT_PX,
   HISTORICAL_SESSION_MODEL_ROUND_DEFAULT_ITEM_HEIGHT_PX,
   LIVE_SESSION_DEFAULT_ITEM_HEIGHT_PX,
+  MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO,
+  computeCollapseReservationPx,
   computeReaderAnchorCorrection,
   estimateTextHeightFromLength,
   estimateVirtualMessageItemHeight,
@@ -463,5 +465,95 @@ describe('computeReaderAnchorCorrection', () => {
       .toBeNull();
     expect(computeReaderAnchorCorrection({ ...unchangedOffset, scrollHeight: 14000 }))
       .toBeNull();
+  });
+});
+
+describe('computeCollapseReservationPx', () => {
+  const VIEWPORT_PX = 800;
+  const CAP_PX = VIEWPORT_PX * MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO;
+
+  const base = {
+    currentPx: 0,
+    requestedPx: 0,
+    viewportHeightPx: VIEWPORT_PX,
+    hasCollapseIntent: false,
+    isFollowingOutput: false,
+  };
+
+  it('grants a modest signalled reservation in full', () => {
+    expect(computeCollapseReservationPx({
+      ...base,
+      requestedPx: 120,
+      hasCollapseIntent: true,
+    })).toBe(120);
+  });
+
+  it('never reserves more than half a viewport', () => {
+    // A markdown table that streamed in as ~2000px of raw text and then laid
+    // out as a compact table asks for its whole shrink back. Granting it is
+    // what parks a screen-sized blank region under the newest message.
+    expect(computeCollapseReservationPx({
+      ...base,
+      requestedPx: 2000,
+      hasCollapseIntent: true,
+    })).toBe(CAP_PX);
+
+    expect(computeCollapseReservationPx({
+      ...base,
+      currentPx: 300,
+      requestedPx: 2000,
+      isFollowingOutput: false,
+    })).toBe(CAP_PX);
+  });
+
+  it('does not grow for an unsignalled shrink while following output', () => {
+    // Follow mode's contract is "the tail stays at the bottom of the viewport",
+    // so an unsignalled shrink there needs no upper-anchor protection.
+    expect(computeCollapseReservationPx({
+      ...base,
+      currentPx: 0,
+      requestedPx: 900,
+      isFollowingOutput: true,
+    })).toBe(0);
+
+    // An existing reservation is kept (capped), never extended.
+    expect(computeCollapseReservationPx({
+      ...base,
+      currentPx: 120,
+      requestedPx: 900,
+      isFollowingOutput: true,
+    })).toBe(120);
+    expect(computeCollapseReservationPx({
+      ...base,
+      currentPx: 1200,
+      requestedPx: 1600,
+      isFollowingOutput: true,
+    })).toBe(CAP_PX);
+  });
+
+  it('keeps signalled collapse protection intact while following output', () => {
+    // Auto-collapsing a tool card above the viewport during streaming must
+    // still be compensated, otherwise the conversation visibly sinks down.
+    expect(computeCollapseReservationPx({
+      ...base,
+      requestedPx: 240,
+      hasCollapseIntent: true,
+      isFollowingOutput: true,
+    })).toBe(240);
+  });
+
+  it('never returns a negative or non-finite reservation', () => {
+    expect(computeCollapseReservationPx({ ...base, requestedPx: -50 })).toBe(0);
+    expect(computeCollapseReservationPx({
+      ...base,
+      requestedPx: 100,
+      viewportHeightPx: 0,
+    })).toBe(0);
+    expect(computeCollapseReservationPx({
+      ...base,
+      currentPx: -10,
+      requestedPx: 100,
+      isFollowingOutput: true,
+    })).toBe(0);
   });
 });

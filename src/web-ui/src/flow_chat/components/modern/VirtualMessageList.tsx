@@ -32,6 +32,7 @@ import {
   setReaderControlled as setReaderControlledGate,
 } from './readerControlGate';
 import {
+  computeCollapseReservationPx,
   computeReaderAnchorCorrection,
   estimateVirtualMessageItemHeight,
   getVirtualMessageDefaultItemHeightForSession,
@@ -72,6 +73,8 @@ const PINNED_TURN_VIEWPORT_OFFSET_PX = 57; // Keep in sync with `.message-list-h
 const TOUCH_SCROLL_INTENT_EXIT_THRESHOLD_PX = 6;
 const USER_UPWARD_SCROLL_INTENT_WINDOW_MS = 800;
 const HISTORY_PROJECTION_HANDOFF_TIMEOUT_MS = 1000;
+const COLLAPSE_SETTLE_MAX_ATTEMPTS = 8;
+const COLLAPSE_SETTLE_RETRY_MS = 250;
 
 // Read `FLOWCHAT_SCROLL_STABILITY.md` before changing collapse compensation logic.
 
@@ -770,11 +773,31 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       };
     }
 
-    if (!hasValidCollapseIntent && fallbackRequiredCollapseCompensation <= COMPENSATION_EPSILON_PX) {
+    const pinReservationPx = getReservationTotalPx(bottomReservationStateRef.current.pin);
+    // Bounded reservation. Unbounded growth here is what parks a screen-sized
+    // blank region under the newest message when a markdown table or an
+    // approval card lays out smaller than the raw text it replaced.
+    const nextCollapseCompensation = computeCollapseReservationPx({
+      currentPx: currentCollapseCompensation,
+      requestedPx: Math.max(0, nextTotalCompensation - pinReservationPx),
+      viewportHeightPx: scroller.clientHeight,
+      hasCollapseIntent: hasValidCollapseIntent,
+      isFollowingOutput: isFollowingOutputRef.current,
+    });
+    const boundedTotalCompensation = pinReservationPx + nextCollapseCompensation;
+
+    if (
+      !hasValidCollapseIntent &&
+      (
+        fallbackRequiredCollapseCompensation <= COMPENSATION_EPSILON_PX ||
+        nextCollapseCompensation <= currentCollapseCompensation + COMPENSATION_EPSILON_PX
+      )
+    ) {
       // If the user is already far enough from the bottom, this shrink does not
       // need protection. Reusing stale bottom compensation here makes the
       // scroll listener restore an older anchor during upward scroll and causes
-      // the visible "wall hit" jitter.
+      // the visible "wall hit" jitter. The same applies once the reservation is
+      // capped: there is nothing left to add, so do not re-arm an anchor lock.
       previousScrollTopRef.current = currentScrollTop;
       return;
     }
@@ -783,12 +806,12 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       ...bottomReservationStateRef.current,
       collapse: {
         ...bottomReservationStateRef.current.collapse,
-        px: Math.max(0, nextTotalCompensation - getReservationTotalPx(bottomReservationStateRef.current.pin)),
+        px: nextCollapseCompensation,
         floorPx: 0,
       },
     };
     updateBottomReservationState(nextReservationState);
-    if (nextTotalCompensation > COMPENSATION_EPSILON_PX) {
+    if (boundedTotalCompensation > COMPENSATION_EPSILON_PX) {
       const anchorTarget =
         hasValidCollapseIntent
           ? collapseIntent.anchorScrollTop
@@ -1601,11 +1624,31 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       ) {
         const clampAmount = -intentCheckScrollDelta;
         const baseState = bottomReservationStateRef.current;
+        // Bounded. This path is the one that makes the reservation *visible*:
+        // it holds `scrollTop` above the effective bottom, so every reserved
+        // pixel is blank space under the newest message. Past half a viewport
+        // it has stopped protecting an anchor and become the defect. Once the
+        // cap is reached we accept the browser's clamp instead of restoring
+        // `scrollTop` into a footer that cannot absorb it — restoring without
+        // room is a guaranteed re-clamp next frame, i.e. flicker.
+        const nextCollapsePx = computeCollapseReservationPx({
+          currentPx: baseState.collapse.px,
+          requestedPx: baseState.collapse.px + clampAmount,
+          viewportHeightPx: scrollerElement.clientHeight,
+          hasCollapseIntent: true,
+          isFollowingOutput: true,
+        });
+        if (nextCollapsePx < baseState.collapse.px + clampAmount - COMPENSATION_EPSILON_PX) {
+          previousScrollTopRef.current = intentCheckScrollTop;
+          previousMeasuredHeightRef.current = snapshotMeasuredContentHeight(scrollerElement);
+          return;
+        }
+
         const nextReservationState: BottomReservationState = {
           ...baseState,
           collapse: {
             ...baseState.collapse,
-            px: baseState.collapse.px + clampAmount,
+            px: nextCollapsePx,
             floorPx: baseState.collapse.floorPx,
           },
         };
@@ -1981,6 +2024,85 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     updateBottomReservationState,
   ]);
 
+  /**
+   * Give back tail space that has stopped protecting anything.
+   *
+   * A `collapse` reservation is only ever drained by content growth. That is
+   * the right rule while output is streaming, but once the turn is finished no
+   * growth is coming, so whatever is left sits under the newest message as a
+   * blank region — the reported "big empty area below the transcript that
+   * eventually disappears". This settles it deterministically instead.
+   *
+   * Returns false when a collapse is still in flight and the caller should try
+   * again on a later frame.
+   */
+  const settleCollapseReservation = useCallback((reason: string): boolean => {
+    const currentState = bottomReservationStateRef.current;
+    if (getReservationTotalPx(currentState.collapse) <= COMPENSATION_EPSILON_PX) {
+      return true;
+    }
+
+    const collapseIntent = pendingCollapseIntentRef.current;
+    if (
+      layoutTransitionCountRef.current > 0 ||
+      (collapseIntent.active && collapseIntent.expiresAtMs >= performance.now())
+    ) {
+      return false;
+    }
+
+    const scroller = scrollerElementRef.current;
+    // While the reader owns the viewport we may not move `scrollTop`, so only
+    // hand back the part of the reservation that lives below the fold. That is
+    // free — it cannot clamp anything — and it is enough to stop a stale
+    // reservation from freezing forever in reader-controlled mode, where every
+    // drain path is skipped by design.
+    let nextCollapsePx = 0;
+    if (scroller && !canScrollProgrammatically()) {
+      const contentBottomTop = Math.max(
+        0,
+        scroller.scrollHeight - scroller.clientHeight - getTotalBottomCompensationPx(),
+      );
+      nextCollapsePx = Math.max(0, Math.min(
+        currentState.collapse.px,
+        scroller.scrollTop - contentBottomTop,
+      ));
+      if (nextCollapsePx >= currentState.collapse.px - COMPENSATION_EPSILON_PX) {
+        return true;
+      }
+    }
+
+    const nextReservationState: BottomReservationState = {
+      ...currentState,
+      collapse: {
+        kind: 'collapse',
+        px: nextCollapsePx,
+        floorPx: 0,
+      },
+    };
+    releaseAnchorLock(`settle-${reason}`);
+    updateBottomReservationState(nextReservationState);
+    applyFooterCompensationNow(nextReservationState);
+
+    if (scroller) {
+      if (canScrollProgrammatically()) {
+        const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+        if (scroller.scrollTop > maxScrollTop) {
+          scroller.scrollTop = maxScrollTop;
+        }
+      }
+      previousScrollTopRef.current = scroller.scrollTop;
+      previousMeasuredHeightRef.current = snapshotMeasuredContentHeight(scroller, nextReservationState);
+    }
+    return true;
+  }, [
+    applyFooterCompensationNow,
+    canScrollProgrammatically,
+    getTotalBottomCompensationPx,
+    releaseAnchorLock,
+    snapshotMeasuredContentHeight,
+    updateBottomReservationState,
+  ]);
+
   const clearPinReservationForUserNavigation = useCallback(() => {
     const currentState = bottomReservationStateRef.current;
     const scroller = scrollerElementRef.current;
@@ -2197,6 +2319,39 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     setReaderControlledGate(false);
     clearDeferredAutoCollapses();
   }, []);
+
+  // Hand back tail space once nothing can drain it: the turn finished, or the
+  // reader took the viewport over (which skips every drain path by design).
+  // Retries because a collapse animation may still be running when the turn
+  // ends, and `settleCollapseReservation` refuses to act during one.
+  useEffect(() => {
+    if (isStreamingOutput && !isReaderControlled) return;
+    if (bottomReservationState.collapse.px <= COMPENSATION_EPSILON_PX) return;
+
+    let attemptsLeft = COLLAPSE_SETTLE_MAX_ATTEMPTS;
+    let frameId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const attempt = () => {
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        if (settleCollapseReservation('idle') || attemptsLeft <= 0) return;
+        attemptsLeft -= 1;
+        timeoutId = setTimeout(attempt, COLLAPSE_SETTLE_RETRY_MS);
+      });
+    };
+    attempt();
+
+    return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      if (timeoutId !== null) clearTimeout(timeoutId);
+    };
+  }, [
+    bottomReservationState.collapse.px,
+    isReaderControlled,
+    isStreamingOutput,
+    settleCollapseReservation,
+  ]);
 
   useEffect(() => {
     if (!isPresentationActive) return;

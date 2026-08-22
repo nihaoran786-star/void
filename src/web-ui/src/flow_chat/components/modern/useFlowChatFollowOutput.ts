@@ -424,10 +424,18 @@ export function useFlowChatFollowOutput({
 
     // Coming back down to the bottom under their own steam means the reader is
     // done looking back, so live output may track the tail again.
+    //
+    // Measured against the EFFECTIVE bottom (synthetic tail reservation
+    // subtracted), not the raw one. A leftover collapse reservation is invisible
+    // tail space the reader can never scroll past, so testing the raw distance
+    // meant reader control could never clear once one existed — the list stayed
+    // frozen out of follow for the rest of the session.
+    const distanceFromBottomNow = getAutoFollowDistanceFromBottomRef.current?.(scroller)
+      ?? getDistanceFromBottom(scroller);
     if (
       readerControlledRef.current &&
       currentScrollTop >= previousScrollTop &&
-      getDistanceFromBottom(scroller) <= AUTO_FOLLOW_BOTTOM_THRESHOLD_PX
+      distanceFromBottomNow <= AUTO_FOLLOW_BOTTOM_THRESHOLD_PX
     ) {
       setReaderControlled(false);
     }

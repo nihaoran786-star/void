@@ -266,9 +266,7 @@ The contract now is:
   change. This is independent of total content height, which is what makes it
   work against virtualization re-measurement — native `overflow-anchor` cannot
   see that at all.
-- `overflow-anchor` is restored to `auto` via
-  `.virtual-message-list--reader-controlled` while the reader is in control, as
-  a free backstop. It is safe there precisely because our own machinery is idle.
+- `overflow-anchor` stays `none` in reader-controlled mode too. See section E.
 - `readerControlGate.ts` publishes the latch to the collapsible cards.
   **Automatic** collapses are queued instead of performed while the reader is in
   control, and flushed once control returns (viewport back at the bottom, where
@@ -276,6 +274,54 @@ The contract now is:
   Without this, the burst of auto-collapses that fires when a response finishes
   would shrink content above the reader's eyes — the reliably reproducible
   "scroll up right after output ends" flicker.
+
+## E. Bounded Tail Reservations (2026-08-22)
+
+Reported defect: a turn containing a large markdown table (and/or an in-transcript
+approval card) left a screen-sized blank region under the transcript; the blank
+sat there, eventually collapsed, and scrolling up afterwards flickered violently.
+
+Three causes, all in the shrink-protection path:
+
+1. **The `collapse` reservation was unbounded.** A markdown table streams in as
+   tall raw pipe-text and then lays out as a compact `<table>`; an approval card
+   re-flows after mount. Both produce a single large *unsignalled* shrink. The
+   fallback branch of `measureHeightChange` and the follow-mode clamp restore in
+   `handleScroll` each reserved the whole shrink amount (the latter cumulatively,
+   `px + clampAmount`, with no ceiling). The clamp restore also holds `scrollTop`
+   above the effective bottom, which is what makes reserved space *visible*.
+2. **Nothing ever gave the reservation back.** It is drained only by content
+   growth. When the shrink lands at the end of a turn there is no more growth, so
+   the blank persisted until some later navigation cleared it. Reader-controlled
+   mode froze it harder: every drain path is skipped there by design.
+3. **Reader control could never clear.** The follow controller tested the *raw*
+   distance from the bottom, but the reservation is tail space the reader cannot
+   scroll past, so the distance never reached the threshold. Once a reservation
+   existed, the list stayed latched out of follow for the rest of the session.
+
+The rules that now guard it:
+
+- Every `collapse` reservation goes through `computeCollapseReservationPx`
+  (`virtualMessageListLayout.ts`). It is capped at
+  `MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO` of the viewport — past that the
+  reservation has stopped protecting a visual anchor and *is* the blank region.
+  When the cap blocks the clamp restore, we accept the browser's clamp instead of
+  writing `scrollTop` into a footer that cannot absorb it; restoring without room
+  guarantees a re-clamp on the next frame, i.e. flicker.
+- An **unsignalled** shrink does not grow the reservation while follow-output is
+  active. Follow mode's contract is "the tail stays at the bottom of the
+  viewport", so there is no upper anchor to protect. This is *not* the forbidden
+  follow-mode short-circuit: signalled collapses
+  (`flowchat:tool-card-collapse-intent`) keep their full compensation + anchor
+  lock in follow mode, which is what stops the conversation sinking down when a
+  card above the viewport auto-collapses.
+- `settleCollapseReservation()` hands tail space back once nothing can drain it —
+  the turn stopped streaming, or the reader took the viewport over. While the
+  reader is in control it only releases the part below the fold, so it never
+  moves `scrollTop` and never violates the reader-control invariant.
+- The "reader came back to the bottom" release in `useFlowChatFollowOutput`
+  measures the **effective** bottom (`getAutoFollowDistanceFromBottom`), never the
+  raw one.
 
 ## Why `overflow-anchor: none` Must Stay
 
@@ -287,6 +333,13 @@ The contract now is:
 This is required because the browser's built-in anchoring fights the manual compensation logic.
 
 If you remove `overflow-anchor: none`, the browser may apply its own anchor correction on top of our compensation and produce unstable or inconsistent results.
+
+This holds in reader-controlled mode as well. A `.virtual-message-list--reader-controlled`
+override used to restore `overflow-anchor: auto` there, on the theory that our own
+machinery was idle. It is not: `restoreReaderAnchor()` runs on every measured layout
+change while the reader is in control. Two anchoring systems correcting the same
+shift, each one's correction firing scroll events the other reacts to, is the
+"scrolling up flickers violently" symptom. The override is gone; do not bring it back.
 
 ## Required Event Contract
 
@@ -328,6 +381,8 @@ If a future collapsible component shows the same "header drops" or "flash on col
   older one.
 - Automatic collapses must be deferred, not performed, while the reader is in
   control.
+- Tail reservations must be bounded and must be handed back once nothing can
+  drain them.
 
 ## Common Ways To Break This
 
@@ -353,6 +408,13 @@ If a future collapsible component shows the same "header drops" or "flash on col
   teleport-and-flicker described in section D.
 - Letting a new turn clear reader control, or dispatching an auto-collapse
   without going through `applyExpandedState` with `reason: 'auto'`.
+- Growing a `collapse` reservation without going through
+  `computeCollapseReservationPx`, or reserving for an unsignalled shrink while
+  follow-output is active. Either one brings back the screen-sized blank region
+  under the transcript described in section E.
+- Re-enabling native `overflow-anchor` while `restoreReaderAnchor()` is live.
+- Measuring "the reader is back at the bottom" against the raw distance from the
+  bottom instead of the effective one.
 
 ## If You Need To Change This Logic
 

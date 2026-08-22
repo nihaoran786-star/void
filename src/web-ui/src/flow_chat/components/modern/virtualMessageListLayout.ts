@@ -293,6 +293,52 @@ export function selectInitialHistoryRenderWindow(
   };
 }
 
+/**
+ * Hard ceiling on the synthetic tail space the list may reserve to absorb a
+ * shrink, expressed as a fraction of the viewport height.
+ *
+ * The reservation is only ever *visible* as blank space when `scrollTop` sits
+ * above the effective bottom — which is exactly what the follow-mode clamp
+ * restore does. Without a ceiling, a single large unsignalled shrink (a
+ * markdown table that streams in as tall raw text and then lays out as a
+ * compact table, an approval card that re-flows after mount) reserves its whole
+ * shrink amount, and the reader sees a screen-sized empty region under the
+ * transcript that only drains if more tokens arrive.
+ */
+export const MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO = 0.5;
+
+/**
+ * Bound a requested `collapse` bottom reservation.
+ *
+ * Two rules:
+ *
+ * 1. Never reserve more than {@link MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO} of
+ *    the viewport. Past that the reservation has stopped protecting a visual
+ *    anchor and has become the visible blank region itself.
+ * 2. While follow-output is active and the shrink arrived without a collapse
+ *    intent, do not grow the reservation at all. Follow mode's contract is
+ *    "the tail stays at the bottom of the viewport"; an unsignalled shrink
+ *    there needs no upper-anchor protection, and reserving for it is what
+ *    parks blank space under the newest message. Signalled collapses
+ *    (`flowchat:tool-card-collapse-intent`) keep their full protection in
+ *    follow mode — that path is what stops the conversation "sinking down"
+ *    when a card above the viewport auto-collapses.
+ */
+export function computeCollapseReservationPx(params: {
+  currentPx: number;
+  requestedPx: number;
+  viewportHeightPx: number;
+  hasCollapseIntent: boolean;
+  isFollowingOutput: boolean;
+}): number {
+  const capPx = Math.max(0, params.viewportHeightPx) * MAX_COLLAPSE_RESERVATION_VIEWPORT_RATIO;
+  const currentPx = Math.max(0, params.currentPx);
+  if (params.isFollowingOutput && !params.hasCollapseIntent) {
+    return Math.min(currentPx, capPx);
+  }
+  return Math.min(Math.max(0, params.requestedPx), capPx);
+}
+
 /** Sub-pixel drift is not worth a scroll write, and writing one would fight smooth scrolling. */
 export const READER_ANCHOR_MIN_DRIFT_PX = 1;
 
