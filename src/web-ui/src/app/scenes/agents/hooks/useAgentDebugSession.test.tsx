@@ -314,6 +314,50 @@ describe('useAgentDebugSession', () => {
     );
   });
 
+  it('reset disposes the current session and starts a fresh one for the same draft', async () => {
+    const { runtime, createDebugSession, disposeDebugSession } = makeRuntime();
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    await flush();
+    expect(latest?.sessionId).toBe('session-1');
+
+    await act(async () => {
+      await latest?.reset();
+    });
+    await flush();
+
+    expect(disposeDebugSession).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1' }),
+    );
+    expect(createDebugSession).toHaveBeenCalledTimes(2);
+    expect(latest?.status).toBe('ready');
+    expect(latest?.sessionId).toBe('session-2');
+    expect(latest?.justReplaced).toBe(false);
+  });
+
+  it('reset falls back to idle when the draft is no longer usable', async () => {
+    const { runtime, createDebugSession, disposeDebugSession } = makeRuntime();
+    await act(async () => {
+      root.render(
+        <Harness draft={baseDraft} isDraftValid={false} workspacePath={WORKSPACE} runtime={runtime} />,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      await latest?.reset();
+    });
+    await flush();
+
+    expect(createDebugSession).not.toHaveBeenCalled();
+    expect(disposeDebugSession).not.toHaveBeenCalled();
+    expect(latest?.status).toBe('idle');
+    expect(latest?.sessionId).toBeUndefined();
+  });
+
   it('disposes the live session and returns to idle when the draft becomes invalid', async () => {
     const { runtime, createDebugSession, disposeDebugSession } = makeRuntime();
     await act(async () => {

@@ -364,6 +364,7 @@ const SupportedCreateAgentPage: React.FC = () => {
     justReplaced: debugJustReplaced,
     error: debugError,
     retry: retryDebugSession,
+    reset: resetDebugSession,
     acknowledgeMessageSent: acknowledgeDebugMessageSent,
   } = useAgentDebugSession({
     draft: debugDraft,
@@ -410,17 +411,7 @@ const SupportedCreateAgentPage: React.FC = () => {
     <div className="tv">
       <EditorBackButton onBack={openHome} label={t('agentsOverview.backToOverview')} />
       <div className="th-create-lab">
-        <div className="th-create-lab__chat" data-testid="agent-debug-chat-column">
-          <AgentDebugChatPanel
-            session={debugSession}
-            status={debugStatus}
-            justReplaced={debugJustReplaced}
-            error={debugError}
-            onRetry={retryDebugSession}
-            onMessageSent={acknowledgeDebugMessageSent}
-          />
-        </div>
-
+        {/* The form leads; the try-it-out panel follows it in reading order. */}
         <div className="th-create-lab__editor">
           <header className="th-create-lab__sheet">
             <div className="th-create-lab__sheet-heading">
@@ -683,6 +674,18 @@ const SupportedCreateAgentPage: React.FC = () => {
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="th-create-lab__chat" data-testid="agent-debug-chat-column">
+          <AgentDebugChatPanel
+            session={debugSession}
+            status={debugStatus}
+            justReplaced={debugJustReplaced}
+            error={debugError}
+            onRetry={retryDebugSession}
+            onReset={resetDebugSession}
+            onMessageSent={acknowledgeDebugMessageSent}
+          />
         </div>
       </div>
     </div>

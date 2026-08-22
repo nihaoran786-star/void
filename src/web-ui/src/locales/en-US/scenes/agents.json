@@ -801,18 +801,17 @@
       "loadDetailFailed": "Could not load this agent's details."
     },
     "debug": {
-      "title": "Testing Ground",
-      "empty": "Fill in the name and how it works, then you can try talking to it here.",
-      "creating": "Starting a test session for the draft…",
-      "stale": "Draft updated — the test was reset. The next message will use the new draft.",
-      "error": "Could not start the test session: {{message}}",
-      "retry": "Retry",
-      "status": {
-        "idle": "Idle",
-        "creating": "Starting",
-        "ready": "Ready",
-        "stale": "Updated",
-        "error": "Error"
+      "title": "Try it out",
+      "subtitle": "Chat here with the teammate you are creating.",
+      "emptyConversation": "No messages yet. Say hello to see how it answers.",
+      "reset": "Clear and start over",
+      "retry": "Try again",
+      "hint": {
+        "idle": "Fill in the name and what it should do, then you can talk to it here.",
+        "preparing": "Getting the tryout ready…",
+        "updating": "You just made a change — getting it ready again…",
+        "updated": "Ready again with your latest changes.",
+        "error": "The tryout could not start just now."
       }
     }
   },

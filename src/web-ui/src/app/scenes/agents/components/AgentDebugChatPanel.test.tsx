@@ -125,7 +125,7 @@ describe('AgentDebugChatPanel', () => {
     });
   };
 
-  it('renders only a title and a status word in the header', () => {
+  it('explains what the panel is for, with no status pill and no jargon', () => {
     renderPanel({
       status: 'ready',
       session: createSession(),
@@ -133,27 +133,56 @@ describe('AgentDebugChatPanel', () => {
 
     expect(container.querySelector('.agent-debug-chat-panel__title')?.textContent)
       .toBe('agentsOverview.debug.title');
-    // The draft fingerprint was developer trivia; the header is title + status.
+    expect(container.querySelector('.agent-debug-chat-panel__subtitle')?.textContent)
+      .toBe('agentsOverview.debug.subtitle');
+    // The draft fingerprint and the status pill were developer trivia.
     expect(container.querySelector('.agent-debug-chat-panel__fingerprint')).toBeNull();
-    expect(container.querySelector('.agent-debug-chat-panel__status')?.textContent)
-      .toBe('agentsOverview.debug.status.ready');
+    expect(container.querySelector('.agent-debug-chat-panel__status')).toBeNull();
   });
 
-  it('renders the empty state and no composer when idle', () => {
+  it('says in plain words why sending is closed when idle', () => {
     renderPanel({ status: 'idle' });
 
-    expect(container.textContent).toContain('agentsOverview.debug.empty');
+    expect(container.querySelector('[data-testid="agent-debug-chat-composer-blocked"]')?.textContent)
+      .toContain('agentsOverview.debug.hint.idle');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).toBeNull();
     expect(composerRenderMock).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="virtual-item"]')).toBeNull();
   });
 
-  it('renders the creating state and no composer while creating', () => {
+  it('says the tryout is being prepared while creating', () => {
     renderPanel({ status: 'creating' });
 
-    expect(container.textContent).toContain('agentsOverview.debug.creating');
+    expect(container.querySelector('[data-testid="agent-debug-chat-composer-blocked"]')?.textContent)
+      .toContain('agentsOverview.debug.hint.preparing');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).toBeNull();
     expect(composerRenderMock).not.toHaveBeenCalled();
+  });
+
+  it('says it is re-preparing after the draft changed', () => {
+    renderPanel({ status: 'stale', session: createSession() });
+
+    expect(container.querySelector('[data-testid="agent-debug-chat-composer-blocked"]')?.textContent)
+      .toContain('agentsOverview.debug.hint.updating');
+  });
+
+  it('offers a plain reset action once there is something to clear', () => {
+    const onReset = vi.fn();
+    renderPanel({ status: 'ready', session: createSession(), onReset });
+
+    const reset = container.querySelector('[data-testid="agent-debug-chat-reset"]');
+    expect(reset?.textContent).toBe('agentsOverview.debug.reset');
+
+    act(() => {
+      (reset as HTMLButtonElement).click();
+    });
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the reset action when the runtime gives no reset handler', () => {
+    renderPanel({ status: 'ready', session: createSession() });
+
+    expect(container.querySelector('[data-testid="agent-debug-chat-reset"]')).toBeNull();
   });
 
   it('renders the conversation list and composer for a ready session', () => {
@@ -190,8 +219,8 @@ describe('AgentDebugChatPanel', () => {
       onMessageSent,
     });
 
-    expect(container.querySelector('.agent-debug-chat-panel__stale-banner')?.textContent)
-      .toContain('agentsOverview.debug.stale');
+    expect(container.querySelector('[data-testid="agent-debug-chat-stale-banner"]')?.textContent)
+      .toContain('agentsOverview.debug.hint.updated');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).not.toBeNull();
 
     const composerProps = composerRenderMock.mock.lastCall?.[0] as {
@@ -201,16 +230,17 @@ describe('AgentDebugChatPanel', () => {
     expect(onMessageSent).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the error message and a retry button that calls onRetry', () => {
+  it('states the failure in plain words and never leaks the raw error text', () => {
     const onRetry = vi.fn();
     renderPanel({
       status: 'error',
-      error: 'boom',
+      error: 'ENOENT spawn runtime fingerprint',
       onRetry,
     });
 
-    expect(container.textContent).toContain('agentsOverview.debug.error');
-    const retryButton = container.querySelector('.agent-debug-chat-panel__retry-button');
+    expect(container.textContent).toContain('agentsOverview.debug.hint.error');
+    expect(container.textContent).not.toContain('ENOENT');
+    const retryButton = container.querySelector('[data-testid="agent-debug-chat-retry"]');
     expect(retryButton?.textContent).toBe('agentsOverview.debug.retry');
     expect(container.querySelector('[data-testid="mock-debug-composer"]')).toBeNull();
 

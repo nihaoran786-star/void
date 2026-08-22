@@ -28,6 +28,7 @@ export interface AgentDebugChatPanelProps {
   justReplaced?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  onReset?: () => void;
   onMessageSent?: () => void;
 }
 
@@ -42,20 +43,15 @@ const PANEL_CONFIG: FlowChatConfig = {
   theme: 'dark',
 };
 
-const STATUS_TEXT_KEY: Record<PanelStatus, string> = {
-  idle: 'agentsOverview.debug.status.idle',
-  creating: 'agentsOverview.debug.status.creating',
-  ready: 'agentsOverview.debug.status.ready',
-  stale: 'agentsOverview.debug.status.stale',
-  error: 'agentsOverview.debug.status.error',
-};
-
-const STATUS_TONE: Record<PanelStatus, 'neutral' | 'info' | 'success' | 'warning' | 'error'> = {
-  idle: 'neutral',
-  creating: 'info',
-  ready: 'success',
-  stale: 'warning',
-  error: 'error',
+/**
+ * One plain sentence per blocked state, shown where the composer would be.
+ * Wording is deliberately non-technical: no session, fingerprint or runtime.
+ */
+const BLOCKED_HINT_KEY: Record<Exclude<PanelStatus, 'ready'>, string> = {
+  idle: 'agentsOverview.debug.hint.idle',
+  creating: 'agentsOverview.debug.hint.preparing',
+  stale: 'agentsOverview.debug.hint.updating',
+  error: 'agentsOverview.debug.hint.error',
 };
 
 const isActiveTurnStatus = (status?: DialogTurn['status']): boolean =>
@@ -68,12 +64,11 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
   session,
   status,
   justReplaced = false,
-  error,
   onRetry,
+  onReset,
   onMessageSent,
 }) => {
   const { t } = useTranslation('scenes/agents');
-  const { t: tFlow } = useTranslation('flow-chat');
 
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -222,61 +217,50 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
 
   const activeSession = status === 'ready' || status === 'stale' ? session : null;
   const showConversation = activeSession != null;
+  // Fail-closed: the real composer only exists on a ready session. Every other
+  // state shows a plain, non-interactive line saying why in everyday words.
   const canSend = status === 'ready' && activeSession != null;
+  const blockedHint = canSend ? null : t(BLOCKED_HINT_KEY[status as Exclude<PanelStatus, 'ready'>]
+    ?? BLOCKED_HINT_KEY.creating);
+  const canReset = Boolean(onReset) && showConversation && virtualItems.length > 0;
 
   return (
-    <div className="agent-debug-chat-panel">
+    <section className="agent-debug-chat-panel" aria-label={t('agentsOverview.debug.title')}>
+      {/* Quiet header: what this is, in one line, plus one plain text action. */}
       <div className="agent-debug-chat-panel__header">
-        <span className="agent-debug-chat-panel__title">{t('agentsOverview.debug.title')}</span>
-        <span className="agent-debug-chat-panel__status" data-tone={STATUS_TONE[status]}>
-          {t(STATUS_TEXT_KEY[status])}
-        </span>
+        <div className="agent-debug-chat-panel__heading">
+          <h3 className="agent-debug-chat-panel__title">{t('agentsOverview.debug.title')}</h3>
+          <p className="agent-debug-chat-panel__subtitle">
+            {t('agentsOverview.debug.subtitle')}
+          </p>
+        </div>
+        {canReset && (
+          <button
+            type="button"
+            className="agent-debug-chat-panel__action"
+            data-testid="agent-debug-chat-reset"
+            onClick={onReset}
+          >
+            {t('agentsOverview.debug.reset')}
+          </button>
+        )}
       </div>
 
+      {/* After an edit lands, one sentence: the next try uses the newest draft. */}
       {status === 'ready' && justReplaced && showConversation && (
-        <div
-          className="agent-debug-chat-panel__stale-banner"
+        <p
+          className="agent-debug-chat-panel__note"
           data-testid="agent-debug-chat-stale-banner"
+          role="status"
         >
-          <span>{t('agentsOverview.debug.stale')}</span>
-        </div>
+          {t('agentsOverview.debug.hint.updated')}
+        </p>
       )}
 
-      {/* Idle / starting / failed are each one quiet sentence, nothing more. */}
-      {status === 'idle' && (
+      {!showConversation && (
         <div className="agent-debug-chat-panel__body agent-debug-chat-panel__body--centered">
-          <p className="agent-debug-chat-panel__state">
-            {t('agentsOverview.debug.empty')}
-          </p>
-        </div>
-      )}
-
-      {status === 'creating' && (
-        <div className="agent-debug-chat-panel__body agent-debug-chat-panel__body--centered">
-          <p className="agent-debug-chat-panel__state" role="status">
-            {t('agentsOverview.debug.creating')}
-          </p>
-        </div>
-      )}
-
-      {status === 'error' && (
-        <div className="agent-debug-chat-panel__body agent-debug-chat-panel__body--centered">
-          <p className="agent-debug-chat-panel__state agent-debug-chat-panel__state--error" role="alert">
-            <span className="agent-debug-chat-panel__error-message">
-              {t('agentsOverview.debug.error', { message: error ?? '' })}
-            </span>
-            {onRetry && (
-              <>
-                {' '}
-                <button
-                  type="button"
-                  className="agent-debug-chat-panel__retry-button"
-                  onClick={onRetry}
-                >
-                  {t('agentsOverview.debug.retry')}
-                </button>
-              </>
-            )}
+          <p className="agent-debug-chat-panel__placeholder">
+            {t('agentsOverview.debug.emptyConversation')}
           </p>
         </div>
       )}
@@ -288,7 +272,7 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
               <div ref={scrollContainerRef} className="agent-debug-chat-panel__body">
                 {virtualItems.length === 0 ? (
                   <div className="agent-debug-chat-panel__empty-conversation">
-                    {tFlow('session.empty')}
+                    {t('agentsOverview.debug.emptyConversation')}
                   </div>
                 ) : (
                   <>
@@ -324,7 +308,29 @@ export const AgentDebugChatPanel: React.FC<AgentDebugChatPanelProps> = ({
           )}
         </FlowChatContext.Provider>
       )}
-    </div>
+
+      {/* Composer slot when sending is closed: the reason, in one sentence. */}
+      {blockedHint && (
+        <div
+          className="agent-debug-chat-panel__composer agent-debug-chat-panel__composer--blocked"
+          data-testid="agent-debug-chat-composer-blocked"
+          aria-disabled="true"
+          role={status === 'error' ? 'alert' : 'status'}
+        >
+          <span className="agent-debug-chat-panel__hint">{blockedHint}</span>
+          {status === 'error' && onRetry && (
+            <button
+              type="button"
+              className="agent-debug-chat-panel__action"
+              data-testid="agent-debug-chat-retry"
+              onClick={onRetry}
+            >
+              {t('agentsOverview.debug.retry')}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
   );
 };
 

@@ -47,16 +47,18 @@
   padding: var(--workspace-space-4, 16px);
   overflow: hidden;
   gap: var(--workspace-space-4, 16px);
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 42%);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 38%);
 }
 
+// The try-it-out column is deliberately secondary to the form: same hairline
+// card language, no fill, no heavy border.
 .th-create-lab__chat {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--workspace-border-subtle, var(--color-border-primary));
-  border-radius: var(--workspace-radius-control, 6px);
-  background: var(--workspace-surface-panel, var(--color-bg-flowchat));
+  border: 0.5px solid var(--workspace-border-subtle, var(--color-border-primary));
+  border-radius: var(--workspace-radius-panel, 8px);
+  background: transparent;
 }
 
 .th-create-lab__editor {
@@ -631,7 +633,7 @@
 @container (max-width: 900px) {
   .th-create-lab {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(280px, 42%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(260px, 40%);
     overflow: auto;
   }
 

@@ -289,6 +289,35 @@ export function useAgentDebugSession({
     await createSession(draftRef.current, currentWorkspace).catch(() => {});
   }, [createSession]);
 
+  /**
+   * Throw the current test conversation away and start a fresh one for the
+   * same draft. Reuses the existing dispose + create paths only: no new
+   * runtime semantics, and it stays fail-closed (no session -> idle).
+   */
+  const reset = useCallback(async (): Promise<void> => {
+    if (replaceTimerRef.current) {
+      clearTimeout(replaceTimerRef.current);
+      replaceTimerRef.current = undefined;
+    }
+    // Drop any create dedupe entry so the fresh create is not answered with
+    // the handle we are about to dispose.
+    createInFlightRef.current = undefined;
+    await disposeLive();
+    if (mountedRef.current) {
+      setSessionId(undefined);
+      setJustReplaced(false);
+      setError(undefined);
+    }
+    const currentWorkspace = workspaceRef.current?.trim();
+    if (!currentWorkspace || !validRef.current) {
+      if (mountedRef.current) {
+        setStatus('idle');
+      }
+      return;
+    }
+    await createSession(draftRef.current, currentWorkspace).catch(() => {});
+  }, [createSession, disposeLive]);
+
   const acknowledgeMessageSent = useCallback(() => {
     if (mountedRef.current) {
       setJustReplaced(false);
@@ -302,6 +331,7 @@ export function useAgentDebugSession({
     error,
     send,
     retry,
+    reset,
     acknowledgeMessageSent,
   };
 }
