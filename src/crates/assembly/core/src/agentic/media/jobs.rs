@@ -23,6 +23,7 @@ pub struct MediaJobHandle {
     pub requested_aspect_ratio: Option<String>,
     pub placeholder_aspect_ratio: Option<String>,
     pub short_drama: Option<Value>,
+    pub infinite_canvas: Option<Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -174,6 +175,7 @@ pub fn start_media_job_polling(
             let _ = persist_media_batch(path, &result).await;
         }
         attach_short_drama_media_result(&mut result, kind, handle.short_drama.as_ref());
+        attach_infinite_canvas_media_result(&mut result, kind, handle.infinite_canvas.as_ref());
         emit_media_job_completed(event_context, result).await;
     });
 }
@@ -502,6 +504,63 @@ fn attach_short_drama_media_result(result: &mut Value, kind: &str, short_drama: 
         metadata_object.insert("outputMediaLabel".to_string(), json!("Generated media"));
     }
     result["shortDrama"] = metadata;
+}
+
+fn attach_infinite_canvas_media_result(
+    result: &mut Value,
+    kind: &str,
+    infinite_canvas: Option<&Value>,
+) {
+    let Some(infinite_canvas) = infinite_canvas.filter(|value| value.is_object()) else {
+        return;
+    };
+    let Some(batch) = result.get("batch").and_then(Value::as_object) else {
+        return;
+    };
+    let Some(batch_id) = batch.get("batch_id").and_then(Value::as_str) else {
+        return;
+    };
+    let first_asset = batch
+        .get("assets")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first());
+    let first_item = batch
+        .get("items")
+        .and_then(Value::as_array)
+        .and_then(|items| items.first());
+    let item_index = first_asset
+        .and_then(|asset| asset.get("item_index"))
+        .or_else(|| first_item.and_then(|item| item.get("item_index")))
+        .and_then(Value::as_u64)
+        .unwrap_or(1);
+    let preview_url = first_asset
+        .and_then(|asset| asset.get("url"))
+        .or_else(|| first_item.and_then(|item| item.get("result_url")))
+        .and_then(Value::as_str);
+    let local_path = first_asset
+        .and_then(|asset| asset.get("local_path"))
+        .or_else(|| first_item.and_then(|item| item.get("local_path")))
+        .and_then(Value::as_str);
+
+    let mut metadata = infinite_canvas.clone();
+    let Some(metadata_object) = metadata.as_object_mut() else {
+        return;
+    };
+    metadata_object.insert(
+        "outputMediaItemId".to_string(),
+        json!(format!("{batch_id}-{item_index}")),
+    );
+    metadata_object.insert("outputMediaKind".to_string(), json!(kind));
+    if let Some(preview_url) = preview_url {
+        metadata_object.insert("outputPreviewUrl".to_string(), json!(preview_url));
+    }
+    if let Some(local_path) = local_path {
+        metadata_object.insert("outputMediaPath".to_string(), json!(local_path));
+        if let Some(relative_path) = generated_media_relative_path(local_path) {
+            metadata_object.insert("outputMediaRelativePath".to_string(), json!(relative_path));
+        }
+    }
+    result["infiniteCanvas"] = metadata;
 }
 
 fn generated_media_relative_path(local_path: &str) -> Option<String> {
@@ -1031,8 +1090,9 @@ fn collect_urls(value: &Value, urls: &mut Vec<String>) {
 #[cfg(test)]
 mod tests {
     use super::{
-        attach_short_drama_media_result, build_media_batch_result,
-        build_media_batch_result_with_id, build_media_polling_result, classify_apimart_error,
+        attach_infinite_canvas_media_result, attach_short_drama_media_result,
+        build_media_batch_result, build_media_batch_result_with_id, build_media_polling_result,
+        classify_apimart_error,
         classify_apimart_error_message, extract_media_task_ids, is_valid_downloaded_media_bytes,
         load_media_batch, media_batch_context_text, media_job_store_path, media_task_status,
         persist_media_batch, sanitize_path_component, save_generated_media_assets_with_downloader,
@@ -1418,6 +1478,157 @@ mod tests {
             .is_some_and(
                 |path| path.ends_with("media/generated/media_batch_short_drama/image-001.png")
             ));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn attaches_infinite_canvas_metadata_to_saved_media_batch() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-infinite-canvas-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_infinite_canvas")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_infinite_canvas",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/canvas.png" }]
+                }
+            }]),
+            vec![],
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated asset");
+
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-derived-1",
+                "resultMode": "derived",
+                "sourceNodeId": "node-source-1",
+                "toolId": "generate",
+                "operationId": "op-1"
+            })),
+        );
+
+        assert_eq!(saved["infiniteCanvas"]["workspaceId"], "workspace-1");
+        assert_eq!(saved["infiniteCanvas"]["documentId"], "doc-1");
+        assert_eq!(saved["infiniteCanvas"]["nodeId"], "node-derived-1");
+        assert_eq!(saved["infiniteCanvas"]["resultMode"], "derived");
+        assert_eq!(saved["infiniteCanvas"]["operationId"], "op-1");
+        assert_eq!(
+            saved["infiniteCanvas"]["outputMediaItemId"],
+            "media_batch_infinite_canvas-1"
+        );
+        assert_eq!(saved["infiniteCanvas"]["outputMediaKind"], "image");
+        assert_eq!(
+            saved["infiniteCanvas"]["outputPreviewUrl"],
+            "https://cdn.example/canvas.png"
+        );
+        assert!(saved["infiniteCanvas"]["outputMediaPath"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("image-001.png")));
+        assert!(saved["infiniteCanvas"]["outputMediaRelativePath"]
+            .as_str()
+            .is_some_and(|path| {
+                path.ends_with("media/generated/media_batch_infinite_canvas/image-001.png")
+            }));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn keeps_short_drama_and_infinite_canvas_bindings_isolated_on_the_same_batch() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-dual-binding-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path =
+            media_job_store_path(Some(root.as_path()), "media_batch_dual").expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_dual",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/dual.png" }]
+                }
+            }]),
+            vec![],
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated asset");
+
+        attach_short_drama_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "projectId": "short-drama-project",
+                "stage": "assets",
+                "artifactHandle": "CHAR-001"
+            })),
+        );
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-dual-1"
+            })),
+        );
+
+        assert_eq!(saved["shortDrama"]["projectId"], "short-drama-project");
+        assert_eq!(saved["shortDrama"]["artifactHandle"], "CHAR-001");
+        assert_eq!(
+            saved["shortDrama"]["outputMediaItemId"],
+            "media_batch_dual-1"
+        );
+        assert_eq!(
+            saved["shortDrama"]["outputMediaLabel"],
+            "Generated media"
+        );
+        assert!(saved["shortDrama"].get("nodeId").is_none());
+        assert!(saved["shortDrama"].get("operationId").is_none());
+        assert!(saved["shortDrama"].get("workspaceId").is_none());
+
+        assert_eq!(saved["infiniteCanvas"]["nodeId"], "node-1");
+        assert_eq!(saved["infiniteCanvas"]["resultMode"], "self");
+        assert_eq!(saved["infiniteCanvas"]["operationId"], "op-dual-1");
+        assert_eq!(
+            saved["infiniteCanvas"]["outputMediaItemId"],
+            "media_batch_dual-1"
+        );
+        assert_eq!(
+            saved["infiniteCanvas"]["outputPreviewUrl"],
+            "https://cdn.example/dual.png"
+        );
+        assert!(saved["infiniteCanvas"].get("projectId").is_none());
+        assert!(saved["infiniteCanvas"].get("artifactHandle").is_none());
+        assert!(saved["infiniteCanvas"].get("outputMediaLabel").is_none());
+        assert!(saved["infiniteCanvas"].get("outputThumbnailUrl").is_none());
 
         let _ = tokio::fs::remove_dir_all(root).await;
     }
