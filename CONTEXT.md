@@ -57,6 +57,22 @@ through its own Module Interface. Active contract:
 - Remote project authoring is explicitly unavailable. Workspace Media stays
   unavailable for remote workspaces until `remoteConnectionId` is carried
   through its real file IO Module Interface.
+- **Infinite Canvas phase 1 (landed, owner-verified 2026-08-23).** The fourth
+  first-party Canvas surface: an infinite node canvas (text/image nodes, edges,
+  pan/zoom, per-workspace document with CAS-persisted truth in
+  `shared/services/infinite-canvas/`, reactflow lazy-chunked out of the entry
+  bundle), a read-only `style-preset` catalog of 317 kunpeng-derived presets
+  (MIT, recorded in `THIRD-PARTY-NOTICES.md`), and typed phase-2 placeholders
+  for the five image tools. Plan:
+  [docs/plans/2026-08-22-infinite-canvas-plugin-phase1.md](docs/plans/2026-08-22-infinite-canvas-plugin-phase1.md);
+  contracts:
+  [docs/features/infinite-canvas-and-media-tools-prd.md](docs/features/infinite-canvas-and-media-tools-prd.md).
+  Landing it surfaced and fixed real session-platform defects: capability-rail
+  opens now bind to the session's own workspace (resolving and activating it
+  when the shell has none), open failures toast their typed reason instead of
+  dying silently, and session hydration no longer maps `workspaceHostname:
+  localhost` into `remoteSshHost` (which had made every restored local session
+  look like a disconnected SSH remote and fail-closed all canvas capabilities).
 
 ### AGENT hub and catalogs
 
