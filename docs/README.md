@@ -28,7 +28,8 @@ the area you are changing.
   — the K0 contracts: style-preset asset catalog (MIT kunpeng data), phase-2
   image-tool and media-provider placeholders, and the infinite canvas
   document/persistence rules; staged by the
-  [phase-1 plan](plans/2026-08-22-infinite-canvas-plugin-phase1.md)
+  [phase-1 plan](plans/2026-08-22-infinite-canvas-plugin-phase1.md) and the
+  [phase-2 K2 plan](plans/2026-08-23-infinite-canvas-k2-image-tools.md)
 - [Customization Center and active persona](features/customization-center-prd.md)
   — Agent/Team/Skill catalogs, per-conversation persona binding, and the
   Desktop/Tauri reusable-Team runtime status
@@ -67,6 +68,9 @@ the area you are changing.
 ## Active plans
 
 - [Infinite Canvas plugin — phase 1](plans/2026-08-22-infinite-canvas-plugin-phase1.md)
+- [Infinite Canvas K2 — image creation loop](plans/2026-08-23-infinite-canvas-k2-image-tools.md)
+  — approved (B1): image tools go live over the reused APIMart media pipeline
+  with `infinite_canvas` binding backflow
 - [Core decomposition plan](plans/core-decomposition-plan.md) — staged
   architecture work; ticked boxes are evidence, remaining slices need their own
   risk review
