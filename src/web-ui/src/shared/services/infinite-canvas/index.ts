@@ -1,6 +1,20 @@
 export * from './InfiniteCanvasTypes';
 export * from './InfiniteCanvasPersistencePort';
 export * from './ImageToolTypes';
+export * from './InfiniteCanvasAgentTaskTypes';
+export {
+  buildFinalInstruction,
+  buildImageGenerationTaskMessage,
+  createSessionImageGenerationGateway,
+  createSessionImageToolGateway,
+  referenceImageLabel,
+  type SessionImageGenerationGateway,
+  type SessionImageGenerationGatewayOptions,
+  type SessionImageGenerationInvocation,
+  type SessionImageReference,
+  type SessionImageToolDispatchContext,
+  type SessionImageToolInvocationResolution,
+} from './SessionImageGenerationGateway';
 export {
   createPlaceholderImageToolGateway,
   placeholderImageToolGateway,
