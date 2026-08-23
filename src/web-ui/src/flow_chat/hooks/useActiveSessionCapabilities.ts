@@ -11,6 +11,10 @@ interface ActiveSessionCapabilitiesSnapshot {
   sessionId: string | null;
   /** Persona the conversation is bound to, for capabilities that author it. */
   personaId?: string;
+  /** Workspace the session itself is bound to — the shell's currently opened
+   * workspace can be absent (or a different one) while a session is active. */
+  workspaceId?: string;
+  workspacePath?: string;
   remoteConnectionId?: string;
   remoteSshHost?: string;
   capabilities: SessionCapabilityPresentation[];
@@ -108,6 +112,8 @@ function selectSnapshot(
   return {
     sessionId,
     ...(personaId ? { personaId } : {}),
+    ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
+    ...(session.workspacePath ? { workspacePath: session.workspacePath } : {}),
     ...(session.remoteConnectionId
       ? { remoteConnectionId: session.remoteConnectionId }
       : {}),
@@ -130,6 +136,8 @@ function areSnapshotsEqual(
 ): boolean {
   return left.sessionId === right.sessionId
     && left.personaId === right.personaId
+    && left.workspaceId === right.workspaceId
+    && left.workspacePath === right.workspacePath
     && left.remoteConnectionId === right.remoteConnectionId
     && left.remoteSshHost === right.remoteSshHost
     && areSessionCapabilitiesEqual(left.capabilities, right.capabilities);

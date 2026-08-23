@@ -147,10 +147,16 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const {
     sessionId: activeSessionId,
     personaId: activeSessionPersonaId,
+    workspaceId: activeSessionWorkspaceId,
+    workspacePath: activeSessionWorkspacePath,
     remoteConnectionId: activeSessionRemoteConnectionId,
     remoteSshHost: activeSessionRemoteSshHost,
     capabilities: activeSessionCapabilities,
   } = useActiveSessionCapabilities();
+  // The session's own workspace binding wins: the shell's opened workspace can
+  // be absent (session created from the welcome screen) or a different one.
+  const capabilityWorkspaceId = activeSessionWorkspaceId ?? workspaceId;
+  const capabilityWorkspacePath = activeSessionWorkspacePath ?? workspacePath;
   const activeTeamWorkspace = useActiveSessionTeamWorkspace({ workspacePath });
   const activeCanvasCapabilityId = useCanvasStore(canvasState => {
     const activeTab = canvasState.primaryGroup.tabs.find(
@@ -501,8 +507,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     for (const [capabilityId, intent] of pendingCanvasCapabilityIntentsRef.current) {
       const intentState = getSessionCanvasIntentState(intent, {
         sourceSessionId: activeSessionId,
-        workspaceId,
-        workspacePath,
+        workspaceId: capabilityWorkspaceId,
+        workspacePath: capabilityWorkspacePath,
         remoteConnectionId: activeSessionRemoteConnectionId,
       });
       if (intentState === 'wait') continue;
@@ -517,8 +523,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     dispatchSessionCanvasCapability,
     isActive,
     isAuxPaneReady,
-    workspaceId,
-    workspacePath,
+    capabilityWorkspaceId,
+    capabilityWorkspacePath,
   ]);
 
   const handleOpenSessionCapability = useCallback((
@@ -534,8 +540,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       idempotencyKey: `capability-rail:${++canvasCapabilityDeliverySequenceRef.current}`,
       ...(activeSessionId ? { sourceSessionId: activeSessionId } : {}),
       ...(activeSessionPersonaId ? { personaId: activeSessionPersonaId } : {}),
-      ...(workspaceId ? { workspaceId } : {}),
-      ...(workspacePath ? { workspacePath } : {}),
+      ...(capabilityWorkspaceId ? { workspaceId: capabilityWorkspaceId } : {}),
+      ...(capabilityWorkspacePath ? { workspacePath: capabilityWorkspacePath } : {}),
       ...(activeSessionRemoteConnectionId
         ? { remoteConnectionId: activeSessionRemoteConnectionId }
         : {}),
@@ -558,8 +564,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     isAuxPaneReady,
     state.layout.rightPanelCollapsed,
     toggleRightPanel,
-    workspaceId,
-    workspacePath,
+    capabilityWorkspaceId,
+    capabilityWorkspacePath,
   ]);
 
   const teamCanvasCapability = resolveTeamCanvasCapability(
