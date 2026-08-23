@@ -170,6 +170,7 @@ const PRODUCT_TOOL_PROVIDER_GROUP_PLAN: &[ToolProviderGroupPlan] = &[
             "UploadMediaImage",
             "GenerateSpeech",
             "TranscribeAudio",
+            "CanvasRead",
         ],
     },
 ];
@@ -332,6 +333,7 @@ mod tests {
                 "UploadMediaImage",
                 "GenerateSpeech",
                 "TranscribeAudio",
+                "CanvasRead",
             ]
         );
     }

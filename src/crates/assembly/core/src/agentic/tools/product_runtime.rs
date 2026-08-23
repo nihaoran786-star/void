@@ -146,6 +146,7 @@ fn materialize_tool(tool_name: &str) -> Arc<dyn Tool> {
         "UploadMediaImage" => Arc::new(UploadMediaImageTool::new()),
         "GenerateSpeech" => Arc::new(GenerateSpeechTool::new()),
         "TranscribeAudio" => Arc::new(TranscribeAudioTool::new()),
+        "CanvasRead" => Arc::new(CanvasReadTool::new()),
         _ => panic!("unknown product tool provider plan entry: {tool_name}"),
     }
 }

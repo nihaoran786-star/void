@@ -403,6 +403,7 @@ mod tests {
             "UploadMediaImage",
             "GenerateSpeech",
             "TranscribeAudio",
+            "CanvasRead",
         ];
 
         assert_eq!(
@@ -603,6 +604,7 @@ mod tests {
                 "UploadMediaImage",
                 "GenerateSpeech",
                 "TranscribeAudio",
+                "CanvasRead",
             ],
             "collapsed tool manifest must stay stable before moving registry or manifest ownership"
         );
@@ -644,6 +646,7 @@ mod tests {
                 "AnalyzeImage",
                 "ViewImage",
                 "GetMediaTaskStatus",
+                "CanvasRead",
             ],
             "readonly tool manifest must stay stable before moving registry ownership"
         );

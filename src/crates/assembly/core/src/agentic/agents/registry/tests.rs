@@ -160,6 +160,7 @@ async fn media_is_registered_as_conservative_top_level_mode() {
             "UploadMediaImage".to_string(),
             "GenerateSpeech".to_string(),
             "TranscribeAudio".to_string(),
+            "CanvasRead".to_string(),
         ]
     );
     assert!(!media.default_tools.contains(&"Bash".to_string()));
