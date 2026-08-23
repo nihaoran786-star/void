@@ -1,0 +1,458 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  connectInfiniteCanvasMediaBridgeToEventBus,
+  createInfiniteCanvasMediaBridge,
+  type InfiniteCanvasMediaBridge,
+} from './InfiniteCanvasMediaBridge';
+import {
+  InfiniteCanvasDocumentService,
+  defaultInfiniteCanvasDocumentId,
+  infiniteCanvasDocumentFilePath,
+} from './InfiniteCanvasDocumentService';
+import { createInMemoryInfiniteCanvasPersistence } from './InfiniteCanvasPersistencePort';
+import type {
+  InfiniteCanvasDocument,
+  InfiniteCanvasNode,
+  InfiniteCanvasWorkspaceRef,
+} from './InfiniteCanvasTypes';
+
+const WORKSPACE: InfiniteCanvasWorkspaceRef = {
+  workspaceId: 'workspace-1',
+  workspacePath: 'C:/ws',
+  backend: 'local',
+};
+const DOCUMENT_ID = defaultInfiniteCanvasDocumentId(WORKSPACE.workspaceId);
+
+const SOURCE_MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/src.png' };
+const OCCUPIED_MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/keep.png' };
+
+function seedNodes(): InfiniteCanvasNode[] {
+  return [
+    {
+      nodeId: 'card-self',
+      kind: 'image',
+      position: { x: 0, y: 0 },
+      prompt: '一只猫',
+      generation: {
+        operationId: 'op-self',
+        toolId: 'generate',
+        resultMode: 'self',
+        status: 'pending',
+      },
+    },
+    {
+      nodeId: 'card-src',
+      kind: 'image',
+      position: { x: 100, y: 0 },
+      mediaRef: { ...SOURCE_MEDIA_REF },
+    },
+    {
+      nodeId: 'card-derived',
+      kind: 'image',
+      position: { x: 500, y: 0 },
+      derivedFrom: { sourceNodeId: 'card-src', toolId: 'expand', operationId: 'op-derived' },
+      generation: {
+        operationId: 'op-derived',
+        toolId: 'expand',
+        resultMode: 'derived',
+        status: 'pending',
+      },
+    },
+    {
+      // Illegal-by-construction state used to prove the never-overwrite guard.
+      nodeId: 'card-occupied',
+      kind: 'image',
+      position: { x: 0, y: 300 },
+      mediaRef: { ...OCCUPIED_MEDIA_REF },
+      generation: {
+        operationId: 'op-occupied',
+        toolId: 'generate',
+        resultMode: 'self',
+        status: 'pending',
+      },
+    },
+  ];
+}
+
+interface Harness {
+  bridge: InfiniteCanvasMediaBridge;
+  readDocument: () => Promise<InfiniteCanvasDocument>;
+}
+
+function createHarness(): Harness {
+  const store = createInMemoryInfiniteCanvasPersistence();
+  const document: InfiniteCanvasDocument = {
+    documentId: DOCUMENT_ID,
+    schemaVersion: '1',
+    workspaceId: WORKSPACE.workspaceId,
+    revision: 1,
+    nodes: seedNodes(),
+    edges: [{ edgeId: 'edge-1', sourceNodeId: 'card-src', targetNodeId: 'card-derived' }],
+    viewport: { x: 0, y: 0, zoom: 1 },
+    updatedAt: new Date(0).toISOString(),
+  };
+  store.files.set(
+    infiniteCanvasDocumentFilePath(WORKSPACE.workspacePath, DOCUMENT_ID),
+    JSON.stringify(document),
+  );
+  const service = new InfiniteCanvasDocumentService(store.port);
+  const bridge = createInfiniteCanvasMediaBridge({
+    workspace: WORKSPACE,
+    documentId: DOCUMENT_ID,
+    documentService: service,
+  });
+  return {
+    bridge,
+    async readDocument() {
+      const result = await service.mutateDefaultDocument(WORKSPACE, content => content);
+      if (result.status !== 'applied') throw new Error('failed to read document');
+      return result.document;
+    },
+  };
+}
+
+function binding(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    workspaceId: WORKSPACE.workspaceId,
+    documentId: DOCUMENT_ID,
+    nodeId: 'card-self',
+    resultMode: 'self',
+    toolId: 'generate',
+    operationId: 'op-self',
+    ...overrides,
+  };
+}
+
+function completedMediaEvent(bindingOverrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    sessionId: 'session-1',
+    eventType: 'Completed',
+    toolId: 'tool-call-1',
+    toolName: 'GenerateImage',
+    result: {
+      status: 'completed',
+      source: 'apimart',
+      kind: 'image',
+      batch: { batch_id: 'batch-1' },
+      infiniteCanvas: binding({
+        outputMediaItemId: 'batch-1-1',
+        outputMediaKind: 'image',
+        outputMediaRelativePath: 'media/generated/batch-1/image-001.png',
+        ...bindingOverrides,
+      }),
+    },
+  };
+}
+
+function node(document: InfiniteCanvasDocument, nodeId: string): InfiniteCanvasNode {
+  const found = document.nodes.find(candidate => candidate.nodeId === nodeId);
+  if (!found) throw new Error(`node ${nodeId} missing`);
+  return found;
+}
+
+describe('InfiniteCanvasMediaBridge', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('resolves a self-mode completion into the blank card itself', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent());
+
+    expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-self' });
+    const card = node(await readDocument(), 'card-self');
+    expect(card.mediaRef).toEqual({
+      workspacePath: 'C:/ws',
+      relativePath: 'media/generated/batch-1/image-001.png',
+    });
+    expect(card.generation).toBeUndefined();
+    expect(card.prompt).toBe('一只猫');
+    expect(card.derivedFrom).toBeUndefined();
+  });
+
+  it('resolves a derived-mode completion into the placeholder card, leaving the source untouched', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-derived',
+      resultMode: 'derived',
+      sourceNodeId: 'card-src',
+      toolId: 'expand',
+      operationId: 'op-derived',
+    }));
+
+    expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-derived' });
+    const document = await readDocument();
+    const derived = node(document, 'card-derived');
+    expect(derived.mediaRef?.relativePath).toBe('media/generated/batch-1/image-001.png');
+    expect(derived.generation).toBeUndefined();
+    expect(derived.derivedFrom).toEqual({
+      sourceNodeId: 'card-src',
+      toolId: 'expand',
+      operationId: 'op-derived',
+    });
+    expect(node(document, 'card-src').mediaRef).toEqual(SOURCE_MEDIA_REF);
+  });
+
+  it('ignores a self-mode completion whose landing node already has an image (never-overwrite)', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-occupied',
+      operationId: 'op-occupied',
+    }));
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'result_mode_mismatch' });
+    expect(node(await readDocument(), 'card-occupied').mediaRef).toEqual(OCCUPIED_MEDIA_REF);
+  });
+
+  it('ignores a tampered resultMode that contradicts the registered generation', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-derived',
+      resultMode: 'self',
+      operationId: 'op-derived',
+    }));
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'result_mode_mismatch' });
+    const derived = node(await readDocument(), 'card-derived');
+    expect(derived.mediaRef).toBeUndefined();
+    expect(derived.generation?.status).toBe('pending');
+  });
+
+  it('attaches the batch id from a submission receipt and keeps the node pending', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Completed',
+      toolName: 'GenerateImage',
+      result: {
+        status: 'polling',
+        batch_id: 'batch-9',
+        infiniteCanvas: binding(),
+      },
+    });
+
+    expect(result).toEqual({
+      status: 'applied',
+      action: 'batch-attached',
+      operationId: 'op-self',
+    });
+    const card = node(await readDocument(), 'card-self');
+    expect(card.generation).toMatchObject({ status: 'pending', batchId: 'batch-9' });
+  });
+
+  it('confirms pending on a Started event carrying the binding in params', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Started',
+      toolName: 'GenerateImage',
+      params: { prompt: '一只猫', infinite_canvas: binding() },
+    });
+
+    expect(result).toEqual({ status: 'applied', action: 'pending', operationId: 'op-self' });
+    expect(node(await readDocument(), 'card-self').generation?.status).toBe('pending');
+  });
+
+  it.each([
+    [{ code: 'provider_not_configured' }, 'auth'],
+    [{ code: 'safety_rejected', http_status: 500 }, 'invalid-input'],
+    [{ code: 'provider_error', http_status: 429 }, 'rate-limit'],
+    [{ code: 'provider_error', http_status: 401 }, 'auth'],
+    [{ code: 'provider_error', http_status: 500 }, 'backend'],
+  ] as const)('maps the %o error result onto the typed errorKind %s', async (error, errorKind) => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Completed',
+      toolName: 'GenerateImage',
+      params: { infinite_canvas: binding() },
+      result: { status: 'error', source: 'apimart', error },
+    });
+
+    expect(result).toEqual({
+      status: 'applied',
+      action: 'failed',
+      operationId: 'op-self',
+      errorKind,
+    });
+    expect(node(await readDocument(), 'card-self').generation).toMatchObject({
+      status: 'failed',
+      errorKind,
+    });
+  });
+
+  it('marks a timed-out batch as a typed timeout failure', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Completed',
+      toolName: 'GenerateImage',
+      result: { status: 'timeout', infiniteCanvas: binding() },
+    });
+
+    expect(result).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'timeout' });
+    expect(node(await readDocument(), 'card-self').generation?.errorKind).toBe('timeout');
+  });
+
+  it('maps Failed and Cancelled tool events onto backend and cancelled kinds', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const failed = await bridge.handleToolRunEvent({
+      eventType: 'Failed',
+      toolName: 'GenerateImage',
+      params: { infinite_canvas: binding() },
+      error: 'boom',
+    });
+    expect(failed).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'backend' });
+
+    const cancelled = await bridge.handleToolRunEvent({
+      eventType: 'Cancelled',
+      toolName: 'GenerateImage',
+      params: {
+        infinite_canvas: binding({
+          nodeId: 'card-derived',
+          resultMode: 'derived',
+          operationId: 'op-derived',
+        }),
+      },
+    });
+    expect(cancelled).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'cancelled' });
+
+    const document = await readDocument();
+    expect(node(document, 'card-self').generation?.errorKind).toBe('backend');
+    expect(node(document, 'card-derived').generation?.errorKind).toBe('cancelled');
+  });
+
+  it('rejects a cross-workspace binding without touching the document', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      workspaceId: 'workspace-other',
+    }));
+
+    expect(result).toMatchObject({
+      status: 'ignored',
+      reason: 'workspace_mismatch',
+      eventWorkspaceId: 'workspace-other',
+    });
+    expect(node(await readDocument(), 'card-self').mediaRef).toBeUndefined();
+  });
+
+  it('rejects a cross-document binding without touching the document', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      documentId: 'doc-other',
+    }));
+
+    expect(result).toMatchObject({
+      status: 'ignored',
+      reason: 'document_mismatch',
+      eventDocumentId: 'doc-other',
+    });
+    expect(node(await readDocument(), 'card-self').mediaRef).toBeUndefined();
+  });
+
+  it('treats a duplicated completion as an idempotent no-op after the resolve', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    await bridge.handleToolRunEvent(completedMediaEvent());
+    const repeat = await bridge.handleToolRunEvent(completedMediaEvent());
+
+    expect(repeat).toMatchObject({ status: 'ignored', reason: 'operation_not_found' });
+    const card = node(await readDocument(), 'card-self');
+    expect(card.mediaRef?.relativePath).toBe('media/generated/batch-1/image-001.png');
+  });
+
+  it('treats a duplicated failure event as already terminal', async () => {
+    const { bridge } = createHarness();
+    const failureEvent = {
+      eventType: 'Completed',
+      toolName: 'GenerateImage',
+      params: { infinite_canvas: binding() },
+      result: { status: 'error', error: { code: 'provider_not_configured' } },
+    };
+
+    await bridge.handleToolRunEvent(failureEvent);
+    const repeat = await bridge.handleToolRunEvent(failureEvent);
+
+    expect(repeat).toMatchObject({ status: 'ignored', reason: 'already_terminal' });
+  });
+
+  it('ignores events without an infinite canvas binding as missing_metadata', async () => {
+    const { bridge } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Completed',
+      toolName: 'GenerateImage',
+      result: { status: 'completed', shortDrama: { projectId: 'p1' } },
+    });
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'missing_metadata' });
+  });
+
+  it('ignores unknown operation ids as operation_not_found', async () => {
+    const { bridge } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      operationId: 'op-unknown',
+      nodeId: 'card-unknown',
+    }));
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'operation_not_found' });
+  });
+});
+
+describe('connectInfiniteCanvasMediaBridgeToEventBus', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('subscribes to agent:tool-run-event, reports ignored events, and unsubscribes', async () => {
+    const { bridge, readDocument } = createHarness();
+    const handlers = new Map<string, (event: unknown) => void>();
+    let unsubscribed = 0;
+    const eventBus = {
+      on(eventName: 'agent:tool-run-event', handler: (event: unknown) => void) {
+        handlers.set(eventName, handler);
+        return () => {
+          unsubscribed += 1;
+          handlers.delete(eventName);
+        };
+      },
+    };
+    const ignoredEvents: unknown[] = [];
+    const disconnect = connectInfiniteCanvasMediaBridgeToEventBus(bridge, eventBus, {
+      onIgnoredEvent: event => ignoredEvents.push(event),
+    });
+
+    const handler = handlers.get('agent:tool-run-event');
+    expect(handler).toBeDefined();
+
+    handler?.(completedMediaEvent());
+    handler?.({ eventType: 'Completed', result: { status: 'completed' } });
+    await vi.waitFor(async () => {
+      expect(ignoredEvents).toHaveLength(1);
+    });
+    expect(ignoredEvents[0]).toMatchObject({ reason: 'missing_metadata' });
+    expect(node(await readDocument(), 'card-self').mediaRef?.relativePath)
+      .toBe('media/generated/batch-1/image-001.png');
+
+    disconnect();
+    expect(unsubscribed).toBe(1);
+    expect(handlers.size).toBe(0);
+  });
+});

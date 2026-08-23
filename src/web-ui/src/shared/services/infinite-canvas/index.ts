@@ -2,6 +2,7 @@ export * from './InfiniteCanvasTypes';
 export * from './InfiniteCanvasPersistencePort';
 export * from './ImageToolTypes';
 export * from './InfiniteCanvasAgentTaskTypes';
+export * from './InfiniteCanvasMediaBridge';
 export {
   buildFinalInstruction,
   buildImageGenerationTaskMessage,
