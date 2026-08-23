@@ -7,6 +7,8 @@
  * DocumentService mutation. No reactflow, React, or Tauri imports.
  */
 import type {
+  CanvasImageOperationKind,
+  ImageToolErrorKind,
   InfiniteCanvasDocument,
   InfiniteCanvasEdge,
   InfiniteCanvasNode,
@@ -24,6 +26,9 @@ export interface InfiniteCanvasFlowNodeView {
     text?: string;
     mediaRef?: { workspacePath: string; relativePath: string };
     stylePresetId?: string;
+    prompt?: string;
+    derivedFrom?: NonNullable<InfiniteCanvasNode['derivedFrom']>;
+    generation?: NonNullable<InfiniteCanvasNode['generation']>;
   };
 }
 
@@ -67,6 +72,9 @@ export function toFlowNodeViews(
         ...(node.text === undefined ? {} : { text: node.text }),
         ...(node.mediaRef === undefined ? {} : { mediaRef: { ...node.mediaRef } }),
         ...(node.stylePresetId === undefined ? {} : { stylePresetId: node.stylePresetId }),
+        ...(node.prompt === undefined ? {} : { prompt: node.prompt }),
+        ...(node.derivedFrom === undefined ? {} : { derivedFrom: { ...node.derivedFrom } }),
+        ...(node.generation === undefined ? {} : { generation: { ...node.generation } }),
       },
     });
   }
@@ -207,4 +215,128 @@ export function setViewportContent(
   viewport: InfiniteCanvasViewport,
 ): InfiniteCanvasDocumentContent {
   return { ...content(document), viewport };
+}
+
+// —— K2 derived-operation helpers ————————————————————————————————————————
+//
+// Every image operation on a card that already has a mediaRef derives a NEW
+// placeholder node plus a source→derived edge; the source node is never
+// touched. Helpers are idempotent on operationId, and none of them may ever
+// change the mediaRef of a node that already has one (never-overwrite
+// invariant, PRD §3.4/§3.5).
+
+/** Horizontal offset used to place a derived placeholder beside its source. */
+const DERIVED_NODE_OFFSET_X = 360;
+
+function findOperationNode(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+): InfiniteCanvasNode | undefined {
+  return document.nodes.find(node => node.generation?.operationId === operationId);
+}
+
+/**
+ * Registers a derived operation: creates the pending placeholder card and the
+ * source→derived edge. Re-invoking with an operationId that is already
+ * registered returns the content unchanged (idempotent dispatch).
+ */
+export function beginDerivedOperationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  sourceNodeId: string,
+  toolId: CanvasImageOperationKind,
+  operationId: string,
+  derivedNodeId: string,
+  edgeId: string,
+): InfiniteCanvasDocumentContent {
+  if (findOperationNode(document, operationId)) return content(document);
+  const source = document.nodes.find(node => node.nodeId === sourceNodeId);
+  if (!source) return content(document);
+  if (document.nodes.some(node => node.nodeId === derivedNodeId)) return content(document);
+  const placeholder: InfiniteCanvasNode = {
+    nodeId: derivedNodeId,
+    kind: 'image',
+    position: {
+      x: source.position.x + (source.size?.width ?? 0) + DERIVED_NODE_OFFSET_X,
+      y: source.position.y,
+    },
+    derivedFrom: { sourceNodeId, toolId, operationId },
+    generation: { operationId, toolId, resultMode: 'derived', status: 'pending' },
+  };
+  return {
+    ...content(document),
+    nodes: [...document.nodes, placeholder],
+    edges: [
+      ...document.edges,
+      { edgeId, sourceNodeId, targetNodeId: derivedNodeId },
+    ],
+  };
+}
+
+/**
+ * Fills the pending node registered under `operationId` with the produced
+ * mediaRef and clears its generation state. Self and derived placements share
+ * this single code path. Unknown operationIds and nodes that already carry a
+ * mediaRef are left untouched (idempotent, never-overwrite).
+ */
+export function resolveOperationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+  mediaRef: { workspacePath: string; relativePath: string },
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      if (node.generation?.operationId !== operationId) return node;
+      if (node.mediaRef !== undefined) return node;
+      const { generation: _cleared, ...rest } = node;
+      return { ...rest, mediaRef: { ...mediaRef } };
+    }),
+  };
+}
+
+/** Marks the pending operation as failed with a typed K0-2 error kind. */
+export function failOperationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+  errorKind: ImageToolErrorKind,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => (
+      node.generation?.operationId === operationId
+        ? { ...node, generation: { ...node.generation, status: 'failed' as const, errorKind } }
+        : node
+    )),
+  };
+}
+
+/** Records the media batch id on the pending operation (for reconciliation). */
+export function attachBatchToOperationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+  batchId: string,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => (
+      node.generation?.operationId === operationId
+        ? { ...node, generation: { ...node.generation, batchId } }
+        : node
+    )),
+  };
+}
+
+/**
+ * Removes a failed operation placeholder — a plain node removal, restricted to
+ * nodes whose generation actually failed and that never received a mediaRef.
+ */
+export function removeFailedOperationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+): InfiniteCanvasDocumentContent {
+  const node = findOperationNode(document, operationId);
+  if (!node || node.generation?.status !== 'failed' || node.mediaRef !== undefined) {
+    return content(document);
+  }
+  return removeNodesContent(document, [node.nodeId]);
 }
