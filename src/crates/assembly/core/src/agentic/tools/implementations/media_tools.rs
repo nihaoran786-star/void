@@ -101,6 +101,20 @@ fn optional_short_drama_metadata(input: &Value) -> Option<Value> {
         .cloned()
 }
 
+fn optional_infinite_canvas_metadata(input: &Value) -> Option<Value> {
+    input
+        .get("infinite_canvas")
+        .or_else(|| input.get("infiniteCanvas"))
+        .filter(|value| value.is_object())
+        .cloned()
+}
+
+fn attach_infinite_canvas_submission_receipt(result: &mut Value, infinite_canvas: Option<Value>) {
+    if let Some(metadata) = infinite_canvas {
+        result["infiniteCanvas"] = metadata;
+    }
+}
+
 fn normalize_image_size(value: Option<String>) -> Option<String> {
     let size = value?;
     let trimmed = size.trim();
@@ -577,6 +591,103 @@ mod media_image_reference_tests {
     }
 }
 
+#[cfg(test)]
+mod infinite_canvas_binding_tests {
+    use super::{
+        attach_infinite_canvas_submission_receipt, optional_infinite_canvas_metadata,
+        GenerateImageTool,
+    };
+    use crate::agentic::media::jobs::build_media_polling_result;
+    use crate::agentic::tools::framework::Tool;
+    use serde_json::json;
+
+    fn sample_binding() -> serde_json::Value {
+        json!({
+            "workspaceId": "workspace-1",
+            "documentId": "doc-1",
+            "nodeId": "node-1",
+            "resultMode": "self",
+            "toolId": "generate",
+            "operationId": "op-1"
+        })
+    }
+
+    #[test]
+    fn generate_image_schema_declares_optional_infinite_canvas_binding() {
+        let schema = GenerateImageTool::new().input_schema();
+
+        let infinite_canvas = &schema["properties"]["infinite_canvas"];
+        assert_eq!(infinite_canvas["type"], "object");
+        assert!(infinite_canvas["description"]
+            .as_str()
+            .is_some_and(|text| text.contains("verbatim")));
+        // The short-drama binding stays untouched next to the new field.
+        assert_eq!(schema["properties"]["short_drama"]["type"], "object");
+        let required: Vec<&str> = schema["required"]
+            .as_array()
+            .expect("required list")
+            .iter()
+            .filter_map(|value| value.as_str())
+            .collect();
+        assert_eq!(required, vec!["prompt"]);
+    }
+
+    #[test]
+    fn optional_infinite_canvas_metadata_accepts_snake_and_camel_keys() {
+        let binding = sample_binding();
+
+        let snake = json!({ "prompt": "p", "infinite_canvas": binding.clone() });
+        assert_eq!(optional_infinite_canvas_metadata(&snake), Some(binding.clone()));
+
+        let camel = json!({ "prompt": "p", "infiniteCanvas": binding.clone() });
+        assert_eq!(optional_infinite_canvas_metadata(&camel), Some(binding));
+
+        let absent = json!({ "prompt": "p" });
+        assert_eq!(optional_infinite_canvas_metadata(&absent), None);
+
+        let not_an_object = json!({ "prompt": "p", "infinite_canvas": "node-1" });
+        assert_eq!(optional_infinite_canvas_metadata(&not_an_object), None);
+    }
+
+    #[test]
+    fn submission_receipt_echoes_infinite_canvas_binding_verbatim() {
+        let mut result = build_media_polling_result(
+            "image",
+            "batch-1",
+            &["task-1".to_string()],
+            Some("prompt"),
+            Some("model"),
+            Some(1),
+            Some("1:1"),
+            Some("1 / 1"),
+        );
+
+        attach_infinite_canvas_submission_receipt(&mut result, Some(sample_binding()));
+
+        assert_eq!(result["infiniteCanvas"], sample_binding());
+    }
+
+    #[test]
+    fn submission_receipt_stays_unchanged_without_infinite_canvas_binding() {
+        let baseline = build_media_polling_result(
+            "image",
+            "batch-1",
+            &["task-1".to_string()],
+            Some("prompt"),
+            Some("model"),
+            Some(1),
+            Some("1:1"),
+            Some("1 / 1"),
+        );
+        let mut result = baseline.clone();
+
+        attach_infinite_canvas_submission_receipt(&mut result, None);
+
+        assert_eq!(result, baseline);
+        assert!(result.get("infiniteCanvas").is_none());
+    }
+}
+
 pub struct GenerateImageTool;
 
 impl GenerateImageTool {
@@ -628,6 +739,10 @@ impl Tool for GenerateImageTool {
                 "short_drama": {
                     "type": "object",
                     "description": "Optional AI short drama binding metadata. When generating for the AI short drama center, include projectId, stage, artifactId or artifactHandle so the completed media can attach to the right artifact."
+                },
+                "infinite_canvas": {
+                    "type": "object",
+                    "description": "Optional infinite canvas binding metadata. When generating for an infinite canvas card, copy the binding JSON from the canvas task message verbatim (workspaceId, documentId, nodeId, resultMode, toolId, operationId, ...) so the completed media can flow back to the right card."
                 }
             },
             "required": ["prompt"]
@@ -720,6 +835,7 @@ impl Tool for GenerateImageTool {
         let requested_aspect_ratio = normalize_aspect_ratio_text(request.size.as_deref(), "1:1");
         let placeholder_aspect = placeholder_aspect_ratio(&requested_aspect_ratio);
         let short_drama = optional_short_drama_metadata(input);
+        let infinite_canvas = optional_infinite_canvas_metadata(input);
         if task_ids.is_empty() {
             return Ok(ok_result(
                 json!({
@@ -744,7 +860,7 @@ impl Tool for GenerateImageTool {
                 requested_aspect_ratio: Some(requested_aspect_ratio.clone()),
                 placeholder_aspect_ratio: Some(placeholder_aspect.clone()),
                 short_drama: short_drama.clone(),
-                infinite_canvas: None,
+                infinite_canvas: infinite_canvas.clone(),
             },
             media_job_store_path(context.workspace_root(), &batch_id),
             MediaToolEventContext::from_tool_context(context, self.name()),
@@ -762,6 +878,7 @@ impl Tool for GenerateImageTool {
         if let Some(short_drama) = short_drama {
             result["shortDrama"] = short_drama;
         }
+        attach_infinite_canvas_submission_receipt(&mut result, infinite_canvas);
         result["response"] = response;
         Ok(ok_result(
             result,
