@@ -6,6 +6,8 @@ export * from './InfiniteCanvasMediaBridge';
 export * from './InfiniteCanvasPendingReconciliation';
 export * from './InfiniteCanvasGenerationContent';
 export * from './InfiniteCanvasAgentOps';
+export * from './InfiniteCanvasOpsBridge';
+export * from './InfiniteCanvasOpsReconciliation';
 export {
   buildFinalInstruction,
   buildImageGenerationTaskMessage,

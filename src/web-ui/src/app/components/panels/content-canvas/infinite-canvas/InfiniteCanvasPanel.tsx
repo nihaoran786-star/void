@@ -42,8 +42,11 @@ import type {
 import type { InfiniteCanvasMediaJobReader } from '@/shared/services/infinite-canvas';
 import {
   connectInfiniteCanvasMediaBridgeToEventBus,
+  connectInfiniteCanvasOpsBridgeToEventBus,
   createInfiniteCanvasMediaBridge,
+  createInfiniteCanvasOpsBridge,
   defaultInfiniteCanvasDocumentId,
+  reconcileInfiniteCanvasAgentOps,
   reconcilePendingInfiniteCanvasGenerations,
   referenceImageLabel,
 } from '@/shared/services/infinite-canvas';
@@ -539,11 +542,23 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         setState({ phase: 'failed', error: result.error });
         return;
       }
+      // P3: replay agent CanvasOp batches journaled while the panel was
+      // closed (ops reconciliation runs BEFORE the W7 pending reconciliation,
+      // plan §2.2 — a journaled begin_generation must land its pending node
+      // first so the pending pass can settle it).
+      let document = result.document;
+      const opsReconciled = await reconcileInfiniteCanvasAgentOps({
+        workspace: workspaceRef,
+        document,
+        reader: mediaJobReader ?? getInfiniteCanvasMediaJobReader(),
+        documentService: service,
+      });
+      if (cancelled) return;
+      if (opsReconciled.status === 'applied') document = opsReconciled.document;
       // W7: reconcile generations that stayed pending while the panel was
       // closed (the bridge only listens while mounted) so no card can spin
       // forever — completed batches resolve, everything unknowable becomes a
       // retryable timeout failure.
-      let document = result.document;
       const reconciled = await reconcilePendingInfiniteCanvasGenerations({
         workspace: workspaceRef,
         document,
@@ -574,6 +589,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       },
     });
     return connectInfiniteCanvasMediaBridgeToEventBus(bridge, mediaEventBus);
+  }, [documentId, mediaEventBus, refreshFromService, service, state.phase, workspaceRef]);
+
+  // P3: the agent ops bridge lands accepted CanvasOp receipts while the panel
+  // is mounted; the load-time ops reconciliation above covers the gap (same
+  // mounted-only trade-off as the media bridge).
+  React.useEffect(() => {
+    if (state.phase !== 'ready') return undefined;
+    const bridge = createInfiniteCanvasOpsBridge({
+      workspace: workspaceRef,
+      documentId,
+      documentService: service,
+      onResult: result => {
+        if (result.status === 'applied') void refreshFromService();
+      },
+    });
+    return connectInfiniteCanvasOpsBridgeToEventBus(bridge, mediaEventBus);
   }, [documentId, mediaEventBus, refreshFromService, service, state.phase, workspaceRef]);
 
   // Collapsing or closing the tab keeps state: the coalesced write is forced
