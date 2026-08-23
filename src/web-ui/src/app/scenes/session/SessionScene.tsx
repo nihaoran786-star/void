@@ -29,6 +29,7 @@ import {
 import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSessionCapabilities';
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
 import { isSamePath } from '@/shared/utils/pathUtils';
+import { useOptionalWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import {
   resolveTeamCanvasCapability,
   useTeamWorkspacePresentationStore,
@@ -157,6 +158,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   // be absent (session created from the welcome screen) or a different one.
   const capabilityWorkspaceId = activeSessionWorkspaceId ?? workspaceId;
   const capabilityWorkspacePath = activeSessionWorkspacePath ?? workspacePath;
+  const workspaceContext = useOptionalWorkspaceContext();
   const activeTeamWorkspace = useActiveSessionTeamWorkspace({ workspacePath });
   const activeCanvasCapabilityId = useCanvasStore(canvasState => {
     const activeTab = canvasState.primaryGroup.tabs.find(
@@ -507,8 +509,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     for (const [capabilityId, intent] of pendingCanvasCapabilityIntentsRef.current) {
       const intentState = getSessionCanvasIntentState(intent, {
         sourceSessionId: activeSessionId,
-        workspaceId: capabilityWorkspaceId,
-        workspacePath: capabilityWorkspacePath,
+        workspaceId: workspaceId ?? capabilityWorkspaceId,
+        workspacePath: workspacePath ?? capabilityWorkspacePath,
         remoteConnectionId: activeSessionRemoteConnectionId,
       });
       if (intentState === 'wait') continue;
@@ -525,6 +527,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     isAuxPaneReady,
     capabilityWorkspaceId,
     capabilityWorkspacePath,
+    workspaceId,
+    workspacePath,
   ]);
 
   const handleOpenSessionCapability = useCallback((
@@ -534,13 +538,22 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       toggleRightPanel();
     }
 
+    // Older sessions persist only a workspace path; resolve the id from the
+    // opened workspaces so the typed target can be built.
+    let targetWorkspaceId = capabilityWorkspaceId;
+    if (!targetWorkspaceId && capabilityWorkspacePath && workspaceContext) {
+      targetWorkspaceId = workspaceContext.openedWorkspacesList.find(
+        candidate => isSamePath(candidate.rootPath, capabilityWorkspacePath),
+      )?.id;
+    }
+
     const intent: SessionCanvasCapabilityIntent = {
       capabilityId,
       source: 'capability-rail',
       idempotencyKey: `capability-rail:${++canvasCapabilityDeliverySequenceRef.current}`,
       ...(activeSessionId ? { sourceSessionId: activeSessionId } : {}),
       ...(activeSessionPersonaId ? { personaId: activeSessionPersonaId } : {}),
-      ...(capabilityWorkspaceId ? { workspaceId: capabilityWorkspaceId } : {}),
+      ...(targetWorkspaceId ? { workspaceId: targetWorkspaceId } : {}),
       ...(capabilityWorkspacePath ? { workspacePath: capabilityWorkspacePath } : {}),
       ...(activeSessionRemoteConnectionId
         ? { remoteConnectionId: activeSessionRemoteConnectionId }
@@ -549,6 +562,22 @@ const SessionScene: React.FC<SessionSceneProps> = ({
         ? { remoteSshHost: activeSessionRemoteSshHost }
         : {}),
     };
+
+    // The canvas host only registers once the session's workspace is the
+    // shell-active one; activate it first and let the queued intent dispatch
+    // when the host comes up.
+    if (
+      targetWorkspaceId
+      && targetWorkspaceId !== workspaceId
+      && workspaceContext
+    ) {
+      pendingCanvasCapabilityIntentsRef.current.set(capabilityId, intent);
+      void workspaceContext.setActiveWorkspace(targetWorkspaceId).catch(() => {
+        pendingCanvasCapabilityIntentsRef.current.delete(capabilityId);
+      });
+      return;
+    }
+
     if (!isAuxPaneReady || !isActive) {
       pendingCanvasCapabilityIntentsRef.current.set(capabilityId, intent);
       return;
@@ -566,6 +595,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     toggleRightPanel,
     capabilityWorkspaceId,
     capabilityWorkspacePath,
+    workspaceContext,
+    workspaceId,
   ]);
 
   const teamCanvasCapability = resolveTeamCanvasCapability(

@@ -158,6 +158,10 @@ vi.mock('@/team_workspace/services/TeamWorkspaceWindowPublisher', () => ({
   suspendTeamWorkspaceWindowPublishing: mocks.suspendTeamWorkspaceWindowPublishing,
 }));
 
+vi.mock('@/infrastructure/contexts/WorkspaceContext', () => ({
+  useOptionalWorkspaceContext: () => null,
+}));
+
 vi.mock('@/flow_chat/hooks/useActiveSessionCapabilities', () => ({
   useActiveSessionCapabilities: () => ({
     sessionId: mocks.activeSessionId,
