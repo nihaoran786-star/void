@@ -7,7 +7,15 @@
  * `documentId` reference, never node data.
  */
 
+import type { ImageToolErrorKind, ImageToolId } from './ImageToolTypes';
+
 export const INFINITE_CANVAS_SCHEMA_VERSION = '1';
+
+/**
+ * K2: the full set of canvas image operations = the five image tools plus
+ * `'generate'` (text-to-image / regenerate), the sixth operation kind.
+ */
+export type CanvasImageOperationKind = ImageToolId | 'generate';
 
 export interface InfiniteCanvasViewport {
   x: number;
@@ -36,6 +44,27 @@ export interface InfiniteCanvasNode {
   /** Style preset ID only; resolution goes through the StylePresetCatalog. */
   stylePresetId?: string;
   domainRef?: InfiniteCanvasDomainRef;
+
+  // —— K2 additive fields (schemaVersion stays '1'; the parser reads them
+  //    tolerantly, so pre-K2 documents load unchanged). ——
+  /** Generation prompt of an image card (blank-card first shot and regenerate share it). */
+  prompt?: string;
+  /** Version tree: which operation derived this node from which node. Immutable once written; never set in self mode. */
+  derivedFrom?: {
+    sourceNodeId: string;
+    toolId: CanvasImageOperationKind;
+    operationId: string;
+  };
+  /** In-flight / failed generation state; the whole field is removed on success. */
+  generation?: {
+    operationId: string;
+    toolId: CanvasImageOperationKind;
+    resultMode: 'self' | 'derived';
+    status: 'pending' | 'failed';
+    batchId?: string;
+    /** K0-2 seven-kind enum. */
+    errorKind?: ImageToolErrorKind;
+  };
 }
 
 export interface InfiniteCanvasEdge {

@@ -7,6 +7,7 @@
  * the kunpeng coalesced-idle idea while keeping the file as the only truth.
  */
 import type {
+  CanvasImageOperationKind,
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasEdge,
@@ -18,6 +19,7 @@ import type {
   InfiniteCanvasViewport,
   InfiniteCanvasWorkspaceRef,
 } from './InfiniteCanvasTypes';
+import type { ImageToolErrorKind } from './ImageToolTypes';
 import { INFINITE_CANVAS_SCHEMA_VERSION } from './InfiniteCanvasTypes';
 import type { InfiniteCanvasPersistencePort } from './InfiniteCanvasPersistencePort';
 
@@ -65,6 +67,60 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+const CANVAS_IMAGE_OPERATION_KINDS: readonly CanvasImageOperationKind[] = [
+  'upscale', 'expand', 'inpaint', 'erase', 'matting', 'generate',
+];
+
+const IMAGE_TOOL_ERROR_KINDS: readonly ImageToolErrorKind[] = [
+  'unavailable', 'auth', 'rate-limit', 'timeout', 'invalid-input', 'backend', 'cancelled',
+];
+
+function isCanvasImageOperationKind(value: unknown): value is CanvasImageOperationKind {
+  return (CANVAS_IMAGE_OPERATION_KINDS as readonly unknown[]).includes(value);
+}
+
+function isImageToolErrorKind(value: unknown): value is ImageToolErrorKind {
+  return (IMAGE_TOOL_ERROR_KINDS as readonly unknown[]).includes(value);
+}
+
+/**
+ * K2 additive field: a broken value is treated as "field absent", never as an
+ * invalid document, so pre-K2 readers and writers stay compatible.
+ */
+function parseDerivedFrom(value: unknown): InfiniteCanvasNode['derivedFrom'] {
+  if (!isRecord(value)) return undefined;
+  if (!isNonEmptyString(value.sourceNodeId)
+    || !isCanvasImageOperationKind(value.toolId)
+    || !isNonEmptyString(value.operationId)) {
+    return undefined;
+  }
+  return {
+    sourceNodeId: value.sourceNodeId,
+    toolId: value.toolId,
+    operationId: value.operationId,
+  };
+}
+
+/** K2 additive field; same tolerance rule as {@link parseDerivedFrom}. */
+function parseGeneration(value: unknown): InfiniteCanvasNode['generation'] {
+  if (!isRecord(value)) return undefined;
+  if (!isNonEmptyString(value.operationId)
+    || !isCanvasImageOperationKind(value.toolId)
+    || (value.resultMode !== 'self' && value.resultMode !== 'derived')
+    || (value.status !== 'pending' && value.status !== 'failed')) {
+    return undefined;
+  }
+  const generation: NonNullable<InfiniteCanvasNode['generation']> = {
+    operationId: value.operationId,
+    toolId: value.toolId,
+    resultMode: value.resultMode,
+    status: value.status,
+  };
+  if (isNonEmptyString(value.batchId)) generation.batchId = value.batchId;
+  if (isImageToolErrorKind(value.errorKind)) generation.errorKind = value.errorKind;
+  return generation;
+}
+
 function parseNode(value: unknown): InfiniteCanvasNode | undefined {
   if (!isRecord(value)) return undefined;
   const kind = value.kind;
@@ -94,6 +150,11 @@ function parseNode(value: unknown): InfiniteCanvasNode | undefined {
     };
   }
   if (isNonEmptyString(value.stylePresetId)) node.stylePresetId = value.stylePresetId;
+  if (typeof value.prompt === 'string') node.prompt = value.prompt;
+  const derivedFrom = parseDerivedFrom(value.derivedFrom);
+  if (derivedFrom) node.derivedFrom = derivedFrom;
+  const generation = parseGeneration(value.generation);
+  if (generation) node.generation = generation;
   // domainRef is a K3 reserved field: it is intentionally not read back in
   // phase 1, so no restore path can smuggle domain references in early.
   return node;

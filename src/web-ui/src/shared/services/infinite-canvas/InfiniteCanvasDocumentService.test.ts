@@ -377,6 +377,151 @@ describe('InfiniteCanvasDocumentService', () => {
     failingWrite.mockRestore();
   });
 
+  it('loads a pre-K2 document without inventing any K2 generation fields', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    const preK2Node = {
+      nodeId: 'image-1',
+      kind: 'image',
+      position: { x: 1, y: 2 },
+      mediaRef: { workspacePath: 'C:/ws', relativePath: 'media/input/a.png' },
+      stylePresetId: 'cinematic:noir',
+    };
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 3,
+      nodes: [preK2Node],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    expect(result.document.nodes).toEqual([preK2Node]);
+    expect(result.document.nodes[0]).not.toHaveProperty('prompt');
+    expect(result.document.nodes[0]).not.toHaveProperty('derivedFrom');
+    expect(result.document.nodes[0]).not.toHaveProperty('generation');
+  });
+
+  it('round-trips the K2 additive fields prompt, derivedFrom, and generation', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 1 });
+
+    await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [{
+        nodeId: 'blank-1',
+        kind: 'image' as const,
+        position: { x: 0, y: 0 },
+        prompt: '',
+      }, {
+        nodeId: 'derived-1',
+        kind: 'image' as const,
+        position: { x: 400, y: 0 },
+        prompt: 'a red fox in the snow',
+        derivedFrom: {
+          sourceNodeId: 'blank-1',
+          toolId: 'upscale' as const,
+          operationId: 'op-1',
+        },
+        generation: {
+          operationId: 'op-1',
+          toolId: 'upscale' as const,
+          resultMode: 'derived' as const,
+          status: 'failed' as const,
+          batchId: 'batch-7',
+          errorKind: 'backend' as const,
+        },
+      }],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+    await service.flushPendingWrites();
+
+    const reloaded = await new InfiniteCanvasDocumentService(store.port)
+      .loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(reloaded.status).toBe('loaded');
+    if (reloaded.status !== 'loaded') return;
+    expect(reloaded.document.nodes).toEqual([
+      { nodeId: 'blank-1', kind: 'image', position: { x: 0, y: 0 }, prompt: '' },
+      {
+        nodeId: 'derived-1',
+        kind: 'image',
+        position: { x: 400, y: 0 },
+        prompt: 'a red fox in the snow',
+        derivedFrom: { sourceNodeId: 'blank-1', toolId: 'upscale', operationId: 'op-1' },
+        generation: {
+          operationId: 'op-1',
+          toolId: 'upscale',
+          resultMode: 'derived',
+          status: 'failed',
+          batchId: 'batch-7',
+          errorKind: 'backend',
+        },
+      },
+    ]);
+  });
+
+  it('drops broken K2 field values as absent instead of failing the document', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 1,
+      nodes: [{
+        nodeId: 'image-1',
+        kind: 'image',
+        position: { x: 0, y: 0 },
+        prompt: 42,
+        derivedFrom: { sourceNodeId: 'x', toolId: 'not-a-tool', operationId: 'op' },
+        generation: { operationId: 'op', toolId: 'generate', resultMode: 'weird', status: 'pending' },
+      }, {
+        nodeId: 'image-2',
+        kind: 'image',
+        position: { x: 10, y: 10 },
+        derivedFrom: 'nonsense',
+        generation: {
+          operationId: 'op-2',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+          batchId: 17,
+          errorKind: 'not-an-error-kind',
+        },
+      }],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    const [first, second] = result.document.nodes;
+    expect(first).toEqual({ nodeId: 'image-1', kind: 'image', position: { x: 0, y: 0 } });
+    expect(second).toEqual({
+      nodeId: 'image-2',
+      kind: 'image',
+      position: { x: 10, y: 10 },
+      // Required generation fields are valid; broken optional ones are dropped.
+      generation: {
+        operationId: 'op-2',
+        toolId: 'generate',
+        resultMode: 'self',
+        status: 'pending',
+      },
+    });
+  });
+
   it('dispose drops pending writes without touching the disk', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
     const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 20 });
