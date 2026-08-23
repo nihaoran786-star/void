@@ -4,6 +4,8 @@ export * from './ImageToolTypes';
 export * from './InfiniteCanvasAgentTaskTypes';
 export * from './InfiniteCanvasMediaBridge';
 export * from './InfiniteCanvasPendingReconciliation';
+export * from './InfiniteCanvasGenerationContent';
+export * from './InfiniteCanvasAgentOps';
 export {
   buildFinalInstruction,
   buildImageGenerationTaskMessage,

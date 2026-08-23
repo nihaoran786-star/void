@@ -7,7 +7,6 @@
  * DocumentService mutation. No reactflow, React, or Tauri imports.
  */
 import type {
-  CanvasImageOperationKind,
   ImageToolErrorKind,
   InfiniteCanvasDocument,
   InfiniteCanvasEdge,
@@ -38,10 +37,13 @@ export interface InfiniteCanvasFlowEdgeView {
   target: string;
 }
 
-export type InfiniteCanvasDocumentContent = Pick<
-  InfiniteCanvasDocument,
-  'nodes' | 'edges' | 'viewport'
->;
+// P3 W2: the content type and the derived-operation helper were sunk to the
+// shared infinite-canvas module (the agent ops applier reuses them); these
+// re-exports keep every existing panel-side import working unchanged.
+export type { InfiniteCanvasDocumentContent } from '@/shared/services/infinite-canvas';
+export { beginDerivedOperationContent } from '@/shared/services/infinite-canvas';
+
+import type { InfiniteCanvasDocumentContent } from '@/shared/services/infinite-canvas';
 
 let idCounter = 0;
 
@@ -223,53 +225,14 @@ export function setViewportContent(
 // placeholder node plus a source→derived edge; the source node is never
 // touched. Helpers are idempotent on operationId, and none of them may ever
 // change the mediaRef of a node that already has one (never-overwrite
-// invariant, PRD §3.4/§3.5).
-
-/** Horizontal offset used to place a derived placeholder beside its source. */
-const DERIVED_NODE_OFFSET_X = 360;
+// invariant, PRD §3.4/§3.5). `beginDerivedOperationContent` itself now lives
+// in shared/services/infinite-canvas (re-exported above).
 
 function findOperationNode(
   document: Readonly<InfiniteCanvasDocument>,
   operationId: string,
 ): InfiniteCanvasNode | undefined {
   return document.nodes.find(node => node.generation?.operationId === operationId);
-}
-
-/**
- * Registers a derived operation: creates the pending placeholder card and the
- * source→derived edge. Re-invoking with an operationId that is already
- * registered returns the content unchanged (idempotent dispatch).
- */
-export function beginDerivedOperationContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  sourceNodeId: string,
-  toolId: CanvasImageOperationKind,
-  operationId: string,
-  derivedNodeId: string,
-  edgeId: string,
-): InfiniteCanvasDocumentContent {
-  if (findOperationNode(document, operationId)) return content(document);
-  const source = document.nodes.find(node => node.nodeId === sourceNodeId);
-  if (!source) return content(document);
-  if (document.nodes.some(node => node.nodeId === derivedNodeId)) return content(document);
-  const placeholder: InfiniteCanvasNode = {
-    nodeId: derivedNodeId,
-    kind: 'image',
-    position: {
-      x: source.position.x + (source.size?.width ?? 0) + DERIVED_NODE_OFFSET_X,
-      y: source.position.y,
-    },
-    derivedFrom: { sourceNodeId, toolId, operationId },
-    generation: { operationId, toolId, resultMode: 'derived', status: 'pending' },
-  };
-  return {
-    ...content(document),
-    nodes: [...document.nodes, placeholder],
-    edges: [
-      ...document.edges,
-      { edgeId, sourceNodeId, targetNodeId: derivedNodeId },
-    ],
-  };
 }
 
 /**

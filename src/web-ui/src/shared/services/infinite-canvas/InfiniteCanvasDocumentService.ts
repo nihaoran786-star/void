@@ -466,6 +466,9 @@ export class InfiniteCanvasDocumentService {
       nodes: mutated.nodes,
       edges: mutated.edges,
       viewport: mutated.viewport,
+      // P3: the agent-ops watermark only moves when the mutator explicitly
+      // returns it (applying a journal batch); plain mutations keep it as-is.
+      ...(mutated.agentOps !== undefined ? { agentOps: mutated.agentOps } : {}),
       // One coalesced flush produces one revision bump; keep the in-memory
       // revision at the base until the CAS write assigns the next one.
       revision: pending.baseRevision,

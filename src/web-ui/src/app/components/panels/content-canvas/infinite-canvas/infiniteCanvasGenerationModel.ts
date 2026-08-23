@@ -56,44 +56,12 @@ export function setNodePromptContent(
   };
 }
 
-/**
- * Registers a self-mode generation on a blank card: the result will land in
- * the card itself. Rejected (content returned unchanged) when the card is
- * missing, not an image card, or **already has a mediaRef** — self mode is
- * strictly for the first shot into an empty card; anything else derives a
- * new card via the W2 helpers.
- *
- * Re-registering with a new operationId replaces a previous pending/failed
- * generation (that is the retry path); re-registering the same operationId
- * is a no-op.
- */
-export function beginSelfGenerationContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  nodeId: string,
-  operationId: string,
-): InfiniteCanvasDocumentContent {
-  const target = document.nodes.find(node => node.nodeId === nodeId);
-  if (!target || target.kind !== 'image' || target.mediaRef !== undefined) {
-    return content(document);
-  }
-  if (target.generation?.operationId === operationId) return content(document);
-  return {
-    ...content(document),
-    nodes: document.nodes.map(node => (
-      node.nodeId === nodeId
-        ? {
-          ...node,
-          generation: {
-            operationId,
-            toolId: 'generate' as const,
-            resultMode: 'self' as const,
-            status: 'pending' as const,
-          },
-        }
-        : node
-    )),
-  };
-}
+// P3 W2: `beginSelfGenerationContent` was sunk to the shared infinite-canvas
+// module (the agent ops applier reuses it); this re-export keeps every
+// existing panel-side import working unchanged. Semantics are identical for
+// the K2 image path: self mode stays strictly for the first shot into a
+// blank card, and re-registering the same operationId stays a no-op.
+export { beginSelfGenerationContent } from '@/shared/services/infinite-canvas';
 
 /** One collected reference card, in authoritative connection order (1-based). */
 export interface InfiniteCanvasReferenceNode {

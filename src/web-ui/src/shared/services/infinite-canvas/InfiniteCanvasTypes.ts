@@ -142,7 +142,18 @@ export type InfiniteCanvasMutateResult =
   | { status: 'applied'; document: InfiniteCanvasDocument }
   | { status: 'failed'; error: InfiniteCanvasDocumentError };
 
-/** Content-level mutation; identity, revision, and timestamps stay service-owned. */
+/** The content slice a mutation may replace; everything else is service-owned. */
+export type InfiniteCanvasDocumentContent = Pick<
+  InfiniteCanvasDocument,
+  'nodes' | 'edges' | 'viewport'
+>;
+
+/**
+ * Content-level mutation; identity, revision, and timestamps stay service-owned.
+ * P3: a mutator may additionally advance the `agentOps` watermark in the same
+ * mutation that applies an agent ops batch (plan §2.2 — watermark and content
+ * move together or not at all); omitting it keeps the current value.
+ */
 export type InfiniteCanvasMutator = (
   current: Readonly<InfiniteCanvasDocument>,
-) => Pick<InfiniteCanvasDocument, 'nodes' | 'edges' | 'viewport'>;
+) => InfiniteCanvasDocumentContent & Partial<Pick<InfiniteCanvasDocument, 'agentOps'>>;
