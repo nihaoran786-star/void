@@ -115,6 +115,41 @@ fn attach_infinite_canvas_submission_receipt(result: &mut Value, infinite_canvas
     }
 }
 
+/// K2 failure-flow guarantee: synchronous GenerateImage failure results must
+/// carry the same `infiniteCanvas` receipt as success results, so the media
+/// bridge can roll the bound canvas card back to a typed failed state instead
+/// of leaving it pending forever.
+fn attach_infinite_canvas_receipt_to_results(
+    mut results: Vec<ToolResult>,
+    infinite_canvas: Option<Value>,
+) -> Vec<ToolResult> {
+    if let Some(metadata) = infinite_canvas {
+        for result in &mut results {
+            if let ToolResult::Result { data, .. } = result {
+                data["infiniteCanvas"] = metadata.clone();
+            }
+        }
+    }
+    results
+}
+
+/// Classifies a synchronous APIMart submit failure (the
+/// `classify_apimart_error_message` family, including `safety_rejected`) and
+/// attaches the infinite canvas receipt when the request carried a binding.
+/// Returns `None` when the message is not an APIMart error body, in which
+/// case the caller keeps the hard error path.
+fn classified_image_submit_error_results(
+    message: &str,
+    infinite_canvas: Option<Value>,
+) -> Option<Vec<ToolResult>> {
+    let mut error = classify_apimart_error_message(message)?;
+    attach_infinite_canvas_submission_receipt(&mut error, infinite_canvas);
+    Some(ok_result(
+        error,
+        "APIMart image generation request failed.",
+    ))
+}
+
 fn normalize_image_size(value: Option<String>) -> Option<String> {
     let size = value?;
     let trimmed = size.trim();
@@ -594,12 +629,21 @@ mod media_image_reference_tests {
 #[cfg(test)]
 mod infinite_canvas_binding_tests {
     use super::{
-        attach_infinite_canvas_submission_receipt, optional_infinite_canvas_metadata,
+        attach_infinite_canvas_receipt_to_results, attach_infinite_canvas_submission_receipt,
+        classified_image_submit_error_results, ok_result, optional_infinite_canvas_metadata,
         GenerateImageTool,
     };
+    use crate::agentic::media::apimart::provider_not_configured_result;
     use crate::agentic::media::jobs::build_media_polling_result;
-    use crate::agentic::tools::framework::Tool;
-    use serde_json::json;
+    use crate::agentic::tools::framework::{Tool, ToolResult};
+    use serde_json::{json, Value};
+
+    fn result_data(results: &[ToolResult]) -> &Value {
+        match results.first().expect("one tool result") {
+            ToolResult::Result { data, .. } => data,
+            other => panic!("expected a data-bearing result, got {other:?}"),
+        }
+    }
 
     fn sample_binding() -> serde_json::Value {
         json!({
@@ -686,6 +730,73 @@ mod infinite_canvas_binding_tests {
         assert_eq!(result, baseline);
         assert!(result.get("infiniteCanvas").is_none());
     }
+
+    // —— K2 sync-failure receipts: the failure flow must return to the canvas
+    //    exactly like the success flow does. ——————————————————————————————
+
+    #[test]
+    fn provider_not_configured_sync_failure_carries_infinite_canvas_receipt() {
+        let results = attach_infinite_canvas_receipt_to_results(
+            ok_result(
+                provider_not_configured_result("GenerateImage"),
+                "APIMart media token is not configured.",
+            ),
+            Some(sample_binding()),
+        );
+
+        let data = result_data(&results);
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "provider_not_configured");
+        assert_eq!(data["infiniteCanvas"], sample_binding());
+    }
+
+    #[test]
+    fn provider_not_configured_sync_failure_stays_unchanged_without_binding() {
+        let results = attach_infinite_canvas_receipt_to_results(
+            ok_result(
+                provider_not_configured_result("GenerateImage"),
+                "APIMart media token is not configured.",
+            ),
+            None,
+        );
+
+        assert!(result_data(&results).get("infiniteCanvas").is_none());
+    }
+
+    #[test]
+    fn classified_apimart_submit_error_carries_infinite_canvas_receipt() {
+        let results = classified_image_submit_error_results(
+            "APIMart error 429: {\"error\":{\"message\":\"rate limited\"}}",
+            Some(sample_binding()),
+        )
+        .expect("classified error results");
+
+        let data = result_data(&results);
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "provider_error");
+        assert_eq!(data["error"]["http_status"], 429);
+        assert_eq!(data["infiniteCanvas"], sample_binding());
+    }
+
+    #[test]
+    fn classified_apimart_submit_error_stays_unchanged_without_binding() {
+        let results =
+            classified_image_submit_error_results("APIMart error 500: upstream broke", None)
+                .expect("classified error results");
+
+        let data = result_data(&results);
+        assert_eq!(data["status"], "error");
+        assert!(data.get("infiniteCanvas").is_none());
+    }
+
+    #[test]
+    fn unclassifiable_submit_error_keeps_the_hard_error_path() {
+        assert!(classified_image_submit_error_results(
+            "connection reset by peer",
+            Some(sample_binding()),
+        )
+        .is_none());
+    }
 }
 
 pub struct GenerateImageTool;
@@ -769,9 +880,17 @@ impl Tool for GenerateImageTool {
         input: &Value,
         context: &ToolUseContext,
     ) -> VoidResult<Vec<ToolResult>> {
+        // Extracted before any early exit: every synchronous failure result
+        // below must echo the binding receipt back to the canvas (K2).
+        let infinite_canvas = optional_infinite_canvas_metadata(input);
         let client = match client_or_not_configured(self.name()).await? {
             Ok(client) => client,
-            Err(result) => return Ok(result),
+            Err(result) => {
+                return Ok(attach_infinite_canvas_receipt_to_results(
+                    result,
+                    infinite_canvas,
+                ))
+            }
         };
         let prompt = prompt_required(input)?;
         let request = image_generation_request_from_input(input);
@@ -822,8 +941,10 @@ impl Tool for GenerateImageTool {
         let response = match client.submit_image_generation(payload).await {
             Ok(response) => response,
             Err(VoidError::Http(message)) => {
-                if let Some(error) = classify_apimart_error_message(&message) {
-                    return Ok(ok_result(error, "APIMart image generation request failed."));
+                if let Some(results) =
+                    classified_image_submit_error_results(&message, infinite_canvas)
+                {
+                    return Ok(results);
                 }
                 return Err(VoidError::Http(message));
             }
@@ -835,16 +956,17 @@ impl Tool for GenerateImageTool {
         let requested_aspect_ratio = normalize_aspect_ratio_text(request.size.as_deref(), "1:1");
         let placeholder_aspect = placeholder_aspect_ratio(&requested_aspect_ratio);
         let short_drama = optional_short_drama_metadata(input);
-        let infinite_canvas = optional_infinite_canvas_metadata(input);
         if task_ids.is_empty() {
+            let mut data = json!({
+                "status": "submitted_but_task_id_missing",
+                "source": "apimart",
+                "kind": "image",
+                "batch_id": batch_id,
+                "response": response
+            });
+            attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas);
             return Ok(ok_result(
-                json!({
-                    "status": "submitted_but_task_id_missing",
-                    "source": "apimart",
-                    "kind": "image",
-                    "batch_id": batch_id,
-                    "response": response
-                }),
+                data,
                 "Image generation was submitted, but APIMart did not return a task id for background polling.",
             ));
         }
