@@ -56,7 +56,7 @@ function aggregateTurnCapabilities(
     }
   }
 
-  return ['short-drama', 'workspace-media', 'agent-studio']
+  return ['short-drama', 'workspace-media', 'infinite-canvas', 'agent-studio']
     .map(id => aggregated.get(
       id as SessionCapabilityPresentation['id'],
     ))
