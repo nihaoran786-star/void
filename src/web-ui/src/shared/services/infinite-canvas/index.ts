@@ -3,6 +3,7 @@ export * from './InfiniteCanvasPersistencePort';
 export * from './ImageToolTypes';
 export * from './InfiniteCanvasAgentTaskTypes';
 export * from './InfiniteCanvasMediaBridge';
+export * from './InfiniteCanvasPendingReconciliation';
 export {
   buildFinalInstruction,
   buildImageGenerationTaskMessage,

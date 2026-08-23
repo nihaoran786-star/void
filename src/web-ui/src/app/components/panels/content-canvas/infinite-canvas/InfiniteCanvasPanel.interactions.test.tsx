@@ -65,6 +65,10 @@ vi.mock('./infiniteCanvasDocumentGateway', () => ({
   getInfiniteCanvasDocumentService: () => {
     throw new Error('Tests must inject a document service.');
   },
+  // Default W7 manifest reader: nothing on disk unless a test injects one.
+  getInfiniteCanvasMediaJobReader: () => ({
+    readTextFile: async () => null,
+  }),
 }));
 
 // The real runtime module pulls flow_chat singletons; tests always inject a

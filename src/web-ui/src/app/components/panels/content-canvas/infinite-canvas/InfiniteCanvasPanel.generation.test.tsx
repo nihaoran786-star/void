@@ -65,6 +65,10 @@ vi.mock('./infiniteCanvasDocumentGateway', () => ({
   getInfiniteCanvasDocumentService: () => {
     throw new Error('Tests must inject a document service.');
   },
+  // Default W7 manifest reader: nothing on disk unless a test injects one.
+  getInfiniteCanvasMediaJobReader: () => ({
+    readTextFile: async () => null,
+  }),
 }));
 
 vi.mock('./infiniteCanvasGenerationRuntime', () => ({
@@ -487,6 +491,77 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     expect(readDocument(memory).nodes[0].generation).toMatchObject({
       status: 'pending',
       operationId: secondOperationId,
+    });
+  });
+
+  it('reconciles a residual pending card from a completed batch manifest on load (W7)', async () => {
+    seedDocument(memory, {
+      nodes: [imageNode('card-blank', {
+        prompt: 'a cat',
+        generation: {
+          operationId: 'op-1',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+          batchId: 'batch-1',
+        },
+      })],
+    });
+    const manifest = JSON.stringify({
+      status: 'completed',
+      kind: 'image',
+      batch: {
+        batch_id: 'batch-1',
+        status: 'completed',
+        assets: [{
+          item_index: 1,
+          kind: 'image',
+          local_path: 'C:/workspace-a/media/generated/batch-1/image-001.png',
+        }],
+      },
+    });
+    await renderPanel({
+      mediaJobReader: {
+        readTextFile: async path => (path.endsWith('media-jobs/batch-1.json') ? manifest : null),
+      },
+    });
+
+    expect(flowNode('card-blank').data.generation).toBeUndefined();
+    expect(flowNode('card-blank').data.mediaRef).toEqual({
+      workspacePath: WORKSPACE.workspacePath,
+      relativePath: 'media/generated/batch-1/image-001.png',
+    });
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].mediaRef).toEqual({
+      workspacePath: WORKSPACE.workspacePath,
+      relativePath: 'media/generated/batch-1/image-001.png',
+    });
+  });
+
+  it('turns a residual pending card without a batch into a retryable timeout on load (W7)', async () => {
+    seedDocument(memory, {
+      nodes: [imageNode('card-blank', {
+        prompt: 'a cat',
+        generation: {
+          operationId: 'op-1',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+        },
+      })],
+    });
+    await renderPanel();
+
+    expect(flowNode('card-blank').data.generation).toMatchObject({
+      status: 'failed',
+      errorKind: 'timeout',
+    });
+    // The failed card offers the retry exit — never an endless spinner.
+    expect(container.querySelector('.infinite-canvas-node__generation-retry')).not.toBeNull();
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].generation).toMatchObject({
+      status: 'failed',
+      errorKind: 'timeout',
     });
   });
 

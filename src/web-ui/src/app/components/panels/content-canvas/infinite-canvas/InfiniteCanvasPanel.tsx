@@ -39,10 +39,12 @@ import type {
   InfiniteCanvasMutator,
   SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
+import type { InfiniteCanvasMediaJobReader } from '@/shared/services/infinite-canvas';
 import {
   connectInfiniteCanvasMediaBridgeToEventBus,
   createInfiniteCanvasMediaBridge,
   defaultInfiniteCanvasDocumentId,
+  reconcilePendingInfiniteCanvasGenerations,
   referenceImageLabel,
 } from '@/shared/services/infinite-canvas';
 import type { StylePresetCatalog } from '@/shared/services/style-preset';
@@ -51,7 +53,10 @@ import type { WorkspaceMediaLibraryService } from '@/shared/services/workspace-m
 import { workspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaLibrary';
 import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-media/WorkspaceMediaPreviewResolver';
 import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
-import { getInfiniteCanvasDocumentService } from './infiniteCanvasDocumentGateway';
+import {
+  getInfiniteCanvasDocumentService,
+  getInfiniteCanvasMediaJobReader,
+} from './infiniteCanvasDocumentGateway';
 import {
   createInfiniteCanvasGenerationRuntime,
   type InfiniteCanvasGenerationRuntime,
@@ -169,6 +174,7 @@ export interface InfiniteCanvasPanelProps {
   catalog?: StylePresetCatalog;
   generationRuntime?: InfiniteCanvasGenerationRuntime;
   mediaEventBus?: InfiniteCanvasMediaBridgeEventBus;
+  mediaJobReader?: InfiniteCanvasMediaJobReader;
 }
 
 export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
@@ -181,6 +187,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   catalog = stylePresetCatalog,
   generationRuntime: injectedRuntime,
   mediaEventBus,
+  mediaJobReader,
 }) => {
   const { t } = useI18n('components');
   const service = React.useMemo(
@@ -514,20 +521,33 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   React.useEffect(() => {
     let cancelled = false;
     setState({ phase: 'loading' });
-    void service.loadDefaultDocument(workspaceRef).then(result => {
+    void service.loadDefaultDocument(workspaceRef).then(async result => {
       if (cancelled) return;
       if (result.status === 'failed') {
         setState({ phase: 'failed', error: result.error });
         return;
       }
-      projectDocument(result.document);
-      setInitialViewport(result.document.viewport);
+      // W7: reconcile generations that stayed pending while the panel was
+      // closed (the bridge only listens while mounted) so no card can spin
+      // forever — completed batches resolve, everything unknowable becomes a
+      // retryable timeout failure.
+      let document = result.document;
+      const reconciled = await reconcilePendingInfiniteCanvasGenerations({
+        workspace: workspaceRef,
+        document,
+        reader: mediaJobReader ?? getInfiniteCanvasMediaJobReader(),
+        documentService: service,
+      });
+      if (cancelled) return;
+      if (reconciled.document) document = reconciled.document;
+      projectDocument(document);
+      setInitialViewport(document.viewport);
       setState({ phase: 'ready' });
     });
     return () => {
       cancelled = true;
     };
-  }, [projectDocument, service, workspaceRef]);
+  }, [mediaJobReader, projectDocument, service, workspaceRef]);
 
   // The media bridge listens only while the panel is mounted (same trade-off
   // as the short-drama runtime bridge); W7 reconciliation covers the gap.
