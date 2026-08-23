@@ -21,6 +21,8 @@ export interface InfiniteCanvasGenerationRuntime {
 
 export interface InfiniteCanvasGenerationRuntimeOptions {
   workspaceId: string;
+  /** Canvas workspace path; gates the active-session fallback to the same workspace. */
+  workspacePath: string;
   documentId: string;
   /** Canvas surface presentation sourceSessionId; preferred dispatch target. */
   sourceSessionId?: string;
@@ -30,7 +32,10 @@ export interface InfiniteCanvasGenerationRuntimeOptions {
 export function createInfiniteCanvasGenerationRuntime(
   options: InfiniteCanvasGenerationRuntimeOptions,
 ): InfiniteCanvasGenerationRuntime {
-  const resolvers = createInfiniteCanvasSessionResolvers(options.sourceSessionId);
+  const resolvers = createInfiniteCanvasSessionResolvers({
+    sourceSessionId: options.sourceSessionId,
+    workspacePath: options.workspacePath,
+  });
   const gateway = createSessionImageGenerationGateway({
     workspaceId: options.workspaceId,
     documentId: options.documentId,

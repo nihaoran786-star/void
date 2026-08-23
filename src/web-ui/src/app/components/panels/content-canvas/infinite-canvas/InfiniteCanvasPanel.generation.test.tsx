@@ -494,6 +494,46 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
   });
 
+  it('rolls a throwing dispatch back to a retryable typed failure (no eternal pending)', async () => {
+    seedDocument(memory, {
+      nodes: [imageNode('card-blank', { prompt: 'a glacier' })],
+    });
+    recording.nextResult = () => {
+      throw new Error('sender exploded');
+    };
+    await renderPanel();
+
+    await clickButton(button => (
+      button.className.includes('infinite-canvas-node__generate-button')
+    ));
+
+    expect(recording.invocations).toHaveLength(1);
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].generation).toMatchObject({
+      status: 'failed',
+      errorKind: 'backend',
+      operationId: recording.invocations[0].operationId,
+    });
+    // The failed card offers the retry exit.
+    expect(container.querySelector('.infinite-canvas-node__generation-retry')).not.toBeNull();
+
+    recording.nextResult = invocation => ({
+      operationId: invocation.operationId,
+      status: 'succeeded',
+      derivedNodeId: invocation.nodeId,
+    });
+    await clickButton(button => (
+      button.className.includes('infinite-canvas-node__generation-retry')
+    ));
+
+    expect(recording.invocations).toHaveLength(2);
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].generation).toMatchObject({
+      status: 'pending',
+      operationId: recording.invocations[1].operationId,
+    });
+  });
+
   it('reconciles a residual pending card from a completed batch manifest on load (W7)', async () => {
     seedDocument(memory, {
       nodes: [imageNode('card-blank', {

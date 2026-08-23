@@ -205,11 +205,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const runtime = React.useMemo(
     () => injectedRuntime ?? createInfiniteCanvasGenerationRuntime({
       workspaceId,
+      workspacePath,
       documentId,
       sourceSessionId,
       catalog,
     }),
-    [catalog, documentId, injectedRuntime, sourceSessionId, workspaceId],
+    [catalog, documentId, injectedRuntime, sourceSessionId, workspaceId, workspacePath],
   );
 
   const [state, setState] = React.useState<PanelState>({ phase: 'loading' });
@@ -315,17 +316,28 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const submitOperation = React.useCallback(async (
     invocation: SessionImageGenerationInvocation,
   ) => {
-    const result = await runtime.gateway.invoke(invocation);
-    if (result.status === 'failed') {
-      const errorKind = result.error?.kind ?? 'backend';
+    // Catch-all included: an unexpected throw out of the gateway must also
+    // roll the already-registered pending card back to a retryable typed
+    // failure — a pending card with no in-flight task would spin forever.
+    let errorKind: ImageToolErrorKind | undefined;
+    try {
+      const result = await runtime.gateway.invoke(invocation);
+      if (result.status === 'failed') {
+        errorKind = result.error?.kind ?? 'backend';
+      }
+    } catch {
+      errorKind = 'backend';
+    }
+    if (errorKind !== undefined) {
+      const failedKind = errorKind;
       await commit(document => failOperationContent(
         document,
         invocation.operationId,
-        errorKind,
+        failedKind,
       ));
       setNotice({
-        messageKey: `infiniteCanvas.generation.errorKind.${errorKind}`,
-        errorKind,
+        messageKey: `infiniteCanvas.generation.errorKind.${failedKind}`,
+        errorKind: failedKind,
       });
     }
   }, [commit, runtime]);

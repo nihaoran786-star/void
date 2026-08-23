@@ -303,33 +303,37 @@ describe('InfiniteCanvasMediaBridge', () => {
     expect(node(await readDocument(), 'card-self').generation?.errorKind).toBe('timeout');
   });
 
-  it('maps Failed and Cancelled tool events onto backend and cancelled kinds', async () => {
+  it('ignores real-shape Failed and Cancelled events, which carry no binding', async () => {
+    // Real backend events (contracts/events agentic.rs ToolEventData): Failed
+    // carries only { tool_id, tool_name, error } and Cancelled only
+    // { tool_id, tool_name, reason } — neither has params or result, so the
+    // bridge can never route them to a card. Accepted tradeoff: when the tool
+    // throws Err instead of returning a typed error result, the card stays
+    // pending until the W7 reconciliation turns it into a retryable timeout.
     const { bridge, readDocument } = createHarness();
 
     const failed = await bridge.handleToolRunEvent({
+      sessionId: 'session-1',
       eventType: 'Failed',
+      toolId: 'tool-call-1',
       toolName: 'GenerateImage',
-      params: { infinite_canvas: binding() },
       error: 'boom',
     });
-    expect(failed).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'backend' });
+    expect(failed).toMatchObject({ status: 'ignored', reason: 'missing_metadata' });
 
     const cancelled = await bridge.handleToolRunEvent({
+      sessionId: 'session-1',
       eventType: 'Cancelled',
+      toolId: 'tool-call-1',
       toolName: 'GenerateImage',
-      params: {
-        infinite_canvas: binding({
-          nodeId: 'card-derived',
-          resultMode: 'derived',
-          operationId: 'op-derived',
-        }),
-      },
+      reason: 'user cancelled',
     });
-    expect(cancelled).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'cancelled' });
+    expect(cancelled).toMatchObject({ status: 'ignored', reason: 'missing_metadata' });
 
+    // The pending cards are untouched — W7 owns their eventual exit.
     const document = await readDocument();
-    expect(node(document, 'card-self').generation?.errorKind).toBe('backend');
-    expect(node(document, 'card-derived').generation?.errorKind).toBe('cancelled');
+    expect(node(document, 'card-self').generation?.status).toBe('pending');
+    expect(node(document, 'card-derived').generation?.status).toBe('pending');
   });
 
   it('rejects a cross-workspace binding without touching the document', async () => {
