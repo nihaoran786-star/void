@@ -302,6 +302,13 @@ export class InfiniteCanvasDocumentService {
   private readonly debounceMs: number;
   private readonly now: () => Date;
   private readonly pendingByPath = new Map<string, PendingWrite>();
+  /**
+   * Per-path mutation queue: concurrent `mutateDefaultDocument` calls for the
+   * same file run strictly one after another. Without this, two callers that
+   * both miss `pendingByPath` each await a load and then overwrite each
+   * other's pending entry — a classic lost update.
+   */
+  private readonly mutationQueueByPath = new Map<string, Promise<unknown>>();
 
   public constructor(
     private readonly port: InfiniteCanvasPersistencePort,
@@ -395,6 +402,28 @@ export class InfiniteCanvasDocumentService {
     const documentId = defaultInfiniteCanvasDocumentId(workspace.workspaceId);
     const filePath = infiniteCanvasDocumentFilePath(workspace.workspacePath, documentId);
 
+    const previous = this.mutationQueueByPath.get(filePath) ?? Promise.resolve();
+    const run = previous.then(() => this.applyMutation(workspace, filePath, mutator));
+    // The queue tail swallows failures so one failed mutation never wedges
+    // the chain; each caller still observes its own result/rejection via run.
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.mutationQueueByPath.set(filePath, tail);
+    void tail.then(() => {
+      if (this.mutationQueueByPath.get(filePath) === tail) {
+        this.mutationQueueByPath.delete(filePath);
+      }
+    });
+    return run;
+  }
+
+  private async applyMutation(
+    workspace: InfiniteCanvasWorkspaceRef,
+    filePath: string,
+    mutator: InfiniteCanvasMutator,
+  ): Promise<InfiniteCanvasMutateResult> {
     let pending = this.pendingByPath.get(filePath);
     if (!pending) {
       const loaded = await this.loadDefaultDocument(workspace);
@@ -447,6 +476,7 @@ export class InfiniteCanvasDocumentService {
       if (pending.timer !== undefined) clearTimeout(pending.timer);
     }
     this.pendingByPath.clear();
+    this.mutationQueueByPath.clear();
   }
 
   private async flushPath(

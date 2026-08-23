@@ -166,6 +166,64 @@ describe('InfiniteCanvasDocumentService', () => {
     expect(persisted.document.revision).toBe(2);
   });
 
+  it('serializes concurrent mutations racing over a slow load so neither is lost', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    // Gate the first read so both mutations are in flight before either has a
+    // document. Pre-fix, both missed pendingByPath, each awaited its own load
+    // and the second overwrote the first's pending entry — a lost update.
+    let releaseLoad!: () => void;
+    const loadGate = new Promise<void>(resolve => { releaseLoad = resolve; });
+    let reads = 0;
+    const slowPort = {
+      ...store.port,
+      readTextFile: async (path: string) => {
+        reads += 1;
+        if (reads === 1) await loadGate;
+        return store.port.readTextFile(path);
+      },
+    };
+    const service = new InfiniteCanvasDocumentService(slowPort, { debounceMs: 50 });
+
+    const textNode = (nodeId: string) => ({
+      nodeId,
+      kind: 'text' as const,
+      position: { x: 0, y: 0 },
+      text: nodeId,
+    });
+    const first = service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [...current.nodes, textNode('node-a')],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+    const second = service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [...current.nodes, textNode('node-b')],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+    releaseLoad();
+    const [firstResult, secondResult] = await Promise.all([first, second]);
+
+    // Both mutations took effect: the second one saw the first one's node.
+    expect(firstResult.status).toBe('applied');
+    if (firstResult.status !== 'applied') return;
+    expect(firstResult.document.nodes.map(node => node.nodeId)).toEqual(['node-a']);
+    expect(secondResult.status).toBe('applied');
+    if (secondResult.status !== 'applied') return;
+    expect(secondResult.document.nodes.map(node => node.nodeId))
+      .toEqual(['node-a', 'node-b']);
+
+    // The document was created at revision 1 by the queued load; the two
+    // coalesced mutations then flush as one CAS write bumping it to 2 —
+    // the revision advanced twice from the empty store, with no lost update.
+    await vi.advanceTimersByTimeAsync(60);
+    const persisted = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    if (persisted.status !== 'ok') throw new Error('expected persisted document');
+    expect(persisted.document.nodes.map(node => node.nodeId)).toEqual(['node-a', 'node-b']);
+    expect(persisted.document.revision).toBe(2);
+  });
+
   it('flushes pending mutations on demand and reports the save outcome', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
     const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 10_000 });
