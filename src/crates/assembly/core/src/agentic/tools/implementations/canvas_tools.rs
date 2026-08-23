@@ -517,6 +517,945 @@ impl Tool for CanvasReadTool {
 }
 
 // ---------------------------------------------------------------------------
+// CanvasOp (R3): typed batch operations + ops journal + receipt
+// ---------------------------------------------------------------------------
+
+/// Anti-runaway limits (PRD §3.6.4): one batch is at most 20 operations, of
+/// which at most 3 may be `begin_generation`. Oversized batches are rejected
+/// whole — never partially executed.
+const CANVAS_OP_MAX_OPS: usize = 20;
+const CANVAS_OP_MAX_GENERATIONS: usize = 3;
+/// The ops journal is bounded: only the most recent batches are kept.
+const CANVAS_OPS_JOURNAL_MAX_BATCHES: usize = 200;
+
+/// `update_node.set` whitelist (PRD §3.6.4). `mediaRef`, `derivedFrom`,
+/// `generation` and `domainRef` are deliberately absent: the mediaRef
+/// immutability invariant continues to hold on every path.
+const UPDATE_SET_WHITELIST: [&str; 5] = ["prompt", "text", "stylePresetId", "position", "size"];
+
+const CANVAS_OP_TOOL_IDS: [&str; 6] =
+    ["generate", "upscale", "expand", "inpaint", "erase", "matting"];
+
+/// Process-wide journal mutex: Rust is the only writer of `*.ops.json`, and
+/// this lock keeps `seq` allocation and append-trim-write atomic in-process.
+static CANVAS_OPS_JOURNAL_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+fn new_canvas_id(prefix: &str) -> String {
+    format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
+}
+
+fn ops_journal_path(workspace_root: &Path, document_id: &str) -> PathBuf {
+    infinite_canvas_directory(workspace_root).join(format!("{document_id}.ops.json"))
+}
+
+type CanvasOpRejection = (String, String);
+
+fn rejection(code: &str, message: impl Into<String>) -> CanvasOpRejection {
+    (code.to_string(), message.into())
+}
+
+fn ensure_allowed_keys(
+    object: &Map<String, Value>,
+    allowed: &[&str],
+    op_index: usize,
+    op_name: &str,
+) -> Result<(), CanvasOpRejection> {
+    for key in object.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(rejection(
+                "invalid-input",
+                format!(
+                    "ops[{op_index}] ({op_name}): unknown field \"{key}\". Allowed fields: {}. \
+                     Aliases and extra fields are rejected — use the exact field names.",
+                    allowed.join(", ")
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn required_string(
+    object: &Map<String, Value>,
+    key: &str,
+    op_index: usize,
+    op_name: &str,
+) -> Result<String, CanvasOpRejection> {
+    is_nonempty_string(object.get(key)).ok_or_else(|| {
+        rejection(
+            "invalid-input",
+            format!("ops[{op_index}] ({op_name}): \"{key}\" must be a non-empty string."),
+        )
+    })
+}
+
+fn optional_string_field(
+    object: &Map<String, Value>,
+    key: &str,
+    op_index: usize,
+    op_name: &str,
+) -> Result<Option<String>, CanvasOpRejection> {
+    match object.get(key) {
+        None => Ok(None),
+        Some(Value::String(text)) if !text.trim().is_empty() => Ok(Some(text.clone())),
+        Some(_) => Err(rejection(
+            "invalid-input",
+            format!("ops[{op_index}] ({op_name}): \"{key}\" must be a non-empty string."),
+        )),
+    }
+}
+
+fn required_position(
+    object: &Map<String, Value>,
+    op_index: usize,
+    op_name: &str,
+) -> Result<Value, CanvasOpRejection> {
+    parse_position(object.get("position")).ok_or_else(|| {
+        rejection(
+            "invalid-input",
+            format!(
+                "ops[{op_index}] ({op_name}): \"position\" must be an object with finite \
+                 numeric x and y."
+            ),
+        )
+    })
+}
+
+fn optional_size(
+    object: &Map<String, Value>,
+    op_index: usize,
+    op_name: &str,
+) -> Result<Option<Value>, CanvasOpRejection> {
+    match object.get("size") {
+        None => Ok(None),
+        Some(value) => parse_size(Some(value)).map(Some).ok_or_else(|| {
+            rejection(
+                "invalid-input",
+                format!(
+                    "ops[{op_index}] ({op_name}): \"size\" must be an object with finite \
+                     numeric width and height."
+                ),
+            )
+        }),
+    }
+}
+
+struct GenerationReceipt {
+    operation_id: String,
+    node_id: String,
+    binding: Value,
+}
+
+struct ValidatedCanvasOpBatch {
+    normalized_ops: Vec<Value>,
+    created_node_ids: Vec<String>,
+    created_edge_ids: Vec<String>,
+    generations: Vec<GenerationReceipt>,
+}
+
+/// Best-effort node universe for referential checks: the persisted snapshot
+/// plus nodes created by journaled (possibly not yet applied) batches plus
+/// nodes created earlier in the current batch. The front-end applier remains
+/// the authority and re-validates against the live document.
+struct KnownNodes<'a> {
+    snapshot: &'a CanvasDocumentSnapshot,
+    journal_created: &'a std::collections::HashSet<String>,
+    batch_created: Vec<String>,
+}
+
+impl KnownNodes<'_> {
+    fn contains(&self, node_id: &str) -> bool {
+        self.snapshot.node(node_id).is_some()
+            || self.journal_created.contains(node_id)
+            || self.batch_created.iter().any(|id| id == node_id)
+    }
+
+    /// True when the snapshot proves the node already carries media.
+    fn has_media_in_snapshot(&self, node_id: &str) -> bool {
+        self.snapshot
+            .node(node_id)
+            .is_some_and(|node| node.has_media)
+    }
+}
+
+#[allow(clippy::too_many_lines)]
+fn validate_and_normalize_canvas_ops(
+    ops: &[Value],
+    workspace_id: &str,
+    document_id: &str,
+    snapshot: &CanvasDocumentSnapshot,
+    journal_created: &std::collections::HashSet<String>,
+) -> Result<ValidatedCanvasOpBatch, CanvasOpRejection> {
+    if ops.is_empty() || ops.len() > CANVAS_OP_MAX_OPS {
+        return Err(rejection(
+            "invalid-input",
+            format!(
+                "ops must contain between 1 and {CANVAS_OP_MAX_OPS} operations per batch \
+                 (got {}). Split larger changes across multiple CanvasOp calls.",
+                ops.len()
+            ),
+        ));
+    }
+    let generation_count = ops
+        .iter()
+        .filter(|op| op.get("op").and_then(Value::as_str) == Some("begin_generation"))
+        .count();
+    if generation_count > CANVAS_OP_MAX_GENERATIONS {
+        return Err(rejection(
+            "invalid-input",
+            format!(
+                "at most {CANVAS_OP_MAX_GENERATIONS} begin_generation operations are allowed \
+                 per batch (got {generation_count})."
+            ),
+        ));
+    }
+
+    let mut known = KnownNodes {
+        snapshot,
+        journal_created,
+        batch_created: Vec::new(),
+    };
+    let mut normalized_ops = Vec::with_capacity(ops.len());
+    let mut created_node_ids = Vec::new();
+    let mut created_edge_ids = Vec::new();
+    let mut generations = Vec::new();
+
+    for (op_index, op) in ops.iter().enumerate() {
+        let Some(object) = op.as_object() else {
+            return Err(rejection(
+                "invalid-input",
+                format!("ops[{op_index}] must be an object with an \"op\" field."),
+            ));
+        };
+        let op_name = required_string(object, "op", op_index, "op")?;
+        match op_name.as_str() {
+            "add_node" => {
+                ensure_allowed_keys(
+                    object,
+                    &["op", "kind", "position", "size", "text", "prompt", "stylePresetId"],
+                    op_index,
+                    "add_node",
+                )?;
+                let kind = required_string(object, "kind", op_index, "add_node")?;
+                if !matches!(kind.as_str(), "text" | "image" | "video") {
+                    // Group cards have no renderer; the AI must not create
+                    // nodes the canvas cannot display (PRD §3.6.4).
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (add_node): kind \"{kind}\" is not allowed. \
+                             Allowed kinds: text, image, video (group is rejected)."
+                        ),
+                    ));
+                }
+                let position = required_position(object, op_index, "add_node")?;
+                let size = optional_size(object, op_index, "add_node")?;
+                let text = optional_string_field(object, "text", op_index, "add_node")?;
+                let prompt = optional_string_field(object, "prompt", op_index, "add_node")?;
+                let style_preset_id =
+                    optional_string_field(object, "stylePresetId", op_index, "add_node")?;
+
+                let node_id = new_canvas_id("node");
+                let mut normalized = Map::new();
+                normalized.insert("op".to_string(), json!("add_node"));
+                normalized.insert("nodeId".to_string(), json!(node_id));
+                normalized.insert("kind".to_string(), json!(kind));
+                normalized.insert("position".to_string(), position);
+                if let Some(size) = size {
+                    normalized.insert("size".to_string(), size);
+                }
+                if let Some(text) = text {
+                    normalized.insert("text".to_string(), json!(text));
+                }
+                if let Some(prompt) = prompt {
+                    normalized.insert("prompt".to_string(), json!(prompt));
+                }
+                if let Some(style_preset_id) = style_preset_id {
+                    normalized.insert("stylePresetId".to_string(), json!(style_preset_id));
+                }
+                known.batch_created.push(node_id.clone());
+                created_node_ids.push(node_id);
+                normalized_ops.push(Value::Object(normalized));
+            }
+            "update_node" => {
+                ensure_allowed_keys(object, &["op", "nodeId", "set"], op_index, "update_node")?;
+                let node_id = required_string(object, "nodeId", op_index, "update_node")?;
+                let Some(set) = object.get("set").and_then(Value::as_object) else {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!("ops[{op_index}] (update_node): \"set\" must be an object."),
+                    ));
+                };
+                if set.is_empty() {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (update_node): \"set\" must contain at least one \
+                             whitelisted field ({}).",
+                            UPDATE_SET_WHITELIST.join(", ")
+                        ),
+                    ));
+                }
+                for key in set.keys() {
+                    if !UPDATE_SET_WHITELIST.contains(&key.as_str()) {
+                        return Err(rejection(
+                            "invalid-input",
+                            format!(
+                                "ops[{op_index}] (update_node): field \"{key}\" is not writable. \
+                                 Writable fields: {}. mediaRef, derivedFrom, generation and \
+                                 domainRef can never be changed through CanvasOp.",
+                                UPDATE_SET_WHITELIST.join(", ")
+                            ),
+                        ));
+                    }
+                }
+                let mut normalized_set = Map::new();
+                for (key, value) in set {
+                    match key.as_str() {
+                        "prompt" | "text" | "stylePresetId" => {
+                            if !value.is_string() {
+                                return Err(rejection(
+                                    "invalid-input",
+                                    format!(
+                                        "ops[{op_index}] (update_node): \"{key}\" must be a string."
+                                    ),
+                                ));
+                            }
+                            normalized_set.insert(key.clone(), value.clone());
+                        }
+                        "position" => {
+                            let position =
+                                parse_position(Some(value)).ok_or_else(|| {
+                                    rejection(
+                                        "invalid-input",
+                                        format!(
+                                            "ops[{op_index}] (update_node): \"position\" must \
+                                             have finite numeric x and y."
+                                        ),
+                                    )
+                                })?;
+                            normalized_set.insert(key.clone(), position);
+                        }
+                        "size" => {
+                            let size = parse_size(Some(value)).ok_or_else(|| {
+                                rejection(
+                                    "invalid-input",
+                                    format!(
+                                        "ops[{op_index}] (update_node): \"size\" must have \
+                                         finite numeric width and height."
+                                    ),
+                                )
+                            })?;
+                            normalized_set.insert(key.clone(), size);
+                        }
+                        _ => unreachable!("whitelist checked above"),
+                    }
+                }
+                if !known.contains(&node_id) {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (update_node): node \"{node_id}\" was not found in \
+                             the last persisted document or in pending agent batches. Run \
+                             CanvasRead to get current node ids."
+                        ),
+                    ));
+                }
+                normalized_ops.push(json!({
+                    "op": "update_node",
+                    "nodeId": node_id,
+                    "set": Value::Object(normalized_set)
+                }));
+            }
+            "connect" => {
+                ensure_allowed_keys(
+                    object,
+                    &["op", "sourceNodeId", "targetNodeId"],
+                    op_index,
+                    "connect",
+                )?;
+                let source = required_string(object, "sourceNodeId", op_index, "connect")?;
+                let target = required_string(object, "targetNodeId", op_index, "connect")?;
+                for (label, node_id) in [("sourceNodeId", &source), ("targetNodeId", &target)] {
+                    if !known.contains(node_id) {
+                        return Err(rejection(
+                            "invalid-input",
+                            format!(
+                                "ops[{op_index}] (connect): {label} \"{node_id}\" was not found. \
+                                 Run CanvasRead to get current node ids."
+                            ),
+                        ));
+                    }
+                }
+                let edge_id = new_canvas_id("edge");
+                created_edge_ids.push(edge_id.clone());
+                normalized_ops.push(json!({
+                    "op": "connect",
+                    "edgeId": edge_id,
+                    "sourceNodeId": source,
+                    "targetNodeId": target
+                }));
+            }
+            "disconnect" => {
+                ensure_allowed_keys(object, &["op", "edgeId"], op_index, "disconnect")?;
+                let edge_id = required_string(object, "edgeId", op_index, "disconnect")?;
+                // Removing a missing edge is a no-op by the idempotency rules,
+                // so no existence check is enforced here.
+                normalized_ops.push(json!({ "op": "disconnect", "edgeId": edge_id }));
+            }
+            "delete_node" => {
+                ensure_allowed_keys(object, &["op", "nodeId"], op_index, "delete_node")?;
+                let node_id = required_string(object, "nodeId", op_index, "delete_node")?;
+                // Deletion protection (PRD §3.6.4): cards that carry media can
+                // only be deleted by the user in the UI. The front-end applier
+                // double-checks this against the live document.
+                if known.has_media_in_snapshot(&node_id) {
+                    return Err(rejection(
+                        "delete_protected",
+                        format!(
+                            "ops[{op_index}] (delete_node): node \"{node_id}\" carries media and \
+                             cannot be deleted by the agent. Only blank cards and failed \
+                             placeholders may be deleted; ask the user to delete real media \
+                             cards in the canvas UI."
+                        ),
+                    ));
+                }
+                normalized_ops.push(json!({ "op": "delete_node", "nodeId": node_id }));
+            }
+            "begin_generation" => {
+                ensure_allowed_keys(
+                    object,
+                    &[
+                        "op",
+                        "mode",
+                        "nodeId",
+                        "sourceNodeId",
+                        "toolId",
+                        "mediaKind",
+                        "prompt",
+                        "stylePresetId",
+                    ],
+                    op_index,
+                    "begin_generation",
+                )?;
+                let mode = required_string(object, "mode", op_index, "begin_generation")?;
+                if mode != "self" && mode != "derived" {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (begin_generation): mode must be \"self\" or \
+                             \"derived\", got \"{mode}\"."
+                        ),
+                    ));
+                }
+                let tool_id = required_string(object, "toolId", op_index, "begin_generation")?;
+                if !CANVAS_OP_TOOL_IDS.contains(&tool_id.as_str()) {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (begin_generation): toolId \"{tool_id}\" is not \
+                             allowed. Allowed toolIds: {}.",
+                            CANVAS_OP_TOOL_IDS.join(", ")
+                        ),
+                    ));
+                }
+                let media_kind =
+                    optional_string_field(object, "mediaKind", op_index, "begin_generation")?
+                        .unwrap_or_else(|| "image".to_string());
+                if media_kind != "image" && media_kind != "video" {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (begin_generation): mediaKind must be \"image\" or \
+                             \"video\", got \"{media_kind}\"."
+                        ),
+                    ));
+                }
+                if media_kind == "video" && tool_id != "generate" {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (begin_generation): mediaKind \"video\" is only \
+                             allowed with toolId \"generate\"."
+                        ),
+                    ));
+                }
+                let prompt =
+                    optional_string_field(object, "prompt", op_index, "begin_generation")?;
+                let style_preset_id =
+                    optional_string_field(object, "stylePresetId", op_index, "begin_generation")?;
+
+                let operation_id = new_canvas_id("op");
+                let mut normalized = Map::new();
+                normalized.insert("op".to_string(), json!("begin_generation"));
+                normalized.insert("mode".to_string(), json!(mode));
+                normalized.insert("operationId".to_string(), json!(operation_id));
+                normalized.insert("toolId".to_string(), json!(tool_id));
+                normalized.insert("mediaKind".to_string(), json!(media_kind));
+
+                let target_node_id: String;
+                let mut source_node_id: Option<String> = None;
+                if mode == "self" {
+                    if object.get("sourceNodeId").is_some() {
+                        return Err(rejection(
+                            "invalid-input",
+                            format!(
+                                "ops[{op_index}] (begin_generation): mode \"self\" takes \
+                                 \"nodeId\" only; \"sourceNodeId\" belongs to mode \"derived\"."
+                            ),
+                        ));
+                    }
+                    let node_id =
+                        required_string(object, "nodeId", op_index, "begin_generation")?;
+                    if !known.contains(&node_id) {
+                        return Err(rejection(
+                            "invalid-input",
+                            format!(
+                                "ops[{op_index}] (begin_generation): node \"{node_id}\" was not \
+                                 found. Run CanvasRead to get current node ids."
+                            ),
+                        ));
+                    }
+                    // Self mode is reserved for the first generation into a
+                    // blank card; a card that already has media must derive.
+                    if known.has_media_in_snapshot(&node_id) {
+                        return Err(rejection(
+                            "self_target_has_media",
+                            format!(
+                                "ops[{op_index}] (begin_generation): node \"{node_id}\" already \
+                                 has media, so mode \"self\" is not allowed. Use mode \
+                                 \"derived\" with sourceNodeId \"{node_id}\" instead — existing \
+                                 media is never overwritten."
+                            ),
+                        ));
+                    }
+                    target_node_id = node_id;
+                } else {
+                    if object.get("nodeId").is_some() {
+                        return Err(rejection(
+                            "invalid-input",
+                            format!(
+                                "ops[{op_index}] (begin_generation): mode \"derived\" takes \
+                                 \"sourceNodeId\" only; the placeholder nodeId is generated by \
+                                 the tool."
+                            ),
+                        ));
+                    }
+                    let source =
+                        required_string(object, "sourceNodeId", op_index, "begin_generation")?;
+                    if !known.contains(&source) {
+                        return Err(rejection(
+                            "invalid-input",
+                            format!(
+                                "ops[{op_index}] (begin_generation): sourceNodeId \"{source}\" \
+                                 was not found. Run CanvasRead to get current node ids."
+                            ),
+                        ));
+                    }
+                    let placeholder_id = new_canvas_id("node");
+                    let derived_edge_id = new_canvas_id("edge");
+                    normalized.insert("sourceNodeId".to_string(), json!(source));
+                    normalized.insert("edgeId".to_string(), json!(derived_edge_id));
+                    known.batch_created.push(placeholder_id.clone());
+                    created_node_ids.push(placeholder_id.clone());
+                    created_edge_ids.push(derived_edge_id);
+                    source_node_id = Some(source);
+                    target_node_id = placeholder_id;
+                }
+                normalized.insert("nodeId".to_string(), json!(target_node_id));
+                if let Some(prompt) = &prompt {
+                    normalized.insert("prompt".to_string(), json!(prompt));
+                }
+                if let Some(style_preset_id) = &style_preset_id {
+                    normalized.insert("stylePresetId".to_string(), json!(style_preset_id));
+                }
+                normalized_ops.push(Value::Object(normalized));
+
+                // Machine-assembled §3.2 binding: field-for-field the shape
+                // the front-end InfiniteCanvasAgentTaskTypes binding declares
+                // (workspaceId, documentId, nodeId, resultMode, sourceNodeId?,
+                // toolId, operationId, stylePresetId?) plus the P3 mediaKind
+                // marker for video. The model copies it verbatim.
+                let mut binding = Map::new();
+                binding.insert("workspaceId".to_string(), json!(workspace_id));
+                binding.insert("documentId".to_string(), json!(document_id));
+                binding.insert("nodeId".to_string(), json!(target_node_id));
+                binding.insert("resultMode".to_string(), json!(mode));
+                if let Some(source) = &source_node_id {
+                    binding.insert("sourceNodeId".to_string(), json!(source));
+                }
+                binding.insert("toolId".to_string(), json!(tool_id));
+                binding.insert("operationId".to_string(), json!(operation_id));
+                if let Some(style_preset_id) = &style_preset_id {
+                    binding.insert("stylePresetId".to_string(), json!(style_preset_id));
+                }
+                if media_kind == "video" {
+                    binding.insert("mediaKind".to_string(), json!("video"));
+                }
+                generations.push(GenerationReceipt {
+                    operation_id,
+                    node_id: target_node_id,
+                    binding: Value::Object(binding),
+                });
+            }
+            other => {
+                return Err(rejection(
+                    "invalid-input",
+                    format!(
+                        "ops[{op_index}]: unknown op \"{other}\". Allowed ops: add_node, \
+                         update_node, connect, disconnect, delete_node, begin_generation."
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(ValidatedCanvasOpBatch {
+        normalized_ops,
+        created_node_ids,
+        created_edge_ids,
+        generations,
+    })
+}
+
+struct JournalState {
+    batches: Vec<Value>,
+    last_seq: u64,
+    created_node_ids: std::collections::HashSet<String>,
+}
+
+/// Reads the journal tolerantly: a missing file is an empty journal, and a
+/// corrupted file is treated as empty (the journal only backs "apply while
+/// the panel was closed"; the worst case is a re-issuable no-op).
+async fn read_ops_journal(path: &Path) -> JournalState {
+    let mut state = JournalState {
+        batches: Vec::new(),
+        last_seq: 0,
+        created_node_ids: std::collections::HashSet::new(),
+    };
+    let raw = match tokio::fs::read_to_string(path).await {
+        Ok(raw) => raw,
+        Err(_) => return state,
+    };
+    let Ok(parsed) = serde_json::from_str::<Value>(&raw) else {
+        log::warn!(
+            "Infinite canvas ops journal is corrupted; treating as empty: {}",
+            path.display()
+        );
+        return state;
+    };
+    let Some(batches) = parsed.get("batches").and_then(Value::as_array) else {
+        return state;
+    };
+    for batch in batches {
+        let Some(seq) = batch.get("seq").and_then(Value::as_u64) else {
+            continue;
+        };
+        state.last_seq = state.last_seq.max(seq);
+        if let Some(ops) = batch.get("ops").and_then(Value::as_array) {
+            for op in ops {
+                let creates_node = matches!(
+                    op.get("op").and_then(Value::as_str),
+                    Some("add_node" | "begin_generation")
+                );
+                if creates_node {
+                    if let Some(node_id) = op.get("nodeId").and_then(Value::as_str) {
+                        state.created_node_ids.insert(node_id.to_string());
+                    }
+                }
+            }
+        }
+        state.batches.push(batch.clone());
+    }
+    state
+}
+
+/// Atomic journal write: serialize to a temp file in the same directory,
+/// then rename over the target.
+async fn write_ops_journal_atomic(
+    path: &Path,
+    document_id: &str,
+    workspace_id: &str,
+    batches: &[Value],
+) -> Result<(), String> {
+    let payload = json!({
+        "schemaVersion": "1",
+        "documentId": document_id,
+        "workspaceId": workspace_id,
+        "batches": batches,
+    });
+    let bytes = serde_json::to_vec_pretty(&payload).map_err(|error| error.to_string())?;
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|error| error.to_string())?;
+    }
+    let temp_path = path.with_extension(format!("tmp-{}", uuid::Uuid::new_v4().simple()));
+    tokio::fs::write(&temp_path, bytes)
+        .await
+        .map_err(|error| error.to_string())?;
+    if let Err(error) = tokio::fs::rename(&temp_path, path).await {
+        let _ = tokio::fs::remove_file(&temp_path).await;
+        return Err(error.to_string());
+    }
+    Ok(())
+}
+
+pub struct CanvasOpTool;
+
+impl CanvasOpTool {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for CanvasOpTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Tool for CanvasOpTool {
+    fn name(&self) -> &str {
+        "CanvasOp"
+    }
+
+    async fn description(&self) -> VoidResult<String> {
+        Ok("Submit a typed batch of infinite canvas operations (add_node, update_node, \
+            connect, disconnect, delete_node, begin_generation). The tool validates the \
+            batch, generates node/edge/operation ids, appends the batch to the canvas ops \
+            journal and returns a receipt. IMPORTANT SEMANTICS: \"accepted\" means the \
+            instructions were registered, NOT that they are applied — the canvas applies \
+            them asynchronously when the panel is open (or reconciles on next open). \
+            Generated ids can be referenced in later calls immediately. Limits: at most 20 \
+            operations per batch, at most 3 begin_generation; add_node kinds are text, \
+            image, video (group is rejected); update_node may only set prompt, text, \
+            stylePresetId, position, size; delete_node only removes cards without media — \
+            real media cards must be deleted by the user in the UI. For begin_generation \
+            the receipt contains a machine-assembled binding JSON: copy it verbatim into \
+            the infinite_canvas parameter of GenerateImage (mediaKind image) or \
+            GenerateVideo (mediaKind video). Standard flow: CanvasRead → CanvasOp with \
+            begin_generation → GenerateImage/GenerateVideo with the returned binding."
+            .to_string())
+    }
+
+    fn short_description(&self) -> String {
+        "Register typed infinite canvas operations; receipt = accepted, not yet applied."
+            .to_string()
+    }
+
+    fn default_exposure(&self) -> ToolExposure {
+        ToolExposure::Collapsed
+    }
+
+    /// CanvasOp never spends money and only appends to the agent ops journal;
+    /// the paid GenerateImage/GenerateVideo calls keep their own approval
+    /// gates (plan §2.4 "花钱闸门不变").
+    fn needs_permissions(&self, _input: Option<&Value>) -> bool {
+        false
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "workspaceId": {
+                    "type": "string",
+                    "description": "Must match the CanvasRead workspaceId."
+                },
+                "documentId": {
+                    "type": "string",
+                    "description": "Must match the CanvasRead documentId."
+                },
+                "ops": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": CANVAS_OP_MAX_OPS,
+                    "description": "Atomic batch (1..=20): any invalid operation rejects the whole batch. Ops: {op:\"add_node\", kind:\"text|image|video\", position:{x,y}, size?, text?, prompt?, stylePresetId?} | {op:\"update_node\", nodeId, set:{prompt?,text?,stylePresetId?,position?,size?}} | {op:\"connect\", sourceNodeId, targetNodeId} | {op:\"disconnect\", edgeId} | {op:\"delete_node\", nodeId} | {op:\"begin_generation\", mode:\"self|derived\", nodeId (self) or sourceNodeId (derived), toolId:\"generate|upscale|expand|inpaint|erase|matting\", mediaKind?:\"image|video\" (video only with generate), prompt?, stylePresetId?}.",
+                    "items": { "type": "object" }
+                }
+            },
+            "required": ["workspaceId", "documentId", "ops"]
+        })
+    }
+
+    async fn validate_input(
+        &self,
+        input: &Value,
+        _context: Option<&ToolUseContext>,
+    ) -> ValidationResult {
+        let Some(object) = input.as_object() else {
+            return validation_error("input must be an object");
+        };
+        if is_nonempty_string(object.get("workspaceId")).is_none() {
+            return validation_error("workspaceId is required");
+        }
+        if is_nonempty_string(object.get("documentId")).is_none() {
+            return validation_error("documentId is required");
+        }
+        match object.get("ops").and_then(Value::as_array) {
+            None => validation_error("ops must be an array"),
+            Some(ops) if ops.is_empty() || ops.len() > CANVAS_OP_MAX_OPS => validation_error(
+                format!("ops must contain between 1 and {CANVAS_OP_MAX_OPS} operations"),
+            ),
+            Some(_) => valid(),
+        }
+    }
+
+    async fn call_impl(
+        &self,
+        input: &Value,
+        context: &ToolUseContext,
+    ) -> VoidResult<Vec<ToolResult>> {
+        let workspace_root = match workspace_root_or_typed_error(context) {
+            Ok(root) => root,
+            Err(results) => return Ok(results),
+        };
+        let Some(object) = input.as_object() else {
+            return Ok(canvas_typed_error("invalid-input", "input must be an object"));
+        };
+        for key in object.keys() {
+            if !matches!(key.as_str(), "workspaceId" | "documentId" | "ops") {
+                return Ok(canvas_typed_error(
+                    "invalid-input",
+                    format!(
+                        "unknown field \"{key}\". CanvasOp takes exactly workspaceId, \
+                         documentId and ops."
+                    ),
+                ));
+            }
+        }
+        let Some(workspace_id) = is_nonempty_string(object.get("workspaceId")) else {
+            return Ok(canvas_typed_error(
+                "invalid-input",
+                "workspaceId is required and must be a non-empty string.",
+            ));
+        };
+        let Some(document_id) = is_nonempty_string(object.get("documentId")) else {
+            return Ok(canvas_typed_error(
+                "invalid-input",
+                "documentId is required and must be a non-empty string.",
+            ));
+        };
+        let Some(ops) = object.get("ops").and_then(Value::as_array) else {
+            return Ok(canvas_typed_error(
+                "invalid-input",
+                "ops is required and must be an array of operation objects.",
+            ));
+        };
+
+        // Read-only snapshot check: the document must belong to this
+        // workspace root and carry the exact identity the caller targets.
+        let snapshot = match read_default_document_snapshot(&workspace_root).await {
+            Ok((_, snapshot)) => snapshot,
+            Err(error) => return Ok(error.into_tool_results()),
+        };
+        if snapshot.workspace_id != workspace_id {
+            return Ok(canvas_typed_error(
+                "workspace_mismatch",
+                format!(
+                    "workspaceId \"{workspace_id}\" does not match the canvas document's \
+                     workspaceId \"{}\". Run CanvasRead and use its ids.",
+                    snapshot.workspace_id
+                ),
+            ));
+        }
+        if snapshot.document_id != document_id {
+            return Ok(canvas_typed_error(
+                "document_mismatch",
+                format!(
+                    "documentId \"{document_id}\" does not match the canvas document's \
+                     documentId \"{}\". Run CanvasRead and use its ids.",
+                    snapshot.document_id
+                ),
+            ));
+        }
+
+        // Journal read + seq allocation + append happen under one in-process
+        // lock so seq stays monotonic and appends never interleave.
+        let journal_path = ops_journal_path(&workspace_root, &document_id);
+        let _guard = CANVAS_OPS_JOURNAL_LOCK.lock().await;
+        let journal = read_ops_journal(&journal_path).await;
+
+        let validated = match validate_and_normalize_canvas_ops(
+            ops,
+            &workspace_id,
+            &document_id,
+            &snapshot,
+            &journal.created_node_ids,
+        ) {
+            Ok(validated) => validated,
+            Err((code, message)) => return Ok(canvas_typed_error(&code, message)),
+        };
+
+        // Seq floor also honors the document watermark, so even after a
+        // journal reset the new batch stays above what was already applied.
+        let seq = journal.last_seq.max(snapshot.applied_seq) + 1;
+        let batch_id = new_canvas_id("batch");
+        let mut batches = journal.batches;
+        batches.push(json!({
+            "seq": seq,
+            "batchId": batch_id,
+            "createdAt": chrono::Utc::now().to_rfc3339(),
+            "ops": validated.normalized_ops,
+        }));
+        if batches.len() > CANVAS_OPS_JOURNAL_MAX_BATCHES {
+            let excess = batches.len() - CANVAS_OPS_JOURNAL_MAX_BATCHES;
+            batches.drain(0..excess);
+        }
+        if let Err(message) =
+            write_ops_journal_atomic(&journal_path, &document_id, &workspace_id, &batches).await
+        {
+            return Ok(canvas_typed_error(
+                "io_error",
+                format!("Failed to write the canvas ops journal: {message}"),
+            ));
+        }
+        drop(_guard);
+
+        let generations: Vec<Value> = validated
+            .generations
+            .iter()
+            .map(|generation| {
+                json!({
+                    "operationId": generation.operation_id,
+                    "nodeId": generation.node_id,
+                    "binding": generation.binding,
+                })
+            })
+            .collect();
+        let generation_count = generations.len();
+        let data = json!({
+            "status": "accepted",
+            "source": CANVAS_SOURCE,
+            "workspaceId": workspace_id,
+            "documentId": document_id,
+            "seq": seq,
+            "batchId": batch_id,
+            "opCount": validated.normalized_ops.len(),
+            "ops": validated.normalized_ops,
+            "createdNodeIds": validated.created_node_ids,
+            "createdEdgeIds": validated.created_edge_ids,
+            "generations": generations,
+            "note": "Operations accepted and journaled — they take effect when the canvas panel applies them (accepted does not mean applied yet). For each generation, pass binding verbatim as the infinite_canvas parameter of GenerateImage (image) or GenerateVideo (video)."
+        });
+        Ok(ok_result(
+            data,
+            format!(
+                "CanvasOp batch accepted (seq {seq}, {} op(s), {generation_count} \
+                 generation(s)). The operations are registered and will take effect when \
+                 the canvas is open; \"accepted\" does not mean \"applied\" yet. Use the \
+                 returned ids in follow-up calls, and copy each generations[].binding \
+                 verbatim into the infinite_canvas parameter of GenerateImage or \
+                 GenerateVideo.",
+                validated.normalized_ops.len()
+            ),
+        ))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -867,5 +1806,841 @@ mod canvas_read_tests {
 
         assert!(description.contains("last persisted"));
         assert!(description.contains("may not be reflected yet"));
+    }
+}
+
+#[cfg(test)]
+mod canvas_op_tests {
+    use super::{CanvasOpTool, Tool, ToolResult, CANVAS_OPS_JOURNAL_MAX_BATCHES};
+    use crate::agentic::tools::framework::ToolUseContext;
+    use crate::agentic::tools::ToolRuntimeRestrictions;
+    use crate::agentic::WorkspaceBinding;
+    use serde_json::{json, Value};
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+
+    fn test_context(root: PathBuf) -> ToolUseContext {
+        ToolUseContext {
+            tool_call_id: None,
+            agent_type: Some("test".to_string()),
+            session_id: None,
+            dialog_turn_id: None,
+            workspace: Some(WorkspaceBinding::new(None, root)),
+            unlocked_collapsed_tools: Vec::new(),
+            custom_data: HashMap::new(),
+            computer_use_host: None,
+            cancellation_token: None,
+            runtime_tool_restrictions: ToolRuntimeRestrictions::default(),
+            workspace_services: None,
+        }
+    }
+
+    fn temp_workspace(tag: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "void-canvas-op-{tag}-{}",
+            uuid::Uuid::new_v4().simple()
+        ))
+    }
+
+    fn sample_document() -> Value {
+        json!({
+            "documentId": "doc-1",
+            "schemaVersion": "1",
+            "workspaceId": "workspace-1",
+            "revision": 4,
+            "nodes": [
+                {
+                    "nodeId": "node-blank",
+                    "kind": "image",
+                    "position": { "x": 0, "y": 0 },
+                    "prompt": "a blank card"
+                },
+                {
+                    "nodeId": "node-media",
+                    "kind": "image",
+                    "position": { "x": 200, "y": 0 },
+                    "mediaRef": {
+                        "workspacePath": "C:/ws",
+                        "relativePath": "media/generated/batch-1/image-001.png"
+                    }
+                },
+                {
+                    "nodeId": "node-video-blank",
+                    "kind": "video",
+                    "position": { "x": 400, "y": 0 },
+                    "prompt": "a blank video card"
+                }
+            ],
+            "edges": [],
+            "viewport": { "x": 0, "y": 0, "zoom": 1 },
+            "updatedAt": "2026-08-24T00:00:00.000Z"
+        })
+    }
+
+    async fn write_document(root: &Path, document: &Value) {
+        let dir = root.join(".void").join("infinite-canvas");
+        tokio::fs::create_dir_all(&dir).await.expect("canvas dir");
+        tokio::fs::write(
+            dir.join("doc-1.json"),
+            serde_json::to_vec_pretty(document).expect("document json"),
+        )
+        .await
+        .expect("write document");
+    }
+
+    fn journal_path(root: &Path) -> PathBuf {
+        root.join(".void")
+            .join("infinite-canvas")
+            .join("doc-1.ops.json")
+    }
+
+    async fn read_journal(root: &Path) -> Value {
+        let raw = tokio::fs::read_to_string(journal_path(root))
+            .await
+            .expect("journal file");
+        serde_json::from_str(&raw).expect("journal json")
+    }
+
+    fn result_data(results: &[ToolResult]) -> &Value {
+        match results.first().expect("one tool result") {
+            ToolResult::Result { data, .. } => data,
+            other => panic!("expected a data-bearing result, got {other:?}"),
+        }
+    }
+
+    fn base_input(ops: Value) -> Value {
+        json!({
+            "workspaceId": "workspace-1",
+            "documentId": "doc-1",
+            "ops": ops
+        })
+    }
+
+    async fn call(root: &Path, input: &Value) -> Vec<ToolResult> {
+        CanvasOpTool::new()
+            .call_impl(input, &test_context(root.to_path_buf()))
+            .await
+            .expect("tool results")
+    }
+
+    // —— limits & whole-batch rejection ————————————————————————————————
+
+    #[tokio::test]
+    async fn rejects_batches_over_the_op_limit_without_journaling() {
+        let root = temp_workspace("op-limit");
+        write_document(&root, &sample_document()).await;
+        let ops: Vec<Value> = (0..21)
+            .map(|index| {
+                json!({
+                    "op": "add_node",
+                    "kind": "text",
+                    "position": { "x": index, "y": 0 }
+                })
+            })
+            .collect();
+
+        let results = call(&root, &base_input(json!(ops))).await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "invalid-input");
+        assert!(!journal_path(&root).exists(), "no batch may be journaled");
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn rejects_more_than_three_begin_generation_ops() {
+        let root = temp_workspace("gen-limit");
+        write_document(&root, &sample_document()).await;
+        let generation = json!({
+            "op": "begin_generation",
+            "mode": "derived",
+            "sourceNodeId": "node-media",
+            "toolId": "generate"
+        });
+        let ops = json!([generation, generation, generation, generation]);
+
+        let results = call(&root, &base_input(ops)).await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "invalid-input");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("begin_generation")));
+        assert!(!journal_path(&root).exists());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn one_invalid_op_rejects_the_whole_batch_atomically() {
+        let root = temp_workspace("atomic");
+        write_document(&root, &sample_document()).await;
+        let ops = json!([
+            { "op": "add_node", "kind": "text", "position": { "x": 0, "y": 0 } },
+            { "op": "add_node", "kind": "group", "position": { "x": 10, "y": 0 } }
+        ]);
+
+        let results = call(&root, &base_input(ops)).await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert!(
+            !journal_path(&root).exists(),
+            "the valid op must not be journaled when a sibling op is invalid"
+        );
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— per-op validation ————————————————————————————————————————————
+
+    #[tokio::test]
+    async fn rejects_group_kind_and_unknown_kinds_on_add_node() {
+        let root = temp_workspace("group");
+        write_document(&root, &sample_document()).await;
+
+        for kind in ["group", "audio"] {
+            let results = call(
+                &root,
+                &base_input(json!([
+                    { "op": "add_node", "kind": kind, "position": { "x": 0, "y": 0 } }
+                ])),
+            )
+            .await;
+            let data = result_data(&results);
+            assert_eq!(data["status"], "error");
+            assert_eq!(data["error"]["code"], "invalid-input");
+        }
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn update_node_enforces_the_set_whitelist() {
+        let root = temp_workspace("whitelist");
+        write_document(&root, &sample_document()).await;
+
+        for forbidden in ["mediaRef", "derivedFrom", "generation", "domainRef", "nodeId"] {
+            let results = call(
+                &root,
+                &base_input(json!([
+                    { "op": "update_node", "nodeId": "node-blank", "set": { forbidden: "x" } }
+                ])),
+            )
+            .await;
+            let data = result_data(&results);
+            assert_eq!(data["status"], "error");
+            assert_eq!(data["error"]["code"], "invalid-input");
+            assert!(data["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains(forbidden)));
+        }
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn rejects_field_aliases_and_unknown_op_fields() {
+        let root = temp_workspace("aliases");
+        write_document(&root, &sample_document()).await;
+
+        // snake_case alias for nodeId is rejected, with a correction hint.
+        let alias = call(
+            &root,
+            &base_input(json!([
+                { "op": "delete_node", "node_id": "node-blank" }
+            ])),
+        )
+        .await;
+        assert_eq!(result_data(&alias)["error"]["code"], "invalid-input");
+
+        // Unknown extra field on a valid op is rejected.
+        let extra = call(
+            &root,
+            &base_input(json!([
+                { "op": "disconnect", "edgeId": "edge-1", "force": true }
+            ])),
+        )
+        .await;
+        assert_eq!(result_data(&extra)["error"]["code"], "invalid-input");
+
+        // Unknown op name is rejected.
+        let unknown = call(
+            &root,
+            &base_input(json!([{ "op": "move_node", "nodeId": "node-blank" }])),
+        )
+        .await;
+        assert_eq!(result_data(&unknown)["error"]["code"], "invalid-input");
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn accepts_a_whitelisted_update_and_journals_it_normalized() {
+        let root = temp_workspace("update-ok");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "update_node",
+                    "nodeId": "node-blank",
+                    "set": {
+                        "prompt": "new prompt",
+                        "position": { "x": 42, "y": 24 }
+                    }
+                }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "accepted");
+        let journal = read_journal(&root).await;
+        let op = &journal["batches"][0]["ops"][0];
+        assert_eq!(op["op"], "update_node");
+        assert_eq!(op["nodeId"], "node-blank");
+        assert_eq!(op["set"]["prompt"], "new prompt");
+        assert_eq!(op["set"]["position"]["x"], 42.0);
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— delete protection ————————————————————————————————————————————
+
+    #[tokio::test]
+    async fn refuses_to_delete_a_card_that_carries_media() {
+        let root = temp_workspace("delete-media");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([{ "op": "delete_node", "nodeId": "node-media" }])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "delete_protected");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("UI")));
+        assert!(!journal_path(&root).exists());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn allows_deleting_blank_cards_and_treats_missing_targets_as_noop() {
+        let root = temp_workspace("delete-blank");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "delete_node", "nodeId": "node-blank" },
+                { "op": "delete_node", "nodeId": "node-that-never-existed" }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "accepted");
+        assert_eq!(data["opCount"], 2);
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— workspace / document identity gates ——————————————————————————
+
+    #[tokio::test]
+    async fn rejects_workspace_and_document_mismatches() {
+        let root = temp_workspace("mismatch");
+        write_document(&root, &sample_document()).await;
+        let op = json!([{ "op": "delete_node", "nodeId": "node-blank" }]);
+
+        let wrong_workspace = call(
+            &root,
+            &json!({ "workspaceId": "workspace-other", "documentId": "doc-1", "ops": op }),
+        )
+        .await;
+        assert_eq!(
+            result_data(&wrong_workspace)["error"]["code"],
+            "workspace_mismatch"
+        );
+
+        let wrong_document = call(
+            &root,
+            &json!({ "workspaceId": "workspace-1", "documentId": "doc-other", "ops": op }),
+        )
+        .await;
+        assert_eq!(
+            result_data(&wrong_document)["error"]["code"],
+            "document_mismatch"
+        );
+        assert!(!journal_path(&root).exists());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— begin_generation receipts & bindings ————————————————————————
+
+    #[tokio::test]
+    async fn self_generation_on_a_blank_card_returns_a_verbatim_image_binding() {
+        let root = temp_workspace("gen-self");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-blank",
+                    "toolId": "generate",
+                    "prompt": "a cyberpunk cat",
+                    "stylePresetId": "cinematic:sp-1"
+                }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "accepted");
+        assert_eq!(data["generations"].as_array().map(Vec::len), Some(1));
+        let generation = &data["generations"][0];
+        assert_eq!(generation["nodeId"], "node-blank");
+        let operation_id = generation["operationId"].as_str().expect("operation id");
+        assert!(operation_id.starts_with("op-"));
+
+        // The binding must be field-for-field the front-end
+        // InfiniteCanvasAgentTaskTypes binding shape (K2 §3.2): no extra
+        // keys, no aliases, image bindings carry no mediaKind. (Key order is
+        // serde-sorted; the contract is the exact key set.)
+        let binding = generation["binding"].as_object().expect("binding");
+        let mut keys: Vec<&str> = binding.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        let mut expected = vec![
+            "workspaceId",
+            "documentId",
+            "nodeId",
+            "resultMode",
+            "toolId",
+            "operationId",
+            "stylePresetId",
+        ];
+        expected.sort_unstable();
+        assert_eq!(keys, expected);
+        assert_eq!(binding["workspaceId"], "workspace-1");
+        assert_eq!(binding["documentId"], "doc-1");
+        assert_eq!(binding["nodeId"], "node-blank");
+        assert_eq!(binding["resultMode"], "self");
+        assert_eq!(binding["toolId"], "generate");
+        assert_eq!(binding["operationId"], operation_id);
+        assert_eq!(binding["stylePresetId"], "cinematic:sp-1");
+
+        // The journaled op carries the same generated operation id.
+        let journal = read_journal(&root).await;
+        assert_eq!(
+            journal["batches"][0]["ops"][0]["operationId"],
+            operation_id
+        );
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn self_generation_on_a_media_card_is_rejected() {
+        let root = temp_workspace("gen-self-media");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-media",
+                    "toolId": "generate"
+                }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "self_target_has_media");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("derived")));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn derived_video_generation_creates_placeholder_edge_and_video_binding() {
+        let root = temp_workspace("gen-derived-video");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "derived",
+                    "sourceNodeId": "node-media",
+                    "toolId": "generate",
+                    "mediaKind": "video",
+                    "prompt": "make it move"
+                }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "accepted");
+        let created_nodes = data["createdNodeIds"].as_array().expect("created nodes");
+        let created_edges = data["createdEdgeIds"].as_array().expect("created edges");
+        assert_eq!(created_nodes.len(), 1);
+        assert_eq!(created_edges.len(), 1);
+        let placeholder_id = created_nodes[0].as_str().expect("placeholder id");
+        assert!(placeholder_id.starts_with("node-"));
+        assert!(created_edges[0]
+            .as_str()
+            .is_some_and(|edge| edge.starts_with("edge-")));
+
+        let generation = &data["generations"][0];
+        assert_eq!(generation["nodeId"], placeholder_id);
+        let binding = generation["binding"].as_object().expect("binding");
+        let mut keys: Vec<&str> = binding.keys().map(String::as_str).collect();
+        keys.sort_unstable();
+        let mut expected = vec![
+            "workspaceId",
+            "documentId",
+            "nodeId",
+            "resultMode",
+            "sourceNodeId",
+            "toolId",
+            "operationId",
+            "mediaKind",
+        ];
+        expected.sort_unstable();
+        assert_eq!(keys, expected);
+        assert_eq!(binding["resultMode"], "derived");
+        assert_eq!(binding["sourceNodeId"], "node-media");
+        assert_eq!(binding["nodeId"], placeholder_id);
+        assert_eq!(binding["mediaKind"], "video");
+
+        // The journaled op carries mode, placeholder, edge and mediaKind so
+        // the front-end applier can land the placeholder without guessing.
+        let journal = read_journal(&root).await;
+        let op = &journal["batches"][0]["ops"][0];
+        assert_eq!(op["mode"], "derived");
+        assert_eq!(op["nodeId"], placeholder_id);
+        assert_eq!(op["sourceNodeId"], "node-media");
+        assert_eq!(op["mediaKind"], "video");
+        assert!(op["edgeId"].as_str().is_some());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn video_media_kind_requires_the_generate_tool() {
+        let root = temp_workspace("video-toolid");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "derived",
+                    "sourceNodeId": "node-media",
+                    "toolId": "upscale",
+                    "mediaKind": "video"
+                }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "invalid-input");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("generate")));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— journal: seq monotonicity, atomic append, trim, id reuse —————
+
+    #[tokio::test]
+    async fn journal_appends_are_atomic_with_monotonic_seq() {
+        let root = temp_workspace("journal-seq");
+        write_document(&root, &sample_document()).await;
+
+        let first = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "image", "position": { "x": 0, "y": 0 } }
+            ])),
+        )
+        .await;
+        let first_data = result_data(&first);
+        assert_eq!(first_data["seq"], 1);
+
+        let second = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 100, "y": 0 } }
+            ])),
+        )
+        .await;
+        let second_data = result_data(&second);
+        assert_eq!(second_data["seq"], 2);
+
+        let journal = read_journal(&root).await;
+        assert_eq!(journal["schemaVersion"], "1");
+        assert_eq!(journal["documentId"], "doc-1");
+        assert_eq!(journal["workspaceId"], "workspace-1");
+        let batches = journal["batches"].as_array().expect("batches");
+        assert_eq!(batches.len(), 2);
+        // The first batch survives the second append untouched.
+        assert_eq!(batches[0]["seq"], 1);
+        assert_eq!(batches[0]["batchId"], first_data["batchId"]);
+        assert_eq!(batches[0]["ops"][0]["kind"], "image");
+        assert_eq!(batches[1]["seq"], 2);
+        assert_eq!(batches[1]["ops"][0]["kind"], "text");
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn journal_is_trimmed_to_the_bounded_batch_count() {
+        let root = temp_workspace("journal-trim");
+        write_document(&root, &sample_document()).await;
+        let dir = root.join(".void").join("infinite-canvas");
+        tokio::fs::create_dir_all(&dir).await.expect("dir");
+        let prefilled: Vec<Value> = (1..=CANVAS_OPS_JOURNAL_MAX_BATCHES as u64)
+            .map(|seq| {
+                json!({
+                    "seq": seq,
+                    "batchId": format!("batch-prefill-{seq}"),
+                    "createdAt": "2026-08-24T00:00:00.000Z",
+                    "ops": [{ "op": "delete_node", "nodeId": format!("node-x-{seq}") }]
+                })
+            })
+            .collect();
+        tokio::fs::write(
+            journal_path(&root),
+            serde_json::to_vec(&json!({
+                "schemaVersion": "1",
+                "documentId": "doc-1",
+                "workspaceId": "workspace-1",
+                "batches": prefilled
+            }))
+            .expect("prefill json"),
+        )
+        .await
+        .expect("write prefill");
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 0, "y": 0 } }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+        assert_eq!(data["seq"], CANVAS_OPS_JOURNAL_MAX_BATCHES as u64 + 1);
+
+        let journal = read_journal(&root).await;
+        let batches = journal["batches"].as_array().expect("batches");
+        assert_eq!(batches.len(), CANVAS_OPS_JOURNAL_MAX_BATCHES);
+        // The oldest batch was dropped; the newest is the appended one.
+        assert_eq!(batches[0]["seq"], 2);
+        assert_eq!(
+            batches[batches.len() - 1]["seq"],
+            CANVAS_OPS_JOURNAL_MAX_BATCHES as u64 + 1
+        );
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn ids_from_an_earlier_receipt_are_usable_before_the_canvas_applies_them() {
+        let root = temp_workspace("journal-id-reuse");
+        write_document(&root, &sample_document()).await;
+
+        let first = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "image", "position": { "x": 0, "y": 0 } }
+            ])),
+        )
+        .await;
+        let new_node_id = result_data(&first)["createdNodeIds"][0]
+            .as_str()
+            .expect("created node id")
+            .to_string();
+
+        // The document snapshot still knows nothing about the new node, but
+        // the journal does — referencing the receipt id must be accepted.
+        let second = call(
+            &root,
+            &base_input(json!([
+                { "op": "connect", "sourceNodeId": "node-media", "targetNodeId": new_node_id }
+            ])),
+        )
+        .await;
+        let second_data = result_data(&second);
+
+        assert_eq!(second_data["status"], "accepted");
+        assert_eq!(second_data["createdEdgeIds"].as_array().map(Vec::len), Some(1));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn connect_to_a_completely_unknown_node_is_rejected() {
+        let root = temp_workspace("connect-unknown");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "connect", "sourceNodeId": "node-media", "targetNodeId": "node-ghost" }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "invalid-input");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("node-ghost")));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— receipt semantics & tool posture ————————————————————————————
+
+    #[tokio::test]
+    async fn receipt_states_accepted_is_not_applied() {
+        let root = temp_workspace("receipt-semantics");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 0, "y": 0 } }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+        assert_eq!(data["status"], "accepted");
+        assert!(data["note"]
+            .as_str()
+            .is_some_and(|note| note.contains("does not mean applied")));
+
+        let description = CanvasOpTool::new().description().await.expect("description");
+        assert!(description.contains("NOT that they are applied"));
+        assert!(description.contains("verbatim"));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn canvas_op_never_writes_the_document_file() {
+        let root = temp_workspace("doc-untouched");
+        let document = sample_document();
+        write_document(&root, &document).await;
+        let document_path = root
+            .join(".void")
+            .join("infinite-canvas")
+            .join("doc-1.json");
+        let before = tokio::fs::read_to_string(&document_path)
+            .await
+            .expect("document before");
+
+        let _ = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "image", "position": { "x": 0, "y": 0 } },
+                { "op": "delete_node", "nodeId": "node-blank" }
+            ])),
+        )
+        .await;
+
+        let after = tokio::fs::read_to_string(&document_path)
+            .await
+            .expect("document after");
+        assert_eq!(
+            before, after,
+            "the canvas document's only writer is the front end"
+        );
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn canvas_op_requires_no_permission_prompt_and_is_not_readonly() {
+        let tool = CanvasOpTool::new();
+        assert!(!tool.is_readonly());
+        assert!(!tool.needs_permissions(None));
+    }
+
+    #[tokio::test]
+    async fn corrupted_journal_is_treated_as_empty_but_seq_honors_the_watermark() {
+        let root = temp_workspace("journal-corrupted");
+        let mut document = sample_document();
+        document["agentOps"] = json!({ "appliedSeq": 41 });
+        write_document(&root, &document).await;
+        let dir = root.join(".void").join("infinite-canvas");
+        tokio::fs::create_dir_all(&dir).await.expect("dir");
+        tokio::fs::write(journal_path(&root), b"{ not json")
+            .await
+            .expect("write corrupted journal");
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 0, "y": 0 } }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "accepted");
+        // Seq floor = document appliedSeq, so a reset journal can never hand
+        // out seqs the front end would skip as already applied.
+        assert_eq!(data["seq"], 42);
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn missing_document_is_a_typed_not_found_result() {
+        let root = temp_workspace("no-doc");
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 0, "y": 0 } }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "document_not_found");
+
+        let _ = tokio::fs::remove_dir_all(root).await;
     }
 }

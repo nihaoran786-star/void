@@ -404,6 +404,7 @@ mod tests {
             "GenerateSpeech",
             "TranscribeAudio",
             "CanvasRead",
+            "CanvasOp",
         ];
 
         assert_eq!(
@@ -605,6 +606,7 @@ mod tests {
                 "GenerateSpeech",
                 "TranscribeAudio",
                 "CanvasRead",
+                "CanvasOp",
             ],
             "collapsed tool manifest must stay stable before moving registry or manifest ownership"
         );

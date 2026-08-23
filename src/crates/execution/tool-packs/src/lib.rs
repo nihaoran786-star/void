@@ -171,6 +171,7 @@ const PRODUCT_TOOL_PROVIDER_GROUP_PLAN: &[ToolProviderGroupPlan] = &[
             "GenerateSpeech",
             "TranscribeAudio",
             "CanvasRead",
+            "CanvasOp",
         ],
     },
 ];
@@ -334,6 +335,7 @@ mod tests {
                 "GenerateSpeech",
                 "TranscribeAudio",
                 "CanvasRead",
+                "CanvasOp",
             ]
         );
     }

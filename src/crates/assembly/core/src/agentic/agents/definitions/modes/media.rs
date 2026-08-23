@@ -37,6 +37,7 @@ impl MediaMode {
                 "GenerateSpeech".to_string(),
                 "TranscribeAudio".to_string(),
                 "CanvasRead".to_string(),
+                "CanvasOp".to_string(),
             ],
         }
     }

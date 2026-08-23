@@ -54,7 +54,7 @@ pub use analyze_image_tool::AnalyzeImageTool;
 pub use ask_user_question_tool::AskUserQuestionTool;
 pub use bash_tool::BashTool;
 pub use call_deferred_tool::CallDeferredTool;
-pub use canvas_tools::CanvasReadTool;
+pub use canvas_tools::{CanvasOpTool, CanvasReadTool};
 pub use code_review_tool::CodeReviewTool;
 pub use computer_use_mouse_click_tool::ComputerUseMouseClickTool;
 pub use computer_use_mouse_precise_tool::ComputerUseMousePreciseTool;
