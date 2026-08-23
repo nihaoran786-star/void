@@ -57,6 +57,33 @@ import './SessionScene.scss';
 
 const AuxPane = React.lazy(() => import('./AuxPane'));
 
+/**
+ * A capability click that fails must never fail silently: surface the typed
+ * reason as a toast so the user (and support) can see why nothing opened.
+ */
+function reportSessionCanvasCapabilityFailure(
+  intent: SessionCanvasCapabilityIntent,
+  result: Awaited<ReturnType<typeof openFirstPartyCanvasCapability>>,
+): Awaited<ReturnType<typeof openFirstPartyCanvasCapability>> {
+  if (result.status === 'error'
+    || result.status === 'unavailable'
+    || result.status === 'restricted'
+    || result.status === 'incompatible'
+  ) {
+    const reason = result.status === 'error'
+      ? result.error.message
+      : result.reason;
+    console.error(
+      '[SessionScene] Canvas capability open failed',
+      { capabilityId: intent.capabilityId, result },
+    );
+    void import('@/shared/notification-system').then(({ notificationService }) => {
+      notificationService.error(`${intent.capabilityId}: ${reason}`);
+    });
+  }
+  return result;
+}
+
 interface SessionCanvasCapabilityIntent {
   capabilityId: SessionCapabilityId;
   source: 'capability-rail' | 'restore';
@@ -430,7 +457,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
   const dispatchSessionCanvasCapability = useCallback(async (
     intent: SessionCanvasCapabilityIntent,
-  ) => openFirstPartyCanvasCapability({
+  ) => reportSessionCanvasCapabilityFailure(intent, await openFirstPartyCanvasCapability({
     capabilityId: intent.capabilityId,
     source: intent.source,
     input: undefined,
@@ -463,7 +490,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
           },
     ...(intent.sourceSessionId ? { sourceSessionId: intent.sourceSessionId } : {}),
     ...(intent.deliveryScope ? { deliveryScope: intent.deliveryScope } : {}),
-  }), []);
+  })), []);
 
   const handleAuxPaneReady = useCallback(() => {
     setIsAuxPaneReady(true);
