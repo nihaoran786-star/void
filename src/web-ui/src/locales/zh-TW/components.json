@@ -926,7 +926,8 @@
     "loadFailed": "畫布模組載入失敗，請關閉頁籤後重試。",
     "toolbar": {
       "addText": "新增文字",
-      "addImage": "新增圖片"
+      "addImage": "新增圖片",
+      "addGenerationCard": "新建生成卡"
     },
     "textNode": {
       "ariaLabel": "文字節點",
@@ -966,9 +967,39 @@
       "inpaint": "局部重繪",
       "erase": "智慧擦除",
       "matting": "智慧去背",
-      "unavailableTitle": "第二期開通",
-      "unavailableBody": "圖像編輯工具將在第二期開放，目前僅提供入口佔位。",
+      "instructionTitle": "補全指令",
+      "instructionHint": "確認前請補全所有【】佔位內容。",
+      "instructionLabel": "工具指令",
+      "confirm": "確認生成",
+      "cancel": "取消",
       "dismiss": "知道了"
+    },
+    "generation": {
+      "promptLabel": "生成提示詞",
+      "promptPlaceholder": "描述要生成的畫面…",
+      "generate": "生成",
+      "regenerate": "再生成（新卡）",
+      "pending": "生成中…",
+      "blankHint": "寫好提示詞後點擊生成。",
+      "failedTitle": "生成失敗",
+      "retry": "重試",
+      "remove": "刪除",
+      "derivedBadgeLabel": "衍生版本",
+      "derivedFromGenerate": "再生成",
+      "referencesLabel": "參考順序",
+      "noticeTitle": "畫布出圖",
+      "promptRequired": "請先在卡片上寫提示詞。",
+      "referenceNotReady": "參考卡還沒有圖，先等它完成或斷開連線。",
+      "noSession": "請先在會話中打開畫布。",
+      "errorKind": {
+        "unavailable": "出圖通道暫不可用。",
+        "auth": "出圖渠道未設定或憑證失效。",
+        "rate-limit": "請求過於頻繁，請稍後重試。",
+        "timeout": "出圖逾時，可重試。",
+        "invalid-input": "任務輸入無效或被拒絕。",
+        "backend": "出圖失敗，請重試。",
+        "cancelled": "任務已取消。"
+      }
     }
   },
   "agentStudio": {

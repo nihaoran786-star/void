@@ -67,6 +67,14 @@ vi.mock('./infiniteCanvasDocumentGateway', () => ({
   },
 }));
 
+// The real runtime module pulls flow_chat singletons; tests always inject a
+// fake runtime through the panel prop instead.
+vi.mock('./infiniteCanvasGenerationRuntime', () => ({
+  createInfiniteCanvasGenerationRuntime: () => {
+    throw new Error('Tests must inject a generation runtime.');
+  },
+}));
+
 import type { StylePreset } from '@/shared/services/style-preset';
 import { StylePresetCatalog } from '@/shared/services/style-preset';
 import type {
@@ -183,6 +191,16 @@ const IMAGE_NODE = {
 };
 
 describe('InfiniteCanvasPanel M4 interactions', () => {
+  const stubRuntime = {
+    gateway: {
+      invoke: vi.fn(async (invocation: { operationId: string }) => ({
+        operationId: invocation.operationId,
+        status: 'succeeded' as const,
+      })),
+    },
+    hasTargetSession: () => true,
+  };
+
   let dom: JSDOM;
   let container: HTMLDivElement;
   let root: Root;
@@ -206,6 +224,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     memory = createInMemoryInfiniteCanvasPersistence();
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     flow.props = null;
+    stubRuntime.gateway.invoke.mockClear();
   });
 
   afterEach(() => {
@@ -225,6 +244,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
           resolvePreviewUrl={async () => undefined}
           mediaLibrary={READY_LIBRARY}
           catalog={TEST_CATALOG}
+          generationRuntime={stubRuntime}
           {...props}
         />,
       );
@@ -313,7 +333,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     expect(readDocument(memory).nodes[0]).not.toHaveProperty('stylePresetId');
   });
 
-  it('renders the five contract tools and shows the typed phase-2 unavailable state', async () => {
+  it('renders the five contract tools and opens the instruction dialog on click', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
@@ -323,20 +343,27 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
 
     await clickButton(button => button.getAttribute('data-tool-id') === 'expand');
 
-    const notice = container.querySelector('.infinite-canvas-panel__tool-notice');
-    expect(notice).not.toBeNull();
-    expect(notice!.getAttribute('data-error-kind')).toBe('unavailable');
-    expect(notice!.getAttribute('data-tool-id')).toBe('expand');
+    // The click only opens the 【】 completion dialog: nothing is dispatched,
+    // derived, or overwritten until the instruction is confirmed.
+    const dialog = container.querySelector('.infinite-canvas-dialog');
+    expect(dialog).not.toBeNull();
+    expect(dialog!.getAttribute('data-tool-id')).toBe('expand');
+    const input = dialog!.querySelector('textarea');
+    expect(input!.value).toContain('【');
 
-    // The placeholder derives nothing, overwrites nothing, and calls no network.
+    // Confirm stays disabled while 【】 placeholders remain.
+    const confirm = dialog!.querySelector('.infinite-canvas-dialog__confirm');
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+
+    expect(stubRuntime.gateway.invoke).not.toHaveBeenCalled();
     await service.flushPendingWrites();
     const persisted = readDocument(memory);
     expect(persisted.nodes).toHaveLength(1);
     expect(persisted.nodes[0]).toMatchObject({ mediaRef: IMAGE_NODE.mediaRef });
     expect(fetchSpy).not.toHaveBeenCalled();
 
-    await clickButton(button => button.textContent === 'infiniteCanvas.tools.dismiss');
-    expect(container.querySelector('.infinite-canvas-panel__tool-notice')).toBeNull();
+    await clickButton(button => button.textContent === 'infiniteCanvas.tools.cancel');
+    expect(container.querySelector('.infinite-canvas-dialog')).toBeNull();
   });
 
   it('keeps documents isolated per workspace', async () => {

@@ -86,7 +86,12 @@ describe('infinite-canvas Canvas surface', () => {
 
     const content = useAgentCanvasStore.getState().primaryGroup.tabs[0]?.content;
     expect(content).toMatchObject({
-      data: { workspacePath: LOCAL_WORKSPACE.workspacePath },
+      // K2: the opening session travels in the presentation data so the panel
+      // can prefer it as the dispatch target.
+      data: {
+        workspacePath: LOCAL_WORKSPACE.workspacePath,
+        sourceSessionId: 'session-1',
+      },
       metadata: {
         canvasSurfaceId: INFINITE_CANVAS_SURFACE_ID,
         canvasSurfaceInstanceKey:

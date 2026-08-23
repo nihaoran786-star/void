@@ -7,6 +7,8 @@ import { useCanvasWorkspaceFacts } from './useCanvasWorkspaceFacts';
 
 interface InfiniteCanvasSurfaceInput {
   workspacePath: string;
+  /** Session that opened the surface; the panel's preferred dispatch target. */
+  sourceSessionId?: string;
 }
 
 /**
@@ -36,6 +38,7 @@ type InfiniteCanvasPanelComponent = React.ComponentType<{
   workspaceId: string;
   workspacePath: string;
   isActive: boolean;
+  sourceSessionId?: string;
 }>;
 
 const InfiniteCanvasPanel = React.lazy<InfiniteCanvasPanelComponent>(() => (
@@ -102,6 +105,7 @@ export const InfiniteCanvasSurfaceRenderer: React.FC<CanvasSurfaceRendererProps>
         workspaceId={workspace.workspaceId}
         workspacePath={workspace.workspacePath}
         isActive={isActive}
+        sourceSessionId={input?.sourceSessionId}
       />
     </React.Suspense>
   );

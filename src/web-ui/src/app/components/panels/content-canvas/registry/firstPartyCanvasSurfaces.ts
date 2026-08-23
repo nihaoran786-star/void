@@ -258,6 +258,11 @@ const infiniteCanvasSurfaceDefinition: CanvasSurfaceDefinition = {
     title: 'Infinite Canvas',
     data: {
       workspacePath: context.workspace.workspacePath,
+      // K2: the panel prefers the opening session as its dispatch target, so
+      // the presentation data carries it alongside the metadata echo.
+      ...(context.sourceSessionId
+        ? { sourceSessionId: context.sourceSessionId }
+        : {}),
     },
     metadata: {
       duplicateCheckKey: `infinite-canvas:${context.workspace.workspaceId}`,

@@ -16,6 +16,7 @@ import {
   removeFailedOperationContent,
   removeNodesContent,
   resolveOperationContent,
+  retryOperationContent,
   setNodeStylePresetContent,
   setNodeTextContent,
   setViewportContent,
@@ -385,6 +386,54 @@ describe('infiniteCanvasPanelModel', () => {
         status: 'pending',
         batchId: 'batch-42',
       });
+    });
+
+    it('re-arms a failed operation for retry under a fresh operationId', () => {
+      const document = makeSourceDocument();
+      const begun = beginDerivedOperationContent(
+        document, 'src', 'inpaint', 'op-1', 'derived-1', 'edge-1',
+      );
+      const withPlaceholder = { ...document, nodes: begun.nodes, edges: begun.edges };
+      const failed = failOperationContent(withPlaceholder, 'op-1', 'backend');
+      const withFailed = { ...withPlaceholder, nodes: failed.nodes };
+
+      const retried = retryOperationContent(withFailed, 'op-1', 'op-2');
+
+      expect(retried.nodes[1].generation).toEqual({
+        operationId: 'op-2',
+        toolId: 'inpaint',
+        resultMode: 'derived',
+        status: 'pending',
+      });
+      // Identity, derivation, and edges are untouched by the retry.
+      expect(retried.nodes[1].nodeId).toBe('derived-1');
+      expect(retried.nodes[1].derivedFrom).toEqual({
+        sourceNodeId: 'src', toolId: 'inpaint', operationId: 'op-1',
+      });
+      expect(retried.edges).toEqual(withFailed.edges);
+    });
+
+    it('refuses to re-arm operations that are pending or already carry an image', () => {
+      const document = makeSourceDocument();
+      const begun = beginDerivedOperationContent(
+        document, 'src', 'inpaint', 'op-1', 'derived-1', 'edge-1',
+      );
+      const withPlaceholder = { ...document, nodes: begun.nodes, edges: begun.edges };
+
+      // Still pending: nothing changes.
+      expect(retryOperationContent(withPlaceholder, 'op-1', 'op-2').nodes)
+        .toEqual(withPlaceholder.nodes);
+
+      // Illegal-by-construction failed node that has an image: never re-armed.
+      const failed = failOperationContent(withPlaceholder, 'op-1', 'backend');
+      const withImage = {
+        ...withPlaceholder,
+        nodes: failed.nodes.map(node => (
+          node.nodeId === 'derived-1' ? { ...node, mediaRef: { ...OUTPUT_MEDIA_REF } } : node
+        )),
+      };
+      expect(retryOperationContent(withImage, 'op-1', 'op-2').nodes)
+        .toEqual(withImage.nodes);
     });
 
     it('removes only failed, image-less placeholders together with their edges', () => {

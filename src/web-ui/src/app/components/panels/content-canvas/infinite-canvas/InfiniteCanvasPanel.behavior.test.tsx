@@ -68,6 +68,14 @@ vi.mock('./infiniteCanvasDocumentGateway', () => ({
   },
 }));
 
+// The real runtime module pulls flow_chat singletons; tests always inject a
+// fake runtime through the panel prop instead.
+vi.mock('./infiniteCanvasGenerationRuntime', () => ({
+  createInfiniteCanvasGenerationRuntime: () => {
+    throw new Error('Tests must inject a generation runtime.');
+  },
+}));
+
 import {
   createInMemoryInfiniteCanvasPersistence,
   defaultInfiniteCanvasDocumentId,
@@ -150,6 +158,16 @@ describe('InfiniteCanvasPanel', () => {
     vi.unstubAllGlobals();
   });
 
+  const stubRuntime = {
+    gateway: {
+      invoke: async (invocation: { operationId: string }) => ({
+        operationId: invocation.operationId,
+        status: 'succeeded' as const,
+      }),
+    },
+    hasTargetSession: () => true,
+  };
+
   async function renderPanel(props: Partial<React.ComponentProps<typeof InfiniteCanvasPanel>> = {}) {
     await act(async () => {
       root.render(
@@ -159,6 +177,7 @@ describe('InfiniteCanvasPanel', () => {
           isActive
           service={service}
           resolvePreviewUrl={async () => undefined}
+          generationRuntime={stubRuntime}
           {...props}
         />,
       );

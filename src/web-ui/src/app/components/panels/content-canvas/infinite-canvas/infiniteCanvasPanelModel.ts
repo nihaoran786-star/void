@@ -327,6 +327,36 @@ export function attachBatchToOperationContent(
 }
 
 /**
+ * Re-arms a failed operation for retry: the node keeps its identity, prompt,
+ * and derivation edge, but its generation is replaced with a fresh pending
+ * state under the next operationId. Self and derived retries share this one
+ * path. Nodes that are not in a failed state, or that already carry a
+ * mediaRef, are left untouched.
+ */
+export function retryOperationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  previousOperationId: string,
+  nextOperationId: string,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      if (node.generation?.operationId !== previousOperationId) return node;
+      if (node.generation.status !== 'failed' || node.mediaRef !== undefined) return node;
+      return {
+        ...node,
+        generation: {
+          operationId: nextOperationId,
+          toolId: node.generation.toolId,
+          resultMode: node.generation.resultMode,
+          status: 'pending' as const,
+        },
+      };
+    }),
+  };
+}
+
+/**
  * Removes a failed operation placeholder — a plain node removal, restricted to
  * nodes whose generation actually failed and that never received a mediaRef.
  */

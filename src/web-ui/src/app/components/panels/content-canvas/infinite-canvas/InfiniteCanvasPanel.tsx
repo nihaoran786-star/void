@@ -6,6 +6,11 @@
  * loads it once, mirrors it into reactflow view state, and routes every edit
  * back through DocumentService commands (coalesced CAS writes). The component
  * never persists anything itself.
+ *
+ * K2 (W6) closes the creation loop: all three entry points — blank-card
+ * text-to-image, regenerate, and the five image tools — register a pending
+ * generation first, then dispatch one task message through the session
+ * gateway; the media bridge lands results back while the panel is mounted.
  */
 import React from 'react';
 import {
@@ -26,14 +31,20 @@ import '@xyflow/react/dist/style.css';
 import { useI18n } from '@/infrastructure/i18n';
 import type {
   ImageToolErrorKind,
-  ImageToolGateway,
   ImageToolId,
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasDocumentService,
+  InfiniteCanvasMediaBridgeEventBus,
   InfiniteCanvasMutator,
+  SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
-import { placeholderImageToolGateway } from '@/shared/services/infinite-canvas';
+import {
+  connectInfiniteCanvasMediaBridgeToEventBus,
+  createInfiniteCanvasMediaBridge,
+  defaultInfiniteCanvasDocumentId,
+  referenceImageLabel,
+} from '@/shared/services/infinite-canvas';
 import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
 import type { WorkspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaTypes';
@@ -42,21 +53,35 @@ import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-med
 import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
 import { getInfiniteCanvasDocumentService } from './infiniteCanvasDocumentGateway';
 import {
+  createInfiniteCanvasGenerationRuntime,
+  type InfiniteCanvasGenerationRuntime,
+} from './infiniteCanvasGenerationRuntime';
+import {
   addImageNodeContent,
   addTextNodeContent,
+  beginDerivedOperationContent,
   connectNodesContent,
   createInfiniteCanvasId,
+  failOperationContent,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   moveNodeContent,
   removeEdgesContent,
+  removeFailedOperationContent,
   removeNodesContent,
+  retryOperationContent,
   setNodeStylePresetContent,
   setNodeTextContent,
   setViewportContent,
   toFlowEdgeViews,
   toFlowNodeViews,
 } from './infiniteCanvasPanelModel';
+import {
+  addBlankGenerationCardContent,
+  beginSelfGenerationContent,
+  collectReferenceNodes,
+  setNodePromptContent,
+} from './infiniteCanvasGenerationModel';
 import {
   InfiniteCanvasImageNode,
   InfiniteCanvasTextNode,
@@ -65,6 +90,7 @@ import {
 } from './InfiniteCanvasNodes';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
+import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
 import './InfiniteCanvasPanel.scss';
 
 // The node renderers take their narrowed data props; reactflow's NodeTypes is
@@ -93,31 +119,68 @@ type PanelState =
   | { phase: 'ready' }
   | { phase: 'failed'; error: InfiniteCanvasDocumentError };
 
-interface ImageToolNotice {
+interface GenerationNotice {
+  /** i18n key under the components namespace. */
+  messageKey: string;
+  errorKind?: ImageToolErrorKind;
+}
+
+interface ToolDialogRequest {
+  nodeId: string;
   toolId: ImageToolId;
-  errorKind: ImageToolErrorKind;
+}
+
+interface NodeActions {
+  commitText: (nodeId: string, text: string) => void;
+  commitPrompt: (nodeId: string, prompt: string) => void;
+  generate: (nodeId: string) => void;
+  openTool: (nodeId: string, toolId: ImageToolId) => void;
+  retry: (nodeId: string) => void;
+  removeFailed: (nodeId: string) => void;
+}
+
+/** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
+function referenceLabelsByNode(
+  document: Readonly<InfiniteCanvasDocument>,
+): Map<string, string[]> {
+  const labels = new Map<string, string[]>();
+  for (const node of document.nodes) {
+    if (node.kind !== 'image') continue;
+    const collected = collectReferenceNodes(document, node.nodeId);
+    if (collected.status !== 'ok' || collected.references.length === 0) continue;
+    labels.set(
+      node.nodeId,
+      collected.references.map(reference => referenceImageLabel(reference.order)),
+    );
+  }
+  return labels;
 }
 
 export interface InfiniteCanvasPanelProps {
   workspaceId: string;
   workspacePath: string;
   isActive: boolean;
+  /** Session that opened the canvas surface; preferred dispatch target. */
+  sourceSessionId?: string;
   /** Injection seams for tests; production uses the shared singletons. */
   service?: InfiniteCanvasDocumentService;
   resolvePreviewUrl?: InfiniteCanvasImagePreviewResolver;
   mediaLibrary?: WorkspaceMediaLibraryService;
   catalog?: StylePresetCatalog;
-  imageToolGateway?: ImageToolGateway;
+  generationRuntime?: InfiniteCanvasGenerationRuntime;
+  mediaEventBus?: InfiniteCanvasMediaBridgeEventBus;
 }
 
 export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   workspaceId,
   workspacePath,
+  sourceSessionId,
   service: injectedService,
   resolvePreviewUrl = defaultPreviewResolver,
   mediaLibrary = workspaceMediaLibraryService,
   catalog = stylePresetCatalog,
-  imageToolGateway = placeholderImageToolGateway,
+  generationRuntime: injectedRuntime,
+  mediaEventBus,
 }) => {
   const { t } = useI18n('components');
   const service = React.useMemo(
@@ -127,6 +190,19 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const workspaceRef = React.useMemo(
     () => ({ workspaceId, workspacePath, backend: 'local' as const }),
     [workspaceId, workspacePath],
+  );
+  const documentId = React.useMemo(
+    () => defaultInfiniteCanvasDocumentId(workspaceId),
+    [workspaceId],
+  );
+  const runtime = React.useMemo(
+    () => injectedRuntime ?? createInfiniteCanvasGenerationRuntime({
+      workspaceId,
+      documentId,
+      sourceSessionId,
+      catalog,
+    }),
+    [catalog, documentId, injectedRuntime, sourceSessionId, workspaceId],
   );
 
   const [state, setState] = React.useState<PanelState>({ phase: 'loading' });
@@ -141,32 +217,27 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   const [imagePickerOpen, setImagePickerOpen] = React.useState(false);
   const [stylePickerNodeId, setStylePickerNodeId] = React.useState<string | null>(null);
-  const [toolNotice, setToolNotice] = React.useState<ImageToolNotice | null>(null);
+  const [notice, setNotice] = React.useState<GenerationNotice | null>(null);
+  const [toolDialog, setToolDialog] = React.useState<ToolDialogRequest | null>(null);
 
-  const commitText = React.useRef<(nodeId: string, text: string) => void>(() => undefined);
+  // Node callbacks flow through this ref so projectDocument stays stable while
+  // the handlers depend on it (same seam the M3 commitText path used).
+  const nodeActionsRef = React.useRef<NodeActions>({
+    commitText: () => undefined,
+    commitPrompt: () => undefined,
+    generate: () => undefined,
+    openTool: () => undefined,
+    retry: () => undefined,
+    removeFailed: () => undefined,
+  });
 
   const openStylePicker = React.useCallback((nodeId: string) => {
     setStylePickerNodeId(nodeId);
   }, []);
 
-  // Phase-1 tools resolve to the typed `unavailable` placeholder (K0-2): the
-  // gateway performs no network call and the notice states it explicitly.
-  const runImageTool = React.useCallback((nodeId: string, toolId: ImageToolId) => {
-    void imageToolGateway.invoke({
-      operationId: createInfiniteCanvasId('op'),
-      toolId,
-      sourceNodeId: nodeId,
-    }).then(result => {
-      if (result.status === 'failed' && result.error) {
-        setToolNotice({ toolId, errorKind: result.error.kind });
-      } else {
-        setToolNotice(null);
-      }
-    });
-  }, [imageToolGateway]);
-
   const projectDocument = React.useCallback((document: InfiniteCanvasDocument) => {
     documentRef.current = document;
+    const referenceLabels = referenceLabelsByNode(document);
     setFlowNodes(toFlowNodeViews(document.nodes).map(view => ({
       id: view.id,
       type: view.type,
@@ -174,21 +245,37 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       data: view.type === INFINITE_CANVAS_TEXT_NODE_TYPE
         ? {
             text: view.data.text ?? '',
-            onCommitText: (nodeId: string, text: string) => commitText.current(nodeId, text),
+            onCommitText: (nodeId: string, text: string) => (
+              nodeActionsRef.current.commitText(nodeId, text)
+            ),
           }
         : {
-            mediaRef: view.data.mediaRef!,
+            mediaRef: view.data.mediaRef,
+            prompt: view.data.prompt,
+            generation: view.data.generation,
+            derivedFrom: view.data.derivedFrom,
+            referenceLabels: referenceLabels.get(view.id) ?? [],
             stylePresetId: view.data.stylePresetId,
             stylePresetName: view.data.stylePresetId
               ? catalog.getById(view.data.stylePresetId)?.name
               : undefined,
             resolvePreviewUrl,
             onOpenStylePicker: openStylePicker,
-            onRunImageTool: runImageTool,
+            onRunImageTool: (nodeId: string, toolId: ImageToolId) => (
+              nodeActionsRef.current.openTool(nodeId, toolId)
+            ),
+            onCommitPrompt: (nodeId: string, prompt: string) => (
+              nodeActionsRef.current.commitPrompt(nodeId, prompt)
+            ),
+            onGenerate: (nodeId: string) => nodeActionsRef.current.generate(nodeId),
+            onRetryGeneration: (nodeId: string) => nodeActionsRef.current.retry(nodeId),
+            onRemoveFailedGeneration: (nodeId: string) => (
+              nodeActionsRef.current.removeFailed(nodeId)
+            ),
           },
     })));
     setFlowEdges(toFlowEdgeViews(document.edges));
-  }, [catalog, openStylePicker, resolvePreviewUrl, runImageTool]);
+  }, [catalog, openStylePicker, resolvePreviewUrl]);
 
   const commit = React.useCallback(async (mutator: InfiniteCanvasMutator) => {
     const result = await service.mutateDefaultDocument(workspaceRef, mutator);
@@ -199,11 +286,230 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     }
   }, [projectDocument, service, workspaceRef]);
 
+  /** Re-projects the shared in-memory truth after bridge-side mutations. */
+  const refreshFromService = React.useCallback(async () => {
+    const result = await service.loadDefaultDocument(workspaceRef);
+    if (result.status !== 'failed') projectDocument(result.document);
+  }, [projectDocument, service, workspaceRef]);
+
+  // —— Generation dispatch (three entries, one lane) ————————————————————————
+
+  const findImageNode = React.useCallback((nodeId: string) => {
+    const document = documentRef.current;
+    const node = document?.nodes.find(candidate => candidate.nodeId === nodeId);
+    if (!document || !node || node.kind !== 'image') return undefined;
+    return { document, node };
+  }, []);
+
+  /**
+   * Sends one already-registered pending operation through the gateway and
+   * rolls the pending state back to a typed failure when dispatch fails.
+   */
+  const submitOperation = React.useCallback(async (
+    invocation: SessionImageGenerationInvocation,
+  ) => {
+    const result = await runtime.gateway.invoke(invocation);
+    if (result.status === 'failed') {
+      const errorKind = result.error?.kind ?? 'backend';
+      await commit(document => failOperationContent(
+        document,
+        invocation.operationId,
+        errorKind,
+      ));
+      setNotice({
+        messageKey: `infiniteCanvas.generation.errorKind.${errorKind}`,
+        errorKind,
+      });
+    }
+  }, [commit, runtime]);
+
+  /** Shared pre-dispatch gate: prompt, ordered references, target session. */
+  const prepareDispatch = React.useCallback((
+    document: Readonly<InfiniteCanvasDocument>,
+    referenceTargetNodeId: string,
+    prompt: string,
+  ) => {
+    if (!prompt.trim()) {
+      setNotice({ messageKey: 'infiniteCanvas.generation.promptRequired' });
+      return undefined;
+    }
+    const collected = collectReferenceNodes(document, referenceTargetNodeId);
+    if (collected.status === 'error') {
+      setNotice({ messageKey: 'infiniteCanvas.generation.referenceNotReady' });
+      return undefined;
+    }
+    if (!runtime.hasTargetSession()) {
+      setNotice({ messageKey: 'infiniteCanvas.generation.noSession' });
+      return undefined;
+    }
+    setNotice(null);
+    return collected.references;
+  }, [runtime]);
+
+  const generateForNode = React.useCallback(async (nodeId: string) => {
+    const found = findImageNode(nodeId);
+    if (!found) return;
+    const { document, node } = found;
+    if (node.generation?.status === 'pending') return;
+    const prompt = (node.prompt ?? '').trim();
+    const references = prepareDispatch(document, nodeId, prompt);
+    if (!references) return;
+
+    const operationId = createInfiniteCanvasId('op');
+    if (node.mediaRef === undefined) {
+      // Blank card first shot: the result lands in the card itself.
+      await commit(current => beginSelfGenerationContent(current, nodeId, operationId));
+      await submitOperation({
+        operationId,
+        kind: 'generate',
+        resultMode: 'self',
+        nodeId,
+        prompt,
+        stylePresetId: node.stylePresetId,
+        references,
+      });
+      return;
+    }
+
+    // Regenerate on a card that already has an image: derive a new card; the
+    // source card and its mediaRef are never touched.
+    const derivedNodeId = createInfiniteCanvasId('node');
+    const edgeId = createInfiniteCanvasId('edge');
+    await commit(current => {
+      const begun = beginDerivedOperationContent(
+        current,
+        nodeId,
+        'generate',
+        operationId,
+        derivedNodeId,
+        edgeId,
+      );
+      return setNodePromptContent({ ...current, ...begun }, derivedNodeId, prompt);
+    });
+    await submitOperation({
+      operationId,
+      kind: 'generate',
+      resultMode: 'derived',
+      nodeId: derivedNodeId,
+      sourceNodeId: nodeId,
+      prompt,
+      stylePresetId: node.stylePresetId,
+      references,
+    });
+  }, [commit, findImageNode, prepareDispatch, submitOperation]);
+
+  const confirmToolInstruction = React.useCallback(async (instruction: string) => {
+    const request = toolDialog;
+    setToolDialog(null);
+    if (!request) return;
+    const found = findImageNode(request.nodeId);
+    if (!found) return;
+    const { document, node } = found;
+    if (!node.mediaRef) return;
+    const references = prepareDispatch(document, request.nodeId, instruction);
+    if (!references) return;
+
+    const operationId = createInfiniteCanvasId('op');
+    const derivedNodeId = createInfiniteCanvasId('node');
+    const edgeId = createInfiniteCanvasId('edge');
+    await commit(current => {
+      const begun = beginDerivedOperationContent(
+        current,
+        request.nodeId,
+        request.toolId,
+        operationId,
+        derivedNodeId,
+        edgeId,
+      );
+      return setNodePromptContent({ ...current, ...begun }, derivedNodeId, instruction);
+    });
+    await submitOperation({
+      operationId,
+      kind: request.toolId,
+      resultMode: 'derived',
+      nodeId: derivedNodeId,
+      sourceNodeId: request.nodeId,
+      prompt: instruction,
+      stylePresetId: node.stylePresetId,
+      references,
+      editTargetMediaRef: node.mediaRef,
+    });
+  }, [commit, findImageNode, prepareDispatch, submitOperation, toolDialog]);
+
+  const retryGeneration = React.useCallback(async (nodeId: string) => {
+    const found = findImageNode(nodeId);
+    if (!found) return;
+    const { document, node } = found;
+    const generation = node.generation;
+    if (!generation || generation.status !== 'failed') return;
+
+    const isDerived = generation.resultMode === 'derived';
+    const sourceNodeId = node.derivedFrom?.sourceNodeId;
+    const source = sourceNodeId
+      ? document.nodes.find(candidate => candidate.nodeId === sourceNodeId)
+      : undefined;
+    if (isDerived && (!sourceNodeId || !source)) {
+      setNotice({ messageKey: 'infiniteCanvas.generation.errorKind.invalid-input' });
+      return;
+    }
+    if (isDerived && generation.toolId !== 'generate' && !source?.mediaRef) {
+      setNotice({ messageKey: 'infiniteCanvas.generation.errorKind.invalid-input' });
+      return;
+    }
+
+    const prompt = (node.prompt ?? '').trim();
+    const referenceTargetNodeId = isDerived ? sourceNodeId! : nodeId;
+    const references = prepareDispatch(document, referenceTargetNodeId, prompt);
+    if (!references) return;
+
+    const nextOperationId = createInfiniteCanvasId('op');
+    await commit(current => retryOperationContent(
+      current,
+      generation.operationId,
+      nextOperationId,
+    ));
+    await submitOperation({
+      operationId: nextOperationId,
+      kind: generation.toolId,
+      resultMode: generation.resultMode,
+      nodeId,
+      ...(isDerived ? { sourceNodeId } : {}),
+      prompt,
+      stylePresetId: isDerived ? source?.stylePresetId : node.stylePresetId,
+      references,
+      ...(isDerived && generation.toolId !== 'generate' && source?.mediaRef
+        ? { editTargetMediaRef: source.mediaRef }
+        : {}),
+    });
+  }, [commit, findImageNode, prepareDispatch, submitOperation]);
+
   React.useEffect(() => {
-    commitText.current = (nodeId, text) => {
-      void commit(document => setNodeTextContent(document, nodeId, text));
+    nodeActionsRef.current = {
+      commitText: (nodeId, text) => {
+        void commit(document => setNodeTextContent(document, nodeId, text));
+      },
+      commitPrompt: (nodeId, prompt) => {
+        void commit(document => setNodePromptContent(document, nodeId, prompt));
+      },
+      generate: nodeId => {
+        void generateForNode(nodeId);
+      },
+      openTool: (nodeId, toolId) => {
+        const found = findImageNode(nodeId);
+        if (!found?.node.mediaRef) return;
+        setToolDialog({ nodeId, toolId });
+      },
+      retry: nodeId => {
+        void retryGeneration(nodeId);
+      },
+      removeFailed: nodeId => {
+        const found = findImageNode(nodeId);
+        const operationId = found?.node.generation?.operationId;
+        if (!operationId) return;
+        void commit(document => removeFailedOperationContent(document, operationId));
+      },
     };
-  }, [commit]);
+  }, [commit, findImageNode, generateForNode, retryGeneration]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -222,6 +528,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       cancelled = true;
     };
   }, [projectDocument, service, workspaceRef]);
+
+  // The media bridge listens only while the panel is mounted (same trade-off
+  // as the short-drama runtime bridge); W7 reconciliation covers the gap.
+  React.useEffect(() => {
+    if (state.phase !== 'ready') return undefined;
+    const bridge = createInfiniteCanvasMediaBridge({
+      workspace: workspaceRef,
+      documentId,
+      documentService: service,
+      onResult: result => {
+        if (result.status === 'applied') void refreshFromService();
+      },
+    });
+    return connectInfiniteCanvasMediaBridgeToEventBus(bridge, mediaEventBus);
+  }, [documentId, mediaEventBus, refreshFromService, service, state.phase, workspaceRef]);
 
   // Collapsing or closing the tab keeps state: the coalesced write is forced
   // to disk and the next mount reloads the same document from the module.
@@ -284,6 +605,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const onAddText = React.useCallback(() => {
     const position = nextSpawnPosition();
     void commit(document => addTextNodeContent(
+      document,
+      createInfiniteCanvasId('node'),
+      position,
+    ));
+  }, [commit, nextSpawnPosition]);
+
+  const onAddGenerationCard = React.useCallback(() => {
+    const position = nextSpawnPosition();
+    void commit(document => addBlankGenerationCardContent(
       document,
       createInfiniteCanvasId('node'),
       position,
@@ -357,20 +687,26 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         >
           {t('infiniteCanvas.toolbar.addImage')}
         </button>
+        <button
+          type="button"
+          className="infinite-canvas-panel__toolbar-button"
+          onClick={onAddGenerationCard}
+        >
+          {t('infiniteCanvas.toolbar.addGenerationCard')}
+        </button>
       </div>
-      {toolNotice ? (
+      {notice ? (
         <div
           className="infinite-canvas-panel__tool-notice"
           role="alert"
-          data-tool-id={toolNotice.toolId}
-          data-error-kind={toolNotice.errorKind}
+          data-error-kind={notice.errorKind}
         >
-          <strong>{t('infiniteCanvas.tools.unavailableTitle')}</strong>
-          <span>{t('infiniteCanvas.tools.unavailableBody')}</span>
+          <strong>{t('infiniteCanvas.generation.noticeTitle')}</strong>
+          <span>{t(notice.messageKey)}</span>
           <button
             type="button"
             className="infinite-canvas-panel__tool-notice-dismiss"
-            onClick={() => setToolNotice(null)}
+            onClick={() => setNotice(null)}
           >
             {t('infiniteCanvas.tools.dismiss')}
           </button>
@@ -390,6 +726,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           catalog={catalog}
           onPick={onPickStyle}
           onClose={() => setStylePickerNodeId(null)}
+        />
+      ) : null}
+      {toolDialog ? (
+        <InfiniteCanvasToolInstructionDialog
+          toolId={toolDialog.toolId}
+          onConfirm={instruction => {
+            void confirmToolInstruction(instruction);
+          }}
+          onClose={() => setToolDialog(null)}
         />
       ) : null}
       <div

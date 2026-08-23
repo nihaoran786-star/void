@@ -926,7 +926,8 @@
     "loadFailed": "The canvas module failed to load. Close the tab and try again.",
     "toolbar": {
       "addText": "Add text",
-      "addImage": "Add image"
+      "addImage": "Add image",
+      "addGenerationCard": "New generation card"
     },
     "textNode": {
       "ariaLabel": "Text node",
@@ -966,9 +967,39 @@
       "inpaint": "Inpaint",
       "erase": "Erase",
       "matting": "Cutout",
-      "unavailableTitle": "Coming in phase 2",
-      "unavailableBody": "Image editing tools open in phase 2; this button is a placeholder entry.",
+      "instructionTitle": "Complete the instruction",
+      "instructionHint": "Replace every 【】 placeholder before confirming.",
+      "instructionLabel": "Tool instruction",
+      "confirm": "Confirm and generate",
+      "cancel": "Cancel",
       "dismiss": "Got it"
+    },
+    "generation": {
+      "promptLabel": "Generation prompt",
+      "promptPlaceholder": "Describe the image to generate...",
+      "generate": "Generate",
+      "regenerate": "Regenerate as a new card",
+      "pending": "Generating...",
+      "blankHint": "Write a prompt, then generate.",
+      "failedTitle": "Generation failed",
+      "retry": "Retry",
+      "remove": "Delete",
+      "derivedBadgeLabel": "Derived version",
+      "derivedFromGenerate": "Regenerated",
+      "referencesLabel": "Reference order",
+      "noticeTitle": "Canvas generation",
+      "promptRequired": "Write a prompt on the card first.",
+      "referenceNotReady": "A connected reference card has no image yet; wait for it or remove the connection.",
+      "noSession": "Open the canvas from a session first.",
+      "errorKind": {
+        "unavailable": "The generation lane is not available yet.",
+        "auth": "The image provider is not configured or its credentials are invalid.",
+        "rate-limit": "Too many requests; try again shortly.",
+        "timeout": "The generation timed out; you can retry.",
+        "invalid-input": "The task input was invalid or rejected.",
+        "backend": "The generation failed; please retry.",
+        "cancelled": "The task was cancelled."
+      }
     }
   },
   "agentStudio": {
