@@ -150,6 +150,20 @@ fn classified_image_submit_error_results(
     ))
 }
 
+/// P3 R1 mirror of `classified_image_submit_error_results` for GenerateVideo:
+/// same classification and receipt semantics, video-flavoured assistant text.
+fn classified_video_submit_error_results(
+    message: &str,
+    infinite_canvas: Option<Value>,
+) -> Option<Vec<ToolResult>> {
+    let mut error = classify_apimart_error_message(message)?;
+    attach_infinite_canvas_submission_receipt(&mut error, infinite_canvas);
+    Some(ok_result(
+        error,
+        "APIMart video generation request failed.",
+    ))
+}
+
 fn normalize_image_size(value: Option<String>) -> Option<String> {
     let size = value?;
     let trimmed = size.trim();
@@ -799,6 +813,165 @@ mod infinite_canvas_binding_tests {
     }
 }
 
+#[cfg(test)]
+mod generate_video_infinite_canvas_binding_tests {
+    use super::{
+        attach_infinite_canvas_receipt_to_results, attach_infinite_canvas_submission_receipt,
+        classified_video_submit_error_results, ok_result, optional_infinite_canvas_metadata,
+        GenerateVideoTool,
+    };
+    use crate::agentic::media::apimart::provider_not_configured_result;
+    use crate::agentic::media::jobs::build_media_polling_result;
+    use crate::agentic::tools::framework::{Tool, ToolResult};
+    use serde_json::{json, Value};
+
+    fn result_data(results: &[ToolResult]) -> &Value {
+        match results.first().expect("one tool result") {
+            ToolResult::Result { data, .. } => data,
+            other => panic!("expected a data-bearing result, got {other:?}"),
+        }
+    }
+
+    /// P3 video binding: the K2 §3.2 binding shape plus the optional
+    /// `mediaKind: "video"` marker the GenerateVideo path carries.
+    fn sample_video_binding() -> serde_json::Value {
+        json!({
+            "workspaceId": "workspace-1",
+            "documentId": "doc-1",
+            "nodeId": "node-video-1",
+            "resultMode": "derived",
+            "sourceNodeId": "node-image-1",
+            "toolId": "generate",
+            "operationId": "op-video-1",
+            "mediaKind": "video"
+        })
+    }
+
+    #[test]
+    fn generate_video_schema_declares_optional_infinite_canvas_binding() {
+        let schema = GenerateVideoTool::new().input_schema();
+
+        let infinite_canvas = &schema["properties"]["infinite_canvas"];
+        assert_eq!(infinite_canvas["type"], "object");
+        assert!(infinite_canvas["description"]
+            .as_str()
+            .is_some_and(|text| text.contains("verbatim")));
+        // The short-drama binding stays untouched next to the new field.
+        assert_eq!(schema["properties"]["short_drama"]["type"], "object");
+        let required: Vec<&str> = schema["required"]
+            .as_array()
+            .expect("required list")
+            .iter()
+            .filter_map(|value| value.as_str())
+            .collect();
+        assert_eq!(required, vec!["prompt"]);
+    }
+
+    #[test]
+    fn generate_video_accepts_snake_and_camel_infinite_canvas_keys() {
+        let binding = sample_video_binding();
+
+        let snake = json!({ "prompt": "p", "infinite_canvas": binding.clone() });
+        assert_eq!(
+            optional_infinite_canvas_metadata(&snake),
+            Some(binding.clone())
+        );
+
+        let camel = json!({ "prompt": "p", "infiniteCanvas": binding.clone() });
+        assert_eq!(optional_infinite_canvas_metadata(&camel), Some(binding));
+    }
+
+    #[test]
+    fn video_submission_receipt_echoes_infinite_canvas_binding_verbatim() {
+        let mut result = build_media_polling_result(
+            "video",
+            "batch-1",
+            &["task-1".to_string()],
+            Some("prompt"),
+            Some("model"),
+            Some(1),
+            Some("16:9"),
+            Some("16 / 9"),
+        );
+
+        attach_infinite_canvas_submission_receipt(&mut result, Some(sample_video_binding()));
+
+        assert_eq!(result["infiniteCanvas"], sample_video_binding());
+        assert_eq!(result["infiniteCanvas"]["mediaKind"], "video");
+    }
+
+    #[test]
+    fn video_submission_receipt_stays_unchanged_without_infinite_canvas_binding() {
+        let baseline = build_media_polling_result(
+            "video",
+            "batch-1",
+            &["task-1".to_string()],
+            Some("prompt"),
+            Some("model"),
+            Some(1),
+            Some("16:9"),
+            Some("16 / 9"),
+        );
+        let mut result = baseline.clone();
+
+        attach_infinite_canvas_submission_receipt(&mut result, None);
+
+        assert_eq!(result, baseline);
+        assert!(result.get("infiniteCanvas").is_none());
+    }
+
+    #[test]
+    fn video_provider_not_configured_sync_failure_carries_infinite_canvas_receipt() {
+        let results = attach_infinite_canvas_receipt_to_results(
+            ok_result(
+                provider_not_configured_result("GenerateVideo"),
+                "APIMart media token is not configured.",
+            ),
+            Some(sample_video_binding()),
+        );
+
+        let data = result_data(&results);
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "provider_not_configured");
+        assert_eq!(data["infiniteCanvas"], sample_video_binding());
+    }
+
+    #[test]
+    fn classified_video_submit_error_carries_infinite_canvas_receipt() {
+        let results = classified_video_submit_error_results(
+            "APIMart error 429: {\"error\":{\"message\":\"rate limited\"}}",
+            Some(sample_video_binding()),
+        )
+        .expect("classified error results");
+
+        let data = result_data(&results);
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "provider_error");
+        assert_eq!(data["error"]["http_status"], 429);
+        assert_eq!(data["infiniteCanvas"], sample_video_binding());
+    }
+
+    #[test]
+    fn classified_video_submit_error_stays_unchanged_without_binding() {
+        let results =
+            classified_video_submit_error_results("APIMart error 500: upstream broke", None)
+                .expect("classified error results");
+
+        let data = result_data(&results);
+        assert_eq!(data["status"], "error");
+        assert!(data.get("infiniteCanvas").is_none());
+    }
+
+    #[test]
+    fn unclassifiable_video_submit_error_keeps_the_hard_error_path() {
+        assert!(classified_video_submit_error_results(
+            "connection reset by peer",
+            Some(sample_video_binding()),
+        )
+        .is_none());
+    }
+}
+
 pub struct GenerateImageTool;
 
 impl GenerateImageTool {
@@ -1059,6 +1232,10 @@ impl Tool for GenerateVideoTool {
                 "short_drama": {
                     "type": "object",
                     "description": "Optional AI short drama binding metadata. When generating for the AI short drama center, include projectId, stage, artifactId or artifactHandle so the completed media can attach to the right artifact."
+                },
+                "infinite_canvas": {
+                    "type": "object",
+                    "description": "Optional infinite canvas binding metadata. When generating for an infinite canvas card, copy the binding JSON from the canvas task message verbatim (workspaceId, documentId, nodeId, resultMode, toolId, operationId, ...) so the completed media can flow back to the right card."
                 }
             },
             "required": ["prompt"]
@@ -1085,9 +1262,18 @@ impl Tool for GenerateVideoTool {
         input: &Value,
         context: &ToolUseContext,
     ) -> VoidResult<Vec<ToolResult>> {
+        // Extracted before any early exit: every synchronous failure result
+        // below must echo the binding receipt back to the canvas (P3, mirrors
+        // the K2 GenerateImage failure-flow guarantee).
+        let infinite_canvas = optional_infinite_canvas_metadata(input);
         let client = match client_or_not_configured(self.name()).await? {
             Ok(client) => client,
-            Err(result) => return Ok(result),
+            Err(result) => {
+                return Ok(attach_infinite_canvas_receipt_to_results(
+                    result,
+                    infinite_canvas,
+                ))
+            }
         };
         let prompt = prompt_required(input)?;
         let request = video_request_from_input(input);
@@ -1148,8 +1334,10 @@ impl Tool for GenerateVideoTool {
         let response = match client.submit_video_generation(payload).await {
             Ok(response) => response,
             Err(VoidError::Http(message)) => {
-                if let Some(error) = classify_apimart_error_message(&message) {
-                    return Ok(ok_result(error, "APIMart video generation request failed."));
+                if let Some(results) =
+                    classified_video_submit_error_results(&message, infinite_canvas)
+                {
+                    return Ok(results);
                 }
                 return Err(VoidError::Http(message));
             }
@@ -1165,14 +1353,16 @@ impl Tool for GenerateVideoTool {
         let requested_count = task_ids.len().max(1);
         let short_drama = optional_short_drama_metadata(input);
         if task_ids.is_empty() {
+            let mut data = json!({
+                "status": "submitted_but_task_id_missing",
+                "source": "apimart",
+                "kind": "video",
+                "batch_id": batch_id,
+                "response": response
+            });
+            attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas);
             return Ok(ok_result(
-                json!({
-                    "status": "submitted_but_task_id_missing",
-                    "source": "apimart",
-                    "kind": "video",
-                    "batch_id": batch_id,
-                    "response": response
-                }),
+                data,
                 "Video generation was submitted, but APIMart did not return a task id for background polling.",
             ));
         }
@@ -1188,7 +1378,7 @@ impl Tool for GenerateVideoTool {
                 requested_aspect_ratio: Some(requested_aspect_ratio.clone()),
                 placeholder_aspect_ratio: Some(placeholder_aspect.clone()),
                 short_drama: short_drama.clone(),
-                infinite_canvas: None,
+                infinite_canvas: infinite_canvas.clone(),
             },
             media_job_store_path(context.workspace_root(), &batch_id),
             MediaToolEventContext::from_tool_context(context, self.name()),
@@ -1206,6 +1396,7 @@ impl Tool for GenerateVideoTool {
         if let Some(short_drama) = short_drama {
             result["shortDrama"] = short_drama;
         }
+        attach_infinite_canvas_submission_receipt(&mut result, infinite_canvas);
         result["response"] = response;
         Ok(ok_result(
             result,

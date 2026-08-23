@@ -1551,6 +1551,144 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn attaches_infinite_canvas_metadata_to_saved_video_batch() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-infinite-canvas-video-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_canvas_video")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "video",
+            "media_batch_canvas_video",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "result": { "video_url": "https://cdn.example/canvas-clip.mp4" }
+                }
+            }]),
+            vec![],
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'])
+            })
+            .await
+            .expect("save generated asset");
+
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "video",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-video-1",
+                "resultMode": "derived",
+                "sourceNodeId": "node-image-1",
+                "toolId": "generate",
+                "operationId": "op-video-1",
+                "mediaKind": "video"
+            })),
+        );
+
+        assert_eq!(saved["infiniteCanvas"]["workspaceId"], "workspace-1");
+        assert_eq!(saved["infiniteCanvas"]["nodeId"], "node-video-1");
+        assert_eq!(saved["infiniteCanvas"]["mediaKind"], "video");
+        // The completion enrichment is kind-generic: a video batch writes
+        // outputMediaKind "video" with zero video-specific code (K2-R2 slot).
+        assert_eq!(saved["infiniteCanvas"]["outputMediaKind"], "video");
+        assert_eq!(
+            saved["infiniteCanvas"]["outputMediaItemId"],
+            "media_batch_canvas_video-1"
+        );
+        assert_eq!(
+            saved["infiniteCanvas"]["outputPreviewUrl"],
+            "https://cdn.example/canvas-clip.mp4"
+        );
+        assert!(saved["infiniteCanvas"]["outputMediaPath"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("video-001.mp4")));
+        assert!(saved["infiniteCanvas"]["outputMediaRelativePath"]
+            .as_str()
+            .is_some_and(|path| {
+                path.ends_with("media/generated/media_batch_canvas_video/video-001.mp4")
+            }));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn keeps_short_drama_and_infinite_canvas_bindings_isolated_on_a_video_batch() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-dual-binding-video-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_dual_video")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "video",
+            "media_batch_dual_video",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "result": { "video_url": "https://cdn.example/dual-clip.mp4" }
+                }
+            }]),
+            vec![],
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x00, 0x00, 0x00, 0x18, b'f', b't', b'y', b'p'])
+            })
+            .await
+            .expect("save generated asset");
+
+        attach_short_drama_media_result(
+            &mut saved,
+            "video",
+            Some(&json!({
+                "projectId": "short-drama-project",
+                "stage": "scenes",
+                "artifactHandle": "SHOT-001"
+            })),
+        );
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "video",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-video-1",
+                "resultMode": "derived",
+                "sourceNodeId": "node-image-1",
+                "toolId": "generate",
+                "operationId": "op-dual-video-1",
+                "mediaKind": "video"
+            })),
+        );
+
+        assert_eq!(saved["shortDrama"]["projectId"], "short-drama-project");
+        assert_eq!(saved["shortDrama"]["artifactHandle"], "SHOT-001");
+        assert_eq!(saved["shortDrama"]["outputMediaKind"], "video");
+        assert!(saved["shortDrama"].get("nodeId").is_none());
+        assert!(saved["shortDrama"].get("operationId").is_none());
+        assert!(saved["shortDrama"].get("mediaKind").is_none());
+
+        assert_eq!(saved["infiniteCanvas"]["nodeId"], "node-video-1");
+        assert_eq!(saved["infiniteCanvas"]["operationId"], "op-dual-video-1");
+        assert_eq!(saved["infiniteCanvas"]["outputMediaKind"], "video");
+        assert!(saved["infiniteCanvas"].get("projectId").is_none());
+        assert!(saved["infiniteCanvas"].get("artifactHandle").is_none());
+        assert!(saved["infiniteCanvas"].get("outputMediaLabel").is_none());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
     async fn keeps_short_drama_and_infinite_canvas_bindings_isolated_on_the_same_batch() {
         let root = std::env::temp_dir().join(format!(
             "void-media-dual-binding-{}",
