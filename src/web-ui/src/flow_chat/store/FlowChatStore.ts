@@ -25,6 +25,7 @@ import {
   startupTrace,
 } from '@/shared/utils/startupTrace';
 import { elapsedMs, nowMs } from '@/shared/utils/timing';
+import { asRemoteSshHost } from '@/shared/utils/remoteHost';
 import { i18nService } from '@/infrastructure/i18n/core/I18nService';
 import type {
   DialogTurnData,
@@ -2469,8 +2470,11 @@ export class FlowChatStore {
             ...personaState,
             workspacePath: (metadata as any).workspacePath || workspacePath,
             remoteConnectionId: metadata.remoteConnectionId || remoteConnectionId,
-            remoteSshHost:
+            // workspaceHostname is `localhost` for local workspaces — only a
+            // non-local hostname denotes an SSH remote.
+            remoteSshHost: asRemoteSshHost(
               metadata.remoteSshHost || metadata.workspaceHostname || remoteSshHost,
+            ),
             parentSessionId: relationship.parentSessionId,
             sessionKind: relationship.sessionKind,
             parentToolCallId: relationship.parentToolCallId,
@@ -2788,8 +2792,11 @@ export class FlowChatStore {
               ...personaState,
               workspacePath: (metadata as any).workspacePath || workspacePath,
               remoteConnectionId: metadata.remoteConnectionId || remoteConnectionId,
-              remoteSshHost:
+              // workspaceHostname is `localhost` for local workspaces — only a
+              // non-local hostname denotes an SSH remote.
+              remoteSshHost: asRemoteSshHost(
                 metadata.remoteSshHost || metadata.workspaceHostname || remoteSshHost,
+              ),
               parentSessionId: relationship.parentSessionId,
               sessionKind: relationship.sessionKind,
               parentToolCallId: relationship.parentToolCallId,
