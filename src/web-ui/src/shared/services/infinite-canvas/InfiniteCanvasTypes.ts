@@ -31,7 +31,16 @@ export interface InfiniteCanvasDomainRef {
   role: string;
 }
 
-export type InfiniteCanvasNodeKind = 'text' | 'image' | 'group';
+/**
+ * Node kinds. `'video'` is a P3 addition (schemaVersion stays '1'); known
+ * trade-off recorded in the contract: pre-P3 parsers reject a document that
+ * contains a video node as `invalid-document`, so the parser upgrade ships
+ * before any video-node writer.
+ */
+export type InfiniteCanvasNodeKind = 'text' | 'image' | 'group' | 'video';
+
+/** P3: which media kind a generation produces; absent means 'image'. */
+export type InfiniteCanvasGenerationMediaKind = 'image' | 'video';
 
 export interface InfiniteCanvasNode {
   nodeId: string;
@@ -64,6 +73,8 @@ export interface InfiniteCanvasNode {
     batchId?: string;
     /** K0-2 seven-kind enum. */
     errorKind?: ImageToolErrorKind;
+    /** P3 additive: media kind of this generation; absent defaults to 'image'. */
+    mediaKind?: InfiniteCanvasGenerationMediaKind;
   };
 }
 
@@ -84,6 +95,16 @@ export interface InfiniteCanvasDocument {
   edges: InfiniteCanvasEdge[];
   viewport: InfiniteCanvasViewport;
   updatedAt: string;
+
+  // —— P3 additive field (schemaVersion stays '1'; tolerant parsing keeps
+  //    pre-P3 documents loading unchanged). ——
+  /**
+   * Agent ops-journal watermark: highest applied batch `seq` from
+   * `.void/infinite-canvas/<documentId>.ops.json`. The journal's only writer
+   * is the Rust CanvasOp tool; this document's only writer stays the front-end
+   * document service.
+   */
+  agentOps?: { appliedSeq: number };
 }
 
 /** Workspace facts the document service needs; remote is always fail-closed. */

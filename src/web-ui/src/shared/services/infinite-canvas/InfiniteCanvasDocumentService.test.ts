@@ -336,10 +336,13 @@ describe('InfiniteCanvasDocumentService', () => {
         documentId: 'doc', schemaVersion: '1', workspaceId: 'w', revision: 1,
         nodes: [], edges: [],
       },
-      // Node with an unknown kind.
+      // Node with an unknown kind ('video' became valid in P3; 'audio' is not).
+      // This is also the recorded P3 trade-off: a parser without a kind in its
+      // whitelist rejects the whole document, so pre-P3 builds refuse documents
+      // that contain video nodes.
       {
         documentId: 'doc', schemaVersion: '1', workspaceId: 'w', revision: 1,
-        nodes: [{ nodeId: 'n1', kind: 'video', position: { x: 0, y: 0 } }],
+        nodes: [{ nodeId: 'n1', kind: 'audio', position: { x: 0, y: 0 } }],
         edges: [], viewport: { x: 0, y: 0, zoom: 1 },
       },
       // Edge missing its target.
@@ -578,6 +581,222 @@ describe('InfiniteCanvasDocumentService', () => {
         status: 'pending',
       },
     });
+  });
+
+  it('round-trips a P3 video node alongside untouched sibling nodes', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 1 });
+
+    await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [{
+        nodeId: 'video-1',
+        kind: 'video' as const,
+        position: { x: 0, y: 0 },
+        size: { width: 480, height: 270 },
+        prompt: 'a 5 second dolly shot',
+        mediaRef: {
+          workspacePath: LOCAL_WORKSPACE.workspacePath,
+          relativePath: 'media/generated/batch-9/video-001.mp4',
+        },
+      }, {
+        nodeId: 'video-pending-1',
+        kind: 'video' as const,
+        position: { x: 520, y: 0 },
+        prompt: 'cyberpunk variant',
+        derivedFrom: {
+          sourceNodeId: 'image-1',
+          toolId: 'generate' as const,
+          operationId: 'op-v1',
+        },
+        generation: {
+          operationId: 'op-v1',
+          toolId: 'generate' as const,
+          resultMode: 'derived' as const,
+          status: 'pending' as const,
+          mediaKind: 'video' as const,
+        },
+      }, {
+        nodeId: 'image-1',
+        kind: 'image' as const,
+        position: { x: -400, y: 0 },
+        mediaRef: {
+          workspacePath: LOCAL_WORKSPACE.workspacePath,
+          relativePath: 'media/generated/batch-1/item-1.png',
+        },
+      }, {
+        nodeId: 'text-1',
+        kind: 'text' as const,
+        position: { x: -400, y: 300 },
+        text: 'shot note',
+      }],
+      edges: [{ edgeId: 'edge-1', sourceNodeId: 'image-1', targetNodeId: 'video-pending-1' }],
+      viewport: current.viewport,
+    }));
+    await service.flushPendingWrites();
+
+    const reloaded = await new InfiniteCanvasDocumentService(store.port)
+      .loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(reloaded.status).toBe('loaded');
+    if (reloaded.status !== 'loaded') return;
+    // The video nodes survive intact, and the sibling image/text nodes in the
+    // same document are parsed unaffected.
+    expect(reloaded.document.nodes).toEqual([
+      expect.objectContaining({
+        nodeId: 'video-1',
+        kind: 'video',
+        size: { width: 480, height: 270 },
+        prompt: 'a 5 second dolly shot',
+        mediaRef: {
+          workspacePath: LOCAL_WORKSPACE.workspacePath,
+          relativePath: 'media/generated/batch-9/video-001.mp4',
+        },
+      }),
+      expect.objectContaining({
+        nodeId: 'video-pending-1',
+        kind: 'video',
+        derivedFrom: { sourceNodeId: 'image-1', toolId: 'generate', operationId: 'op-v1' },
+        generation: {
+          operationId: 'op-v1',
+          toolId: 'generate',
+          resultMode: 'derived',
+          status: 'pending',
+          mediaKind: 'video',
+        },
+      }),
+      expect.objectContaining({ nodeId: 'image-1', kind: 'image' }),
+      expect.objectContaining({ nodeId: 'text-1', kind: 'text', text: 'shot note' }),
+    ]);
+    expect(reloaded.document.edges).toEqual([
+      { edgeId: 'edge-1', sourceNodeId: 'image-1', targetNodeId: 'video-pending-1' },
+    ]);
+  });
+
+  it('round-trips the P3 agentOps watermark through mutate and save', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 2,
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+      agentOps: { appliedSeq: 7 },
+    }));
+    const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 1 });
+
+    const loaded = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    expect(loaded.status).toBe('loaded');
+    if (loaded.status !== 'loaded') return;
+    expect(loaded.document.agentOps).toEqual({ appliedSeq: 7 });
+
+    // A content mutation (nodes/edges/viewport) must not drop the watermark.
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: current.nodes,
+      edges: current.edges,
+      viewport: { x: 3, y: 3, zoom: 1 },
+    }));
+    await service.flushPendingWrites();
+
+    const persisted = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    if (persisted.status !== 'ok') throw new Error('expected persisted document');
+    expect(persisted.document.agentOps).toEqual({ appliedSeq: 7 });
+    expect(persisted.document.viewport).toEqual({ x: 3, y: 3, zoom: 1 });
+  });
+
+  it('drops broken P3 mediaKind and agentOps values as absent, keeping the document', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 1,
+      nodes: [{
+        nodeId: 'video-1',
+        kind: 'video',
+        position: { x: 0, y: 0 },
+        generation: {
+          operationId: 'op-1',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+          mediaKind: 'hologram',
+        },
+      }],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+      agentOps: { appliedSeq: -3 },
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    expect(result.document).not.toHaveProperty('agentOps');
+    expect(result.document.nodes[0].generation).toEqual({
+      operationId: 'op-1',
+      toolId: 'generate',
+      resultMode: 'self',
+      status: 'pending',
+    });
+
+    // Other broken shapes are equally dropped without failing the load.
+    for (const agentOps of ['nonsense', { appliedSeq: 1.5 }, { appliedSeq: 'x' }, null]) {
+      store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+        documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+        schemaVersion: '1',
+        workspaceId: LOCAL_WORKSPACE.workspaceId,
+        revision: 1,
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+        updatedAt: new Date(0).toISOString(),
+        agentOps,
+      }));
+      const reloaded = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+      expect(reloaded.status).toBe('loaded');
+      if (reloaded.status !== 'loaded') return;
+      expect(reloaded.document).not.toHaveProperty('agentOps');
+    }
+  });
+
+  it('loads a pre-P3 document without inventing agentOps or mediaKind', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 5,
+      nodes: [{
+        nodeId: 'image-1',
+        kind: 'image',
+        position: { x: 1, y: 2 },
+        generation: {
+          operationId: 'op-1',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+        },
+      }],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    expect(result.document).not.toHaveProperty('agentOps');
+    expect(result.document.nodes[0].generation).not.toHaveProperty('mediaKind');
   });
 
   it('dispose drops pending writes without touching the disk', async () => {

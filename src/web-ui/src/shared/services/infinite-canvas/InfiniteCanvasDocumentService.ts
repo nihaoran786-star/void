@@ -118,13 +118,34 @@ function parseGeneration(value: unknown): InfiniteCanvasNode['generation'] {
   };
   if (isNonEmptyString(value.batchId)) generation.batchId = value.batchId;
   if (isImageToolErrorKind(value.errorKind)) generation.errorKind = value.errorKind;
+  // P3 additive: a broken mediaKind is dropped as absent (defaults to image).
+  if (value.mediaKind === 'image' || value.mediaKind === 'video') {
+    generation.mediaKind = value.mediaKind;
+  }
   return generation;
+}
+
+/**
+ * P3 additive document field; a broken value is treated as "field absent",
+ * never as an invalid document.
+ */
+function parseAgentOps(value: unknown): InfiniteCanvasDocument['agentOps'] {
+  if (!isRecord(value)) return undefined;
+  const appliedSeq = value.appliedSeq;
+  if (!isFiniteNumber(appliedSeq) || !Number.isInteger(appliedSeq) || appliedSeq < 0) {
+    return undefined;
+  }
+  return { appliedSeq };
 }
 
 function parseNode(value: unknown): InfiniteCanvasNode | undefined {
   if (!isRecord(value)) return undefined;
   const kind = value.kind;
-  if (kind !== 'text' && kind !== 'image' && kind !== 'group') return undefined;
+  // 'video' is a P3 addition; pre-P3 parsers rejected the whole document on
+  // an unknown kind, which is why this parser slice lands before any writer.
+  if (kind !== 'text' && kind !== 'image' && kind !== 'group' && kind !== 'video') {
+    return undefined;
+  }
   if (!isNonEmptyString(value.nodeId)) return undefined;
   const position = value.position;
   if (!isRecord(position) || !isFiniteNumber(position.x) || !isFiniteNumber(position.y)) {
@@ -267,21 +288,21 @@ export function parseInfiniteCanvasDocument(raw: string): InfiniteCanvasParseRes
     }
     edges.push(edge);
   }
-  return {
-    status: 'ok',
-    document: {
-      documentId: parsed.documentId,
-      schemaVersion: INFINITE_CANVAS_SCHEMA_VERSION,
-      workspaceId: parsed.workspaceId,
-      revision: parsed.revision,
-      nodes,
-      edges,
-      viewport,
-      updatedAt: isNonEmptyString(parsed.updatedAt)
-        ? parsed.updatedAt
-        : new Date(0).toISOString(),
-    },
+  const document: InfiniteCanvasDocument = {
+    documentId: parsed.documentId,
+    schemaVersion: INFINITE_CANVAS_SCHEMA_VERSION,
+    workspaceId: parsed.workspaceId,
+    revision: parsed.revision,
+    nodes,
+    edges,
+    viewport,
+    updatedAt: isNonEmptyString(parsed.updatedAt)
+      ? parsed.updatedAt
+      : new Date(0).toISOString(),
   };
+  const agentOps = parseAgentOps(parsed.agentOps);
+  if (agentOps) document.agentOps = agentOps;
+  return { status: 'ok', document };
 }
 
 interface PendingWrite {
