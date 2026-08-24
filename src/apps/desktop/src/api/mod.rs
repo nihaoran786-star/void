@@ -24,6 +24,7 @@ pub mod external_config_sources_api;
 pub mod git_agent_api;
 pub mod git_api;
 pub mod i18n_api;
+pub mod infinite_canvas_media_api;
 pub mod insights_api;
 pub mod local_asr_api;
 pub mod lsp_api;
