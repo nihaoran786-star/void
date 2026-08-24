@@ -11,6 +11,7 @@
  */
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { AlertTriangle } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -155,7 +156,7 @@ const NodeMedia: React.FC<{
       // preload="metadata" keeps off-screen cards cheap (poster frame +
       // duration only); the video data streams when the user hits play.
       return (
-        // eslint-disable-next-line jsx-a11y/media-has-caption -- generated clip, no track source exists
+        // Generated clip: no caption track source exists for it.
         <video
           className="infinite-canvas-node__video nodrag"
           src={previewUrl}
@@ -271,6 +272,7 @@ const InfiniteCanvasMediaCard: React.FC<
           role="alert"
           data-error-kind={generation?.errorKind ?? 'backend'}
         >
+          <AlertTriangle size={14} aria-hidden="true" />
           <strong>{t('infiniteCanvas.generation.failedTitle')}</strong>
           <span>
             {t(`infiniteCanvas.generation.errorKind.${generation?.errorKind ?? 'backend'}`)}

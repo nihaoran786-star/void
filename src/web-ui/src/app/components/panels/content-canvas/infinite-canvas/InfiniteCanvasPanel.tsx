@@ -17,6 +17,7 @@ import {
   applyEdgeChanges,
   applyNodeChanges,
   Background,
+  Controls,
   ReactFlow,
   type Connection,
   type Edge,
@@ -27,6 +28,7 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Clapperboard, ImagePlus, Sparkles, Type } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -811,6 +813,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           className="infinite-canvas-panel__toolbar-button"
           onClick={onAddText}
         >
+          <Type size={14} aria-hidden="true" />
           {t('infiniteCanvas.toolbar.addText')}
         </button>
         <button
@@ -818,6 +821,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           className="infinite-canvas-panel__toolbar-button"
           onClick={() => setImagePickerOpen(open => !open)}
         >
+          <ImagePlus size={14} aria-hidden="true" />
           {t('infiniteCanvas.toolbar.addImage')}
         </button>
         <button
@@ -825,6 +829,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           className="infinite-canvas-panel__toolbar-button"
           onClick={onAddGenerationCard}
         >
+          <Sparkles size={14} aria-hidden="true" />
           {t('infiniteCanvas.toolbar.addGenerationCard')}
         </button>
         <button
@@ -833,6 +838,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           data-toolbar-action="add-video-card"
           onClick={onAddVideoCard}
         >
+          <Clapperboard size={14} aria-hidden="true" />
           {t('infiniteCanvas.toolbar.addVideoCard')}
         </button>
       </div>
@@ -895,7 +901,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           maxZoom={4}
         >
           <Background />
+          <Controls position="bottom-right" showInteractive={false} />
         </ReactFlow>
+        {flowNodes.length === 0 ? (
+          <div className="infinite-canvas-panel__empty">
+            <Sparkles size={20} aria-hidden="true" />
+            <p>{t('infiniteCanvas.empty.hint')}</p>
+            <button
+              type="button"
+              className="infinite-canvas-panel__empty-cta"
+              onClick={onAddGenerationCard}
+            >
+              {t('infiniteCanvas.empty.createCard')}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

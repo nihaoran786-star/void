@@ -930,6 +930,10 @@
       "addGenerationCard": "New generation card",
       "addVideoCard": "New video card"
     },
+    "empty": {
+      "hint": "An empty canvas. Start with a generation card: write a prompt and generate images.",
+      "createCard": "New generation card"
+    },
     "textNode": {
       "ariaLabel": "Text node",
       "placeholder": "Type here..."

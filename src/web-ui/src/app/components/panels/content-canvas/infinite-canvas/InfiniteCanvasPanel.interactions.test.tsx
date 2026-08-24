@@ -37,6 +37,7 @@ vi.mock('@xyflow/react', async () => {
       );
     },
     Background: () => null,
+    Controls: () => null,
     Handle: () => null,
     Position: { Left: 'left', Right: 'right' },
     applyNodeChanges: (changes: any[], nodes: any[]) => nodes

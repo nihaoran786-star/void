@@ -1,13 +1,22 @@
 @use './InfiniteCanvasPanel.minimal' as minimal;
 
+// Infinite Canvas panel — quiet presentation over the reactflow projection.
+// Token-only: every color routes through the local --infinite-canvas-* vars,
+// which map to classic tokens here and to --workspace-* in the minimal
+// overlay. Hairline separators, one small type scale, restrained accent.
 .infinite-canvas-panel {
   --infinite-canvas-bg: var(--color-bg-primary);
   --infinite-canvas-text: var(--control-text-hover);
   --infinite-canvas-muted: var(--control-text-muted);
   --infinite-canvas-border: var(--control-border);
   --infinite-canvas-surface: color-mix(in srgb, var(--control-bg) 88%, var(--color-bg-elevated));
+  --infinite-canvas-raised: var(--color-bg-elevated);
   --infinite-canvas-accent: var(--color-accent-500);
   --infinite-canvas-error-text: var(--status-error-text);
+  --infinite-canvas-hairline: color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  --infinite-canvas-hover: color-mix(in srgb, var(--infinite-canvas-muted) 12%, transparent);
+  --infinite-canvas-accent-soft: color-mix(in srgb, var(--infinite-canvas-accent) 12%, transparent);
+  --infinite-canvas-accent-line: color-mix(in srgb, var(--infinite-canvas-accent) 55%, transparent);
   display: flex;
   flex: 1;
   min-height: 0;
@@ -21,58 +30,210 @@
 .infinite-canvas-panel--error {
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 24px;
+  gap: 8px;
+  padding: 32px;
+  color: var(--infinite-canvas-muted);
+  font-size: 13px;
   text-align: center;
+
+  h3 {
+    margin: 0;
+    color: var(--infinite-canvas-text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+  }
 }
 
 .infinite-canvas-panel--error p {
   color: var(--infinite-canvas-error-text);
 }
 
+// ── Toolbar ────────────────────────────────────────────────────────────────
+
 .infinite-canvas-panel__toolbar {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  gap: 2px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--infinite-canvas-hairline);
 }
 
 .infinite-canvas-panel__toolbar-button {
-  padding: 4px 10px;
-  border: 1px solid var(--infinite-canvas-border);
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
   border-radius: 6px;
-  background: var(--infinite-canvas-surface);
-  color: var(--infinite-canvas-text);
+  background: transparent;
+  color: var(--infinite-canvas-muted);
   cursor: pointer;
   font-size: 12px;
+  white-space: nowrap;
+
+  svg {
+    flex: none;
+  }
 
   &:hover {
-    border-color: var(--infinite-canvas-accent);
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--infinite-canvas-accent);
+    outline-offset: -1px;
   }
 }
 
+// ── Flow viewport ──────────────────────────────────────────────────────────
+
 .infinite-canvas-panel__flow {
+  position: relative;
   flex: 1;
   min-height: 0;
 
   .react-flow {
     background: var(--infinite-canvas-bg);
   }
+
+  // Dotted background stays extremely subtle in both themes.
+  .react-flow__background circle {
+    fill: color-mix(in srgb, var(--infinite-canvas-muted) 24%, transparent);
+  }
+
+  // Connections are quiet hairlines; only selection speaks with accent.
+  .react-flow__edge-path {
+    stroke: color-mix(in srgb, var(--infinite-canvas-muted) 55%, transparent);
+    stroke-width: 1.25;
+  }
+
+  .react-flow__edge.selected .react-flow__edge-path,
+  .react-flow__edge:focus .react-flow__edge-path,
+  .react-flow__edge:focus-visible .react-flow__edge-path {
+    stroke: var(--infinite-canvas-accent);
+    stroke-width: 1.5;
+  }
+
+  .react-flow__connection-path {
+    stroke: var(--infinite-canvas-accent-line);
+    stroke-width: 1.25;
+  }
+
+  .react-flow__handle {
+    width: 8px;
+    height: 8px;
+    border: 1px solid color-mix(in srgb, var(--infinite-canvas-muted) 70%, transparent);
+    background: var(--infinite-canvas-raised);
+
+    &:hover {
+      border-color: var(--infinite-canvas-accent);
+    }
+  }
+
+  // Zoom controls: same quiet icon-button language as sibling panels.
+  .react-flow__controls {
+    overflow: hidden;
+    border: 1px solid var(--infinite-canvas-hairline);
+    border-radius: 6px;
+    box-shadow: none;
+  }
+
+  .react-flow__controls-button {
+    width: 26px;
+    height: 26px;
+    border-bottom: 1px solid var(--infinite-canvas-hairline);
+    background: var(--infinite-canvas-raised);
+
+    svg {
+      fill: var(--infinite-canvas-muted);
+      max-width: 12px;
+      max-height: 12px;
+    }
+
+    &:hover {
+      background: var(--infinite-canvas-hover);
+
+      svg {
+        fill: var(--infinite-canvas-text);
+      }
+    }
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
 }
+
+// Empty canvas: one short line and one quiet entry point, centered above the
+// viewport; the canvas itself stays fully interactive underneath.
+.infinite-canvas-panel__empty {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--infinite-canvas-muted);
+  pointer-events: none;
+
+  svg {
+    color: color-mix(in srgb, var(--infinite-canvas-muted) 70%, transparent);
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+  }
+}
+
+.infinite-canvas-panel__empty-cta {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--infinite-canvas-accent-line);
+  border-radius: 6px;
+  background: var(--infinite-canvas-accent-soft);
+  color: var(--infinite-canvas-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: auto;
+
+  &:hover {
+    border-color: var(--infinite-canvas-accent);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--infinite-canvas-accent);
+    outline-offset: 2px;
+  }
+}
+
+// ── Node cards ─────────────────────────────────────────────────────────────
 
 .infinite-canvas-node {
   display: flex;
-  min-width: 140px;
+  min-width: 180px;
   max-width: 280px;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--infinite-canvas-border);
   border-radius: 8px;
   background: var(--infinite-canvas-surface);
   color: var(--infinite-canvas-text);
+  font-size: 12px;
 
   &[data-selected='true'] {
     border-color: var(--infinite-canvas-accent);
@@ -86,7 +247,12 @@
   color: inherit;
   font: inherit;
   font-size: 12px;
+  line-height: 1.5;
   resize: vertical;
+
+  &::placeholder {
+    color: var(--infinite-canvas-muted);
+  }
 
   &:focus {
     outline: none;
@@ -95,7 +261,7 @@
 
 .infinite-canvas-node__image {
   width: 100%;
-  border-radius: 4px;
+  border-radius: 6px;
   object-fit: contain;
 }
 
@@ -103,18 +269,18 @@
 // streams on play (preload="metadata" is set on the element).
 .infinite-canvas-node__video {
   width: 100%;
-  border-radius: 4px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--infinite-canvas-muted) 10%, transparent);
   object-fit: contain;
 }
 
 .infinite-canvas-node__image-placeholder {
   display: flex;
-  min-height: 72px;
+  min-height: 88px;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--infinite-canvas-muted) 10%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--infinite-canvas-muted) 8%, transparent);
   color: var(--infinite-canvas-muted);
   font-size: 11px;
 }
@@ -128,6 +294,8 @@
   white-space: nowrap;
 }
 
+// ── Version and reference chips ────────────────────────────────────────────
+
 .infinite-canvas-node__badges {
   display: flex;
   flex-wrap: wrap;
@@ -138,38 +306,45 @@
 .infinite-canvas-node__reference-badges {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: 4px;
 }
 
 .infinite-canvas-node__badge {
-  padding: 1px 6px;
-  border: 1px solid var(--infinite-canvas-border);
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border: 1px solid var(--infinite-canvas-hairline);
   border-radius: 999px;
   color: var(--infinite-canvas-muted);
-  font-size: 9px;
+  font-size: 10px;
+  line-height: 1.6;
+  white-space: nowrap;
 
   &--derived {
-    border-color: var(--infinite-canvas-accent);
+    border-color: transparent;
+    background: var(--infinite-canvas-accent-soft);
     color: var(--infinite-canvas-text);
   }
 }
 
+// ── Generation states ──────────────────────────────────────────────────────
+
 .infinite-canvas-node__generation-placeholder {
   display: flex;
-  min-height: 72px;
+  min-height: 88px;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--infinite-canvas-muted) 10%, transparent);
+  gap: 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--infinite-canvas-muted) 8%, transparent);
   color: var(--infinite-canvas-muted);
   font-size: 11px;
 }
 
 .infinite-canvas-node__spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid color-mix(in srgb, var(--infinite-canvas-accent) 35%, transparent);
+  width: 14px;
+  height: 14px;
+  border: 2px solid color-mix(in srgb, var(--infinite-canvas-accent) 30%, transparent);
   border-top-color: var(--infinite-canvas-accent);
   border-radius: 50%;
   animation: infinite-canvas-spin 0.9s linear infinite;
@@ -181,36 +356,52 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .infinite-canvas-node__spinner {
+    animation: none;
+  }
+}
+
+// Failure is a restrained overlay: icon, one-line reason, two small actions —
+// no large error surface.
 .infinite-canvas-node__generation-failed {
   display: flex;
-  min-height: 72px;
+  min-height: 88px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--infinite-canvas-error-text) 8%, transparent);
-  color: var(--infinite-canvas-error-text);
+  padding: 10px;
+  border: 1px dashed var(--infinite-canvas-hairline);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--infinite-canvas-muted) 6%, transparent);
+  color: var(--infinite-canvas-muted);
   font-size: 11px;
   text-align: center;
 
+  > svg {
+    color: var(--infinite-canvas-error-text);
+  }
+
   strong {
+    color: var(--infinite-canvas-text);
     font-size: 11px;
+    font-weight: 600;
   }
 }
 
 .infinite-canvas-node__generation-failed-actions {
   display: flex;
-  gap: 4px;
+  gap: 6px;
+  margin-top: 4px;
 }
 
 .infinite-canvas-node__generation-retry,
 .infinite-canvas-node__generation-remove {
-  padding: 2px 8px;
+  padding: 2px 10px;
   border: 1px solid var(--infinite-canvas-border);
-  border-radius: 4px;
-  background: var(--infinite-canvas-bg);
+  border-radius: 6px;
+  background: var(--infinite-canvas-raised);
   color: var(--infinite-canvas-text);
   cursor: pointer;
   font-size: 10px;
@@ -220,16 +411,23 @@
   }
 }
 
+// ── Prompt editor and actions ──────────────────────────────────────────────
+
 .infinite-canvas-node__prompt-input {
-  min-height: 40px;
-  padding: 4px 6px;
-  border: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 70%, transparent);
-  border-radius: 4px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 6px;
   background: var(--infinite-canvas-bg);
   color: inherit;
   font: inherit;
   font-size: 11px;
+  line-height: 1.5;
   resize: vertical;
+
+  &::placeholder {
+    color: var(--infinite-canvas-muted);
+  }
 
   &:focus {
     border-color: var(--infinite-canvas-accent);
@@ -241,33 +439,46 @@
   }
 }
 
+.infinite-canvas-node__footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .infinite-canvas-node__generate-button {
-  padding: 2px 10px;
-  border: 1px solid var(--infinite-canvas-accent);
-  border-radius: 999px;
-  background: transparent;
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--infinite-canvas-accent-line);
+  border-radius: 6px;
+  background: var(--infinite-canvas-accent-soft);
   color: var(--infinite-canvas-text);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    border-color: var(--infinite-canvas-accent);
+  }
 
   &:disabled {
-    border-color: var(--infinite-canvas-border);
+    border-color: var(--infinite-canvas-hairline);
+    background: transparent;
     color: var(--infinite-canvas-muted);
     cursor: default;
   }
 }
 
-.infinite-canvas-node__footer {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .infinite-canvas-node__style-button {
+  display: inline-flex;
   overflow: hidden;
+  height: 24px;
   max-width: 100%;
-  padding: 2px 8px;
-  border: 1px solid var(--infinite-canvas-border);
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--infinite-canvas-hairline);
   border-radius: 999px;
   background: transparent;
   color: var(--infinite-canvas-muted);
@@ -276,16 +487,25 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 
+  &:hover {
+    border-color: var(--infinite-canvas-border);
+    color: var(--infinite-canvas-text);
+  }
+
   &[data-has-style='true'] {
-    border-color: var(--infinite-canvas-accent);
+    border-color: transparent;
+    background: var(--infinite-canvas-accent-soft);
     color: var(--infinite-canvas-text);
   }
 }
 
+// Five-tool surface: shows on hover/selection only, quiet chip buttons.
 .infinite-canvas-node__tools {
   display: none;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--infinite-canvas-hairline);
 }
 
 .infinite-canvas-node:hover .infinite-canvas-node__tools,
@@ -293,14 +513,16 @@
   display: flex;
 }
 
-.infinite-canvas-node__tool {
-  padding: 2px 6px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 4px;
-  background: var(--infinite-canvas-bg);
+.infinite-canvas-node__tool,
+.infinite-canvas-node__derive-video {
+  padding: 3px 8px;
+  border: 1px solid var(--infinite-canvas-hairline);
+  border-radius: 6px;
+  background: transparent;
   color: var(--infinite-canvas-muted);
   cursor: pointer;
   font-size: 10px;
+  white-space: nowrap;
 
   &:hover {
     border-color: var(--infinite-canvas-accent);
@@ -308,39 +530,49 @@
   }
 }
 
+// ── Inline notice ──────────────────────────────────────────────────────────
+
 .infinite-canvas-panel__tool-notice {
   display: flex;
   flex: 0 0 auto;
   align-items: baseline;
   gap: 8px;
   padding: 6px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  border-bottom: 1px solid var(--infinite-canvas-hairline);
   color: var(--infinite-canvas-muted);
   font-size: 12px;
 
   strong {
     color: var(--infinite-canvas-text);
+    font-weight: 600;
   }
 }
 
 .infinite-canvas-panel__tool-notice-dismiss {
   margin-left: auto;
   padding: 2px 8px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 4px;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--infinite-canvas-muted);
   cursor: pointer;
   font-size: 11px;
+
+  &:hover {
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
 }
+
+// ── Instruction dialog ─────────────────────────────────────────────────────
 
 .infinite-canvas-dialog {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--infinite-canvas-hairline);
   background: var(--infinite-canvas-surface);
 }
 
@@ -348,21 +580,28 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 
   h4 {
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
   }
 }
 
 .infinite-canvas-dialog__close {
   padding: 2px 8px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 4px;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--infinite-canvas-muted);
   cursor: pointer;
   font-size: 11px;
+
+  &:hover {
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
 }
 
 .infinite-canvas-dialog__hint {
@@ -373,14 +612,20 @@
 
 .infinite-canvas-dialog__input {
   min-height: 56px;
-  padding: 4px 6px;
+  padding: 6px 8px;
   border: 1px solid var(--infinite-canvas-border);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--infinite-canvas-bg);
   color: var(--infinite-canvas-text);
   font: inherit;
   font-size: 12px;
+  line-height: 1.5;
   resize: vertical;
+
+  &:focus {
+    border-color: var(--infinite-canvas-accent);
+    outline: none;
+  }
 }
 
 .infinite-canvas-dialog__actions {
@@ -389,20 +634,31 @@
 }
 
 .infinite-canvas-dialog__confirm {
-  padding: 3px 12px;
-  border: 1px solid var(--infinite-canvas-accent);
-  border-radius: 4px;
-  background: transparent;
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--infinite-canvas-accent-line);
+  border-radius: 6px;
+  background: var(--infinite-canvas-accent-soft);
   color: var(--infinite-canvas-text);
   cursor: pointer;
   font-size: 11px;
+  font-weight: 500;
+
+  &:hover:not(:disabled) {
+    border-color: var(--infinite-canvas-accent);
+  }
 
   &:disabled {
-    border-color: var(--infinite-canvas-border);
+    border-color: var(--infinite-canvas-hairline);
+    background: transparent;
     color: var(--infinite-canvas-muted);
     cursor: default;
   }
 }
+
+// ── Pickers (image library, style presets) ─────────────────────────────────
 
 .infinite-canvas-picker {
   display: flex;
@@ -410,9 +666,9 @@
   max-height: 45%;
   flex: 0 0 auto;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--infinite-canvas-hairline);
   background: var(--infinite-canvas-surface);
 }
 
@@ -420,22 +676,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 
   h4 {
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
   }
 }
 
 .infinite-canvas-picker__close,
 .infinite-canvas-picker__clear {
   padding: 2px 8px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 4px;
+  border: 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--infinite-canvas-muted);
   cursor: pointer;
   font-size: 11px;
+
+  &:hover {
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
 }
 
 .infinite-canvas-picker__clear {
@@ -451,29 +714,64 @@
 .infinite-canvas-picker__filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
 }
 
 .infinite-canvas-picker__filter {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   color: var(--infinite-canvas-muted);
   font-size: 11px;
 
   select {
+    height: 24px;
     max-width: 180px;
+    padding: 0 6px;
     border: 1px solid var(--infinite-canvas-border);
-    border-radius: 4px;
+    border-radius: 6px;
     background: var(--infinite-canvas-bg);
     color: var(--infinite-canvas-text);
     font-size: 11px;
+
+    &:focus-visible {
+      border-color: var(--infinite-canvas-accent);
+      outline: none;
+    }
+  }
+}
+
+// Category filter: a scaled-down cousin of the Staff HQ filter pills.
+.infinite-canvas-picker__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.infinite-canvas-picker__pill {
+  padding: 2px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--infinite-canvas-hover);
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--infinite-canvas-text);
+  }
+
+  &[data-active='true'] {
+    background: var(--infinite-canvas-accent-soft);
+    color: var(--infinite-canvas-text);
   }
 }
 
 .infinite-canvas-picker__list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   margin: 0;
   padding: 0;
   gap: 6px;
@@ -482,11 +780,11 @@
 
 .infinite-canvas-picker__item {
   display: flex;
-  max-width: 200px;
+  width: 100%;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid var(--infinite-canvas-border);
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--infinite-canvas-hairline);
   border-radius: 6px;
   background: var(--infinite-canvas-bg);
   color: var(--infinite-canvas-text);
@@ -494,21 +792,34 @@
   font-size: 11px;
   text-align: left;
 
-  &:hover,
+  &:hover {
+    border-color: var(--infinite-canvas-border);
+  }
+
   &[data-selected='true'] {
     border-color: var(--infinite-canvas-accent);
+    background: var(--infinite-canvas-accent-soft);
   }
+}
+
+// Style presets are text cards: name over category, tidy two-line grid cell.
+.infinite-canvas-picker--style .infinite-canvas-picker__item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .infinite-canvas-picker__thumbnail {
   width: 28px;
   height: 28px;
+  flex: none;
   border-radius: 4px;
   object-fit: cover;
 }
 
 .infinite-canvas-picker__item-name {
   overflow: hidden;
+  max-width: 100%;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

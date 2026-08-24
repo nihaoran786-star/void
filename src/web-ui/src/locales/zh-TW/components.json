@@ -930,6 +930,10 @@
       "addGenerationCard": "新建生成卡",
       "addVideoCard": "新建影片卡"
     },
+    "empty": {
+      "hint": "畫布還是空的。先建一張生成卡，寫好提示詞就能出圖。",
+      "createCard": "新建生成卡"
+    },
     "textNode": {
       "ariaLabel": "文字節點",
       "placeholder": "輸入文字…"

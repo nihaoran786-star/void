@@ -81,20 +81,33 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
             ))}
           </select>
         </label>
-        <label className="infinite-canvas-picker__filter">
-          <span>{t('infiniteCanvas.stylePicker.categoryLabel')}</span>
-          <select
-            value={category}
-            onChange={event => setCategory(event.target.value)}
+      </div>
+      <div
+        className="infinite-canvas-picker__pills"
+        role="group"
+        aria-label={t('infiniteCanvas.stylePicker.categoryLabel')}
+      >
+        <button
+          type="button"
+          className="infinite-canvas-picker__pill"
+          data-active={category === ALL_CATEGORIES ? 'true' : undefined}
+          aria-pressed={category === ALL_CATEGORIES}
+          onClick={() => setCategory(ALL_CATEGORIES)}
+        >
+          {t('infiniteCanvas.stylePicker.allCategories')}
+        </button>
+        {categories.map(entry => (
+          <button
+            key={entry}
+            type="button"
+            className="infinite-canvas-picker__pill"
+            data-active={category === entry ? 'true' : undefined}
+            aria-pressed={category === entry}
+            onClick={() => setCategory(entry)}
           >
-            <option value={ALL_CATEGORIES}>
-              {t('infiniteCanvas.stylePicker.allCategories')}
-            </option>
-            {categories.map(entry => (
-              <option key={entry} value={entry}>{entry}</option>
-            ))}
-          </select>
-        </label>
+            {entry}
+          </button>
+        ))}
       </div>
       {currentPresetId ? (
         <button
