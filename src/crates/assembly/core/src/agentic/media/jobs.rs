@@ -167,17 +167,34 @@ pub fn start_media_job_polling(
             .await;
         }
         tokio::time::sleep(MEDIA_JOB_INITIAL_POLL_DELAY).await;
-        let mut result = poll_media_jobs(client, kind, &handle).await;
-        if let Some(path) = store_path.as_deref() {
-            result = save_generated_media_assets(&result, path)
-                .await
-                .unwrap_or(result);
-            let _ = persist_media_batch(path, &result).await;
-        }
-        attach_short_drama_media_result(&mut result, kind, handle.short_drama.as_ref());
-        attach_infinite_canvas_media_result(&mut result, kind, handle.infinite_canvas.as_ref());
+        let polled = poll_media_jobs(client, kind, &handle).await;
+        let result = finalize_media_job_result(kind, &handle, store_path.as_deref(), polled).await;
         emit_media_job_completed(event_context, result).await;
     });
+}
+
+/// Post-poll finalization shared by every batch outcome (completed, partial,
+/// failed, timeout): save assets, attach the short-drama / infinite-canvas
+/// bindings, then persist. The bindings are attached BEFORE persisting so the
+/// on-disk batch record carries the same enriched result the completion event
+/// ships — the reconciliation path and the live event path stay consistent.
+async fn finalize_media_job_result(
+    kind: &str,
+    handle: &MediaJobHandle,
+    store_path: Option<&Path>,
+    mut result: Value,
+) -> Value {
+    if let Some(path) = store_path {
+        result = save_generated_media_assets(&result, path)
+            .await
+            .unwrap_or(result);
+    }
+    attach_short_drama_media_result(&mut result, kind, handle.short_drama.as_ref());
+    attach_infinite_canvas_media_result(&mut result, kind, handle.infinite_canvas.as_ref());
+    if let Some(path) = store_path {
+        let _ = persist_media_batch(path, &result).await;
+    }
+    result
 }
 
 async fn poll_media_jobs(client: ApimartClient, kind: &str, handle: &MediaJobHandle) -> Value {
@@ -1093,10 +1110,11 @@ mod tests {
         attach_infinite_canvas_media_result, attach_short_drama_media_result,
         build_media_batch_result, build_media_batch_result_with_id, build_media_polling_result,
         classify_apimart_error,
-        classify_apimart_error_message, extract_media_task_ids, is_valid_downloaded_media_bytes,
+        classify_apimart_error_message, extract_media_task_ids, finalize_media_job_result,
+        is_valid_downloaded_media_bytes,
         load_media_batch, media_batch_context_text, media_job_store_path, media_task_status,
         persist_media_batch, sanitize_path_component, save_generated_media_assets_with_downloader,
-        MEDIA_JOB_INITIAL_POLL_DELAY, MEDIA_JOB_POLL_INTERVAL,
+        MediaJobHandle, MEDIA_JOB_INITIAL_POLL_DELAY, MEDIA_JOB_POLL_INTERVAL,
     };
     use serde_json::json;
     use std::path::PathBuf;
@@ -1546,6 +1564,62 @@ mod tests {
             .is_some_and(|path| {
                 path.ends_with("media/generated/media_batch_infinite_canvas/image-001.png")
             }));
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn finalization_attaches_and_persists_canvas_binding_for_failed_batches() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-failed-binding-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_failed_binding")
+            .expect("store path");
+        let failed = build_media_batch_result_with_id(
+            "image",
+            "media_batch_failed_binding",
+            json!([{
+                "task_id": "task-a",
+                "status": "failed",
+                "error": { "code": "provider_error", "message": "boom" }
+            }]),
+            vec![],
+        );
+        let handle = MediaJobHandle {
+            batch_id: "media_batch_failed_binding".to_string(),
+            task_ids: vec!["task-a".to_string()],
+            prompt: None,
+            model: None,
+            requested_count: None,
+            requested_aspect_ratio: None,
+            placeholder_aspect_ratio: None,
+            short_drama: None,
+            infinite_canvas: Some(json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "derived",
+                "toolId": "generate",
+                "operationId": "op-failed-1"
+            })),
+        };
+
+        let result =
+            finalize_media_job_result("image", &handle, Some(path.as_path()), failed).await;
+
+        // The emitted result carries the binding even on a failed batch, so
+        // the canvas card can flip to an explicit failure instead of spinning.
+        assert_eq!(result["status"], "failed");
+        assert_eq!(result["infiniteCanvas"]["operationId"], "op-failed-1");
+        assert_eq!(result["infiniteCanvas"]["outputMediaKind"], "image");
+
+        // The persisted batch record carries the same enriched binding
+        // (persist runs AFTER attach), keeping the W7 reconciliation path and
+        // the live event path consistent.
+        let loaded = load_media_batch(&path).await.expect("load batch");
+        assert_eq!(loaded["status"], "failed");
+        assert_eq!(loaded["infiniteCanvas"]["operationId"], "op-failed-1");
 
         let _ = tokio::fs::remove_dir_all(root).await;
     }

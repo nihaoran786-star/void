@@ -517,6 +517,97 @@ describe('shouldProcessEvent', () => {
     expect(stateMachineManager.getCurrentState(mockSessionId)).toBe(SessionExecutionState.IDLE);
   });
 
+  it('allows a late media terminal event when the polling item was stored under the deferred-tool gateway name', () => {
+    // Real-world regression (owner workspace, 2026-08-24): the Media agent
+    // invokes GenerateImage through CallDeferredTool, so the chat item is
+    // stored as toolName 'CallDeferredTool' while the async polling-completed
+    // event carries tool_name 'GenerateImage'. The old strict name equality
+    // dropped every such completion ("state_not_accepting_data") and canvas
+    // cards spun forever on success AND failure.
+    const deferredMediaTool: FlowToolItem = {
+      id: 'call_00_deferred_media',
+      type: 'tool',
+      toolName: 'CallDeferredTool',
+      timestamp: 1100,
+      status: 'completed',
+      toolCall: {
+        id: 'call_00_deferred_media',
+        input: { tool_name: 'GenerateImage', arguments: { prompt: 'test image' } },
+      },
+      toolResult: {
+        success: true,
+        result: {
+          kind: 'image',
+          status: 'polling',
+          batch_id: 'media_batch_test',
+          task_ids: ['task_1'],
+        },
+      },
+    };
+
+    FlowChatStore.getInstance().setState(() => ({
+      sessions: new Map([[
+        mockSessionId,
+        {
+          sessionId: mockSessionId,
+          title: 'Test Session',
+          dialogTurns: [{
+            id: mockTurnId,
+            sessionId: mockSessionId,
+            userMessage: {
+              id: 'user-1',
+              content: 'Generate image',
+              timestamp: 1000,
+            },
+            modelRounds: [{
+              id: 'round-1',
+              index: 0,
+              items: [deferredMediaTool],
+              isStreaming: false,
+              isComplete: true,
+              status: 'completed',
+              startTime: 1000,
+              endTime: 1200,
+            }],
+            status: 'completed',
+            startTime: 1000,
+            endTime: 1200,
+          }],
+          status: 'idle',
+          config: { agentType: 'media' },
+          createdAt: 1000,
+          lastActiveAt: 1200,
+          error: null,
+          sessionKind: 'normal',
+        } as Session,
+      ]]),
+      activeSessionId: mockSessionId,
+    }));
+
+    expect(__test_only__.shouldAllowLateMediaToolEvent(mockSessionId, mockTurnId, {
+      event_type: 'Completed',
+      tool_id: 'call_00_deferred_media',
+      tool_name: 'GenerateImage',
+      result: { status: 'completed', infiniteCanvas: { nodeId: 'node-1' } },
+      duration_ms: 0,
+    })).toBe(true);
+    expect(
+      shouldProcessEvent(mockSessionId, mockTurnId, 'data', 'ToolEvent', {
+        allowIdleCompletedTurn: true,
+      }),
+    ).toBe(true);
+
+    // A late event whose tool_name is not an async media tool is still
+    // rejected even though the stored item is a deferred-gateway item.
+    expect(__test_only__.shouldAllowLateMediaToolEvent(mockSessionId, mockTurnId, {
+      event_type: 'Completed',
+      tool_id: 'call_00_deferred_media',
+      tool_name: 'CallDeferredTool',
+      result: { status: 'completed' },
+      duration_ms: 0,
+    })).toBe(false);
+  });
+
   it('does not allow a late media terminal event for a non-polling completed tool item', () => {
     const mediaTool: FlowToolItem = {
       id: 'media-tool-1',

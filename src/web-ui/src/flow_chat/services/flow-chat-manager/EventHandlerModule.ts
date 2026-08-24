@@ -128,6 +128,14 @@ const RECOVERABLE_IDLE_TURN_STATUSES = new Set<DialogTurn['status']>([
 
 const ASYNC_MEDIA_TOOL_NAMES = new Set(['GenerateImage', 'GenerateVideo']);
 const TERMINAL_TOOL_EVENT_TYPES = new Set(['Completed', 'Failed', 'Cancelled']);
+/**
+ * Wire name of the deferred-tool gateway. When a media tool is invoked
+ * through it (collapsed tool catalogs), the chat item is stored under this
+ * name while the async polling-completed event still carries the real media
+ * tool name — the late-event gate must accept that pairing, or completed
+ * generations never land (canvas cards spin forever).
+ */
+const DEFERRED_TOOL_GATEWAY_NAME = 'CallDeferredTool';
 
 export function isAppWindowFocused(): boolean {
   if (typeof document === 'undefined') {
@@ -272,7 +280,8 @@ function shouldAllowLateMediaToolEvent(
 
   const existingTool = existingItem as FlowToolItem;
   return (
-    existingTool.toolName === toolEvent.tool_name &&
+    (existingTool.toolName === toolEvent.tool_name ||
+      existingTool.toolName === DEFERRED_TOOL_GATEWAY_NAME) &&
     existingTool.status === 'completed' &&
     existingTool.toolResult?.success === true &&
     existingTool.toolResult?.result?.status === 'polling'
