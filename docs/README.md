@@ -31,6 +31,11 @@ the area you are changing.
   [phase-1 plan](plans/2026-08-22-infinite-canvas-plugin-phase1.md), the
   [phase-2 K2 plan](plans/2026-08-23-infinite-canvas-k2-image-tools.md), and the
   [phase-3 P3 plan](plans/2026-08-24-infinite-canvas-p3-agent-canvas.md)
+- [Infinite Canvas capability gap](features/infinite-canvas-capability-gap.md) —
+  what the shipped canvas can and cannot do measured against the kunpeng
+  reference product, the P1/P2/P3 and explicitly-rejected backlog, the proposed
+  phase-4 slice, and the known trade-offs (an instruction-driven five-piece set
+  rather than dedicated models, and no asset protocol so previews are data URLs)
 - [Customization Center and active persona](features/customization-center-prd.md)
   — Agent/Team/Skill catalogs, per-conversation persona binding, and the
   Desktop/Tauri reusable-Team runtime status

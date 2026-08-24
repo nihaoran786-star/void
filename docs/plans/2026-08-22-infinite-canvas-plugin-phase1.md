@@ -1,10 +1,17 @@
 # 第一期实施计划：无限画布 Canvas 插件 + kunpeng 资产/契约切片（K0+K1）
 
-状态：待业主批准的实施计划（本文档只做计划，不改任何源码）
+> **修订注记（2026-08-25）**：本计划已交付并被后续两期部分推翻。最重要的
+> 一条：本计划把五件套图像工具定为"唯一合法实现是 `unavailable` 占位"，
+> 该条款自 K2 起废止（见
+> [PRD §3.1](../features/infinite-canvas-and-media-tools-prd.md)）。本文档
+> 保留为第一期的交付留痕，**不再是任何现行契约**；现状与后续排期见
+> [无限画布能力差距清单](../features/infinite-canvas-capability-gap.md)。
+
+状态：已交付（业主 2026-08-23 验收）；本文档只做计划，不改任何源码
 日期：2026-08-22
 上游依据：
 - [Canvas 插件平台 PRD](../features/canvas-plugin-platform-prd.md)（最高规范）
-- [kunpeng 移植评估报告](file:///D:/codex/kunpeng-plugin-evaluation.md)（`D:\codex\kunpeng-plugin-evaluation.md`）
+- kunpeng 移植评估报告（业主本地文件，不在本仓库内）
 - `CONTEXT.md`、`AGENTS.md`、`src/web-ui/AGENTS.md`
 
 ---
@@ -80,18 +87,18 @@ registry/service/host/renderer 链路已就绪，新增一个第一方表面按 
 
 | 来源（kunpeng 真实路径） | 内容 | 进 Void 的形态 |
 |---|---|---|
-| `D:\codex\kunpeng\aigc-memory\style-library\index.json` + `live-action\`(67 图) + `2d-animation\`(94 图) | 161 套影像风格（promptTemplate/visualDNA/cameraLanguage/promptSuffix + 缩略图） | 转换为 Void `StylePreset` schema 的数据文件；缩略图**不进入主 bundle**（见 §6 风险） |
-| `D:\codex\kunpeng\src\lib\midjourney\styles.ts` + `testedStyles.json` | 约 84 套 MJ 风格参数 | 同上，标 `engineHint: 'midjourney'` |
-| `D:\codex\kunpeng\src\lib\omni\styles.ts` | 72 套 MG 动画预设（id/name/category/prompt/guidance/tags/bestFor）+ 8 个分类 + MotionRecipe 结构 | 转换为 `MgStylePreset` 数据；MotionRecipe 五维枚举结构照抄进 K0 契约 |
-| `D:\codex\kunpeng\aigc-memory\prompt-templates\`（gpt-image-2/kling/seedance）、`shot-patterns\`、`checklists\`、`reference\` | 提示词模板与操作清单（Markdown 纯文本） | 作为 Skill/领域参考数据搬入（K1 范围内先入库为数据，是否包装成 Void Skill 由业主在 K1 验收时决定） |
+| `kunpeng: aigc-memory\style-library\index.json` + `live-action\`(67 图) + `2d-animation\`(94 图) | 161 套影像风格（promptTemplate/visualDNA/cameraLanguage/promptSuffix + 缩略图） | 转换为 Void `StylePreset` schema 的数据文件；缩略图**不进入主 bundle**（见 §6 风险） |
+| `kunpeng: src\lib\midjourney\styles.ts` + `testedStyles.json` | 约 84 套 MJ 风格参数 | 同上，标 `engineHint: 'midjourney'` |
+| `kunpeng: src\lib\omni\styles.ts` | 72 套 MG 动画预设（id/name/category/prompt/guidance/tags/bestFor）+ 8 个分类 + MotionRecipe 结构 | 转换为 `MgStylePreset` 数据；MotionRecipe 五维枚举结构照抄进 K0 契约 |
+| `kunpeng: aigc-memory\prompt-templates\`（gpt-image-2/kling/seedance）、`shot-patterns\`、`checklists\`、`reference\` | 提示词模板与操作清单（Markdown 纯文本） | 作为 Skill/领域参考数据搬入（K1 范围内先入库为数据，是否包装成 Void Skill 由业主在 K1 验收时决定） |
 
 **思路吸收、代码重写：**
 
 | 来源 | 借的思路 | 重写原因 |
 |---|---|---|
-| `D:\codex\kunpeng\src\lib\canvas\imageTools.ts` | `IMAGE_TOOLS` 五工具定义（id/label/instruction/engineId/autoRun）；**每次操作派生新节点、永不覆盖原图**的版本树语义；派生节点带预填充指令待用户补【】占位 | 它直接 `useCanvasStore.getState()` 写 UI store，违反 Void `UI → Module Interface → Adapter` 方向；进 Void 时工具定义成为 K0 契约里的类型化 Tool 描述，执行路径走未来的 Media Provider seam |
-| `D:\codex\kunpeng\src\lib\workshop\canvasSync.ts` | `workshopRef = {projectId, kind, id, role}` 引用协议：画布节点只挂类型化领域引用标签；回流只追加候选不覆盖 | 本期只把该协议吸收为 K0 契约中的 `InfiniteCanvasDomainRef` 保留字段（不实现同步）；kunpeng 实现直接 import Tauri fs 与三个 store，不能进来 |
-| `D:\codex\kunpeng\src\stores\canvasStore.ts` + reactflow 用法 | 节点/边数据模型（`type: 'image'|'video'|'group'`、`data.generatedImageUrl/referenceImages/description`）；localStorage 只是二级缓存、canvas.json 才是真相的分层；coalesced idle 防抖写盘 | Void 的真相源在 Domain Module 文件持久化，UI store 只做投影；防抖原子写思想保留 |
+| `kunpeng: src\lib\canvas\imageTools.ts` | `IMAGE_TOOLS` 五工具定义（id/label/instruction/engineId/autoRun）；**每次操作派生新节点、永不覆盖原图**的版本树语义；派生节点带预填充指令待用户补【】占位 | 它直接 `useCanvasStore.getState()` 写 UI store，违反 Void `UI → Module Interface → Adapter` 方向；进 Void 时工具定义成为 K0 契约里的类型化 Tool 描述，执行路径走未来的 Media Provider seam |
+| `kunpeng: src\lib\workshop\canvasSync.ts` | `workshopRef = {projectId, kind, id, role}` 引用协议：画布节点只挂类型化领域引用标签；回流只追加候选不覆盖 | 本期只把该协议吸收为 K0 契约中的 `InfiniteCanvasDomainRef` 保留字段（不实现同步）；kunpeng 实现直接 import Tauri fs 与三个 store，不能进来 |
+| `kunpeng: src\stores\canvasStore.ts` + reactflow 用法 | 节点/边数据模型（`type: 'image'|'video'|'group'`、`data.generatedImageUrl/referenceImages/description`）；localStorage 只是二级缓存、canvas.json 才是真相的分层；coalesced idle 防抖写盘 | Void 的真相源在 Domain Module 文件持久化，UI store 只做投影；防抖原子写思想保留 |
 
 **归属记录方式：** 新建仓库根 `THIRD-PARTY-NOTICES.md`（当前不存在），条目格式：
 项目名（kunpeng）、来源路径、许可证（MIT）、原版权声明全文、我们使用的内容

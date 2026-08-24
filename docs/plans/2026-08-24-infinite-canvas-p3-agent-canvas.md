@@ -1,5 +1,14 @@
 # 第三期实施计划：AI 指挥画布 + 视频卡（K2.5/P3）
 
+> **修订注记（2026-08-25）**：下方"上游依据"里对 K2 的描述"会话派发"已过时
+> ——同日业主决定把画布按钮改为**前端直连**
+> `submit_infinite_canvas_media_job`，不经会话与主 AI（见
+> [K2 文首修订注记](2026-08-23-infinite-canvas-k2-image-tools.md)与
+> [PRD §3.1](../features/infinite-canvas-and-media-tools-prd.md)）。本期的
+> `CanvasOp begin_generation`（AI 主动出图）走的仍是会话工具路径，不受影响。
+> 本期之后的现状与排期见
+> [无限画布能力差距清单](../features/infinite-canvas-capability-gap.md)。
+
 状态：待业主批准的实施计划（本文档只做计划，不改任何源码）
 日期：2026-08-24
 业主已定方向：**AI 指挥画布的指挥者 = 媒体会话的主 AI**。

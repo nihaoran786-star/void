@@ -13,7 +13,7 @@ Updated: 2026-08-22 (head `d0904e0ea`)
   `origin/main`; the previous remote main was an unrelated 2026-02..05 showcase
   history, preserved as `legacy/main-20260525`.
 - Void is the product and implementation repository. BitFun is a capability/fix
-  reference; DeepSeek Harness (local clone `D:\codex\DSH`) is a
+  reference; DeepSeek Harness (a clone kept outside this repository) is a
   plugin-architecture reference. Neither replaces Void's product identity or its
   stable runtime contracts.
 
@@ -79,10 +79,25 @@ through its own Module Interface. Active contract:
   images (`@图一/@图二`), the five image tools as derive-only operations, an
   `infinite_canvas` binding echoed by GenerateImage/GenerateVideo and attached
   on job completion, `InfiniteCanvasMediaBridge` backflow, and journal-based
-  pending reconciliation. P3 adds agent-driven canvas (`CanvasRead`/`CanvasOp`
-  Rust tools + `.ops.json` journal with an `appliedSeq` watermark, frontend
-  `InfiniteCanvasOpsBridge` applying batches through the document service) and
-  video cards over GenerateVideo. Plans:
+  pending reconciliation. **The canvas buttons no longer route through the main
+  conversation AI** (2026-08-24 owner decision, superseding the K2 §2 path-A
+  choice): generate / regenerate / the five tools call the desktop command
+  `submit_infinite_canvas_media_job` through `DirectImageGenerationGateway`,
+  which reuses the GenerateImage/GenerateVideo submit orchestration and returns
+  over `infinite-canvas://media-job-event`; the session path is retained only
+  for the AI generating on the user's behalf. P3 adds agent-driven canvas
+  (`CanvasRead`/`CanvasOp` Rust tools + `.ops.json` journal with an `appliedSeq`
+  watermark, frontend `InfiniteCanvasOpsBridge` applying batches through the
+  document service) and video cards over GenerateVideo. Known trade-off worth
+  re-reading before touching previews: this app does **not** enable Tauri's
+  `assetProtocol`, so `convertFileSrc` streaming URLs are refused by the webview
+  — canvas cards must resolve media with `forceDataUrl: true` through
+  `resolveWorkspaceMediaPreviewUrl` (the same lane as the Workspace Media
+  gallery, images in its bounded thumbnail cache). "Optimising" that back to a
+  streaming URL blanks every card. Capability gap versus the kunpeng reference
+  product and the proposed phase-4 scope:
+  [docs/features/infinite-canvas-capability-gap.md](docs/features/infinite-canvas-capability-gap.md).
+  Plans:
   [K2](docs/plans/2026-08-23-infinite-canvas-k2-image-tools.md),
   [P3](docs/plans/2026-08-24-infinite-canvas-p3-agent-canvas.md). Two
   adversarial review passes fixed nine confirmed defects; the critical shared
