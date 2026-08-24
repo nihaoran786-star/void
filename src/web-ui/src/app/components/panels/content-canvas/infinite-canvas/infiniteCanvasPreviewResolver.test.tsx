@@ -1,20 +1,25 @@
 /**
- * Defect-A closure: mediaRef cards must display through the proven
- * convertFileSrc lane (the same one the Workspace Media thumbnails and the
- * canvas image picker use), with the absolute path joined from
- * workspacePath + relativePath — Windows separators included — and fall back
- * to the previewUnavailable state when no loadable URL exists.
+ * Defect-A closure: mediaRef cards must display through the same proven lane
+ * the Workspace Media gallery uses — `resolveWorkspaceMediaPreviewUrl` with a
+ * forced data URL (this app does not enable Tauri's asset protocol, so
+ * convertFileSrc URLs are refused by the webview). The absolute path is
+ * joined from workspacePath + relativePath — Windows separators included —
+ * and the card falls back to the previewUnavailable state when no loadable
+ * URL exists.
  */
 import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 
-const tauriCore = vi.hoisted(() => ({
-  convertFileSrc: vi.fn((path: string) => `asset://localhost/${encodeURIComponent(path)}`),
+const previewResolverMock = vi.hoisted(() => ({
+  resolveWorkspaceMediaPreviewUrl: vi.fn(
+    async (request: { filePath: string }) =>
+      `data:mock;base64,${encodeURIComponent(request.filePath)}`,
+  ),
 }));
 
-vi.mock('@tauri-apps/api/core', () => tauriCore);
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => previewResolverMock);
 
 vi.mock('@xyflow/react', () => ({
   Handle: () => null,
@@ -33,27 +38,48 @@ import { InfiniteCanvasImageNode, InfiniteCanvasVideoNode } from './InfiniteCanv
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+const resolveMock = previewResolverMock.resolveWorkspaceMediaPreviewUrl;
+
+function mockDataUrl(filePath: string): string {
+  return `data:mock;base64,${encodeURIComponent(filePath)}`;
+}
+
 describe('resolveInfiniteCanvasMediaPreviewUrl', () => {
   beforeEach(() => {
-    tauriCore.convertFileSrc.mockClear();
-    tauriCore.convertFileSrc.mockImplementation(
-      (path: string) => `asset://localhost/${encodeURIComponent(path)}`,
+    resolveMock.mockClear();
+    resolveMock.mockImplementation(
+      async (request: { filePath: string }) => mockDataUrl(request.filePath),
     );
   });
 
-  it('converts the joined absolute Windows path (backslash workspace)', async () => {
+  it('requests a forced data URL for the joined absolute Windows path', async () => {
     const url = await resolveInfiniteCanvasMediaPreviewUrl({
       workspacePath: 'D:\\projects\\ws',
       relativePath: 'media/generated/batch-1/image-001.png',
     });
 
-    expect(tauriCore.convertFileSrc).toHaveBeenCalledTimes(1);
-    expect(tauriCore.convertFileSrc).toHaveBeenCalledWith(
-      'D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png',
-    );
+    expect(resolveMock).toHaveBeenCalledTimes(1);
+    expect(resolveMock).toHaveBeenCalledWith({
+      filePath: 'D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png',
+      kind: 'image',
+      forceDataUrl: true,
+    });
     expect(url).toBe(
-      `asset://localhost/${encodeURIComponent('D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png')}`,
+      mockDataUrl('D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png'),
     );
+  });
+
+  it('classifies video extensions as video requests', async () => {
+    await resolveInfiniteCanvasMediaPreviewUrl({
+      workspacePath: 'D:\\projects\\ws',
+      relativePath: 'media/generated/batch-2/video-001.mp4',
+    });
+
+    expect(resolveMock).toHaveBeenCalledWith({
+      filePath: 'D:\\projects\\ws\\media\\generated\\batch-2\\video-001.mp4',
+      kind: 'video',
+      forceDataUrl: true,
+    });
   });
 
   it('never mixes separators when the relativePath arrives with backslashes', () => {
@@ -63,10 +89,8 @@ describe('resolveInfiniteCanvasMediaPreviewUrl', () => {
     })).toBe('C:/projects/ws/media/generated/batch-2/image-001.png');
   });
 
-  it('returns undefined when conversion is unavailable (previewUnavailable path)', async () => {
-    tauriCore.convertFileSrc.mockImplementation(() => {
-      throw new Error('not in a Tauri webview');
-    });
+  it('returns undefined when resolution fails (previewUnavailable path)', async () => {
+    resolveMock.mockResolvedValue(undefined);
 
     const url = await resolveInfiniteCanvasMediaPreviewUrl({
       workspacePath: 'D:\\projects\\ws',
@@ -97,9 +121,9 @@ describe('media cards render through the resolver', () => {
   };
 
   beforeEach(() => {
-    tauriCore.convertFileSrc.mockClear();
-    tauriCore.convertFileSrc.mockImplementation(
-      (path: string) => `asset://localhost/${encodeURIComponent(path)}`,
+    resolveMock.mockClear();
+    resolveMock.mockImplementation(
+      async (request: { filePath: string }) => mockDataUrl(request.filePath),
     );
     dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
       pretendToBeVisual: true,
@@ -116,7 +140,7 @@ describe('media cards render through the resolver', () => {
     vi.unstubAllGlobals();
   });
 
-  it('image card shows the converted URL for its mediaRef', async () => {
+  it('image card shows the resolved data URL for its mediaRef', async () => {
     await act(async () => {
       root.render(
         <InfiniteCanvasImageNode
@@ -126,17 +150,19 @@ describe('media cards render through the resolver', () => {
       );
     });
 
-    expect(tauriCore.convertFileSrc).toHaveBeenCalledWith(
-      'D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png',
-    );
+    expect(resolveMock).toHaveBeenCalledWith({
+      filePath: 'D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png',
+      kind: 'image',
+      forceDataUrl: true,
+    });
     const image = container.querySelector('.infinite-canvas-node__image');
     expect(image).not.toBeNull();
     expect(image!.getAttribute('src')).toBe(
-      `asset://localhost/${encodeURIComponent('D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png')}`,
+      mockDataUrl('D:\\projects\\ws\\media\\generated\\batch-1\\image-001.png'),
     );
   });
 
-  it('video card shows the converted URL for its mediaRef', async () => {
+  it('video card shows the resolved data URL for its mediaRef', async () => {
     const videoRef = {
       workspacePath: 'D:\\projects\\ws',
       relativePath: 'media/generated/batch-2/video-001.mp4',
@@ -154,20 +180,20 @@ describe('media cards render through the resolver', () => {
       );
     });
 
-    expect(tauriCore.convertFileSrc).toHaveBeenCalledWith(
-      'D:\\projects\\ws\\media\\generated\\batch-2\\video-001.mp4',
-    );
+    expect(resolveMock).toHaveBeenCalledWith({
+      filePath: 'D:\\projects\\ws\\media\\generated\\batch-2\\video-001.mp4',
+      kind: 'video',
+      forceDataUrl: true,
+    });
     const video = container.querySelector('.infinite-canvas-node__video');
     expect(video).not.toBeNull();
     expect(video!.getAttribute('src')).toBe(
-      `asset://localhost/${encodeURIComponent('D:\\projects\\ws\\media\\generated\\batch-2\\video-001.mp4')}`,
+      mockDataUrl('D:\\projects\\ws\\media\\generated\\batch-2\\video-001.mp4'),
     );
   });
 
   it('falls back to previewUnavailable when the resolver yields no URL', async () => {
-    tauriCore.convertFileSrc.mockImplementation(() => {
-      throw new Error('unavailable');
-    });
+    resolveMock.mockResolvedValue(undefined);
     await act(async () => {
       root.render(
         <InfiniteCanvasImageNode

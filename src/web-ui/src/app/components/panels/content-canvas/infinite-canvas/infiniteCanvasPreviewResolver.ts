@@ -1,16 +1,17 @@
 /**
  * Default media preview resolver for infinite-canvas cards.
  *
- * A card's `mediaRef` is `{ workspacePath, relativePath }`; the webview cannot
- * load the raw local file path, so it must be converted with Tauri's
- * `convertFileSrc` — the exact same proven lane the Workspace Media library
- * thumbnails (WorkspaceMediaLibrary.previewUrlForPath) and the canvas image
- * picker use. No environment sniffing and no base64 fallback: when the
- * conversion is unavailable or fails, the card falls back to the existing
+ * A card's `mediaRef` is `{ workspacePath, relativePath }`. This app does not
+ * enable Tauri's asset protocol (`convertFileSrc` URLs are refused by the
+ * webview), so cards load media exactly the way the Workspace Media gallery
+ * does: through `resolveWorkspaceMediaPreviewUrl`, which reads the file over
+ * the workspace API and serves a data URL (images go through its bounded
+ * thumbnail cache). On any failure the card falls back to its existing
  * `previewUnavailable` state instead of a broken image icon.
  */
-import { convertFileSrc } from '@tauri-apps/api/core';
-
+import {
+  resolveWorkspaceMediaPreviewUrl,
+} from '@/shared/services/workspace-media/WorkspaceMediaPreviewResolver';
 import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
 
 import type {
@@ -33,13 +34,22 @@ export function infiniteCanvasMediaFilePath(mediaRef: InfiniteCanvasMediaRef): s
   );
 }
 
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v']);
+
+function mediaKindForPath(relativePath: string): 'image' | 'video' {
+  const extension = relativePath.split('.').pop()?.toLowerCase() ?? '';
+  return VIDEO_EXTENSIONS.has(extension) ? 'video' : 'image';
+}
+
 export const resolveInfiniteCanvasMediaPreviewUrl: InfiniteCanvasImagePreviewResolver =
   async mediaRef => {
-    try {
-      return convertFileSrc(infiniteCanvasMediaFilePath(mediaRef)) || undefined;
-    } catch {
-      // Outside a Tauri webview (or on conversion failure) there is no
-      // loadable URL; the card shows its previewUnavailable state.
-      return undefined;
-    }
+    const filePath = infiniteCanvasMediaFilePath(mediaRef);
+    const kind = mediaKindForPath(mediaRef.relativePath);
+    return resolveWorkspaceMediaPreviewUrl({
+      filePath,
+      kind,
+      // Images opt into the gallery's bounded data-url cache; the asset
+      // protocol is disabled in this app, so streaming URLs never load.
+      forceDataUrl: true,
+    });
   };
