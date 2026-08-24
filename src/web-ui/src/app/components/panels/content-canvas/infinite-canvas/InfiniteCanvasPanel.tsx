@@ -56,8 +56,6 @@ import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
 import type { WorkspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaTypes';
 import { workspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaLibrary';
-import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-media/WorkspaceMediaPreviewResolver';
-import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
 import {
   getInfiniteCanvasDocumentService,
   getInfiniteCanvasMediaJobReader,
@@ -101,6 +99,7 @@ import {
   type InfiniteCanvasImagePreviewResolver,
   type InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
+import { resolveInfiniteCanvasMediaPreviewUrl } from './infiniteCanvasPreviewResolver';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
@@ -114,19 +113,11 @@ const NODE_TYPES = {
   [INFINITE_CANVAS_VIDEO_NODE_TYPE]: InfiniteCanvasVideoNode,
 } as unknown as NodeTypes;
 
-function extensionOf(relativePath: string): string | undefined {
-  const fileName = relativePath.split(/[\\/]/).pop() || relativePath;
-  const dot = fileName.lastIndexOf('.');
-  return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : undefined;
-}
-
-const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver = (mediaRef, mediaKind) => (
-  resolveWorkspaceMediaPreviewUrl({
-    filePath: joinWorkspaceMediaPath(mediaRef.workspacePath, mediaRef.relativePath),
-    extension: extensionOf(mediaRef.relativePath),
-    kind: mediaKind ?? 'image',
-  })
-);
+// Default preview lane: convertFileSrc over the joined absolute path — the
+// same proven conversion the Workspace Media thumbnails and the canvas image
+// picker use, so generated results display through one verified code path.
+const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver =
+  resolveInfiniteCanvasMediaPreviewUrl;
 
 type PanelState =
   | { phase: 'loading' }

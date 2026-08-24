@@ -151,6 +151,13 @@ const NodeMedia: React.FC<{
     };
   }, [mediaKind, mediaRef, resolvePreviewUrl]);
 
+  // A resolved URL that fails to load (deleted file, revoked asset scope)
+  // falls back to the previewUnavailable state instead of a broken icon.
+  const onMediaError = React.useCallback(() => {
+    setPreviewUrl(undefined);
+    setFailed(true);
+  }, []);
+
   if (previewUrl) {
     if (mediaKind === 'video') {
       // preload="metadata" keeps off-screen cards cheap (poster frame +
@@ -163,6 +170,7 @@ const NodeMedia: React.FC<{
           controls
           preload="metadata"
           aria-label={fileNameOf(mediaRef.relativePath)}
+          onError={onMediaError}
         />
       );
     }
@@ -172,6 +180,7 @@ const NodeMedia: React.FC<{
         src={previewUrl}
         alt={fileNameOf(mediaRef.relativePath)}
         draggable={false}
+        onError={onMediaError}
       />
     );
   }
