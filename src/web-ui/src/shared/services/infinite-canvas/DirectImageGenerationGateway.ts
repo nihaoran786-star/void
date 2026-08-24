@@ -1,0 +1,290 @@
+/**
+ * Direct media generation gateway (2026-08-24 owner decision, supersedes the
+ * K2 §2 path-A choice for canvas buttons).
+ *
+ * The canvas generate / regenerate / five-tool buttons no longer send a task
+ * message into a session for the main AI to relay (that burned model context
+ * on a mechanical hand-off). They invoke the
+ * `submit_infinite_canvas_media_job` desktop command directly: the backend
+ * runs the same APIMart pipeline the GenerateImage tool uses (upload local
+ * references → validate → submit → background polling with the
+ * `infinite_canvas` binding), with no AI in the loop.
+ *
+ * Result flow stays on the one existing landing lane:
+ * - Submission receipt (status 'polling'): this gateway republishes it as an
+ *   `agent:tool-run-event`, so the mounted InfiniteCanvasMediaBridge attaches
+ *   the batch to the pending operation (attach-batch → W7 reconciliation
+ *   safety net keeps working).
+ * - Completion: Rust emits `infinite-canvas://media-job-event`; the forwarder
+ *   below relays it onto `agent:tool-run-event` — the bridge lands the media
+ *   or settles a typed failure exactly as before. Zero bridge changes.
+ * - Typed submit errors map onto the K0-2 seven error kinds and roll the
+ *   pending card back through the panel's existing failOperationContent path.
+ *
+ * The AI path (user asks in chat → GenerateImage / CanvasOp
+ * begin_generation) is untouched; SessionImageGenerationGateway remains for
+ * that contract surface but is no longer used by the panel.
+ */
+import { api } from '@/infrastructure/api/service-api/ApiClient';
+import { globalEventBus } from '@/infrastructure/event-bus';
+import type { StylePresetCatalog } from '@/shared/services/style-preset';
+import { stylePresetCatalog } from '@/shared/services/style-preset';
+
+import type { ImageToolErrorKind, ImageToolResult } from './ImageToolTypes';
+import type { InfiniteCanvasImageBinding } from './InfiniteCanvasAgentTaskTypes';
+import { classifyMediaErrorKind } from './InfiniteCanvasMediaBridge';
+import {
+  buildFinalInstruction,
+  buildImageGenerationBinding,
+  type SessionImageGenerationGateway,
+  type SessionImageGenerationInvocation,
+} from './SessionImageGenerationGateway';
+
+export const SUBMIT_INFINITE_CANVAS_MEDIA_JOB_COMMAND = 'submit_infinite_canvas_media_job';
+/** Tauri channel the Rust command emits finished batches on. */
+export const INFINITE_CANVAS_MEDIA_JOB_EVENT = 'infinite-canvas://media-job-event';
+const AGENT_TOOL_RUN_OBSERVER_EVENT = 'agent:tool-run-event';
+
+/** Wire shape of the `submit_infinite_canvas_media_job` command arguments. */
+export interface SubmitInfiniteCanvasMediaJobArgs {
+  workspaceId: string;
+  workspacePath: string;
+  kind: 'image' | 'video';
+  model?: string;
+  prompt: string;
+  /** Already-public reference URLs, in order (rare from the canvas). */
+  imageUrls: string[];
+  /**
+   * Workspace-relative reference paths in the authoritative order: the edit
+   * target (five tools) first, then references in connection order.
+   */
+  localReferencePaths: string[];
+  n?: number;
+  size?: string;
+  infiniteCanvas: InfiniteCanvasImageBinding;
+}
+
+export interface SubmitInfiniteCanvasMediaJobResponse {
+  status: 'submitted' | 'error';
+  batchId?: string;
+  /** Full submission receipt (GenerateImage-result shape, binding echoed). */
+  receipt?: unknown;
+  error?: { code: string; message: string };
+}
+
+export interface DirectImageGenerationGatewayOptions {
+  workspaceId: string;
+  /** Local workspace root; the backend validates and stays inside it. */
+  workspacePath: string;
+  documentId: string;
+  catalog?: StylePresetCatalog;
+  /** Injection seams for tests; production uses api.invoke / globalEventBus. */
+  invokeCommand?: (
+    command: string,
+    args: { request: SubmitInfiniteCanvasMediaJobArgs },
+  ) => Promise<SubmitInfiniteCanvasMediaJobResponse>;
+  emitToolRunEvent?: (event: Record<string, unknown>) => void;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function failure(
+  operationId: string,
+  kind: ImageToolErrorKind,
+  message: string,
+): ImageToolResult {
+  return { operationId, status: 'failed', error: { kind, message } };
+}
+
+/**
+ * Maps a typed command error onto the K0-2 seven error kinds. Receipt-borne
+ * errors reuse the media bridge classifier (provider_not_configured → auth,
+ * safety_rejected → invalid-input, 429 → rate-limit, …); command-level codes
+ * cover the pre-submission failures.
+ */
+export function classifyDirectSubmitError(
+  error: { code: string; message: string },
+  receipt: unknown,
+): ImageToolErrorKind {
+  if (error.code === 'invalid_input') return 'invalid-input';
+  if (isRecord(receipt) && isRecord(receipt.error)) {
+    return classifyMediaErrorKind(receipt.error);
+  }
+  return classifyMediaErrorKind({ code: error.code });
+}
+
+// —— Completion event forwarder (Rust → agent:tool-run-event) ————————————————
+
+export interface DirectMediaJobEventSource {
+  listen(event: string, callback: (payload: unknown) => void): () => void;
+}
+
+export interface DirectMediaJobEventTarget {
+  emit(event: string, payload: unknown, sender?: string): boolean;
+}
+
+/**
+ * Relays `infinite-canvas://media-job-event` payloads (already shaped like
+ * agent tool-run observer events) onto the front-end event bus, where the
+ * InfiniteCanvasMediaBridge picks them up unchanged.
+ */
+export function connectInfiniteCanvasDirectMediaJobEvents(
+  source: DirectMediaJobEventSource = api,
+  target: DirectMediaJobEventTarget = globalEventBus,
+): () => void {
+  return source.listen(INFINITE_CANVAS_MEDIA_JOB_EVENT, payload => {
+    target.emit(AGENT_TOOL_RUN_OBSERVER_EVENT, payload, 'InfiniteCanvasDirectGateway');
+  });
+}
+
+let forwarderStarted = false;
+
+/** Starts the process-wide forwarder once (idempotent). */
+export function ensureInfiniteCanvasDirectMediaJobEventForwarder(): void {
+  if (forwarderStarted) return;
+  forwarderStarted = true;
+  connectInfiniteCanvasDirectMediaJobEvents();
+}
+
+// —— Gateway ————————————————————————————————————————————————————————————————
+
+export function createDirectImageGenerationGateway(
+  options: DirectImageGenerationGatewayOptions,
+): SessionImageGenerationGateway {
+  const catalog = options.catalog ?? stylePresetCatalog;
+  const invokeCommand = options.invokeCommand
+    ?? ((command: string, args: { request: SubmitInfiniteCanvasMediaJobArgs }) =>
+      api.invoke<SubmitInfiniteCanvasMediaJobResponse>(command, args));
+  const emitToolRunEvent = options.emitToolRunEvent
+    ?? ((event: Record<string, unknown>) => {
+      globalEventBus.emit(AGENT_TOOL_RUN_OBSERVER_EVENT, event, 'InfiniteCanvasDirectGateway');
+    });
+  const resultsByOperationId = new Map<string, ImageToolResult>();
+
+  return {
+    async invoke(invocation: SessionImageGenerationInvocation): Promise<ImageToolResult> {
+      const recorded = resultsByOperationId.get(invocation.operationId);
+      if (recorded) return recorded;
+
+      const record = (result: ImageToolResult): ImageToolResult => {
+        resultsByOperationId.set(invocation.operationId, result);
+        return result;
+      };
+
+      // Same invocation contract the session gateway enforced (K2/P3 rules).
+      if (invocation.resultMode === 'derived' && !invocation.sourceNodeId) {
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'A derived operation requires a sourceNodeId.',
+        ));
+      }
+      if (invocation.mediaKind === 'video' && invocation.kind !== 'generate') {
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'Video generation only supports the generate operation.',
+        ));
+      }
+      if (invocation.mediaKind === 'video' && invocation.editTargetMediaRef) {
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'A video generation task cannot carry an edit target.',
+        ));
+      }
+      if (invocation.kind !== 'generate' && invocation.resultMode !== 'derived') {
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'Image tool operations always derive a new card.',
+        ));
+      }
+      if (invocation.kind !== 'generate' && !invocation.editTargetMediaRef) {
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'An image tool operation requires the source image as its edit target.',
+        ));
+      }
+
+      // §2.1 prompt assembly stays on the front end: user prompt + @图N
+      // reference table + style block; the backend receives a final prompt.
+      const preset = invocation.stylePresetId
+        ? catalog.getById(invocation.stylePresetId)
+        : undefined;
+      const finalInstruction = buildFinalInstruction(
+        invocation.prompt,
+        invocation.references,
+        preset,
+      );
+      const binding = buildImageGenerationBinding(invocation, options);
+      const kind = invocation.mediaKind === 'video' ? 'video' as const : 'image' as const;
+      const localReferencePaths = [
+        ...(invocation.editTargetMediaRef ? [invocation.editTargetMediaRef.relativePath] : []),
+        ...invocation.references.map(reference => reference.mediaRef.relativePath),
+      ];
+      const request: SubmitInfiniteCanvasMediaJobArgs = {
+        workspaceId: options.workspaceId,
+        workspacePath: options.workspacePath,
+        kind,
+        prompt: finalInstruction,
+        imageUrls: [],
+        localReferencePaths,
+        // n is pinned to 1 for images (K2 §2.2 rule); video count is not a
+        // provider concept on this lane.
+        ...(kind === 'image' ? { n: 1 } : {}),
+        infiniteCanvas: binding,
+      };
+
+      let response: SubmitInfiniteCanvasMediaJobResponse;
+      try {
+        response = await invokeCommand(SUBMIT_INFINITE_CANVAS_MEDIA_JOB_COMMAND, { request });
+      } catch (error) {
+        // Not recorded: transport failures are retryable with the same
+        // operationId once the backend is reachable again.
+        return failure(
+          invocation.operationId,
+          'backend',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+
+      if (response.status !== 'submitted') {
+        const typed = response.error ?? {
+          code: 'backend',
+          message: 'Media generation submission failed.',
+        };
+        // Not recorded either: typed failures (missing token, quota, …) must
+        // stay retryable after the user fixes the cause.
+        return failure(
+          invocation.operationId,
+          classifyDirectSubmitError(typed, response.receipt),
+          typed.message,
+        );
+      }
+
+      // Republish the submission receipt on the shared landing lane so the
+      // media bridge attaches the batch to the pending operation (the same
+      // attach-batch behaviour the session tool receipt produced).
+      if (isRecord(response.receipt)) {
+        emitToolRunEvent({
+          sessionId: '',
+          eventType: 'Completed',
+          toolId: `infinite-canvas-direct:${invocation.operationId}`,
+          toolName: kind === 'video' ? 'GenerateVideo' : 'GenerateImage',
+          result: response.receipt,
+        });
+      }
+
+      return record({
+        operationId: invocation.operationId,
+        status: 'succeeded',
+        // Self mode lands in the card itself, so this is the card's own ID.
+        derivedNodeId: invocation.nodeId,
+      });
+    },
+  };
+}

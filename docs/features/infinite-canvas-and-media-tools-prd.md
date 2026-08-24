@@ -127,18 +127,36 @@ interface ImageToolResult {
 }
 ```
 
-### 3.1 第二期合法实现（取代第一期 unavailable 占位条款）
+### 3.1 第二期合法实现（取代第一期 unavailable 占位条款；2026-08-24 修订触发路径）
 
-第一期"唯一合法实现是 `unavailable` 占位"的条款自 K2 起废止。K2 起的
-**唯一合法实现**是：
+第一期"唯一合法实现是 `unavailable` 占位"的条款自 K2 起废止。
 
-- **会话派发（路径 A）**：画布按钮把结构化任务消息发进会话，由 AI 调用
-  GenerateImage / UploadMediaImage；UI 不直连 Provider，不新增领域命令端口。
+**2026-08-24 业主决定（推翻 K2 §2 的路径 A 选型）**：画布按钮的出图触发
+路径改为**前端直连后端出图管线**，不再把任务消息发进会话让主 AI 转调工具
+（那条路白白消耗模型上下文）。自此的**唯一合法实现**是：
+
+- **直连命令（画布按钮）**：画布上的生成/再生成/五件套按钮经
+  `DirectImageGenerationGateway` 调桌面命令
+  `submit_infinite_canvas_media_job`（输入：workspace 上下文、kind
+  image|video、prompt、本地参考路径/公网 URL、n、size、infinite_canvas
+  绑定）。命令内校验 workspace 为本地、绑定 `workspaceId` 与请求一致、
+  参考路径不越界；本地参考先走 UploadMediaImage 上传内核换公网 URL；随后
+  复用 GenerateImage/GenerateVideo 的共享提交编排（校验→提交→
+  MediaJobHandle→后台轮询）。完成事件经 `infinite-canvas://media-job-event`
+  转发到 `agent:tool-run-event`，由 InfiniteCanvasMediaBridge 按既有规则
+  落卡；提交回执同样经该总线回流（attach-batch），W7 对账安全网不变。
+  全程无 AI 参与，无会话审批面——命令只花业主自己配置的媒体渠道额度，
+  与画布点击一一对应。
+- **会话路径仅保留给 AI 主动出图**：用户在会话里让主 AI 生成时，走
+  GenerateImage / GenerateVideo 工具与 CanvasOp `begin_generation`，行为
+  不变；`SessionImageGenerationGateway` 保留为该契约面的拼装参考实现，
+  但面板不再使用它。§2.1 提示词/风格拼装与 §3.1 绑定对象规则两条路径
+  完全一致（共享同一拼装函数）。
 - **媒体管线复用**：全部出图经 assembly-core 既有 APIMart 管线（短剧同款），
   不引入新 Provider、渠道或密钥；放大/抠图等效果以指令化 prompt 实现，
   效果上限由当前 APIMart 模型决定（复用管线的已知取舍）。
 - **infinite_canvas 绑定回流**：提交时挂绑定对象，媒体完成后按绑定自动
-  落回画布（见 §3.2-§3.4）。
+  落回画布（见 §3.2-§3.4）；两条路径共用同一回流车道与绑定形状。
 
 **resultMode 语义（两种落图模式）**：
 

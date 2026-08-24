@@ -147,7 +147,13 @@ function buildImageInputList(invocation: SessionImageGenerationInvocation): stri
   ].join('\n');
 }
 
-function buildBinding(
+/**
+ * The §3.1 binding assembly, shared by the session gateway and the direct
+ * command gateway (2026-08-24 direct-path revision): both submission lanes
+ * must produce byte-identical bindings so the media bridge lands results the
+ * same way regardless of the lane.
+ */
+export function buildImageGenerationBinding(
   invocation: SessionImageGenerationInvocation,
   options: Pick<SessionImageGenerationGatewayOptions, 'workspaceId' | 'documentId'>,
 ): InfiniteCanvasImageBinding {
@@ -274,7 +280,7 @@ export function createSessionImageGenerationGateway(
         invocation.references,
         preset,
       );
-      const binding = buildBinding(invocation, options);
+      const binding = buildImageGenerationBinding(invocation, options);
       const message = buildImageGenerationTaskMessage(invocation, finalInstruction, binding);
 
       const sent = await options.sender.sendImageGenerationTask({

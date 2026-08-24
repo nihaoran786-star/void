@@ -10,6 +10,7 @@ export * from './InfiniteCanvasOpsBridge';
 export * from './InfiniteCanvasOpsReconciliation';
 export {
   buildFinalInstruction,
+  buildImageGenerationBinding,
   buildImageGenerationTaskMessage,
   createSessionImageGenerationGateway,
   createSessionImageToolGateway,
@@ -21,6 +22,19 @@ export {
   type SessionImageToolDispatchContext,
   type SessionImageToolInvocationResolution,
 } from './SessionImageGenerationGateway';
+export {
+  classifyDirectSubmitError,
+  connectInfiniteCanvasDirectMediaJobEvents,
+  createDirectImageGenerationGateway,
+  ensureInfiniteCanvasDirectMediaJobEventForwarder,
+  INFINITE_CANVAS_MEDIA_JOB_EVENT,
+  SUBMIT_INFINITE_CANVAS_MEDIA_JOB_COMMAND,
+  type DirectImageGenerationGatewayOptions,
+  type DirectMediaJobEventSource,
+  type DirectMediaJobEventTarget,
+  type SubmitInfiniteCanvasMediaJobArgs,
+  type SubmitInfiniteCanvasMediaJobResponse,
+} from './DirectImageGenerationGateway';
 export {
   createPlaceholderImageToolGateway,
   placeholderImageToolGateway,

@@ -1,5 +1,16 @@
 # 第二期实施计划：无限画布图像创作闭环真通电（K2）
 
+> **修订注记（2026-08-24，业主决定，已实施）**：本计划 §2 的"路径 A（画布
+> 按钮 → 结构化消息进会话 → 媒体 AI 调 GenerateImage）"选型已被推翻。画布
+> 上的生成/再生成/五件套按钮改为**前端直连后端出图管线**：新桌面命令
+> `submit_infinite_canvas_media_job`（复用 GenerateImage/GenerateVideo 的
+> 共享提交编排与 UploadMediaImage 上传内核）→ 后台轮询 → 完成事件经
+> `infinite-canvas://media-job-event` 转发到 `agent:tool-run-event`，由既有
+> InfiniteCanvasMediaBridge 落卡，全程无 AI 参与。会话路径仅保留给"用户在
+> 会话里让主 AI 生成"（GenerateImage 工具与 CanvasOp begin_generation 不
+> 变）。前端 gateway 切换为 `DirectImageGenerationGateway`；§2.1 提示词/
+> 风格拼装与 §3.1 绑定对象的规则原样保留。详见 PRD §3.1 对应修订。
+
 状态：待业主批准的实施计划（本文档只做计划，不改任何源码）
 日期：2026-08-23（同日修订：按业主要求由"五件套通电"扩为"完整创作闭环"）
 上游依据：

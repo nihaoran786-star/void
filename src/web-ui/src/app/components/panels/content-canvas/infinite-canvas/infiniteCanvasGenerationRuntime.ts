@@ -1,30 +1,36 @@
 /**
- * Panel-side construction of the session-backed image generation runtime
- * (K2 W6): the shared gateway plus the flow-chat session resolvers, wired
- * through the app-layer sender. Tests inject a fake runtime through the
- * panel prop instead of mocking flow_chat internals.
+ * Panel-side construction of the media generation runtime.
+ *
+ * 2026-08-24 owner decision (supersedes K2 W6 session wiring): canvas buttons
+ * submit straight to the backend media pipeline through the direct gateway —
+ * no session, no AI relay. The session sender remains in the tree for the
+ * AI-initiated path but is no longer wired here; `sourceSessionId` is kept as
+ * an accepted option for prop compatibility only. Tests keep injecting a fake
+ * runtime through the panel prop.
  */
 import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import type { SessionImageGenerationGateway } from '@/shared/services/infinite-canvas';
-import { createSessionImageGenerationGateway } from '@/shared/services/infinite-canvas';
-
 import {
-  createInfiniteCanvasAgentTaskSessionSender,
-  createInfiniteCanvasSessionResolvers,
-} from './InfiniteCanvasAgentTaskSessionSender';
+  createDirectImageGenerationGateway,
+  ensureInfiniteCanvasDirectMediaJobEventForwarder,
+} from '@/shared/services/infinite-canvas';
 
 export interface InfiniteCanvasGenerationRuntime {
   gateway: SessionImageGenerationGateway;
-  /** True when a target session (source or active) is currently available. */
+  /**
+   * Direct path: generation never needs a target session, so this is always
+   * true. Kept on the interface because the panel (and injected test
+   * runtimes) still consult it before dispatching.
+   */
   hasTargetSession: () => boolean;
 }
 
 export interface InfiniteCanvasGenerationRuntimeOptions {
   workspaceId: string;
-  /** Canvas workspace path; gates the active-session fallback to the same workspace. */
+  /** Local canvas workspace root; the direct command is bound to it. */
   workspacePath: string;
   documentId: string;
-  /** Canvas surface presentation sourceSessionId; preferred dispatch target. */
+  /** Unused since the direct-path switch; accepted for compatibility. */
   sourceSessionId?: string;
   catalog?: StylePresetCatalog;
 }
@@ -32,22 +38,17 @@ export interface InfiniteCanvasGenerationRuntimeOptions {
 export function createInfiniteCanvasGenerationRuntime(
   options: InfiniteCanvasGenerationRuntimeOptions,
 ): InfiniteCanvasGenerationRuntime {
-  const resolvers = createInfiniteCanvasSessionResolvers({
-    sourceSessionId: options.sourceSessionId,
-    workspacePath: options.workspacePath,
-  });
-  const gateway = createSessionImageGenerationGateway({
+  // Completed batches arrive over the direct Tauri channel; the process-wide
+  // forwarder relays them onto agent:tool-run-event for the media bridge.
+  ensureInfiniteCanvasDirectMediaJobEventForwarder();
+  const gateway = createDirectImageGenerationGateway({
     workspaceId: options.workspaceId,
+    workspacePath: options.workspacePath,
     documentId: options.documentId,
-    sender: createInfiniteCanvasAgentTaskSessionSender(),
-    getSourceSessionId: resolvers.getSourceSessionId,
-    getActiveSessionId: resolvers.getActiveSessionId,
     catalog: options.catalog,
   });
   return {
     gateway,
-    hasTargetSession: () => Boolean(
-      resolvers.getSourceSessionId() ?? resolvers.getActiveSessionId(),
-    ),
+    hasTargetSession: () => true,
   };
 }
