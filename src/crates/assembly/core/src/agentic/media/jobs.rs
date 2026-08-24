@@ -139,6 +139,18 @@ pub fn classify_apimart_error_message(message: &str) -> Option<Value> {
     Some(classify_apimart_error(status, body))
 }
 
+/// Where a finished media batch is delivered.
+///
+/// The session tool path (GenerateImage / GenerateVideo) posts the result
+/// back into the conversation as a tool Completed event; the direct command
+/// path (infinite canvas buttons, no AI in the loop) hands the enriched
+/// result to an arbitrary callback — the desktop layer forwards it to the
+/// front end over its own event channel.
+pub enum MediaJobCompletionSink {
+    ToolEvent(MediaToolEventContext),
+    Handler(Box<dyn FnOnce(Value) + Send>),
+}
+
 pub fn start_media_job_polling(
     client: ApimartClient,
     kind: &'static str,
@@ -149,6 +161,22 @@ pub fn start_media_job_polling(
     let Some(event_context) = event_context else {
         return;
     };
+    start_media_job_polling_with_sink(
+        client,
+        kind,
+        handle,
+        store_path,
+        MediaJobCompletionSink::ToolEvent(event_context),
+    );
+}
+
+pub fn start_media_job_polling_with_sink(
+    client: ApimartClient,
+    kind: &'static str,
+    handle: MediaJobHandle,
+    store_path: Option<PathBuf>,
+    sink: MediaJobCompletionSink,
+) {
     tokio::spawn(async move {
         if let Some(path) = store_path.as_deref() {
             let _ = persist_media_batch(
@@ -169,7 +197,12 @@ pub fn start_media_job_polling(
         tokio::time::sleep(MEDIA_JOB_INITIAL_POLL_DELAY).await;
         let polled = poll_media_jobs(client, kind, &handle).await;
         let result = finalize_media_job_result(kind, &handle, store_path.as_deref(), polled).await;
-        emit_media_job_completed(event_context, result).await;
+        match sink {
+            MediaJobCompletionSink::ToolEvent(event_context) => {
+                emit_media_job_completed(event_context, result).await;
+            }
+            MediaJobCompletionSink::Handler(handler) => handler(result),
+        }
     });
 }
 

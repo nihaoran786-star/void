@@ -7,8 +7,8 @@ use crate::agentic::media::capabilities::{
 };
 use crate::agentic::media::jobs::{
     build_media_polling_result, classify_apimart_error_message, extract_media_task_ids,
-    media_job_store_path, new_media_batch_id, start_media_job_polling, MediaJobHandle,
-    MediaToolEventContext,
+    media_job_store_path, new_media_batch_id, start_media_job_polling_with_sink, MediaJobHandle,
+    MediaJobCompletionSink, MediaToolEventContext,
 };
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolResult, ToolUseContext, ValidationResult,
@@ -17,7 +17,7 @@ use crate::agentic::tools::image_context::find_image_context_by_reference;
 use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Map, Value};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const MEDIA_IMAGE_URLS_DESCRIPTION: &str = "Reference images. Accepts public URLs, data:image data_url values, or uploaded image references shown in chat context such as image_id or file name. Use the attached image_id or file name directly; Do not ask the user for a URL or local path when an attached image is available.";
 
@@ -115,53 +115,22 @@ fn attach_infinite_canvas_submission_receipt(result: &mut Value, infinite_canvas
     }
 }
 
-/// K2 failure-flow guarantee: synchronous GenerateImage failure results must
-/// carry the same `infiniteCanvas` receipt as success results, so the media
-/// bridge can roll the bound canvas card back to a typed failed state instead
-/// of leaving it pending forever.
-fn attach_infinite_canvas_receipt_to_results(
-    mut results: Vec<ToolResult>,
-    infinite_canvas: Option<Value>,
-) -> Vec<ToolResult> {
-    if let Some(metadata) = infinite_canvas {
-        for result in &mut results {
-            if let ToolResult::Result { data, .. } = result {
-                data["infiniteCanvas"] = metadata.clone();
-            }
-        }
-    }
-    results
-}
-
 /// Classifies a synchronous APIMart submit failure (the
 /// `classify_apimart_error_message` family, including `safety_rejected`) and
-/// attaches the infinite canvas receipt when the request carried a binding.
-/// Returns `None` when the message is not an APIMart error body, in which
-/// case the caller keeps the hard error path.
-fn classified_image_submit_error_results(
+/// attaches the infinite canvas receipt when the request carried a binding —
+/// the K2 failure-flow guarantee: synchronous failure results carry the same
+/// `infiniteCanvas` receipt as success results, so the media bridge can roll
+/// the bound canvas card back to a typed failed state instead of leaving it
+/// pending forever. Returns `None` when the message is not an APIMart error
+/// body, in which case the caller keeps the hard error path. Shared by the
+/// GenerateImage / GenerateVideo tools and the direct canvas command.
+pub fn classified_media_submit_error(
     message: &str,
     infinite_canvas: Option<Value>,
-) -> Option<Vec<ToolResult>> {
+) -> Option<Value> {
     let mut error = classify_apimart_error_message(message)?;
     attach_infinite_canvas_submission_receipt(&mut error, infinite_canvas);
-    Some(ok_result(
-        error,
-        "APIMart image generation request failed.",
-    ))
-}
-
-/// P3 R1 mirror of `classified_image_submit_error_results` for GenerateVideo:
-/// same classification and receipt semantics, video-flavoured assistant text.
-fn classified_video_submit_error_results(
-    message: &str,
-    infinite_canvas: Option<Value>,
-) -> Option<Vec<ToolResult>> {
-    let mut error = classify_apimart_error_message(message)?;
-    attach_infinite_canvas_submission_receipt(&mut error, infinite_canvas);
-    Some(ok_result(
-        error,
-        "APIMart video generation request failed.",
-    ))
+    Some(error)
 }
 
 fn normalize_image_size(value: Option<String>) -> Option<String> {
@@ -643,21 +612,13 @@ mod media_image_reference_tests {
 #[cfg(test)]
 mod infinite_canvas_binding_tests {
     use super::{
-        attach_infinite_canvas_receipt_to_results, attach_infinite_canvas_submission_receipt,
-        classified_image_submit_error_results, ok_result, optional_infinite_canvas_metadata,
-        GenerateImageTool,
+        attach_infinite_canvas_submission_receipt, classified_media_submit_error,
+        optional_infinite_canvas_metadata, GenerateImageTool,
     };
     use crate::agentic::media::apimart::provider_not_configured_result;
     use crate::agentic::media::jobs::build_media_polling_result;
-    use crate::agentic::tools::framework::{Tool, ToolResult};
-    use serde_json::{json, Value};
-
-    fn result_data(results: &[ToolResult]) -> &Value {
-        match results.first().expect("one tool result") {
-            ToolResult::Result { data, .. } => data,
-            other => panic!("expected a data-bearing result, got {other:?}"),
-        }
-    }
+    use crate::agentic::tools::framework::Tool;
+    use serde_json::json;
 
     fn sample_binding() -> serde_json::Value {
         json!({
@@ -750,15 +711,9 @@ mod infinite_canvas_binding_tests {
 
     #[test]
     fn provider_not_configured_sync_failure_carries_infinite_canvas_receipt() {
-        let results = attach_infinite_canvas_receipt_to_results(
-            ok_result(
-                provider_not_configured_result("GenerateImage"),
-                "APIMart media token is not configured.",
-            ),
-            Some(sample_binding()),
-        );
+        let mut data = provider_not_configured_result("GenerateImage");
+        attach_infinite_canvas_submission_receipt(&mut data, Some(sample_binding()));
 
-        let data = result_data(&results);
         assert_eq!(data["status"], "error");
         assert_eq!(data["error"]["code"], "provider_not_configured");
         assert_eq!(data["infiniteCanvas"], sample_binding());
@@ -766,26 +721,20 @@ mod infinite_canvas_binding_tests {
 
     #[test]
     fn provider_not_configured_sync_failure_stays_unchanged_without_binding() {
-        let results = attach_infinite_canvas_receipt_to_results(
-            ok_result(
-                provider_not_configured_result("GenerateImage"),
-                "APIMart media token is not configured.",
-            ),
-            None,
-        );
+        let mut data = provider_not_configured_result("GenerateImage");
+        attach_infinite_canvas_submission_receipt(&mut data, None);
 
-        assert!(result_data(&results).get("infiniteCanvas").is_none());
+        assert!(data.get("infiniteCanvas").is_none());
     }
 
     #[test]
     fn classified_apimart_submit_error_carries_infinite_canvas_receipt() {
-        let results = classified_image_submit_error_results(
+        let data = classified_media_submit_error(
             "APIMart error 429: {\"error\":{\"message\":\"rate limited\"}}",
             Some(sample_binding()),
         )
-        .expect("classified error results");
+        .expect("classified error result");
 
-        let data = result_data(&results);
         assert_eq!(data["status"], "error");
         assert_eq!(data["error"]["code"], "provider_error");
         assert_eq!(data["error"]["http_status"], 429);
@@ -794,18 +743,16 @@ mod infinite_canvas_binding_tests {
 
     #[test]
     fn classified_apimart_submit_error_stays_unchanged_without_binding() {
-        let results =
-            classified_image_submit_error_results("APIMart error 500: upstream broke", None)
-                .expect("classified error results");
+        let data = classified_media_submit_error("APIMart error 500: upstream broke", None)
+            .expect("classified error result");
 
-        let data = result_data(&results);
         assert_eq!(data["status"], "error");
         assert!(data.get("infiniteCanvas").is_none());
     }
 
     #[test]
     fn unclassifiable_submit_error_keeps_the_hard_error_path() {
-        assert!(classified_image_submit_error_results(
+        assert!(classified_media_submit_error(
             "connection reset by peer",
             Some(sample_binding()),
         )
@@ -816,21 +763,13 @@ mod infinite_canvas_binding_tests {
 #[cfg(test)]
 mod generate_video_infinite_canvas_binding_tests {
     use super::{
-        attach_infinite_canvas_receipt_to_results, attach_infinite_canvas_submission_receipt,
-        classified_video_submit_error_results, ok_result, optional_infinite_canvas_metadata,
-        GenerateVideoTool,
+        attach_infinite_canvas_submission_receipt, classified_media_submit_error,
+        optional_infinite_canvas_metadata, GenerateVideoTool,
     };
     use crate::agentic::media::apimart::provider_not_configured_result;
     use crate::agentic::media::jobs::build_media_polling_result;
-    use crate::agentic::tools::framework::{Tool, ToolResult};
-    use serde_json::{json, Value};
-
-    fn result_data(results: &[ToolResult]) -> &Value {
-        match results.first().expect("one tool result") {
-            ToolResult::Result { data, .. } => data,
-            other => panic!("expected a data-bearing result, got {other:?}"),
-        }
-    }
+    use crate::agentic::tools::framework::Tool;
+    use serde_json::json;
 
     /// P3 video binding: the K2 §3.2 binding shape plus the optional
     /// `mediaKind: "video"` marker the GenerateVideo path carries.
@@ -922,15 +861,9 @@ mod generate_video_infinite_canvas_binding_tests {
 
     #[test]
     fn video_provider_not_configured_sync_failure_carries_infinite_canvas_receipt() {
-        let results = attach_infinite_canvas_receipt_to_results(
-            ok_result(
-                provider_not_configured_result("GenerateVideo"),
-                "APIMart media token is not configured.",
-            ),
-            Some(sample_video_binding()),
-        );
+        let mut data = provider_not_configured_result("GenerateVideo");
+        attach_infinite_canvas_submission_receipt(&mut data, Some(sample_video_binding()));
 
-        let data = result_data(&results);
         assert_eq!(data["status"], "error");
         assert_eq!(data["error"]["code"], "provider_not_configured");
         assert_eq!(data["infiniteCanvas"], sample_video_binding());
@@ -938,13 +871,12 @@ mod generate_video_infinite_canvas_binding_tests {
 
     #[test]
     fn classified_video_submit_error_carries_infinite_canvas_receipt() {
-        let results = classified_video_submit_error_results(
+        let data = classified_media_submit_error(
             "APIMart error 429: {\"error\":{\"message\":\"rate limited\"}}",
             Some(sample_video_binding()),
         )
-        .expect("classified error results");
+        .expect("classified error result");
 
-        let data = result_data(&results);
         assert_eq!(data["status"], "error");
         assert_eq!(data["error"]["code"], "provider_error");
         assert_eq!(data["error"]["http_status"], 429);
@@ -953,23 +885,360 @@ mod generate_video_infinite_canvas_binding_tests {
 
     #[test]
     fn classified_video_submit_error_stays_unchanged_without_binding() {
-        let results =
-            classified_video_submit_error_results("APIMart error 500: upstream broke", None)
-                .expect("classified error results");
+        let data = classified_media_submit_error("APIMart error 500: upstream broke", None)
+            .expect("classified error result");
 
-        let data = result_data(&results);
         assert_eq!(data["status"], "error");
         assert!(data.get("infiniteCanvas").is_none());
     }
 
     #[test]
     fn unclassifiable_video_submit_error_keeps_the_hard_error_path() {
-        assert!(classified_video_submit_error_results(
+        assert!(classified_media_submit_error(
             "connection reset by peer",
             Some(sample_video_binding()),
         )
         .is_none());
     }
+}
+
+// —— Shared submission orchestration ————————————————————————————————————————
+//
+// One pipeline, two callers: the session tools (GenerateImage /
+// GenerateVideo, AI-invoked) and the direct infinite-canvas command
+// (`submit_infinite_canvas_media_job`, no AI in the loop). Both run the same
+// "resolve client → validate → submit → MediaJobHandle → start polling"
+// sequence; only the completion sink differs (session tool event vs. direct
+// event channel).
+
+/// Result of one shared media submission: the tool-result data payload plus
+/// the assistant-facing summary line the session tools attach to it.
+pub struct MediaGenerationSubmission {
+    pub data: Value,
+    pub assistant_text: String,
+}
+
+async fn media_client_or_not_configured(
+    tool_name: &str,
+    infinite_canvas: &Option<Value>,
+) -> VoidResult<Result<ApimartClient, MediaGenerationSubmission>> {
+    match ApimartClient::from_config().await {
+        Ok(client) => Ok(Ok(client)),
+        Err(VoidError::Configuration(message)) if message == "media_provider_not_configured" => {
+            let mut data = provider_not_configured_result(tool_name);
+            attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas.clone());
+            Ok(Err(MediaGenerationSubmission {
+                data,
+                assistant_text: "APIMart media token is not configured.".to_string(),
+            }))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// Submits one APIMart image generation job and starts background polling
+/// into `sink` (no polling when `sink` is `None`, mirroring the historical
+/// tool behaviour outside a session context). Synchronous failures come back
+/// as data payloads carrying the `infiniteCanvas` receipt; only
+/// unclassifiable transport errors propagate as hard errors.
+pub async fn submit_image_generation_job(
+    input: &Value,
+    workspace_root: Option<&Path>,
+    sink: Option<MediaJobCompletionSink>,
+    tool_name: &str,
+) -> VoidResult<MediaGenerationSubmission> {
+    // Extracted before any early exit: every synchronous failure result
+    // below must echo the binding receipt back to the canvas (K2).
+    let infinite_canvas = optional_infinite_canvas_metadata(input);
+    let client = match media_client_or_not_configured(tool_name, &infinite_canvas).await? {
+        Ok(client) => client,
+        Err(submission) => return Ok(submission),
+    };
+    let prompt = prompt_required(input)?;
+    let request = image_generation_request_from_input(input);
+    let resolved = validate_image_generation(&request)
+        .map_err(|error| VoidError::validation(format!("{error:?}")))?;
+    let payload = strip_nulls(Map::from_iter([
+        ("model".to_string(), json!(resolved.model)),
+        ("prompt".to_string(), json!(prompt)),
+        ("image_urls".to_string(), json!(request.image_urls)),
+        (
+            "size".to_string(),
+            request
+                .size
+                .clone()
+                .map(Value::String)
+                .unwrap_or(Value::Null),
+        ),
+        (
+            "resolution".to_string(),
+            request.resolution.map(Value::String).unwrap_or(Value::Null),
+        ),
+        (
+            "n".to_string(),
+            request.n.map(|value| json!(value)).unwrap_or(Value::Null),
+        ),
+        (
+            "official_fallback".to_string(),
+            request
+                .official_fallback
+                .map(|value| json!(value))
+                .unwrap_or(Value::Null),
+        ),
+        (
+            "google_search".to_string(),
+            request
+                .google_search
+                .map(|value| json!(value))
+                .unwrap_or(Value::Null),
+        ),
+        (
+            "google_image_search".to_string(),
+            request
+                .google_image_search
+                .map(|value| json!(value))
+                .unwrap_or(Value::Null),
+        ),
+    ]));
+    let response = match client.submit_image_generation(payload).await {
+        Ok(response) => response,
+        Err(VoidError::Http(message)) => {
+            if let Some(error) = classified_media_submit_error(&message, infinite_canvas) {
+                return Ok(MediaGenerationSubmission {
+                    data: error,
+                    assistant_text: "APIMart image generation request failed.".to_string(),
+                });
+            }
+            return Err(VoidError::Http(message));
+        }
+        Err(error) => return Err(error),
+    };
+    let task_ids = extract_media_task_ids(&response);
+    let batch_id = new_media_batch_id();
+    let requested_count = request.n.map(usize::from).unwrap_or(task_ids.len().max(1));
+    let requested_aspect_ratio = normalize_aspect_ratio_text(request.size.as_deref(), "1:1");
+    let placeholder_aspect = placeholder_aspect_ratio(&requested_aspect_ratio);
+    let short_drama = optional_short_drama_metadata(input);
+    if task_ids.is_empty() {
+        let mut data = json!({
+            "status": "submitted_but_task_id_missing",
+            "source": "apimart",
+            "kind": "image",
+            "batch_id": batch_id,
+            "response": response
+        });
+        attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas);
+        return Ok(MediaGenerationSubmission {
+            data,
+            assistant_text: "Image generation was submitted, but APIMart did not return a task id for background polling.".to_string(),
+        });
+    }
+    if let Some(sink) = sink {
+        start_media_job_polling_with_sink(
+            client,
+            "image",
+            MediaJobHandle {
+                batch_id: batch_id.clone(),
+                task_ids: task_ids.clone(),
+                prompt: Some(prompt.clone()),
+                model: Some(resolved.model.clone()),
+                requested_count: Some(requested_count),
+                requested_aspect_ratio: Some(requested_aspect_ratio.clone()),
+                placeholder_aspect_ratio: Some(placeholder_aspect.clone()),
+                short_drama: short_drama.clone(),
+                infinite_canvas: infinite_canvas.clone(),
+            },
+            media_job_store_path(workspace_root, &batch_id),
+            sink,
+        );
+    }
+    let mut result = build_media_polling_result(
+        "image",
+        &batch_id,
+        &task_ids,
+        Some(&prompt),
+        Some(&resolved.model),
+        Some(requested_count),
+        Some(&requested_aspect_ratio),
+        Some(&placeholder_aspect),
+    );
+    if let Some(short_drama) = short_drama {
+        result["shortDrama"] = short_drama;
+    }
+    attach_infinite_canvas_submission_receipt(&mut result, infinite_canvas);
+    result["response"] = response;
+    Ok(MediaGenerationSubmission {
+        data: result,
+        assistant_text: "Image generation job submitted through APIMart. Background polling has started; results will be posted back when ready.".to_string(),
+    })
+}
+
+/// Video mirror of `submit_image_generation_job` (P3 semantics preserved).
+pub async fn submit_video_generation_job(
+    input: &Value,
+    workspace_root: Option<&Path>,
+    sink: Option<MediaJobCompletionSink>,
+    tool_name: &str,
+) -> VoidResult<MediaGenerationSubmission> {
+    // Extracted before any early exit: every synchronous failure result
+    // below must echo the binding receipt back to the canvas (P3, mirrors
+    // the K2 GenerateImage failure-flow guarantee).
+    let infinite_canvas = optional_infinite_canvas_metadata(input);
+    let client = match media_client_or_not_configured(tool_name, &infinite_canvas).await? {
+        Ok(client) => client,
+        Err(submission) => return Ok(submission),
+    };
+    let prompt = prompt_required(input)?;
+    let request = video_request_from_input(input);
+    let resolved = validate_video_generation(&request)
+        .map_err(|error| VoidError::validation(format!("{error:?}")))?;
+    let payload = strip_nulls(Map::from_iter([
+        ("model".to_string(), json!(resolved.model)),
+        ("prompt".to_string(), json!(prompt)),
+        (
+            "duration".to_string(),
+            request
+                .duration
+                .map(|value| json!(value))
+                .unwrap_or(Value::Null),
+        ),
+        (
+            "resolution".to_string(),
+            request.resolution.map(Value::String).unwrap_or(Value::Null),
+        ),
+        (
+            "aspect_ratio".to_string(),
+            request
+                .aspect_ratio
+                .clone()
+                .map(Value::String)
+                .unwrap_or(Value::Null),
+        ),
+        (
+            "size".to_string(),
+            request
+                .size
+                .clone()
+                .map(Value::String)
+                .unwrap_or(Value::Null),
+        ),
+        ("image_urls".to_string(), json!(request.image_urls)),
+        (
+            "image_with_roles".to_string(),
+            input
+                .get("image_with_roles")
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+        ),
+        ("video_urls".to_string(), json!(request.video_urls)),
+        ("audio_urls".to_string(), json!(request.audio_urls)),
+        (
+            "generate_audio".to_string(),
+            input.get("generate_audio").cloned().unwrap_or(Value::Null),
+        ),
+        (
+            "return_last_frame".to_string(),
+            input
+                .get("return_last_frame")
+                .cloned()
+                .unwrap_or(Value::Null),
+        ),
+    ]));
+    let response = match client.submit_video_generation(payload).await {
+        Ok(response) => response,
+        Err(VoidError::Http(message)) => {
+            if let Some(error) = classified_media_submit_error(&message, infinite_canvas) {
+                return Ok(MediaGenerationSubmission {
+                    data: error,
+                    assistant_text: "APIMart video generation request failed.".to_string(),
+                });
+            }
+            return Err(VoidError::Http(message));
+        }
+        Err(error) => return Err(error),
+    };
+    let task_ids = extract_media_task_ids(&response);
+    let batch_id = new_media_batch_id();
+    let requested_aspect_ratio = normalize_aspect_ratio_text(
+        request.aspect_ratio.as_deref().or(request.size.as_deref()),
+        "16:9",
+    );
+    let placeholder_aspect = placeholder_aspect_ratio(&requested_aspect_ratio);
+    let requested_count = task_ids.len().max(1);
+    let short_drama = optional_short_drama_metadata(input);
+    if task_ids.is_empty() {
+        let mut data = json!({
+            "status": "submitted_but_task_id_missing",
+            "source": "apimart",
+            "kind": "video",
+            "batch_id": batch_id,
+            "response": response
+        });
+        attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas);
+        return Ok(MediaGenerationSubmission {
+            data,
+            assistant_text: "Video generation was submitted, but APIMart did not return a task id for background polling.".to_string(),
+        });
+    }
+    if let Some(sink) = sink {
+        start_media_job_polling_with_sink(
+            client,
+            "video",
+            MediaJobHandle {
+                batch_id: batch_id.clone(),
+                task_ids: task_ids.clone(),
+                prompt: Some(prompt.clone()),
+                model: Some(resolved.model.clone()),
+                requested_count: Some(requested_count),
+                requested_aspect_ratio: Some(requested_aspect_ratio.clone()),
+                placeholder_aspect_ratio: Some(placeholder_aspect.clone()),
+                short_drama: short_drama.clone(),
+                infinite_canvas: infinite_canvas.clone(),
+            },
+            media_job_store_path(workspace_root, &batch_id),
+            sink,
+        );
+    }
+    let mut result = build_media_polling_result(
+        "video",
+        &batch_id,
+        &task_ids,
+        Some(&prompt),
+        Some(&resolved.model),
+        Some(requested_count),
+        Some(&requested_aspect_ratio),
+        Some(&placeholder_aspect),
+    );
+    if let Some(short_drama) = short_drama {
+        result["shortDrama"] = short_drama;
+    }
+    attach_infinite_canvas_submission_receipt(&mut result, infinite_canvas);
+    result["response"] = response;
+    Ok(MediaGenerationSubmission {
+        data: result,
+        assistant_text: "Video generation job submitted through APIMart. Background polling has started; results will be posted back when ready.".to_string(),
+    })
+}
+
+/// UploadMediaImage kernel exposed for the direct canvas command: turns one
+/// local (workspace-relative or absolute) image path into a public provider
+/// URL, passing through references that already are provider-compatible.
+pub async fn upload_media_image_for_public_url(
+    client: &ApimartClient,
+    workspace_root: Option<&Path>,
+    input_path: &str,
+) -> VoidResult<String> {
+    if is_apimart_image_reference(input_path) {
+        return Ok(input_path.trim().to_string());
+    }
+    let input_path = resolve_media_upload_path_reference(input_path);
+    let path = resolve_workspace_path(workspace_root, &input_path)?;
+    let response = client.upload_image(&path).await?;
+    let mut urls = Vec::new();
+    collect_http_urls(&response, &mut urls);
+    urls.into_iter().next().ok_or_else(|| {
+        VoidError::tool("APIMart image upload succeeded but returned no public URL")
+    })
 }
 
 pub struct GenerateImageTool;
@@ -1053,132 +1322,12 @@ impl Tool for GenerateImageTool {
         input: &Value,
         context: &ToolUseContext,
     ) -> VoidResult<Vec<ToolResult>> {
-        // Extracted before any early exit: every synchronous failure result
-        // below must echo the binding receipt back to the canvas (K2).
-        let infinite_canvas = optional_infinite_canvas_metadata(input);
-        let client = match client_or_not_configured(self.name()).await? {
-            Ok(client) => client,
-            Err(result) => {
-                return Ok(attach_infinite_canvas_receipt_to_results(
-                    result,
-                    infinite_canvas,
-                ))
-            }
-        };
-        let prompt = prompt_required(input)?;
-        let request = image_generation_request_from_input(input);
-        let resolved = validate_image_generation(&request)
-            .map_err(|error| VoidError::validation(format!("{error:?}")))?;
-        let payload = strip_nulls(Map::from_iter([
-            ("model".to_string(), json!(resolved.model)),
-            ("prompt".to_string(), json!(prompt)),
-            ("image_urls".to_string(), json!(request.image_urls)),
-            (
-                "size".to_string(),
-                request
-                    .size
-                    .clone()
-                    .map(Value::String)
-                    .unwrap_or(Value::Null),
-            ),
-            (
-                "resolution".to_string(),
-                request.resolution.map(Value::String).unwrap_or(Value::Null),
-            ),
-            (
-                "n".to_string(),
-                request.n.map(|value| json!(value)).unwrap_or(Value::Null),
-            ),
-            (
-                "official_fallback".to_string(),
-                request
-                    .official_fallback
-                    .map(|value| json!(value))
-                    .unwrap_or(Value::Null),
-            ),
-            (
-                "google_search".to_string(),
-                request
-                    .google_search
-                    .map(|value| json!(value))
-                    .unwrap_or(Value::Null),
-            ),
-            (
-                "google_image_search".to_string(),
-                request
-                    .google_image_search
-                    .map(|value| json!(value))
-                    .unwrap_or(Value::Null),
-            ),
-        ]));
-        let response = match client.submit_image_generation(payload).await {
-            Ok(response) => response,
-            Err(VoidError::Http(message)) => {
-                if let Some(results) =
-                    classified_image_submit_error_results(&message, infinite_canvas)
-                {
-                    return Ok(results);
-                }
-                return Err(VoidError::Http(message));
-            }
-            Err(error) => return Err(error),
-        };
-        let task_ids = extract_media_task_ids(&response);
-        let batch_id = new_media_batch_id();
-        let requested_count = request.n.map(usize::from).unwrap_or(task_ids.len().max(1));
-        let requested_aspect_ratio = normalize_aspect_ratio_text(request.size.as_deref(), "1:1");
-        let placeholder_aspect = placeholder_aspect_ratio(&requested_aspect_ratio);
-        let short_drama = optional_short_drama_metadata(input);
-        if task_ids.is_empty() {
-            let mut data = json!({
-                "status": "submitted_but_task_id_missing",
-                "source": "apimart",
-                "kind": "image",
-                "batch_id": batch_id,
-                "response": response
-            });
-            attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas);
-            return Ok(ok_result(
-                data,
-                "Image generation was submitted, but APIMart did not return a task id for background polling.",
-            ));
-        }
-        start_media_job_polling(
-            client,
-            "image",
-            MediaJobHandle {
-                batch_id: batch_id.clone(),
-                task_ids: task_ids.clone(),
-                prompt: Some(prompt.clone()),
-                model: Some(resolved.model.clone()),
-                requested_count: Some(requested_count),
-                requested_aspect_ratio: Some(requested_aspect_ratio.clone()),
-                placeholder_aspect_ratio: Some(placeholder_aspect.clone()),
-                short_drama: short_drama.clone(),
-                infinite_canvas: infinite_canvas.clone(),
-            },
-            media_job_store_path(context.workspace_root(), &batch_id),
-            MediaToolEventContext::from_tool_context(context, self.name()),
-        );
-        let mut result = build_media_polling_result(
-            "image",
-            &batch_id,
-            &task_ids,
-            Some(&prompt),
-            Some(&resolved.model),
-            Some(requested_count),
-            Some(&requested_aspect_ratio),
-            Some(&placeholder_aspect),
-        );
-        if let Some(short_drama) = short_drama {
-            result["shortDrama"] = short_drama;
-        }
-        attach_infinite_canvas_submission_receipt(&mut result, infinite_canvas);
-        result["response"] = response;
-        Ok(ok_result(
-            result,
-            "Image generation job submitted through APIMart. Background polling has started; results will be posted back when ready.",
-        ))
+        let sink = MediaToolEventContext::from_tool_context(context, self.name())
+            .map(MediaJobCompletionSink::ToolEvent);
+        let submission =
+            submit_image_generation_job(input, context.workspace_root(), sink, self.name())
+                .await?;
+        Ok(ok_result(submission.data, submission.assistant_text))
     }
 }
 
@@ -1262,146 +1411,12 @@ impl Tool for GenerateVideoTool {
         input: &Value,
         context: &ToolUseContext,
     ) -> VoidResult<Vec<ToolResult>> {
-        // Extracted before any early exit: every synchronous failure result
-        // below must echo the binding receipt back to the canvas (P3, mirrors
-        // the K2 GenerateImage failure-flow guarantee).
-        let infinite_canvas = optional_infinite_canvas_metadata(input);
-        let client = match client_or_not_configured(self.name()).await? {
-            Ok(client) => client,
-            Err(result) => {
-                return Ok(attach_infinite_canvas_receipt_to_results(
-                    result,
-                    infinite_canvas,
-                ))
-            }
-        };
-        let prompt = prompt_required(input)?;
-        let request = video_request_from_input(input);
-        let resolved = validate_video_generation(&request)
-            .map_err(|error| VoidError::validation(format!("{error:?}")))?;
-        let payload = strip_nulls(Map::from_iter([
-            ("model".to_string(), json!(resolved.model)),
-            ("prompt".to_string(), json!(prompt)),
-            (
-                "duration".to_string(),
-                request
-                    .duration
-                    .map(|value| json!(value))
-                    .unwrap_or(Value::Null),
-            ),
-            (
-                "resolution".to_string(),
-                request.resolution.map(Value::String).unwrap_or(Value::Null),
-            ),
-            (
-                "aspect_ratio".to_string(),
-                request
-                    .aspect_ratio
-                    .clone()
-                    .map(Value::String)
-                    .unwrap_or(Value::Null),
-            ),
-            (
-                "size".to_string(),
-                request
-                    .size
-                    .clone()
-                    .map(Value::String)
-                    .unwrap_or(Value::Null),
-            ),
-            ("image_urls".to_string(), json!(request.image_urls)),
-            (
-                "image_with_roles".to_string(),
-                input
-                    .get("image_with_roles")
-                    .cloned()
-                    .unwrap_or_else(|| json!([])),
-            ),
-            ("video_urls".to_string(), json!(request.video_urls)),
-            ("audio_urls".to_string(), json!(request.audio_urls)),
-            (
-                "generate_audio".to_string(),
-                input.get("generate_audio").cloned().unwrap_or(Value::Null),
-            ),
-            (
-                "return_last_frame".to_string(),
-                input
-                    .get("return_last_frame")
-                    .cloned()
-                    .unwrap_or(Value::Null),
-            ),
-        ]));
-        let response = match client.submit_video_generation(payload).await {
-            Ok(response) => response,
-            Err(VoidError::Http(message)) => {
-                if let Some(results) =
-                    classified_video_submit_error_results(&message, infinite_canvas)
-                {
-                    return Ok(results);
-                }
-                return Err(VoidError::Http(message));
-            }
-            Err(error) => return Err(error),
-        };
-        let task_ids = extract_media_task_ids(&response);
-        let batch_id = new_media_batch_id();
-        let requested_aspect_ratio = normalize_aspect_ratio_text(
-            request.aspect_ratio.as_deref().or(request.size.as_deref()),
-            "16:9",
-        );
-        let placeholder_aspect = placeholder_aspect_ratio(&requested_aspect_ratio);
-        let requested_count = task_ids.len().max(1);
-        let short_drama = optional_short_drama_metadata(input);
-        if task_ids.is_empty() {
-            let mut data = json!({
-                "status": "submitted_but_task_id_missing",
-                "source": "apimart",
-                "kind": "video",
-                "batch_id": batch_id,
-                "response": response
-            });
-            attach_infinite_canvas_submission_receipt(&mut data, infinite_canvas);
-            return Ok(ok_result(
-                data,
-                "Video generation was submitted, but APIMart did not return a task id for background polling.",
-            ));
-        }
-        start_media_job_polling(
-            client,
-            "video",
-            MediaJobHandle {
-                batch_id: batch_id.clone(),
-                task_ids: task_ids.clone(),
-                prompt: Some(prompt.clone()),
-                model: Some(resolved.model.clone()),
-                requested_count: Some(requested_count),
-                requested_aspect_ratio: Some(requested_aspect_ratio.clone()),
-                placeholder_aspect_ratio: Some(placeholder_aspect.clone()),
-                short_drama: short_drama.clone(),
-                infinite_canvas: infinite_canvas.clone(),
-            },
-            media_job_store_path(context.workspace_root(), &batch_id),
-            MediaToolEventContext::from_tool_context(context, self.name()),
-        );
-        let mut result = build_media_polling_result(
-            "video",
-            &batch_id,
-            &task_ids,
-            Some(&prompt),
-            Some(&resolved.model),
-            Some(requested_count),
-            Some(&requested_aspect_ratio),
-            Some(&placeholder_aspect),
-        );
-        if let Some(short_drama) = short_drama {
-            result["shortDrama"] = short_drama;
-        }
-        attach_infinite_canvas_submission_receipt(&mut result, infinite_canvas);
-        result["response"] = response;
-        Ok(ok_result(
-            result,
-            "Video generation job submitted through APIMart. Background polling has started; results will be posted back when ready.",
-        ))
+        let sink = MediaToolEventContext::from_tool_context(context, self.name())
+            .map(MediaJobCompletionSink::ToolEvent);
+        let submission =
+            submit_video_generation_job(input, context.workspace_root(), sink, self.name())
+                .await?;
+        Ok(ok_result(submission.data, submission.assistant_text))
     }
 }
 
