@@ -73,6 +73,25 @@ through its own Module Interface. Active contract:
   dying silently, and session hydration no longer maps `workspaceHostname:
   localhost` into `remoteSshHost` (which had made every restored local session
   look like a disconnected SSH remote and fail-closed all canvas capabilities).
+- **Infinite Canvas K2 + P3 (landed 2026-08-24, awaiting owner acceptance).**
+  K2 wires the full image-creation loop through the existing media pipeline
+  (no new providers or keys): blank-card text-to-image, edge-order reference
+  images (`@图一/@图二`), the five image tools as derive-only operations, an
+  `infinite_canvas` binding echoed by GenerateImage/GenerateVideo and attached
+  on job completion, `InfiniteCanvasMediaBridge` backflow, and journal-based
+  pending reconciliation. P3 adds agent-driven canvas (`CanvasRead`/`CanvasOp`
+  Rust tools + `.ops.json` journal with an `appliedSeq` watermark, frontend
+  `InfiniteCanvasOpsBridge` applying batches through the document service) and
+  video cards over GenerateVideo. Plans:
+  [K2](docs/plans/2026-08-23-infinite-canvas-k2-image-tools.md),
+  [P3](docs/plans/2026-08-24-infinite-canvas-p3-agent-canvas.md). Two
+  adversarial review passes fixed nine confirmed defects; the critical shared
+  lesson, twice: collapsed tools invoke through the `CallDeferredTool` gateway,
+  so any frontend filter on raw `toolName` drops their events — match on
+  receipt shape instead (`EventHandlerModule` late-media pairing and
+  `InfiniteCanvasOpsBridge`). Short-drama runtime behavior is untouched; the
+  same gateway lesson likely applies to
+  `useWorkspaceMediaToolRefreshBridge.ts` (flagged, not yet fixed).
 
 ### AGENT hub and catalogs
 
