@@ -275,24 +275,29 @@ describe('InfiniteCanvasMediaBridge', () => {
     expect(node(document, 'card-src').mediaRef).toEqual(SOURCE_MEDIA_REF);
   });
 
-  it('ignores a video result aimed at an image card as media_kind_mismatch', async () => {
+  it('fails a video result aimed at an image card as a typed retryable invalid-input (P4)', async () => {
     const { bridge, readDocument } = createHarness();
 
     // Tampered binding: op-self anchors an image card, but the result claims
-    // to be a video. The typed gate must reject the write.
+    // to be a video. The media must never land — and the card must not keep
+    // spinning either: the generation settles as a retryable typed failure.
     const result = await bridge.handleToolRunEvent(completedMediaEvent({
       mediaKind: 'video',
       outputMediaKind: 'video',
       outputMediaRelativePath: 'media/generated/batch-v1/video-001.mp4',
     }));
 
-    expect(result).toMatchObject({ status: 'ignored', reason: 'media_kind_mismatch' });
+    expect(result).toMatchObject({
+      status: 'applied',
+      action: 'failed',
+      errorKind: 'invalid-input',
+    });
     const card = node(await readDocument(), 'card-self');
     expect(card.mediaRef).toBeUndefined();
-    expect(card.generation?.status).toBe('pending');
+    expect(card.generation).toMatchObject({ status: 'failed', errorKind: 'invalid-input' });
   });
 
-  it('ignores an image result aimed at a video card as media_kind_mismatch', async () => {
+  it('fails an image result aimed at a video card as a typed retryable invalid-input (P4)', async () => {
     const { bridge, readDocument } = createHarness();
 
     const result = await bridge.handleToolRunEvent(completedMediaEvent({
@@ -302,10 +307,23 @@ describe('InfiniteCanvasMediaBridge', () => {
       outputMediaKind: 'image',
     }));
 
-    expect(result).toMatchObject({ status: 'ignored', reason: 'media_kind_mismatch' });
+    expect(result).toMatchObject({
+      status: 'applied',
+      action: 'failed',
+      errorKind: 'invalid-input',
+    });
     const video = node(await readDocument(), 'card-video');
     expect(video.mediaRef).toBeUndefined();
-    expect(video.generation?.status).toBe('pending');
+    expect(video.generation).toMatchObject({ status: 'failed', errorKind: 'invalid-input' });
+
+    // A duplicated mismatch event is an idempotent typed no-op.
+    const replay = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-video',
+      resultMode: 'derived',
+      operationId: 'op-video',
+      outputMediaKind: 'image',
+    }));
+    expect(replay).toMatchObject({ status: 'ignored', reason: 'already_terminal' });
   });
 
   it('gates video failure classification onto the video card through the same lane', async () => {

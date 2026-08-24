@@ -666,9 +666,32 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       onResult: result => {
         if (result.status === 'applied') void refreshFromService();
       },
+      // P1: a batch whose landing mutation failed is replayed from the ops
+      // journal (Rust's file, the front end only reads it) so a later batch
+      // can never swallow it by advancing the watermark past it.
+      scheduleReconciliation: () => {
+        const document = documentRef.current;
+        if (!document) return;
+        void reconcileInfiniteCanvasAgentOps({
+          workspace: workspaceRef,
+          document,
+          reader: mediaJobReader ?? getInfiniteCanvasMediaJobReader(),
+          documentService: service,
+        }).then(result => {
+          if (result.status === 'applied') void refreshFromService();
+        });
+      },
     });
     return connectInfiniteCanvasOpsBridgeToEventBus(bridge, mediaEventBus);
-  }, [documentId, mediaEventBus, refreshFromService, service, state.phase, workspaceRef]);
+  }, [
+    documentId,
+    mediaEventBus,
+    mediaJobReader,
+    refreshFromService,
+    service,
+    state.phase,
+    workspaceRef,
+  ]);
 
   // Collapsing or closing the tab keeps state: the coalesced write is forced
   // to disk and the next mount reloads the same document from the module.

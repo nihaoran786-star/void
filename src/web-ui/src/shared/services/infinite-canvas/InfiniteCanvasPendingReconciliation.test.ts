@@ -255,6 +255,105 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
     ]);
   });
 
+  it('fails a pending node whose manifest kind contradicts the generation media kind (C3)', async () => {
+    const { harness, document } = createHarness([
+      // A video generation whose batch manifest claims an IMAGE batch: the
+      // asset can never belong to this card — typed retryable failure, no
+      // resolve, mirroring the live bridge's media-kind gate (P3 §3.5).
+      pendingNode('card-video', 'op-video', 'batch-1', {
+        kind: 'video',
+        generation: {
+          operationId: 'op-video',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+          mediaKind: 'video',
+          batchId: 'batch-1',
+        },
+      }),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+      completedManifest('C:/ws/media/generated/batch-1/image-001.png'),
+    );
+
+    const result = await reconcile(harness, document);
+
+    expect(result.outcomes).toEqual([
+      {
+        operationId: 'op-video',
+        nodeId: 'card-video',
+        action: 'failed',
+        errorKind: 'invalid-input',
+      },
+    ]);
+    const persisted = harness.readDocument().nodes[0];
+    expect(persisted.mediaRef).toBeUndefined();
+    expect(persisted.generation).toMatchObject({
+      status: 'failed',
+      errorKind: 'invalid-input',
+    });
+  });
+
+  it('resolves a pending video node whose manifest kind matches (C3)', async () => {
+    const { harness, document } = createHarness([
+      pendingNode('card-video', 'op-video', 'batch-v1', {
+        kind: 'video',
+        generation: {
+          operationId: 'op-video',
+          toolId: 'generate',
+          resultMode: 'self',
+          status: 'pending',
+          mediaKind: 'video',
+          batchId: 'batch-v1',
+        },
+      }),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-v1'),
+      JSON.stringify({
+        status: 'completed',
+        kind: 'video',
+        batch: {
+          batch_id: 'batch-v1',
+          kind: 'video',
+          status: 'completed',
+          assets: [{
+            item_index: 1,
+            kind: 'video',
+            local_path: 'C:/ws/media/generated/batch-v1/video-001.mp4',
+          }],
+        },
+      }),
+    );
+
+    const result = await reconcile(harness, document);
+
+    expect(result.outcomes).toEqual([
+      { operationId: 'op-video', nodeId: 'card-video', action: 'resolved' },
+    ]);
+    expect(harness.readDocument().nodes[0].mediaRef).toEqual({
+      workspacePath: WORKSPACE.workspacePath,
+      relativePath: 'media/generated/batch-v1/video-001.mp4',
+    });
+  });
+
+  it('an image generation against an image manifest keeps resolving (C3 guard is not overbroad)', async () => {
+    const { harness, document } = createHarness([
+      pendingNode('card-1', 'op-1', 'batch-1'),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+      completedManifest('C:/ws/media/generated/batch-1/image-001.png'),
+    );
+
+    const result = await reconcile(harness, document);
+
+    expect(result.outcomes).toEqual([
+      { operationId: 'op-1', nodeId: 'card-1', action: 'resolved' },
+    ]);
+  });
+
   it('never overwrites a node that already carries a mediaRef', async () => {
     const keptMediaRef = { workspacePath: 'C:/ws', relativePath: 'media/input/keep.png' };
     const { harness, document } = createHarness([

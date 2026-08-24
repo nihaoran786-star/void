@@ -14,8 +14,9 @@
  *   even against a tampered binding.
  * - P3 §3.5: the media kind of the result (enriched `outputMediaKind`, or the
  *   binding's own `mediaKind` marker) must match the landing node's kind —
- *   otherwise the event is a typed `media_kind_mismatch` ignore. Image and
- *   video generations share this one backflow lane.
+ *   otherwise the media never lands and the generation is settled as a typed
+ *   retryable `invalid-input` failure (P4: an ignore would leave the card
+ *   spinning forever). Image and video generations share this backflow lane.
  * - All writes go through `InfiniteCanvasDocumentService.mutateDefaultDocument`
  *   (CAS + coalesced writes); the bridge never touches the persistence port.
  * - Cross-workspace / cross-document bindings are rejected, duplicated events
@@ -41,8 +42,6 @@ export type InfiniteCanvasMediaBridgeIgnoredReason =
   | 'document_mismatch'
   | 'operation_not_found'
   | 'result_mode_mismatch'
-  /** P3 §3.5: binding/receipt media kind contradicts the landing node's kind. */
-  | 'media_kind_mismatch'
   | 'already_terminal'
   | 'unsupported_event_type'
   | 'unsupported_result';
@@ -256,7 +255,7 @@ function findOperationNode(
 function applyIntent(
   document: Readonly<InfiniteCanvasDocument>,
   binding: ExtractedBinding,
-  intent: Exclude<BridgeIntent, { intent: 'ignore' }>,
+  requestedIntent: Exclude<BridgeIntent, { intent: 'ignore' }>,
 ): MutationDecision {
   const unchanged = document.nodes as InfiniteCanvasNode[];
   const node = findOperationNode(document, binding.operationId);
@@ -277,12 +276,15 @@ function applyIntent(
   // P3 §3.5 media-kind cross-check: the produced kind (enriched
   // outputMediaKind, falling back to the binding's own marker) must match the
   // landing card's kind — a video result never lands in an image card and
-  // vice versa, even against a tampered binding.
+  // vice versa, even against a tampered binding. P4: instead of ignoring the
+  // event (which would leave the card spinning forever), the generation is
+  // settled as a typed retryable failure — the media itself never lands.
   const eventMediaKind = binding.outputMediaKind ?? binding.mediaKind ?? 'image';
   const nodeMediaKind = node.kind === 'video' ? 'video' : 'image';
-  if (eventMediaKind !== nodeMediaKind) {
-    return { outcome: { status: 'ignored', reason: 'media_kind_mismatch' }, nodes: unchanged };
-  }
+  const intent: Exclude<BridgeIntent, { intent: 'ignore' }> =
+    eventMediaKind !== nodeMediaKind
+      ? { intent: 'fail', errorKind: 'invalid-input' }
+      : requestedIntent;
 
   if (intent.intent === 'pending') {
     // Dispatch already registered the pending state; Started only confirms it.

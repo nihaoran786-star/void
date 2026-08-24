@@ -11,6 +11,10 @@ import {
   defaultInfiniteCanvasDocumentId,
   infiniteCanvasDocumentFilePath,
 } from './InfiniteCanvasDocumentService';
+import {
+  infiniteCanvasOpsJournalFilePath,
+  reconcileInfiniteCanvasAgentOps,
+} from './InfiniteCanvasOpsReconciliation';
 import { createInMemoryInfiniteCanvasPersistence } from './InfiniteCanvasPersistencePort';
 import type {
   InfiniteCanvasDocument,
@@ -166,6 +170,50 @@ describe('InfiniteCanvasOpsBridge', () => {
     expect(document.agentOps).toBeUndefined();
   });
 
+  it('applies a receipt delivered through the CallDeferredTool gateway (C1)', async () => {
+    const harness = createHarness();
+
+    // Production path: CanvasOp is a collapsed tool, so the model invokes it
+    // through the deferred-tool gateway and the run event carries the
+    // GATEWAY's tool name — the receipt shape is what must be recognized.
+    const result = await harness.bridge.handleToolRunEvent({
+      ...completedEvent(acceptedReceipt()),
+      toolName: 'CallDeferredTool',
+      params: { tool_name: 'CanvasOp' },
+    });
+
+    expect(result).toMatchObject({ status: 'applied', seq: 1, batchId: 'batch-1' });
+    const document = await harness.readDocument();
+    expect(document.nodes.some(node => node.nodeId === 'node-agent-1')).toBe(true);
+    expect(document.agentOps).toEqual({ appliedSeq: 1 });
+  });
+
+  it('ignores gateway events whose result is not a canvas receipt (C1)', async () => {
+    const harness = createHarness();
+
+    // A media tool completing through the same gateway must never be
+    // mistaken for a CanvasOp receipt (its result has no canvas source).
+    const mediaThroughGateway = await harness.bridge.handleToolRunEvent({
+      ...completedEvent({
+        status: 'completed',
+        source: 'apimart',
+        kind: 'image',
+        batch: { batch_id: 'batch-media-1' },
+      }),
+      toolName: 'CallDeferredTool',
+    });
+    // status 'accepted' faked on a foreign-source result is also rejected.
+    const foreignAccepted = await harness.bridge.handleToolRunEvent({
+      ...completedEvent(acceptedReceipt({ source: 'somewhere_else' })),
+      toolName: 'CallDeferredTool',
+    });
+
+    expect(mediaThroughGateway).toMatchObject({ status: 'ignored', reason: 'not_canvas_op' });
+    expect(foreignAccepted).toMatchObject({ status: 'ignored', reason: 'not_canvas_op' });
+    const document = await harness.readDocument();
+    expect(document.agentOps).toBeUndefined();
+  });
+
   it('ignores other tools, non-Completed events, and error receipts', async () => {
     const harness = createHarness();
 
@@ -277,6 +325,149 @@ describe('InfiniteCanvasOpsBridge', () => {
     const document = await harness.readDocument();
     expect(document.nodes.some(node => node.nodeId === 'node-agent-1')).toBe(false);
     expect(document.agentOps).toEqual({ appliedSeq: 5 });
+  });
+
+  // —— P1: a landing failure must never let a later batch swallow a batch ——
+
+  interface FlakyHarness {
+    bridge: InfiniteCanvasOpsBridge;
+    reconciliations: number;
+    files: Map<string, string>;
+    reader: { readTextFile: (path: string) => Promise<string | null> };
+    /** The underlying (healthy) service, e.g. for the reconciliation path. */
+    service: InfiniteCanvasDocumentService;
+    readDocument: () => Promise<InfiniteCanvasDocument>;
+  }
+
+  /** Harness whose first `failures` document mutations fail at the IO layer. */
+  function createFlakyHarness(failures: number): FlakyHarness {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const document: InfiniteCanvasDocument = {
+      documentId: DOCUMENT_ID,
+      schemaVersion: '1',
+      workspaceId: WORKSPACE.workspaceId,
+      revision: 1,
+      nodes: seedNodes(),
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+      agentOps: { appliedSeq: 4 },
+    };
+    store.files.set(
+      infiniteCanvasDocumentFilePath(WORKSPACE.workspacePath, DOCUMENT_ID),
+      JSON.stringify(document),
+    );
+    const service = new InfiniteCanvasDocumentService(store.port);
+    let remainingFailures = failures;
+    const flakyService: Pick<InfiniteCanvasDocumentService, 'mutateDefaultDocument'> = {
+      mutateDefaultDocument: (workspace, mutator) => {
+        if (remainingFailures > 0) {
+          remainingFailures -= 1;
+          return Promise.resolve({
+            status: 'failed' as const,
+            error: { kind: 'io' as const, reason: 'disk full' },
+          });
+        }
+        return service.mutateDefaultDocument(workspace, mutator);
+      },
+    };
+    const harness: FlakyHarness = {
+      bridge: undefined as unknown as InfiniteCanvasOpsBridge,
+      reconciliations: 0,
+      files: store.files,
+      reader: store.port,
+      service,
+      async readDocument() {
+        const result = await service.mutateDefaultDocument(WORKSPACE, content => content);
+        if (result.status !== 'applied') throw new Error('failed to read document');
+        return result.document;
+      },
+    };
+    harness.bridge = createInfiniteCanvasOpsBridge({
+      workspace: WORKSPACE,
+      documentId: DOCUMENT_ID,
+      documentService: flakyService,
+      scheduleReconciliation: () => {
+        harness.reconciliations += 1;
+      },
+    });
+    return harness;
+  }
+
+  function batchReceipt(seq: number, nodeId: string): Record<string, unknown> {
+    return acceptedReceipt({
+      seq,
+      batchId: `batch-${seq}`,
+      ops: [{ op: 'add_node', nodeId, kind: 'text', position: { x: seq, y: 0 } }],
+      createdNodeIds: [nodeId],
+    });
+  }
+
+  it('replays a batch whose landing failed when the next batch arrives (P1)', async () => {
+    const harness = createFlakyHarness(1);
+
+    // Batch 5 fails at the document layer: typed error, reconciliation asked,
+    // watermark untouched.
+    const failed = await harness.bridge.handleToolRunEvent(
+      completedEvent(batchReceipt(5, 'node-batch-5')),
+    );
+    expect(failed).toMatchObject({ status: 'error' });
+    expect(harness.reconciliations).toBe(1);
+    expect((await harness.readDocument()).agentOps).toEqual({ appliedSeq: 4 });
+
+    // Batch 6 succeeds — and batch 5 rides along in the same mutation, so
+    // the watermark never jumps over the missed batch.
+    const next = await harness.bridge.handleToolRunEvent(
+      completedEvent(batchReceipt(6, 'node-batch-6')),
+    );
+    expect(next).toMatchObject({ status: 'applied', seq: 6 });
+    const document = await harness.readDocument();
+    expect(document.nodes.some(node => node.nodeId === 'node-batch-5')).toBe(true);
+    expect(document.nodes.some(node => node.nodeId === 'node-batch-6')).toBe(true);
+    expect(document.agentOps).toEqual({ appliedSeq: 6 });
+  });
+
+  it('lands the failed batch through the scheduled journal reconciliation (P1)', async () => {
+    const harness = createFlakyHarness(1);
+
+    const failed = await harness.bridge.handleToolRunEvent(
+      completedEvent(batchReceipt(5, 'node-batch-5')),
+    );
+    expect(failed).toMatchObject({ status: 'error' });
+    expect(harness.reconciliations).toBe(1);
+
+    // The host answers the scheduleReconciliation callback by replaying the
+    // ops journal (Rust's file: it already contains the accepted batch 5).
+    harness.files.set(
+      infiniteCanvasOpsJournalFilePath(WORKSPACE.workspacePath, DOCUMENT_ID),
+      JSON.stringify({
+        schemaVersion: '1',
+        workspaceId: WORKSPACE.workspaceId,
+        documentId: DOCUMENT_ID,
+        batches: [{
+          seq: 5,
+          batchId: 'batch-5',
+          ops: [{ op: 'add_node', nodeId: 'node-batch-5', kind: 'text', position: { x: 5, y: 0 } }],
+        }],
+      }),
+    );
+    const reconciled = await reconcileInfiniteCanvasAgentOps({
+      workspace: WORKSPACE,
+      document: await harness.readDocument(),
+      reader: harness.reader,
+      documentService: harness.service,
+    });
+    expect(reconciled.status).toBe('applied');
+    expect((await harness.readDocument()).agentOps).toEqual({ appliedSeq: 5 });
+
+    const next = await harness.bridge.handleToolRunEvent(
+      completedEvent(batchReceipt(6, 'node-batch-6')),
+    );
+    expect(next).toMatchObject({ status: 'applied', seq: 6 });
+    const document = await harness.readDocument();
+    expect(document.nodes.some(node => node.nodeId === 'node-batch-5')).toBe(true);
+    expect(document.nodes.some(node => node.nodeId === 'node-batch-6')).toBe(true);
+    expect(document.agentOps).toEqual({ appliedSeq: 6 });
   });
 
   it('connects to an event bus and reports results through onResult', async () => {

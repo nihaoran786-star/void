@@ -98,7 +98,22 @@ function isSafeBatchId(batchId: string): boolean {
   return /^[A-Za-z0-9._-]+$/.test(batchId);
 }
 
-function classifyManifest(raw: string | null): ReconciliationIntent {
+/** Media kind the manifest declares (top level first, then `batch.kind`). */
+function manifestMediaKind(parsed: Record<string, unknown>): 'image' | 'video' | undefined {
+  const candidates = [
+    parsed.kind,
+    isRecord(parsed.batch) ? parsed.batch.kind : undefined,
+  ];
+  for (const candidate of candidates) {
+    if (candidate === 'image' || candidate === 'video') return candidate;
+  }
+  return undefined;
+}
+
+function classifyManifest(
+  raw: string | null,
+  expectedMediaKind: 'image' | 'video',
+): ReconciliationIntent {
   if (raw === null) {
     // The manifest never made it to disk: the job outcome is unknowable.
     return { intent: 'fail', errorKind: 'timeout' };
@@ -118,6 +133,14 @@ function classifyManifest(raw: string | null): ReconciliationIntent {
     return { intent: 'fail', errorKind: 'timeout' };
   }
   if (status === 'completed' || status === 'partial') {
+    // C3: the W7 pass must honor the same media-kind gate as the live bridge
+    // (P3 §3.5) — a manifest whose kind contradicts the registered
+    // generation can never land its asset here; settle as a typed retryable
+    // failure instead of resolving the wrong media into the card.
+    const manifestKind = manifestMediaKind(parsed);
+    if (manifestKind !== undefined && manifestKind !== expectedMediaKind) {
+      return { intent: 'fail', errorKind: 'invalid-input' };
+    }
     const batch = isRecord(parsed.batch) ? parsed.batch : undefined;
     const localPath = batch ? firstSavedLocalPath(batch) : undefined;
     const relativePath = localPath ? generatedMediaRelativePath(localPath) : undefined;
@@ -188,7 +211,10 @@ export async function reconcilePendingInfiniteCanvasGenerations(
       } catch {
         raw = null;
       }
-      intent = classifyManifest(raw);
+      intent = classifyManifest(
+        raw,
+        generation.mediaKind === 'video' ? 'video' : 'image',
+      );
     }
     intentsByOperationId.set(generation.operationId, intent);
     outcomes.push({
