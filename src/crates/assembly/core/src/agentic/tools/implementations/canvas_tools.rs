@@ -550,6 +550,17 @@ fn ops_journal_path(workspace_root: &Path, document_id: &str) -> PathBuf {
 
 type CanvasOpRejection = (String, String);
 
+/// Mirror of the front-end `generationCardKind`: the card kind a generation
+/// with this media kind lands into (video → video card, everything else →
+/// image card).
+fn generation_card_kind(media_kind: &str) -> &'static str {
+    if media_kind == "video" {
+        "video"
+    } else {
+        "image"
+    }
+}
+
 fn rejection(code: &str, message: impl Into<String>) -> CanvasOpRejection {
     (code.to_string(), message.into())
 }
@@ -659,15 +670,17 @@ struct ValidatedCanvasOpBatch {
 /// the authority and re-validates against the live document.
 struct KnownNodes<'a> {
     snapshot: &'a CanvasDocumentSnapshot,
-    journal_created: &'a std::collections::HashSet<String>,
-    batch_created: Vec<String>,
+    /// Journal-created node ids mapped to their card kind when the journaled
+    /// op declared one (`None` = kind unknown, checks stay permissive).
+    journal_created: &'a std::collections::HashMap<String, Option<String>>,
+    batch_created: Vec<(String, String)>,
 }
 
 impl KnownNodes<'_> {
     fn contains(&self, node_id: &str) -> bool {
         self.snapshot.node(node_id).is_some()
-            || self.journal_created.contains(node_id)
-            || self.batch_created.iter().any(|id| id == node_id)
+            || self.journal_created.contains_key(node_id)
+            || self.batch_created.iter().any(|(id, _)| id == node_id)
     }
 
     /// True when the snapshot proves the node already carries media.
@@ -675,6 +688,22 @@ impl KnownNodes<'_> {
         self.snapshot
             .node(node_id)
             .is_some_and(|node| node.has_media)
+    }
+
+    /// Best-effort card kind: the persisted snapshot is authoritative;
+    /// journaled and in-batch creations carry the kind their op declared.
+    /// `None` means the kind is unknowable here (front end re-validates).
+    fn kind_of(&self, node_id: &str) -> Option<String> {
+        if let Some(node) = self.snapshot.node(node_id) {
+            return Some(node.kind.clone());
+        }
+        if let Some(kind) = self.journal_created.get(node_id) {
+            return kind.clone();
+        }
+        self.batch_created
+            .iter()
+            .find(|(id, _)| id == node_id)
+            .map(|(_, kind)| kind.clone())
     }
 }
 
@@ -684,7 +713,7 @@ fn validate_and_normalize_canvas_ops(
     workspace_id: &str,
     document_id: &str,
     snapshot: &CanvasDocumentSnapshot,
-    journal_created: &std::collections::HashSet<String>,
+    journal_created: &std::collections::HashMap<String, Option<String>>,
 ) -> Result<ValidatedCanvasOpBatch, CanvasOpRejection> {
     if ops.is_empty() || ops.len() > CANVAS_OP_MAX_OPS {
         return Err(rejection(
@@ -773,7 +802,7 @@ fn validate_and_normalize_canvas_ops(
                 if let Some(style_preset_id) = style_preset_id {
                     normalized.insert("stylePresetId".to_string(), json!(style_preset_id));
                 }
-                known.batch_created.push(node_id.clone());
+                known.batch_created.push((node_id.clone(), kind));
                 created_node_ids.push(node_id);
                 normalized_ops.push(Value::Object(normalized));
             }
@@ -876,6 +905,18 @@ fn validate_and_normalize_canvas_ops(
                 )?;
                 let source = required_string(object, "sourceNodeId", op_index, "connect")?;
                 let target = required_string(object, "targetNodeId", op_index, "connect")?;
+                // C4: a self-loop edge is always wrong — the front-end applier
+                // would skip it (`self_edge`), so the receipt must never
+                // pretend such an edge was created. Reject before journaling.
+                if source == target {
+                    return Err(rejection(
+                        "invalid-input",
+                        format!(
+                            "ops[{op_index}] (connect): sourceNodeId and targetNodeId are both \
+                             \"{source}\" — self-loop edges are not allowed."
+                        ),
+                    ));
+                }
                 for (label, node_id) in [("sourceNodeId", &source), ("targetNodeId", &target)] {
                     if !known.contains(node_id) {
                         return Err(rejection(
@@ -887,14 +928,44 @@ fn validate_and_normalize_canvas_ops(
                         ));
                     }
                 }
-                let edge_id = new_canvas_id("edge");
-                created_edge_ids.push(edge_id.clone());
-                normalized_ops.push(json!({
-                    "op": "connect",
-                    "edgeId": edge_id,
-                    "sourceNodeId": source,
-                    "targetNodeId": target
-                }));
+                // C4 idempotency, aligned with the front-end `already_exists`
+                // skip: a same-direction edge that already exists in the
+                // snapshot is echoed back with the EXISTING edge id and an
+                // `alreadyExists` marker — no fresh edge id, no entry in
+                // `createdEdgeIds`, so the receipt never reports a phantom
+                // edge (the front-end applier skips the op as a no-op).
+                let existing_edge_id = snapshot.edges.iter().find_map(|edge| {
+                    let object = edge.as_object()?;
+                    let same_direction = object.get("sourceNodeId").and_then(Value::as_str)
+                        == Some(source.as_str())
+                        && object.get("targetNodeId").and_then(Value::as_str)
+                            == Some(target.as_str());
+                    if !same_direction {
+                        return None;
+                    }
+                    object
+                        .get("edgeId")
+                        .and_then(Value::as_str)
+                        .map(ToString::to_string)
+                });
+                if let Some(edge_id) = existing_edge_id {
+                    normalized_ops.push(json!({
+                        "op": "connect",
+                        "edgeId": edge_id,
+                        "sourceNodeId": source,
+                        "targetNodeId": target,
+                        "alreadyExists": true
+                    }));
+                } else {
+                    let edge_id = new_canvas_id("edge");
+                    created_edge_ids.push(edge_id.clone());
+                    normalized_ops.push(json!({
+                        "op": "connect",
+                        "edgeId": edge_id,
+                        "sourceNodeId": source,
+                        "targetNodeId": target
+                    }));
+                }
             }
             "disconnect" => {
                 ensure_allowed_keys(object, &["op", "edgeId"], op_index, "disconnect")?;
@@ -1029,6 +1100,29 @@ fn validate_and_normalize_canvas_ops(
                             ),
                         ));
                     }
+                    // C2: a self generation can only land into a blank card
+                    // whose kind matches the generation media kind. A text or
+                    // group card (or an image card asked for video and vice
+                    // versa) would spend money on a Generate call whose result
+                    // can never land — the front-end applier skips it as
+                    // `target_kind_mismatch`. Reject BEFORE the paid call,
+                    // with the same code the front end uses.
+                    let expected_kind = generation_card_kind(&media_kind);
+                    if let Some(kind) = known.kind_of(&node_id) {
+                        if kind != expected_kind {
+                            return Err(rejection(
+                                "target_kind_mismatch",
+                                format!(
+                                    "ops[{op_index}] (begin_generation): node \"{node_id}\" is a \
+                                     \"{kind}\" card, but a {media_kind} generation in mode \
+                                     \"self\" needs a blank \"{expected_kind}\" card — the \
+                                     result could never land there. Use add_node to create a \
+                                     {expected_kind} card, or pick an existing blank \
+                                     {expected_kind} card."
+                                ),
+                            ));
+                        }
+                    }
                     target_node_id = node_id;
                 } else {
                     if object.get("nodeId").is_some() {
@@ -1056,7 +1150,10 @@ fn validate_and_normalize_canvas_ops(
                     let derived_edge_id = new_canvas_id("edge");
                     normalized.insert("sourceNodeId".to_string(), json!(source));
                     normalized.insert("edgeId".to_string(), json!(derived_edge_id));
-                    known.batch_created.push(placeholder_id.clone());
+                    known.batch_created.push((
+                        placeholder_id.clone(),
+                        generation_card_kind(&media_kind).to_string(),
+                    ));
                     created_node_ids.push(placeholder_id.clone());
                     created_edge_ids.push(derived_edge_id);
                     source_node_id = Some(source);
@@ -1121,7 +1218,9 @@ fn validate_and_normalize_canvas_ops(
 struct JournalState {
     batches: Vec<Value>,
     last_seq: u64,
-    created_node_ids: std::collections::HashSet<String>,
+    /// Nodes created by journaled (possibly not yet applied) batches, mapped
+    /// to the card kind their op declared (`None` when unknowable).
+    created_nodes: std::collections::HashMap<String, Option<String>>,
 }
 
 /// Reads the journal tolerantly: a missing file is an empty journal, and a
@@ -1131,7 +1230,7 @@ async fn read_ops_journal(path: &Path) -> JournalState {
     let mut state = JournalState {
         batches: Vec::new(),
         last_seq: 0,
-        created_node_ids: std::collections::HashSet::new(),
+        created_nodes: std::collections::HashMap::new(),
     };
     let raw = match tokio::fs::read_to_string(path).await {
         Ok(raw) => raw,
@@ -1154,14 +1253,32 @@ async fn read_ops_journal(path: &Path) -> JournalState {
         state.last_seq = state.last_seq.max(seq);
         if let Some(ops) = batch.get("ops").and_then(Value::as_array) {
             for op in ops {
-                let creates_node = matches!(
-                    op.get("op").and_then(Value::as_str),
-                    Some("add_node" | "begin_generation")
-                );
-                if creates_node {
-                    if let Some(node_id) = op.get("nodeId").and_then(Value::as_str) {
-                        state.created_node_ids.insert(node_id.to_string());
+                let Some(node_id) = op.get("nodeId").and_then(Value::as_str) else {
+                    continue;
+                };
+                match op.get("op").and_then(Value::as_str) {
+                    Some("add_node") => {
+                        let kind = op
+                            .get("kind")
+                            .and_then(Value::as_str)
+                            .map(ToString::to_string);
+                        state.created_nodes.insert(node_id.to_string(), kind);
                     }
+                    Some("begin_generation") => {
+                        // Derived mode created the placeholder with the media
+                        // kind's card kind; self mode targets an existing node
+                        // whose kind matched the media kind at validation, so
+                        // recording that kind is correct either way.
+                        let media_kind = op
+                            .get("mediaKind")
+                            .and_then(Value::as_str)
+                            .unwrap_or("image");
+                        state.created_nodes.insert(
+                            node_id.to_string(),
+                            Some(generation_card_kind(media_kind).to_string()),
+                        );
+                    }
+                    _ => {}
                 }
             }
         }
@@ -1383,7 +1500,7 @@ impl Tool for CanvasOpTool {
             &workspace_id,
             &document_id,
             &snapshot,
-            &journal.created_node_ids,
+            &journal.created_nodes,
         ) {
             Ok(validated) => validated,
             Err((code, message)) => return Ok(canvas_typed_error(&code, message)),
@@ -1869,6 +1986,12 @@ mod canvas_op_tests {
                     "kind": "video",
                     "position": { "x": 400, "y": 0 },
                     "prompt": "a blank video card"
+                },
+                {
+                    "nodeId": "node-text",
+                    "kind": "text",
+                    "position": { "x": 600, "y": 0 },
+                    "text": "a note"
                 }
             ],
             "edges": [],
@@ -2344,6 +2467,223 @@ mod canvas_op_tests {
         assert_eq!(op["sourceNodeId"], "node-media");
         assert_eq!(op["mediaKind"], "video");
         assert!(op["edgeId"].as_str().is_some());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— C2: self mode enforces card kind vs media kind, before the paid call —
+
+    #[tokio::test]
+    async fn self_generation_on_a_text_card_is_rejected_as_target_kind_mismatch() {
+        let root = temp_workspace("gen-self-text");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-text",
+                    "toolId": "generate",
+                    "prompt": "a cat"
+                }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "target_kind_mismatch");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("text") && message.contains("image")));
+        // Rejected before the money gate: nothing journaled, no binding.
+        assert!(!journal_path(&root).exists());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn self_video_generation_requires_a_video_card() {
+        let root = temp_workspace("gen-self-kind");
+        write_document(&root, &sample_document()).await;
+
+        // Video generation aimed at a blank IMAGE card: rejected.
+        let wrong = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-blank",
+                    "toolId": "generate",
+                    "mediaKind": "video"
+                }
+            ])),
+        )
+        .await;
+        assert_eq!(result_data(&wrong)["error"]["code"], "target_kind_mismatch");
+        assert!(!journal_path(&root).exists());
+
+        // Image generation aimed at a blank VIDEO card: rejected too.
+        let wrong_image = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-video-blank",
+                    "toolId": "generate"
+                }
+            ])),
+        )
+        .await;
+        assert_eq!(
+            result_data(&wrong_image)["error"]["code"],
+            "target_kind_mismatch"
+        );
+
+        // Matching kinds are accepted: video generation on the video card.
+        let matched = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-video-blank",
+                    "toolId": "generate",
+                    "mediaKind": "video"
+                }
+            ])),
+        )
+        .await;
+        let matched_data = result_data(&matched);
+        assert_eq!(matched_data["status"], "accepted");
+        assert_eq!(matched_data["generations"][0]["binding"]["mediaKind"], "video");
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn self_generation_kind_gate_covers_journal_created_nodes() {
+        let root = temp_workspace("gen-self-journal-kind");
+        write_document(&root, &sample_document()).await;
+
+        // Kind checks also hold for nodes that only exist in the ops journal
+        // (created by an earlier accepted batch the canvas has not applied).
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 0, "y": 0 } },
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": "node-blank",
+                    "toolId": "generate"
+                }
+            ])),
+        )
+        .await;
+        // The whole batch is fine (node-blank is an image card, image gen).
+        assert_eq!(result_data(&results)["status"], "accepted");
+
+        // But referencing a freshly created TEXT node as self target fails.
+        // First create the text node in its own batch to get its id.
+        let created = call(
+            &root,
+            &base_input(json!([
+                { "op": "add_node", "kind": "text", "position": { "x": 10, "y": 0 } }
+            ])),
+        )
+        .await;
+        let text_node_id = result_data(&created)["createdNodeIds"][0]
+            .as_str()
+            .expect("created node id")
+            .to_string();
+        let mismatch = call(
+            &root,
+            &base_input(json!([
+                {
+                    "op": "begin_generation",
+                    "mode": "self",
+                    "nodeId": text_node_id,
+                    "toolId": "generate"
+                }
+            ])),
+        )
+        .await;
+        assert_eq!(
+            result_data(&mismatch)["error"]["code"],
+            "target_kind_mismatch"
+        );
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    // —— C4: connect self-loop rejection and duplicate-edge idempotency ———
+
+    #[tokio::test]
+    async fn connect_rejects_self_loop_edges_without_journaling() {
+        let root = temp_workspace("connect-self-loop");
+        write_document(&root, &sample_document()).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "connect", "sourceNodeId": "node-blank", "targetNodeId": "node-blank" }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        assert_eq!(data["status"], "error");
+        assert_eq!(data["error"]["code"], "invalid-input");
+        assert!(data["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("self-loop")));
+        assert!(!journal_path(&root).exists());
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn connect_duplicate_same_direction_edge_is_idempotent_not_a_phantom_edge() {
+        let root = temp_workspace("connect-duplicate");
+        let mut document = sample_document();
+        document["edges"] = json!([
+            { "edgeId": "edge-existing", "sourceNodeId": "node-blank", "targetNodeId": "node-media" }
+        ]);
+        write_document(&root, &document).await;
+
+        let results = call(
+            &root,
+            &base_input(json!([
+                { "op": "connect", "sourceNodeId": "node-blank", "targetNodeId": "node-media" }
+            ])),
+        )
+        .await;
+        let data = result_data(&results);
+
+        // Accepted with idempotent semantics (front-end skips it as
+        // already_exists): the receipt reuses the existing edge id, marks the
+        // op, and reports NO created edge.
+        assert_eq!(data["status"], "accepted");
+        assert_eq!(data["createdEdgeIds"].as_array().map(Vec::len), Some(0));
+        assert_eq!(data["ops"][0]["edgeId"], "edge-existing");
+        assert_eq!(data["ops"][0]["alreadyExists"], true);
+
+        // The REVERSE direction is a different edge and is still created.
+        let reverse = call(
+            &root,
+            &base_input(json!([
+                { "op": "connect", "sourceNodeId": "node-media", "targetNodeId": "node-blank" }
+            ])),
+        )
+        .await;
+        let reverse_data = result_data(&reverse);
+        assert_eq!(reverse_data["status"], "accepted");
+        assert_eq!(reverse_data["createdEdgeIds"].as_array().map(Vec::len), Some(1));
 
         let _ = tokio::fs::remove_dir_all(root).await;
     }
