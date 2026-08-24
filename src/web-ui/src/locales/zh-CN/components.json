@@ -927,7 +927,8 @@
     "toolbar": {
       "addText": "添加文字",
       "addImage": "添加图片",
-      "addGenerationCard": "新建生成卡"
+      "addGenerationCard": "新建生成卡",
+      "addVideoCard": "新建视频卡"
     },
     "textNode": {
       "ariaLabel": "文字节点",
@@ -1000,6 +1001,18 @@
         "backend": "出图失败，请重试。",
         "cancelled": "任务已取消。"
       }
+    },
+    "video": {
+      "previewLoading": "视频加载中…",
+      "previewUnavailable": "视频暂时无法播放",
+      "promptLabel": "视频提示词",
+      "promptPlaceholder": "描述画面与运镜，例如：缓慢推近…",
+      "generate": "生成视频",
+      "regenerate": "再生成视频（新卡）",
+      "pending": "视频生成中…",
+      "blankHint": "连上参考图、写好提示词后点击生成视频。",
+      "deriveFromImage": "生成视频",
+      "referenceNotSupported": "视频卡不能作为参考，请断开这条连线。"
     }
   },
   "agentStudio": {

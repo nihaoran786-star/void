@@ -60,6 +60,20 @@ function seedNodes(): InfiniteCanvasNode[] {
       },
     },
     {
+      // P3: a pending video placeholder derived from card-src (image-to-video).
+      nodeId: 'card-video',
+      kind: 'video',
+      position: { x: 500, y: 300 },
+      derivedFrom: { sourceNodeId: 'card-src', toolId: 'generate', operationId: 'op-video' },
+      generation: {
+        operationId: 'op-video',
+        toolId: 'generate',
+        resultMode: 'derived',
+        status: 'pending',
+        mediaKind: 'video',
+      },
+    },
+    {
       // Illegal-by-construction state used to prove the never-overwrite guard.
       nodeId: 'card-occupied',
       kind: 'image',
@@ -225,6 +239,98 @@ describe('InfiniteCanvasMediaBridge', () => {
     const derived = node(await readDocument(), 'card-derived');
     expect(derived.mediaRef).toBeUndefined();
     expect(derived.generation?.status).toBe('pending');
+  });
+
+  it('resolves a video completion into the pending video card (P3 §3.5)', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Completed',
+      toolName: 'GenerateVideo',
+      result: {
+        status: 'completed',
+        kind: 'video',
+        batch: { batch_id: 'batch-v1' },
+        infiniteCanvas: binding({
+          nodeId: 'card-video',
+          resultMode: 'derived',
+          sourceNodeId: 'card-src',
+          operationId: 'op-video',
+          mediaKind: 'video',
+          outputMediaKind: 'video',
+          outputMediaRelativePath: 'media/generated/batch-v1/video-001.mp4',
+        }),
+      },
+    });
+
+    expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-video' });
+    const document = await readDocument();
+    const video = node(document, 'card-video');
+    expect(video.kind).toBe('video');
+    expect(video.mediaRef).toEqual({
+      workspacePath: 'C:/ws',
+      relativePath: 'media/generated/batch-v1/video-001.mp4',
+    });
+    expect(video.generation).toBeUndefined();
+    expect(node(document, 'card-src').mediaRef).toEqual(SOURCE_MEDIA_REF);
+  });
+
+  it('ignores a video result aimed at an image card as media_kind_mismatch', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    // Tampered binding: op-self anchors an image card, but the result claims
+    // to be a video. The typed gate must reject the write.
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      mediaKind: 'video',
+      outputMediaKind: 'video',
+      outputMediaRelativePath: 'media/generated/batch-v1/video-001.mp4',
+    }));
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'media_kind_mismatch' });
+    const card = node(await readDocument(), 'card-self');
+    expect(card.mediaRef).toBeUndefined();
+    expect(card.generation?.status).toBe('pending');
+  });
+
+  it('ignores an image result aimed at a video card as media_kind_mismatch', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-video',
+      resultMode: 'derived',
+      operationId: 'op-video',
+      outputMediaKind: 'image',
+    }));
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'media_kind_mismatch' });
+    const video = node(await readDocument(), 'card-video');
+    expect(video.mediaRef).toBeUndefined();
+    expect(video.generation?.status).toBe('pending');
+  });
+
+  it('gates video failure classification onto the video card through the same lane', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      eventType: 'Completed',
+      toolName: 'GenerateVideo',
+      params: {
+        infinite_canvas: binding({
+          nodeId: 'card-video',
+          resultMode: 'derived',
+          operationId: 'op-video',
+          mediaKind: 'video',
+        }),
+      },
+      result: { status: 'error', source: 'apimart', error: { code: 'provider_not_configured' } },
+    });
+
+    expect(result).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'auth' });
+    expect(node(await readDocument(), 'card-video').generation).toMatchObject({
+      status: 'failed',
+      errorKind: 'auth',
+      mediaKind: 'video',
+    });
   });
 
   it('attaches the batch id from a submission receipt and keeps the node pending', async () => {

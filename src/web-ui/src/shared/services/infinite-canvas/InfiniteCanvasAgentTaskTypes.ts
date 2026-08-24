@@ -34,6 +34,12 @@ export interface InfiniteCanvasImageBinding {
   toolId: CanvasImageOperationKind;
   /** Front-end generated idempotent operation ID; the unique landing anchor. */
   operationId: string;
+  /**
+   * P3: media kind marker of a GenerateVideo binding. Image bindings omit it
+   * (the Rust CanvasOp machine-assembled binding does the same), so pre-P3
+   * bindings keep their exact K2 shape.
+   */
+  mediaKind?: 'video';
   /** Audit echo only; the prompt is fully assembled on the front end. */
   stylePresetId?: string;
   /** Reference cards in connection order; audit echo only. */

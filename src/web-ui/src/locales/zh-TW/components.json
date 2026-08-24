@@ -927,7 +927,8 @@
     "toolbar": {
       "addText": "新增文字",
       "addImage": "新增圖片",
-      "addGenerationCard": "新建生成卡"
+      "addGenerationCard": "新建生成卡",
+      "addVideoCard": "新建影片卡"
     },
     "textNode": {
       "ariaLabel": "文字節點",
@@ -1000,6 +1001,18 @@
         "backend": "出圖失敗，請重試。",
         "cancelled": "任務已取消。"
       }
+    },
+    "video": {
+      "previewLoading": "影片載入中…",
+      "previewUnavailable": "影片暫時無法播放",
+      "promptLabel": "影片提示詞",
+      "promptPlaceholder": "描述畫面與運鏡，例如：緩慢推近…",
+      "generate": "生成影片",
+      "regenerate": "再生成影片（新卡）",
+      "pending": "影片生成中…",
+      "blankHint": "連上參考圖、寫好提示詞後點擊生成影片。",
+      "deriveFromImage": "生成影片",
+      "referenceNotSupported": "影片卡不能作為參考，請斷開這條連線。"
     }
   },
   "agentStudio": {

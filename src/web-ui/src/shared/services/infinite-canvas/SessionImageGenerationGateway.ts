@@ -24,7 +24,10 @@ import type {
   ImageToolInvocation,
   ImageToolResult,
 } from './ImageToolTypes';
-import type { CanvasImageOperationKind } from './InfiniteCanvasTypes';
+import type {
+  CanvasImageOperationKind,
+  InfiniteCanvasGenerationMediaKind,
+} from './InfiniteCanvasTypes';
 import type {
   InfiniteCanvasAgentTaskSessionSender,
   InfiniteCanvasImageBinding,
@@ -43,6 +46,13 @@ export interface SessionImageGenerationInvocation {
   operationId: string;
   /** 'generate' (text-to-image / regenerate) or one of the five tool IDs. */
   kind: CanvasImageOperationKind;
+  /**
+   * P3: which media the task produces. 'video' routes the task message to
+   * GenerateVideo and stamps the binding with `mediaKind: 'video'`; absent
+   * defaults to 'image' and reproduces the K2 message byte-for-byte. Video is
+   * only legal with kind 'generate' (the five tools stay image-only).
+   */
+  mediaKind?: InfiniteCanvasGenerationMediaKind;
   resultMode: 'self' | 'derived';
   /** Landing node: self = the blank card itself, derived = the placeholder card. */
   nodeId: string;
@@ -129,7 +139,7 @@ function buildImageInputList(invocation: SessionImageGenerationInvocation): stri
     );
   }
   if (lines.length === 0) {
-    return '图片输入清单：无（纯文生图，image_urls 传空数组）。';
+    return `图片输入清单：无（${invocation.mediaKind === 'video' ? '纯文生视频' : '纯文生图'}，image_urls 传空数组）。`;
   }
   return [
     '图片输入清单（image_urls 必须严格按此顺序，编辑对象在前、参考图按连线顺序在后）：',
@@ -151,6 +161,9 @@ function buildBinding(
       : {}),
     toolId: invocation.kind,
     operationId: invocation.operationId,
+    // Image bindings stay in their exact K2 shape; only video adds the marker
+    // (mirrors the Rust CanvasOp machine-assembled binding).
+    ...(invocation.mediaKind === 'video' ? { mediaKind: 'video' as const } : {}),
     ...(invocation.stylePresetId ? { stylePresetId: invocation.stylePresetId } : {}),
     ...(invocation.references.length > 0
       ? { referenceNodeIds: invocation.references.map(reference => reference.nodeId) }
@@ -158,14 +171,20 @@ function buildBinding(
   };
 }
 
-/** §2.2 task message: instruction + input list + hard constraints + binding JSON. */
+/**
+ * §2.2 task message: instruction + input list + hard constraints + binding
+ * JSON. P3 routes video tasks to GenerateVideo on the same template; the
+ * image wording is unchanged from K2.
+ */
 export function buildImageGenerationTaskMessage(
   invocation: SessionImageGenerationInvocation,
   finalInstruction: string,
   binding: InfiniteCanvasImageBinding,
 ): string {
+  const isVideo = invocation.mediaKind === 'video';
+  const toolName = isVideo ? 'GenerateVideo' : 'GenerateImage';
   return [
-    '请处理这个无限画布出图任务。',
+    `请处理这个无限画布${isVideo ? '出视频' : '出图'}任务。`,
     '',
     '任务指令：',
     finalInstruction,
@@ -174,8 +193,8 @@ export function buildImageGenerationTaskMessage(
     '',
     '执行要求（必须严格遵守）：',
     '1. 图片输入清单中凡是本地 workspace 相对路径的图片，先用 UploadMediaImage（path = 该相对路径）取得公网 URL；已是 http(s) URL 的引用直接使用，不要重复上传。',
-    '2. 再调用 GenerateImage：prompt 使用上面的任务指令原文；image_urls 严格按图片输入清单的顺序填入取得的 URL（纯文生图时传空数组）；n 固定为 1。',
-    '3. 将下面的绑定 JSON 原样复制到 GenerateImage 的 infinite_canvas 参数，一字不改：',
+    `2. 再调用 ${toolName}：prompt 使用上面的任务指令原文；image_urls 严格按图片输入清单的顺序填入取得的 URL（${isVideo ? '清单为"无"时传空数组）；时长、分辨率等参数由你按任务内容判断，没有把握就省略、用模型默认值' : '纯文生图时传空数组）；n 固定为 1'}。`,
+    `3. 将下面的绑定 JSON 原样复制到 ${toolName} 的 infinite_canvas 参数，一字不改：`,
     JSON.stringify(binding, null, 2),
     '4. 不要改写、合并或拆分任务指令；如任务不合理请直接回复说明原因。',
   ].join('\n');
@@ -202,6 +221,23 @@ export function createSessionImageGenerationGateway(
           invocation.operationId,
           'invalid-input',
           'A derived operation requires a sourceNodeId.',
+        ));
+      }
+      if (invocation.mediaKind === 'video' && invocation.kind !== 'generate') {
+        // The five image tools are image-only; video knows one operation.
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'Video generation only supports the generate operation.',
+        ));
+      }
+      if (invocation.mediaKind === 'video' && invocation.editTargetMediaRef) {
+        // Video has no edit-object concept; source images travel as ordered
+        // references (image-to-video), never as an edit target.
+        return record(failure(
+          invocation.operationId,
+          'invalid-input',
+          'A video generation task cannot carry an edit target.',
         ));
       }
       if (invocation.kind !== 'generate' && invocation.resultMode !== 'derived') {
@@ -244,7 +280,7 @@ export function createSessionImageGenerationGateway(
       const sent = await options.sender.sendImageGenerationTask({
         targetSessionId,
         message,
-        inputSummary: `无限画布出图任务：${invocation.kind} → ${invocation.nodeId}`,
+        inputSummary: `无限画布${invocation.mediaKind === 'video' ? '出视频' : '出图'}任务：${invocation.kind} → ${invocation.nodeId}`,
         binding,
       });
       if (sent.status === 'error') {

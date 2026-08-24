@@ -147,6 +147,118 @@ describe('SessionImageGenerationGateway', () => {
     });
   });
 
+  it('dispatches a video task through GenerateVideo with the mediaKind binding marker', async () => {
+    const { gateway, sender } = createGateway();
+
+    const result = await gateway.invoke({
+      operationId: 'op-video-1',
+      kind: 'generate',
+      mediaKind: 'video',
+      resultMode: 'derived',
+      nodeId: 'card-video-1',
+      sourceNodeId: 'card-src-1',
+      prompt: '缓慢推近，霓虹闪烁',
+      references: [
+        { order: 1, nodeId: 'card-src-1', mediaRef: { workspacePath: 'C:/ws', relativePath: 'media/generated/b1/hero.png' } },
+      ],
+    });
+
+    expect(result.status).toBe('succeeded');
+    const request = sender.requests[0];
+    // The video lane instructs GenerateVideo, never GenerateImage.
+    expect(request.message).toContain('再调用 GenerateVideo');
+    expect(request.message).toContain('原样复制到 GenerateVideo 的 infinite_canvas 参数');
+    expect(request.message).not.toContain('GenerateImage');
+    // Duration/resolution are left to the model's judgment (§4-W4 wording).
+    expect(request.message).toContain('时长、分辨率等参数由你按任务内容判断');
+    // Image-to-video source images travel as ordered references, uploaded
+    // through UploadMediaImage under the same K2 constraint.
+    expect(request.message).toContain('UploadMediaImage');
+    expect(request.message).toContain('1. 参考图一：media/generated/b1/hero.png');
+    // §3.4 binding: the K2 shape plus the mediaKind marker.
+    expect(request.binding).toEqual({
+      workspaceId: 'workspace-1',
+      documentId: 'doc-1',
+      nodeId: 'card-video-1',
+      resultMode: 'derived',
+      sourceNodeId: 'card-src-1',
+      toolId: 'generate',
+      operationId: 'op-video-1',
+      mediaKind: 'video',
+      referenceNodeIds: ['card-src-1'],
+    });
+    expect(request.message).toContain(JSON.stringify(request.binding, null, 2));
+    expect(request.inputSummary).toContain('出视频');
+  });
+
+  it('dispatches a text-to-video task with the empty image_urls convention', async () => {
+    const { gateway, sender } = createGateway();
+
+    await gateway.invoke({
+      operationId: 'op-video-2',
+      kind: 'generate',
+      mediaKind: 'video',
+      resultMode: 'self',
+      nodeId: 'card-video-blank',
+      prompt: '海面上的日出延时',
+      references: [],
+    });
+
+    const request = sender.requests[0];
+    expect(request.message).toContain('纯文生视频，image_urls 传空数组');
+    expect(request.binding).toMatchObject({ mediaKind: 'video', resultMode: 'self' });
+  });
+
+  it('keeps the image binding free of a mediaKind marker (exact K2 shape)', async () => {
+    const { gateway, sender } = createGateway();
+
+    await gateway.invoke({ ...BLANK_CARD_INVOCATION, mediaKind: 'image' });
+
+    expect(sender.requests[0].binding).not.toHaveProperty('mediaKind');
+    expect(sender.requests[0].message).toContain('再调用 GenerateImage');
+    expect(sender.requests[0].message).toContain('n 固定为 1');
+  });
+
+  it('rejects a video invocation that is not a generate operation', async () => {
+    const { gateway, sender } = createGateway();
+
+    const result = await gateway.invoke({
+      operationId: 'op-video-bad-1',
+      kind: 'upscale',
+      mediaKind: 'video',
+      resultMode: 'derived',
+      nodeId: 'card-video-1',
+      sourceNodeId: 'card-src-1',
+      prompt: 'anything',
+      references: [],
+      editTargetMediaRef: { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/src.png' },
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.kind).toBe('invalid-input');
+    expect(sender.requests).toHaveLength(0);
+  });
+
+  it('rejects a video invocation that carries an edit target', async () => {
+    const { gateway, sender } = createGateway();
+
+    const result = await gateway.invoke({
+      operationId: 'op-video-bad-2',
+      kind: 'generate',
+      mediaKind: 'video',
+      resultMode: 'derived',
+      nodeId: 'card-video-1',
+      sourceNodeId: 'card-src-1',
+      prompt: 'anything',
+      references: [],
+      editTargetMediaRef: { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/src.png' },
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.kind).toBe('invalid-input');
+    expect(sender.requests).toHaveLength(0);
+  });
+
   it('keeps the message free of a style block when no preset is selected', async () => {
     const { gateway, sender } = createGateway();
 

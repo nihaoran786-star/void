@@ -12,6 +12,10 @@
  *   registered node (e.g. resultMode='self' but the node already has a
  *   mediaRef) is a typed ignored event — the never-overwrite invariant holds
  *   even against a tampered binding.
+ * - P3 §3.5: the media kind of the result (enriched `outputMediaKind`, or the
+ *   binding's own `mediaKind` marker) must match the landing node's kind —
+ *   otherwise the event is a typed `media_kind_mismatch` ignore. Image and
+ *   video generations share this one backflow lane.
  * - All writes go through `InfiniteCanvasDocumentService.mutateDefaultDocument`
  *   (CAS + coalesced writes); the bridge never touches the persistence port.
  * - Cross-workspace / cross-document bindings are rejected, duplicated events
@@ -37,6 +41,8 @@ export type InfiniteCanvasMediaBridgeIgnoredReason =
   | 'document_mismatch'
   | 'operation_not_found'
   | 'result_mode_mismatch'
+  /** P3 §3.5: binding/receipt media kind contradicts the landing node's kind. */
+  | 'media_kind_mismatch'
   | 'already_terminal'
   | 'unsupported_event_type'
   | 'unsupported_result';
@@ -89,6 +95,18 @@ interface ExtractedBinding {
   resultMode: 'self' | 'derived';
   operationId: string;
   outputMediaRelativePath?: string;
+  /** P3 binding marker: present ('video') only on GenerateVideo bindings. */
+  mediaKind?: 'image' | 'video';
+  /** Kind of the produced media, attached by the Rust completion enrichment. */
+  outputMediaKind?: 'image' | 'video';
+}
+
+function getMediaKind(
+  source: Record<string, unknown>,
+  key: string,
+): 'image' | 'video' | undefined {
+  const value = source[key];
+  return value === 'image' || value === 'video' ? value : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -133,6 +151,8 @@ function parseBinding(raw: Record<string, unknown>): ExtractedBinding | undefine
     resultMode,
     operationId,
     outputMediaRelativePath: getString(raw, 'outputMediaRelativePath'),
+    mediaKind: getMediaKind(raw, 'mediaKind'),
+    outputMediaKind: getMediaKind(raw, 'outputMediaKind'),
   };
 }
 
@@ -252,6 +272,16 @@ function applyIntent(
   // written again, no matter what the binding claims.
   if (binding.resultMode !== generation.resultMode || node.mediaRef !== undefined) {
     return { outcome: { status: 'ignored', reason: 'result_mode_mismatch' }, nodes: unchanged };
+  }
+
+  // P3 §3.5 media-kind cross-check: the produced kind (enriched
+  // outputMediaKind, falling back to the binding's own marker) must match the
+  // landing card's kind — a video result never lands in an image card and
+  // vice versa, even against a tampered binding.
+  const eventMediaKind = binding.outputMediaKind ?? binding.mediaKind ?? 'image';
+  const nodeMediaKind = node.kind === 'video' ? 'video' : 'image';
+  if (eventMediaKind !== nodeMediaKind) {
+    return { outcome: { status: 'ignored', reason: 'media_kind_mismatch' }, nodes: unchanged };
   }
 
   if (intent.intent === 'pending') {

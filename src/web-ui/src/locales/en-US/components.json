@@ -927,7 +927,8 @@
     "toolbar": {
       "addText": "Add text",
       "addImage": "Add image",
-      "addGenerationCard": "New generation card"
+      "addGenerationCard": "New generation card",
+      "addVideoCard": "New video card"
     },
     "textNode": {
       "ariaLabel": "Text node",
@@ -1000,6 +1001,18 @@
         "backend": "The generation failed; please retry.",
         "cancelled": "The task was cancelled."
       }
+    },
+    "video": {
+      "previewLoading": "Loading video...",
+      "previewUnavailable": "Video preview is unavailable",
+      "promptLabel": "Video prompt",
+      "promptPlaceholder": "Describe the scene and the camera move...",
+      "generate": "Generate video",
+      "regenerate": "Regenerate video as a new card",
+      "pending": "Generating video...",
+      "blankHint": "Connect reference images, write a prompt, then generate the video.",
+      "deriveFromImage": "Make video",
+      "referenceNotSupported": "A video card cannot be used as a reference; remove that connection."
     }
   },
   "agentStudio": {

@@ -27,6 +27,7 @@ export interface InfiniteCanvasMediaRef {
 
 export type InfiniteCanvasImagePreviewResolver = (
   mediaRef: InfiniteCanvasMediaRef,
+  mediaKind?: 'image' | 'video',
 ) => Promise<string | undefined>;
 
 export interface InfiniteCanvasTextNodeData extends Record<string, unknown> {
@@ -48,7 +49,12 @@ export interface InfiniteCanvasImageNodeDerivation {
   operationId: string;
 }
 
-export interface InfiniteCanvasImageNodeData extends Record<string, unknown> {
+/**
+ * Shared media-card data: everything the video card needs. The image card
+ * extends it with the five-tool and style-preset surface (P3 keeps the video
+ * card intentionally minimal: prompt + generate + pending/failed states).
+ */
+export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   /** Absent on blank generation cards and derived placeholders. */
   mediaRef?: InfiniteCanvasMediaRef;
   prompt?: string;
@@ -57,16 +63,23 @@ export interface InfiniteCanvasImageNodeData extends Record<string, unknown> {
   /** Ordered reference badges (edge creation order), e.g. tu-yi/tu-er labels. */
   referenceLabels?: readonly string[];
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
-  /** Resolved display name of the applied style preset, if any. */
-  stylePresetName?: string;
-  onOpenStylePicker: (nodeId: string) => void;
-  /** Opens the instruction-completion dialog for one of the five tools. */
-  onRunImageTool: (nodeId: string, toolId: ImageToolId) => void;
   onCommitPrompt: (nodeId: string, prompt: string) => void;
   onGenerate: (nodeId: string) => void;
   onRetryGeneration: (nodeId: string) => void;
   onRemoveFailedGeneration: (nodeId: string) => void;
 }
+
+export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
+  /** Resolved display name of the applied style preset, if any. */
+  stylePresetName?: string;
+  onOpenStylePicker: (nodeId: string) => void;
+  /** Opens the instruction-completion dialog for one of the five tools. */
+  onRunImageTool: (nodeId: string, toolId: ImageToolId) => void;
+  /** P3: derives a blank video card wired to this image (image-to-video). */
+  onDeriveVideoCard?: (nodeId: string) => void;
+}
+
+export type InfiniteCanvasVideoNodeData = InfiniteCanvasMediaNodeData;
 
 interface NodeRendererProps<TData> {
   id: string;
@@ -111,10 +124,11 @@ function fileNameOf(relativePath: string): string {
   return relativePath.split(/[\\/]/).pop() || relativePath;
 }
 
-const ImageNodeMedia: React.FC<{
+const NodeMedia: React.FC<{
   mediaRef: InfiniteCanvasMediaRef;
+  mediaKind: 'image' | 'video';
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
-}> = ({ mediaRef, resolvePreviewUrl }) => {
+}> = ({ mediaRef, mediaKind, resolvePreviewUrl }) => {
   const { t } = useI18n('components');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const [failed, setFailed] = React.useState(false);
@@ -123,7 +137,7 @@ const ImageNodeMedia: React.FC<{
     let cancelled = false;
     setPreviewUrl(undefined);
     setFailed(false);
-    void resolvePreviewUrl(mediaRef).then(url => {
+    void resolvePreviewUrl(mediaRef, mediaKind).then(url => {
       if (cancelled) return;
       if (url) {
         setPreviewUrl(url);
@@ -134,9 +148,23 @@ const ImageNodeMedia: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [mediaRef, resolvePreviewUrl]);
+  }, [mediaKind, mediaRef, resolvePreviewUrl]);
 
   if (previewUrl) {
+    if (mediaKind === 'video') {
+      // preload="metadata" keeps off-screen cards cheap (poster frame +
+      // duration only); the video data streams when the user hits play.
+      return (
+        // eslint-disable-next-line jsx-a11y/media-has-caption -- generated clip, no track source exists
+        <video
+          className="infinite-canvas-node__video nodrag"
+          src={previewUrl}
+          controls
+          preload="metadata"
+          aria-label={fileNameOf(mediaRef.relativePath)}
+        />
+      );
+    }
     return (
       <img
         className="infinite-canvas-node__image"
@@ -152,19 +180,31 @@ const ImageNodeMedia: React.FC<{
       data-state={failed ? 'unavailable' : 'loading'}
     >
       {failed
-        ? t('infiniteCanvas.imageNode.previewUnavailable')
-        : t('infiniteCanvas.imageNode.previewLoading')}
+        ? t(mediaKind === 'video'
+          ? 'infiniteCanvas.video.previewUnavailable'
+          : 'infiniteCanvas.imageNode.previewUnavailable')
+        : t(mediaKind === 'video'
+          ? 'infiniteCanvas.video.previewLoading'
+          : 'infiniteCanvas.imageNode.previewLoading')}
     </div>
   );
 };
 
-ImageNodeMedia.displayName = 'InfiniteCanvasImageNodeMedia';
+NodeMedia.displayName = 'InfiniteCanvasNodeMedia';
 
-export const InfiniteCanvasImageNode: React.FC<
-  NodeRendererProps<InfiniteCanvasImageNodeData>
-> = ({ id, data, selected }) => {
+/**
+ * Shared image/video card body: badges, media, prompt editor, generate and
+ * pending/failed generation states are one implementation; only the media
+ * element and the image-only tool surface differ (K2 image behavior is
+ * unchanged, the video card reuses its pending/failed styles).
+ */
+const InfiniteCanvasMediaCard: React.FC<
+  NodeRendererProps<InfiniteCanvasImageNodeData | InfiniteCanvasVideoNodeData>
+  & { mediaKind: 'image' | 'video' }
+> = ({ id, data, selected, mediaKind }) => {
   const { t } = useI18n('components');
   const { mediaRef, generation, derivedFrom } = data;
+  const imageData = mediaKind === 'image' ? data as InfiniteCanvasImageNodeData : undefined;
   const [promptDraft, setPromptDraft] = React.useState(data.prompt ?? '');
 
   React.useEffect(() => {
@@ -177,7 +217,7 @@ export const InfiniteCanvasImageNode: React.FC<
 
   return (
     <div
-      className="infinite-canvas-node infinite-canvas-node--image"
+      className={`infinite-canvas-node infinite-canvas-node--${mediaKind}`}
       data-selected={selected ? 'true' : undefined}
       data-generation-status={generation?.status}
     >
@@ -216,7 +256,11 @@ export const InfiniteCanvasImageNode: React.FC<
       ) : null}
       {mediaRef ? (
         <>
-          <ImageNodeMedia mediaRef={mediaRef} resolvePreviewUrl={data.resolvePreviewUrl} />
+          <NodeMedia
+            mediaRef={mediaRef}
+            mediaKind={mediaKind}
+            resolvePreviewUrl={data.resolvePreviewUrl}
+          />
           <p className="infinite-canvas-node__image-caption">
             {fileNameOf(mediaRef.relativePath)}
           </p>
@@ -257,17 +301,25 @@ export const InfiniteCanvasImageNode: React.FC<
           {pending ? (
             <>
               <span className="infinite-canvas-node__spinner" aria-hidden="true" />
-              {t('infiniteCanvas.generation.pending')}
+              {t(mediaKind === 'video'
+                ? 'infiniteCanvas.video.pending'
+                : 'infiniteCanvas.generation.pending')}
             </>
           ) : (
-            t('infiniteCanvas.generation.blankHint')
+            t(mediaKind === 'video'
+              ? 'infiniteCanvas.video.blankHint'
+              : 'infiniteCanvas.generation.blankHint')
           )}
         </div>
       )}
       <textarea
         className="infinite-canvas-node__prompt-input nodrag"
-        aria-label={t('infiniteCanvas.generation.promptLabel')}
-        placeholder={t('infiniteCanvas.generation.promptPlaceholder')}
+        aria-label={t(mediaKind === 'video'
+          ? 'infiniteCanvas.video.promptLabel'
+          : 'infiniteCanvas.generation.promptLabel')}
+        placeholder={t(mediaKind === 'video'
+          ? 'infiniteCanvas.video.promptPlaceholder'
+          : 'infiniteCanvas.generation.promptPlaceholder')}
         value={promptDraft}
         disabled={pending}
         onChange={event => setPromptDraft(event.target.value)}
@@ -282,20 +334,26 @@ export const InfiniteCanvasImageNode: React.FC<
           disabled={pending}
           onClick={() => data.onGenerate(id)}
         >
-          {mediaRef
-            ? t('infiniteCanvas.generation.regenerate')
-            : t('infiniteCanvas.generation.generate')}
+          {mediaKind === 'video'
+            ? (mediaRef
+              ? t('infiniteCanvas.video.regenerate')
+              : t('infiniteCanvas.video.generate'))
+            : (mediaRef
+              ? t('infiniteCanvas.generation.regenerate')
+              : t('infiniteCanvas.generation.generate'))}
         </button>
-        <button
-          type="button"
-          className="infinite-canvas-node__style-button nodrag"
-          data-has-style={data.stylePresetName ? 'true' : undefined}
-          onClick={() => data.onOpenStylePicker(id)}
-        >
-          {data.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
-        </button>
+        {imageData ? (
+          <button
+            type="button"
+            className="infinite-canvas-node__style-button nodrag"
+            data-has-style={imageData.stylePresetName ? 'true' : undefined}
+            onClick={() => imageData.onOpenStylePicker(id)}
+          >
+            {imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
+          </button>
+        ) : null}
       </div>
-      {mediaRef ? (
+      {imageData && mediaRef ? (
         <div
           className="infinite-canvas-node__tools nodrag"
           role="group"
@@ -307,11 +365,22 @@ export const InfiniteCanvasImageNode: React.FC<
               type="button"
               className="infinite-canvas-node__tool"
               data-tool-id={definition.toolId}
-              onClick={() => data.onRunImageTool(id, definition.toolId)}
+              onClick={() => imageData.onRunImageTool(id, definition.toolId)}
             >
               {t(definition.labelKey)}
             </button>
           ))}
+          {imageData.onDeriveVideoCard ? (
+            // Not one of the five contract tools: image-to-video derives a
+            // blank video card, so it keeps its own class and no tool id.
+            <button
+              type="button"
+              className="infinite-canvas-node__derive-video"
+              onClick={() => imageData.onDeriveVideoCard?.(id)}
+            >
+              {t('infiniteCanvas.video.deriveFromImage')}
+            </button>
+          ) : null}
         </div>
       ) : null}
       <Handle type="source" position={Position.Right} />
@@ -319,4 +388,17 @@ export const InfiniteCanvasImageNode: React.FC<
   );
 };
 
+InfiniteCanvasMediaCard.displayName = 'InfiniteCanvasMediaCard';
+
+export const InfiniteCanvasImageNode: React.FC<
+  NodeRendererProps<InfiniteCanvasImageNodeData>
+> = props => <InfiniteCanvasMediaCard {...props} mediaKind="image" />;
+
 InfiniteCanvasImageNode.displayName = 'InfiniteCanvasImageNode';
+
+/** P3 video card: shared card body with a `<video>` media element. */
+export const InfiniteCanvasVideoNode: React.FC<
+  NodeRendererProps<InfiniteCanvasVideoNodeData>
+> = props => <InfiniteCanvasMediaCard {...props} mediaKind="video" />;
+
+InfiniteCanvasVideoNode.displayName = 'InfiniteCanvasVideoNode';

@@ -73,6 +73,7 @@ import {
   failOperationContent,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
+  INFINITE_CANVAS_VIDEO_NODE_TYPE,
   moveNodeContent,
   removeEdgesContent,
   removeFailedOperationContent,
@@ -86,6 +87,7 @@ import {
 } from './infiniteCanvasPanelModel';
 import {
   addBlankGenerationCardContent,
+  addBlankVideoCardContent,
   beginSelfGenerationContent,
   collectReferenceNodes,
   setNodePromptContent,
@@ -93,6 +95,7 @@ import {
 import {
   InfiniteCanvasImageNode,
   InfiniteCanvasTextNode,
+  InfiniteCanvasVideoNode,
   type InfiniteCanvasImagePreviewResolver,
   type InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
@@ -106,6 +109,7 @@ import './InfiniteCanvasPanel.scss';
 const NODE_TYPES = {
   [INFINITE_CANVAS_TEXT_NODE_TYPE]: InfiniteCanvasTextNode,
   [INFINITE_CANVAS_IMAGE_NODE_TYPE]: InfiniteCanvasImageNode,
+  [INFINITE_CANVAS_VIDEO_NODE_TYPE]: InfiniteCanvasVideoNode,
 } as unknown as NodeTypes;
 
 function extensionOf(relativePath: string): string | undefined {
@@ -114,11 +118,11 @@ function extensionOf(relativePath: string): string | undefined {
   return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : undefined;
 }
 
-const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver = mediaRef => (
+const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver = (mediaRef, mediaKind) => (
   resolveWorkspaceMediaPreviewUrl({
     filePath: joinWorkspaceMediaPath(mediaRef.workspacePath, mediaRef.relativePath),
     extension: extensionOf(mediaRef.relativePath),
-    kind: 'image',
+    kind: mediaKind ?? 'image',
   })
 );
 
@@ -145,6 +149,8 @@ interface NodeActions {
   openTool: (nodeId: string, toolId: ImageToolId) => void;
   retry: (nodeId: string) => void;
   removeFailed: (nodeId: string) => void;
+  /** P3: derives a blank video card wired from an image card (image-to-video). */
+  deriveVideoCard: (nodeId: string) => void;
 }
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
@@ -153,7 +159,7 @@ function referenceLabelsByNode(
 ): Map<string, string[]> {
   const labels = new Map<string, string[]>();
   for (const node of document.nodes) {
-    if (node.kind !== 'image') continue;
+    if (node.kind !== 'image' && node.kind !== 'video') continue;
     const collected = collectReferenceNodes(document, node.nodeId);
     if (collected.status !== 'ok' || collected.references.length === 0) continue;
     labels.set(
@@ -240,6 +246,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     openTool: () => undefined,
     retry: () => undefined,
     removeFailed: () => undefined,
+    deriveVideoCard: () => undefined,
   });
 
   const openStylePicker = React.useCallback((nodeId: string) => {
@@ -266,15 +273,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             generation: view.data.generation,
             derivedFrom: view.data.derivedFrom,
             referenceLabels: referenceLabels.get(view.id) ?? [],
-            stylePresetId: view.data.stylePresetId,
-            stylePresetName: view.data.stylePresetId
-              ? catalog.getById(view.data.stylePresetId)?.name
-              : undefined,
             resolvePreviewUrl,
-            onOpenStylePicker: openStylePicker,
-            onRunImageTool: (nodeId: string, toolId: ImageToolId) => (
-              nodeActionsRef.current.openTool(nodeId, toolId)
-            ),
             onCommitPrompt: (nodeId: string, prompt: string) => (
               nodeActionsRef.current.commitPrompt(nodeId, prompt)
             ),
@@ -283,6 +282,23 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             onRemoveFailedGeneration: (nodeId: string) => (
               nodeActionsRef.current.removeFailed(nodeId)
             ),
+            // The image-only surface (style preset, five tools, derive-video)
+            // stays off the P3-minimal video card.
+            ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
+              ? {
+                  stylePresetId: view.data.stylePresetId,
+                  stylePresetName: view.data.stylePresetId
+                    ? catalog.getById(view.data.stylePresetId)?.name
+                    : undefined,
+                  onOpenStylePicker: openStylePicker,
+                  onRunImageTool: (nodeId: string, toolId: ImageToolId) => (
+                    nodeActionsRef.current.openTool(nodeId, toolId)
+                  ),
+                  onDeriveVideoCard: (nodeId: string) => (
+                    nodeActionsRef.current.deriveVideoCard(nodeId)
+                  ),
+                }
+              : {}),
           },
     })));
     setFlowEdges(toFlowEdgeViews(document.edges));
@@ -305,12 +321,20 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   // —— Generation dispatch (three entries, one lane) ————————————————————————
 
-  const findImageNode = React.useCallback((nodeId: string) => {
+  /** Generation-capable cards: image (K2) and video (P3) share one lane. */
+  const findMediaNode = React.useCallback((nodeId: string) => {
     const document = documentRef.current;
     const node = document?.nodes.find(candidate => candidate.nodeId === nodeId);
-    if (!document || !node || node.kind !== 'image') return undefined;
+    if (!document || !node || (node.kind !== 'image' && node.kind !== 'video')) {
+      return undefined;
+    }
     return { document, node };
   }, []);
+
+  const findImageNode = React.useCallback((nodeId: string) => {
+    const found = findMediaNode(nodeId);
+    return found?.node.kind === 'image' ? found : undefined;
+  }, [findMediaNode]);
 
   /**
    * Sends one already-registered pending operation through the gateway and
@@ -357,7 +381,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     }
     const collected = collectReferenceNodes(document, referenceTargetNodeId);
     if (collected.status === 'error') {
-      setNotice({ messageKey: 'infiniteCanvas.generation.referenceNotReady' });
+      setNotice({
+        messageKey: collected.error.kind === 'reference-not-image'
+          ? 'infiniteCanvas.video.referenceNotSupported'
+          : 'infiniteCanvas.generation.referenceNotReady',
+      });
       return undefined;
     }
     if (!runtime.hasTargetSession()) {
@@ -369,10 +397,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, [runtime]);
 
   const generateForNode = React.useCallback(async (nodeId: string) => {
-    const found = findImageNode(nodeId);
+    const found = findMediaNode(nodeId);
     if (!found) return;
     const { document, node } = found;
     if (node.generation?.status === 'pending') return;
+    // P3: a video card dispatches through the same lane, marked 'video' —
+    // the message routes to GenerateVideo, the binding carries mediaKind.
+    const mediaKind = node.kind === 'video' ? 'video' as const : 'image' as const;
     const prompt = (node.prompt ?? '').trim();
     const references = prepareDispatch(document, nodeId, prompt);
     if (!references) return;
@@ -380,10 +411,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     const operationId = createInfiniteCanvasId('op');
     if (node.mediaRef === undefined) {
       // Blank card first shot: the result lands in the card itself.
-      await commit(current => beginSelfGenerationContent(current, nodeId, operationId));
+      await commit(current => beginSelfGenerationContent(current, nodeId, operationId, {
+        mediaKind,
+      }));
       await submitOperation({
         operationId,
         kind: 'generate',
+        mediaKind,
         resultMode: 'self',
         nodeId,
         prompt,
@@ -393,7 +427,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       return;
     }
 
-    // Regenerate on a card that already has an image: derive a new card; the
+    // Regenerate on a card that already has media: derive a new card; the
     // source card and its mediaRef are never touched.
     const derivedNodeId = createInfiniteCanvasId('node');
     const edgeId = createInfiniteCanvasId('edge');
@@ -405,12 +439,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         operationId,
         derivedNodeId,
         edgeId,
+        { mediaKind },
       );
       return setNodePromptContent({ ...current, ...begun }, derivedNodeId, prompt);
     });
     await submitOperation({
       operationId,
       kind: 'generate',
+      mediaKind,
       resultMode: 'derived',
       nodeId: derivedNodeId,
       sourceNodeId: nodeId,
@@ -418,7 +454,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       stylePresetId: node.stylePresetId,
       references,
     });
-  }, [commit, findImageNode, prepareDispatch, submitOperation]);
+  }, [commit, findMediaNode, prepareDispatch, submitOperation]);
 
   const confirmToolInstruction = React.useCallback(async (instruction: string) => {
     const request = toolDialog;
@@ -459,7 +495,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, [commit, findImageNode, prepareDispatch, submitOperation, toolDialog]);
 
   const retryGeneration = React.useCallback(async (nodeId: string) => {
-    const found = findImageNode(nodeId);
+    const found = findMediaNode(nodeId);
     if (!found) return;
     const { document, node } = found;
     const generation = node.generation;
@@ -493,6 +529,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     await submitOperation({
       operationId: nextOperationId,
       kind: generation.toolId,
+      // P3: the retry keeps the registered media kind — a failed video
+      // generation re-arms as a video task, never as an image one.
+      ...(generation.mediaKind ? { mediaKind: generation.mediaKind } : {}),
       resultMode: generation.resultMode,
       nodeId,
       ...(isDerived ? { sourceNodeId } : {}),
@@ -503,7 +542,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         ? { editTargetMediaRef: source.mediaRef }
         : {}),
     });
-  }, [commit, findImageNode, prepareDispatch, submitOperation]);
+  }, [commit, findMediaNode, prepareDispatch, submitOperation]);
 
   React.useEffect(() => {
     nodeActionsRef.current = {
@@ -525,13 +564,35 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         void retryGeneration(nodeId);
       },
       removeFailed: nodeId => {
-        const found = findImageNode(nodeId);
+        const found = findMediaNode(nodeId);
         const operationId = found?.node.generation?.operationId;
         if (!operationId) return;
         void commit(document => removeFailedOperationContent(document, operationId));
       },
+      deriveVideoCard: nodeId => {
+        // Image-to-video entry: wire a blank video card to the image card;
+        // the user writes the camera-move prompt on the video card and
+        // generates from there (the edge makes the image its reference).
+        const found = findImageNode(nodeId);
+        if (!found?.node.mediaRef) return;
+        const source = found.node;
+        const videoNodeId = createInfiniteCanvasId('node');
+        const edgeId = createInfiniteCanvasId('edge');
+        void commit(document => {
+          const withCard = addBlankVideoCardContent(document, videoNodeId, {
+            x: source.position.x + (source.size?.width ?? 0) + 360,
+            y: source.position.y + 80,
+          });
+          return connectNodesContent(
+            { ...document, ...withCard },
+            edgeId,
+            nodeId,
+            videoNodeId,
+          );
+        });
+      },
     };
-  }, [commit, findImageNode, generateForNode, retryGeneration]);
+  }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -683,6 +744,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     ));
   }, [commit, nextSpawnPosition]);
 
+  const onAddVideoCard = React.useCallback(() => {
+    const position = nextSpawnPosition();
+    void commit(document => addBlankVideoCardContent(
+      document,
+      createInfiniteCanvasId('node'),
+      position,
+    ));
+  }, [commit, nextSpawnPosition]);
+
   const onPickImage = React.useCallback((mediaRef: InfiniteCanvasMediaRef) => {
     const position = nextSpawnPosition();
     setImagePickerOpen(false);
@@ -756,6 +826,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onClick={onAddGenerationCard}
         >
           {t('infiniteCanvas.toolbar.addGenerationCard')}
+        </button>
+        <button
+          type="button"
+          className="infinite-canvas-panel__toolbar-button"
+          data-toolbar-action="add-video-card"
+          onClick={onAddVideoCard}
+        >
+          {t('infiniteCanvas.toolbar.addVideoCard')}
         </button>
       </div>
       {notice ? (

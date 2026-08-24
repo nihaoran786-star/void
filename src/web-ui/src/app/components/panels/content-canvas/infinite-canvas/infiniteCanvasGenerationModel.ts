@@ -42,7 +42,23 @@ export function addBlankGenerationCardContent(
   return { ...content(document), nodes: [...document.nodes, node] };
 }
 
-/** Writes the generation prompt of an image card (blank or regenerate alike). */
+/**
+ * P3: adds a blank video card — a video card with no mediaRef and an empty
+ * prompt. Connecting image cards into it and generating is image-to-video;
+ * generating with no connections is text-to-video. Re-adding an existing
+ * nodeId returns the content unchanged.
+ */
+export function addBlankVideoCardContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  position: { x: number; y: number },
+): InfiniteCanvasDocumentContent {
+  if (document.nodes.some(node => node.nodeId === nodeId)) return content(document);
+  const node: InfiniteCanvasNode = { nodeId, kind: 'video', position, prompt: '' };
+  return { ...content(document), nodes: [...document.nodes, node] };
+}
+
+/** Writes the generation prompt of an image or video card (blank or regenerate alike). */
 export function setNodePromptContent(
   document: Readonly<InfiniteCanvasDocument>,
   nodeId: string,
@@ -51,7 +67,9 @@ export function setNodePromptContent(
   return {
     ...content(document),
     nodes: document.nodes.map(node => (
-      node.nodeId === nodeId && node.kind === 'image' ? { ...node, prompt } : node
+      node.nodeId === nodeId && (node.kind === 'image' || node.kind === 'video')
+        ? { ...node, prompt }
+        : node
     )),
   };
 }
@@ -73,7 +91,9 @@ export interface InfiniteCanvasReferenceNode {
 export type CollectReferenceNodesResult =
   | { status: 'ok'; references: InfiniteCanvasReferenceNode[] }
   /** A connected reference card has no image yet (blank or still pending). */
-  | { status: 'error'; error: { kind: 'reference-not-ready'; nodeId: string } };
+  | { status: 'error'; error: { kind: 'reference-not-ready'; nodeId: string } }
+  /** P3: only image cards may be references; video-as-reference is rejected. */
+  | { status: 'error'; error: { kind: 'reference-not-image'; nodeId: string } };
 
 /**
  * Collects the 垫图 references of a card following the collectRefs
@@ -84,7 +104,11 @@ export type CollectReferenceNodesResult =
  * - self-referencing edges are skipped, so cycles are harmless;
  * - the card's own mediaRef never enters the list;
  * - a referenced card without a mediaRef yields a typed
- *   `reference-not-ready` error instead of a silently shorter list.
+ *   `reference-not-ready` error instead of a silently shorter list;
+ * - P3: a video card as a reference is a typed `reference-not-image` error
+ *   (blank or not) — the video-as-reference model semantics are undefined,
+ *   so this phase rejects it outright. All other kinds keep their K2
+ *   behavior: no mediaRef means `reference-not-ready`.
  */
 export function collectReferenceNodes(
   document: Readonly<InfiniteCanvasDocument>,
@@ -99,6 +123,12 @@ export function collectReferenceNodes(
     if (seenSourceIds.has(edge.sourceNodeId)) continue;
     const source = nodesById.get(edge.sourceNodeId);
     if (!source) continue;
+    if (source.kind === 'video') {
+      return {
+        status: 'error',
+        error: { kind: 'reference-not-image', nodeId: source.nodeId },
+      };
+    }
     if (source.mediaRef === undefined) {
       return {
         status: 'error',

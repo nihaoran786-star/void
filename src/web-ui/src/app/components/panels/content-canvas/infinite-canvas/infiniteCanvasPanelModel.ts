@@ -16,10 +16,14 @@ import type {
 
 export const INFINITE_CANVAS_TEXT_NODE_TYPE = 'infinite-canvas-text';
 export const INFINITE_CANVAS_IMAGE_NODE_TYPE = 'infinite-canvas-image';
+export const INFINITE_CANVAS_VIDEO_NODE_TYPE = 'infinite-canvas-video';
 
 export interface InfiniteCanvasFlowNodeView {
   id: string;
-  type: typeof INFINITE_CANVAS_TEXT_NODE_TYPE | typeof INFINITE_CANVAS_IMAGE_NODE_TYPE;
+  type:
+    | typeof INFINITE_CANVAS_TEXT_NODE_TYPE
+    | typeof INFINITE_CANVAS_IMAGE_NODE_TYPE
+    | typeof INFINITE_CANVAS_VIDEO_NODE_TYPE;
   position: { x: number; y: number };
   data: {
     text?: string;
@@ -56,19 +60,22 @@ export function createInfiniteCanvasId(prefix: string): string {
 
 /**
  * Group nodes are part of the persisted contract but have no phase-1 UI;
- * they are preserved in the document and simply not projected.
+ * they are preserved in the document and simply not projected. Video cards
+ * project since P3.
  */
 export function toFlowNodeViews(
   nodes: readonly InfiniteCanvasNode[],
 ): InfiniteCanvasFlowNodeView[] {
   const views: InfiniteCanvasFlowNodeView[] = [];
   for (const node of nodes) {
-    if (node.kind !== 'text' && node.kind !== 'image') continue;
+    if (node.kind !== 'text' && node.kind !== 'image' && node.kind !== 'video') continue;
     views.push({
       id: node.nodeId,
       type: node.kind === 'text'
         ? INFINITE_CANVAS_TEXT_NODE_TYPE
-        : INFINITE_CANVAS_IMAGE_NODE_TYPE,
+        : node.kind === 'video'
+          ? INFINITE_CANVAS_VIDEO_NODE_TYPE
+          : INFINITE_CANVAS_IMAGE_NODE_TYPE,
       position: { ...node.position },
       data: {
         ...(node.text === undefined ? {} : { text: node.text }),
@@ -313,6 +320,9 @@ export function retryOperationContent(
           toolId: node.generation.toolId,
           resultMode: node.generation.resultMode,
           status: 'pending' as const,
+          // P3: a video retry must stay a video generation; the media-kind
+          // marker survives the re-arm (absent keeps meaning 'image').
+          ...(node.generation.mediaKind ? { mediaKind: node.generation.mediaKind } : {}),
         },
       };
     }),
