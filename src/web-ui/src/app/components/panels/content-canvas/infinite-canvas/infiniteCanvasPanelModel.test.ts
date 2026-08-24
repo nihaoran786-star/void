@@ -256,7 +256,7 @@ describe('infiniteCanvasPanelModel', () => {
         },
       });
       expect(next.edges).toEqual([
-        { edgeId: 'edge-1', sourceNodeId: 'src', targetNodeId: 'derived-1' },
+        { edgeId: 'edge-1', sourceNodeId: 'src', targetNodeId: 'derived-1', role: 'derived' },
       ]);
     });
 

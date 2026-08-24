@@ -9,7 +9,11 @@ import {
   collectReferenceNodes,
   setNodePromptContent,
 } from './infiniteCanvasGenerationModel';
-import { connectNodesContent, removeEdgesContent } from './infiniteCanvasPanelModel';
+import {
+  beginDerivedOperationContent,
+  connectNodesContent,
+  removeEdgesContent,
+} from './infiniteCanvasPanelModel';
 
 const MEDIA_REF_A = { workspacePath: 'C:/ws', relativePath: 'media/input/a.png' };
 const MEDIA_REF_B = { workspacePath: 'C:/ws', relativePath: 'media/input/b.png' };
@@ -224,6 +228,68 @@ describe('infiniteCanvasGenerationModel', () => {
       expect(collectReferenceNodes(document, 'ref-a')).toEqual({
         status: 'ok',
         references: [],
+      });
+    });
+
+    it('skips version-tree edges: a derived card regenerates without references', () => {
+      // Regenerate derives 'derived-1' from 'target'; the version-tree edge it
+      // writes must never turn the source into a 垫图 reference.
+      const document = makeReferenceDocument();
+      const begun = beginDerivedOperationContent(
+        document, 'target', 'generate', 'op-regen', 'derived-1', 'edge-derived',
+      );
+
+      const result = collectReferenceNodes(
+        { ...document, nodes: begun.nodes, edges: begun.edges },
+        'derived-1',
+      );
+
+      expect(result).toEqual({ status: 'ok', references: [] });
+    });
+
+    it('still collects a manual connection into a derived card', () => {
+      const document = makeReferenceDocument();
+      const begun = beginDerivedOperationContent(
+        document, 'target', 'generate', 'op-regen', 'derived-1', 'edge-derived',
+      );
+      const withDerived = { ...document, nodes: begun.nodes, edges: begun.edges };
+      const connected = connectNodesContent(withDerived, 'e-manual', 'ref-a', 'derived-1');
+
+      const result = collectReferenceNodes(
+        { ...withDerived, edges: connected.edges },
+        'derived-1',
+      );
+
+      expect(result).toEqual({
+        status: 'ok',
+        references: [{ order: 1, nodeId: 'ref-a', mediaRef: MEDIA_REF_A }],
+      });
+    });
+
+    it('keeps counting unmarked pre-role edges as references (old-document compat)', () => {
+      // Documents written before the role field carry unmarked derivation
+      // edges; the recorded trade-off is that those still count as references.
+      const document = makeReferenceDocument();
+      const legacy = {
+        ...document,
+        nodes: [
+          ...document.nodes,
+          {
+            nodeId: 'legacy-derived',
+            kind: 'image' as const,
+            position: { x: 0, y: 0 },
+            derivedFrom: { sourceNodeId: 'ref-a', toolId: 'generate' as const, operationId: 'op-old' },
+          },
+        ],
+        edges: [
+          ...document.edges,
+          { edgeId: 'e-legacy', sourceNodeId: 'ref-a', targetNodeId: 'legacy-derived' },
+        ],
+      };
+
+      expect(collectReferenceNodes(legacy, 'legacy-derived')).toEqual({
+        status: 'ok',
+        references: [{ order: 1, nodeId: 'ref-a', mediaRef: MEDIA_REF_A }],
       });
     });
   });

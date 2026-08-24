@@ -420,6 +420,36 @@ describe('InfiniteCanvasDocumentService', () => {
     expect(reloaded.document.nodes.every(node => node.domainRef === undefined)).toBe(true);
   });
 
+  it('parses the additive edge role tolerantly: derived kept, unknown dropped', () => {
+    const raw = JSON.stringify({
+      documentId: 'doc', schemaVersion: '1', workspaceId: 'w', revision: 1,
+      nodes: [
+        { nodeId: 'a', kind: 'image', position: { x: 0, y: 0 } },
+        { nodeId: 'b', kind: 'image', position: { x: 0, y: 0 } },
+        { nodeId: 'c', kind: 'image', position: { x: 0, y: 0 } },
+      ],
+      edges: [
+        // Version-tree edge written by a derived operation.
+        { edgeId: 'e-derived', sourceNodeId: 'a', targetNodeId: 'b', role: 'derived' },
+        // Unknown role value: dropped as absent, never an invalid document.
+        { edgeId: 'e-bogus', sourceNodeId: 'b', targetNodeId: 'c', role: 'reference?' },
+        // Pre-role edge shape stays valid unchanged.
+        { edgeId: 'e-plain', sourceNodeId: 'a', targetNodeId: 'c' },
+      ],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    });
+
+    const parsed = parseInfiniteCanvasDocument(raw);
+
+    expect(parsed.status).toBe('ok');
+    if (parsed.status !== 'ok') return;
+    expect(parsed.document.edges).toEqual([
+      { edgeId: 'e-derived', sourceNodeId: 'a', targetNodeId: 'b', role: 'derived' },
+      { edgeId: 'e-bogus', sourceNodeId: 'b', targetNodeId: 'c' },
+      { edgeId: 'e-plain', sourceNodeId: 'a', targetNodeId: 'c' },
+    ]);
+  });
+
   it('returns a typed io error when the atomic write fails, keeping the old file', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
     const service = new InfiniteCanvasDocumentService(store.port);

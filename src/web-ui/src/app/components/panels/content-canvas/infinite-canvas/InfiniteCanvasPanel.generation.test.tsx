@@ -316,6 +316,49 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     ]);
   });
 
+  it('regenerating a derived card carries no reference from its version-tree edge', async () => {
+    // card-v2 was derived from card-v1 by a regenerate: the version edge is
+    // marked role:'derived'. Regenerating card-v2 must stay a pure
+    // text-to-image dispatch — no inherited 垫图 reference, no badge.
+    seedDocument(memory, {
+      nodes: [
+        imageNode('card-v1', { mediaRef: mediaRefOf('v1.png') }),
+        imageNode('card-v2', {
+          mediaRef: mediaRefOf('v2.png'),
+          prompt: 'same subject, new lighting',
+          derivedFrom: { sourceNodeId: 'card-v1', toolId: 'generate', operationId: 'op-v2' },
+        }),
+      ],
+      edges: [
+        { edgeId: 'e-version', sourceNodeId: 'card-v1', targetNodeId: 'card-v2', role: 'derived' },
+      ],
+    });
+    await renderPanel();
+
+    expect(flowNode('card-v2').data.referenceLabels).toEqual([]);
+
+    const targetButton = container
+      .querySelector('[data-node-id="card-v2"] .infinite-canvas-node__generate-button');
+    expect(targetButton).not.toBeNull();
+    await act(async () => {
+      targetButton!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(recording.invocations).toHaveLength(1);
+    expect(recording.invocations[0]).toMatchObject({
+      kind: 'generate',
+      resultMode: 'derived',
+      sourceNodeId: 'card-v2',
+      references: [],
+    });
+
+    // The regenerate itself wrote another marked version edge (v2 → v3).
+    await service.flushPendingWrites();
+    const persisted = readDocument(memory);
+    const versionEdge = persisted.edges.find(edge => edge.sourceNodeId === 'card-v2');
+    expect(versionEdge).toMatchObject({ role: 'derived' });
+  });
+
   it('blocks dispatch with a typed notice while a reference card has no image', async () => {
     seedDocument(memory, {
       nodes: [

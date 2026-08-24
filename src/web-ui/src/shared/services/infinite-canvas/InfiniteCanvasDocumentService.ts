@@ -188,11 +188,15 @@ function parseEdge(value: unknown): InfiniteCanvasEdge | undefined {
     || !isNonEmptyString(value.targetNodeId)) {
     return undefined;
   }
-  return {
+  const edge: InfiniteCanvasEdge = {
     edgeId: value.edgeId,
     sourceNodeId: value.sourceNodeId,
     targetNodeId: value.targetNodeId,
   };
+  // Additive field: an unknown role value is dropped as "absent" (the edge
+  // then counts as a reference, matching pre-role documents), never rejected.
+  if (value.role === 'derived') edge.role = value.role;
+  return edge;
 }
 
 function parseViewport(value: unknown): InfiniteCanvasViewport | undefined {

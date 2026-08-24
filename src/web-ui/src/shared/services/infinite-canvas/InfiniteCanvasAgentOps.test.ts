@@ -258,6 +258,7 @@ describe('applyCanvasAgentOpsBatchContent', () => {
     });
     expect(result.content.edges).toContainEqual({
       edgeId: 'edge-derived', sourceNodeId: 'node-media', targetNodeId: 'node-placeholder',
+      role: 'derived',
     });
     // The derivation source is untouched.
     expect(nodeById(result.content.nodes, 'node-media').mediaRef).toEqual(MEDIA_REF);
@@ -371,7 +372,7 @@ describe('sunk generation content helpers (K2 semantics preserved)', () => {
       operationId: 'op-e', toolId: 'expand', resultMode: 'derived', status: 'pending',
     });
     expect(begun.edges).toContainEqual({
-      edgeId: 'edge-d', sourceNodeId: 'node-media', targetNodeId: 'node-d',
+      edgeId: 'edge-d', sourceNodeId: 'node-media', targetNodeId: 'node-d', role: 'derived',
     });
     // Idempotent on operationId.
     const again = beginDerivedOperationContent(

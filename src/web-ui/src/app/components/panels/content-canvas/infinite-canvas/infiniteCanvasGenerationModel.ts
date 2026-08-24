@@ -102,6 +102,10 @@ export type CollectReferenceNodesResult =
  * - order = the order of the incoming edges in `document.edges` (creation
  *   order); no second ordering source;
  * - self-referencing edges are skipped, so cycles are harmless;
+ * - edges marked `role: 'derived'` (version-tree lineage written by
+ *   regenerate/tool derivations) are skipped — derivation is not reference.
+ *   Pre-role documents carry unmarked derivation edges; those still count as
+ *   references, the recorded compatibility trade-off (no silent migration);
  * - the card's own mediaRef never enters the list;
  * - a referenced card without a mediaRef yields a typed
  *   `reference-not-ready` error instead of a silently shorter list;
@@ -120,6 +124,7 @@ export function collectReferenceNodes(
   for (const edge of document.edges) {
     if (edge.targetNodeId !== nodeId) continue;
     if (edge.sourceNodeId === nodeId) continue;
+    if (edge.role === 'derived') continue;
     if (seenSourceIds.has(edge.sourceNodeId)) continue;
     const source = nodesById.get(edge.sourceNodeId);
     if (!source) continue;

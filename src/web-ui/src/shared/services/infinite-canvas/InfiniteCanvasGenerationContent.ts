@@ -151,7 +151,9 @@ export function beginDerivedOperationContent(
     nodes: [...document.nodes, placeholder],
     edges: [
       ...document.edges,
-      { edgeId, sourceNodeId, targetNodeId: derivedNodeId },
+      // Version-tree edge: marked 'derived' so reference collection skips it
+      // (a pure regenerate must not inherit its source as a 垫图 reference).
+      { edgeId, sourceNodeId, targetNodeId: derivedNodeId, role: 'derived' },
     ],
   };
 }

@@ -78,10 +78,26 @@ export interface InfiniteCanvasNode {
   };
 }
 
+/**
+ * Edge roles. `'derived'` marks the version-tree edge a derived operation
+ * creates (regenerate / the five tools); such edges are lineage, never 垫图
+ * references (kunpeng referencePolicy: derivation is not reference).
+ */
+export type InfiniteCanvasEdgeRole = 'derived';
+
 export interface InfiniteCanvasEdge {
   edgeId: string;
   sourceNodeId: string;
   targetNodeId: string;
+  /**
+   * Additive field (schemaVersion stays '1'; unknown values are parsed
+   * tolerantly as "absent"). Compatibility trade-off, recorded on purpose:
+   * pre-role documents carry unmarked derivation edges, and those keep
+   * counting as references — old canvases behave exactly as before; only
+   * edges written after this field ships are exempted from reference
+   * collection.
+   */
+  role?: InfiniteCanvasEdgeRole;
 }
 
 export interface InfiniteCanvasDocument {

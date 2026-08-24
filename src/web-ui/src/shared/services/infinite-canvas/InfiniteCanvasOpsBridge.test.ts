@@ -311,6 +311,7 @@ describe('InfiniteCanvasOpsBridge', () => {
       edgeId: 'edge-derived-1',
       sourceNodeId: 'card-media',
       targetNodeId: 'node-placeholder-1',
+      role: 'derived',
     });
   });
 
