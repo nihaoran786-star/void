@@ -610,7 +610,94 @@ fn attach_infinite_canvas_media_result(
             metadata_object.insert("outputMediaRelativePath".to_string(), json!(relative_path));
         }
     }
+    // P4-R2 additive: the full multi-result array. Every singular field above
+    // keeps its exact pre-P4 meaning (= batch item 1), so a front end that
+    // does not know about `outputMediaItems` behaves byte-for-byte as before;
+    // only the batch-aware canvas fans items 2..N out into derived cards.
+    metadata_object.insert(
+        "outputMediaItems".to_string(),
+        json!(collect_infinite_canvas_output_items(batch, batch_id, kind)),
+    );
     result["infiniteCanvas"] = metadata;
+}
+
+/// Builds the P4 `outputMediaItems` array from the batch's own multi-result
+/// data (`assets[]` first, `items[]` as the fallback for indices without an
+/// asset entry). Only results that actually landed on disk with a derivable
+/// workspace-relative path are included — the front end places cards from
+/// `relativePath`, so an entry it cannot place has no business being here.
+/// Sorted by `itemIndex` ascending; `attach_short_drama_media_result` does
+/// not share this code path and is unaffected.
+fn collect_infinite_canvas_output_items(
+    batch: &serde_json::Map<String, Value>,
+    batch_id: &str,
+    kind: &str,
+) -> Vec<Value> {
+    // (item_index, media_kind, preview_url, local_path)
+    let mut candidates: Vec<(u64, String, Option<String>, String)> = Vec::new();
+    if let Some(assets) = batch.get("assets").and_then(Value::as_array) {
+        for asset in assets {
+            let Some(local_path) = asset.get("local_path").and_then(Value::as_str) else {
+                continue;
+            };
+            candidates.push((
+                asset.get("item_index").and_then(Value::as_u64).unwrap_or(1),
+                asset
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or(kind)
+                    .to_string(),
+                asset.get("url").and_then(Value::as_str).map(str::to_string),
+                local_path.to_string(),
+            ));
+        }
+    }
+    if let Some(items) = batch.get("items").and_then(Value::as_array) {
+        for item in items {
+            let Some(local_path) = item.get("local_path").and_then(Value::as_str) else {
+                continue;
+            };
+            candidates.push((
+                item.get("item_index").and_then(Value::as_u64).unwrap_or(1),
+                item.get("kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or(kind)
+                    .to_string(),
+                item.get("result_url")
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+                local_path.to_string(),
+            ));
+        }
+    }
+
+    let mut entries: Vec<(u64, Value)> = Vec::new();
+    let mut seen_paths: Vec<String> = Vec::new();
+    for (item_index, media_kind, preview_url, local_path) in candidates {
+        let Some(relative_path) = generated_media_relative_path(&local_path) else {
+            continue;
+        };
+        if seen_paths.contains(&relative_path) {
+            continue;
+        }
+        seen_paths.push(relative_path.clone());
+        let mut entry = serde_json::Map::new();
+        entry.insert("itemIndex".to_string(), json!(item_index));
+        entry.insert(
+            "mediaItemId".to_string(),
+            json!(format!("{batch_id}-{item_index}")),
+        );
+        entry.insert("mediaKind".to_string(), json!(media_kind));
+        entry.insert("relativePath".to_string(), json!(relative_path));
+        if let Some(preview_url) = preview_url {
+            entry.insert("previewUrl".to_string(), json!(preview_url));
+        }
+        entry.insert("path".to_string(), json!(local_path));
+        entries.push((item_index, Value::Object(entry)));
+    }
+
+    entries.sort_by_key(|(item_index, _)| *item_index);
+    entries.into_iter().map(|(_, entry)| entry).collect()
 }
 
 fn generated_media_relative_path(local_path: &str) -> Option<String> {
@@ -1598,7 +1685,237 @@ mod tests {
                 path.ends_with("media/generated/media_batch_infinite_canvas/image-001.png")
             }));
 
+        // P4-R2 regression guard: for n=1 the additive array carries exactly
+        // one entry describing the very same result as the singular fields.
+        let items = saved["infiniteCanvas"]["outputMediaItems"]
+            .as_array()
+            .expect("outputMediaItems array");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["itemIndex"], 1);
+        assert_eq!(
+            items[0]["mediaItemId"],
+            saved["infiniteCanvas"]["outputMediaItemId"]
+        );
+        assert_eq!(items[0]["mediaKind"], "image");
+        assert_eq!(
+            items[0]["relativePath"],
+            saved["infiniteCanvas"]["outputMediaRelativePath"]
+        );
+        assert_eq!(items[0]["path"], saved["infiniteCanvas"]["outputMediaPath"]);
+        assert_eq!(
+            items[0]["previewUrl"],
+            saved["infiniteCanvas"]["outputPreviewUrl"]
+        );
+
         let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    /// P4-R2: a batch of three lands as three array entries while every
+    /// singular field keeps pointing at item 1 (compatibility with front ends
+    /// that predate `outputMediaItems`).
+    #[tokio::test]
+    async fn attaches_all_batch_results_as_output_media_items() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-canvas-batch-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_canvas_n3")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_canvas_n3",
+            json!([
+                {
+                    "task_id": "task-a",
+                    "status": "completed",
+                    "response": { "data": [{ "url": "https://cdn.example/one.png" }] }
+                },
+                {
+                    "task_id": "task-b",
+                    "status": "completed",
+                    "response": { "data": [{ "url": "https://cdn.example/two.png" }] }
+                },
+                {
+                    "task_id": "task-c",
+                    "status": "completed",
+                    "response": { "data": [{ "url": "https://cdn.example/three.png" }] }
+                }
+            ]),
+            vec![],
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated assets");
+
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-batch-1"
+            })),
+        );
+
+        // Singular fields: untouched, still item 1.
+        assert_eq!(
+            saved["infiniteCanvas"]["outputMediaItemId"],
+            "media_batch_canvas_n3-1"
+        );
+        assert!(saved["infiniteCanvas"]["outputMediaRelativePath"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("image-001.png")));
+
+        let items = saved["infiniteCanvas"]["outputMediaItems"]
+            .as_array()
+            .expect("outputMediaItems array");
+        assert_eq!(items.len(), 3);
+        let indexes = items
+            .iter()
+            .map(|item| item["itemIndex"].as_u64().expect("itemIndex"))
+            .collect::<Vec<_>>();
+        assert_eq!(indexes, vec![1, 2, 3]);
+        let relative_paths = items
+            .iter()
+            .map(|item| {
+                item["relativePath"]
+                    .as_str()
+                    .expect("relativePath")
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        assert!(relative_paths[0].ends_with("media/generated/media_batch_canvas_n3/image-001.png"));
+        assert!(relative_paths[1].ends_with("media/generated/media_batch_canvas_n3/image-002.png"));
+        assert!(relative_paths[2].ends_with("media/generated/media_batch_canvas_n3/image-003.png"));
+        // Distinct files, never the same asset repeated.
+        assert_eq!(
+            relative_paths
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            3
+        );
+        for (offset, item) in items.iter().enumerate() {
+            assert_eq!(
+                item["mediaItemId"],
+                format!("media_batch_canvas_n3-{}", offset + 1)
+            );
+            assert_eq!(item["mediaKind"], "image");
+        }
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    /// P4-R2: a half-successful batch contributes only the results that
+    /// actually landed on disk; the singular fields keep their pre-P4
+    /// behavior (batch item 1).
+    #[tokio::test]
+    async fn output_media_items_skip_failed_batch_entries() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-canvas-partial-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_canvas_partial")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_canvas_partial",
+            json!([
+                {
+                    "task_id": "task-a",
+                    "status": "completed",
+                    "response": { "data": [{ "url": "https://cdn.example/one.png" }] }
+                },
+                {
+                    "task_id": "task-b",
+                    "status": "failed",
+                    "error": { "code": "provider_error", "message": "boom" }
+                },
+                {
+                    "task_id": "task-c",
+                    "status": "completed",
+                    "response": { "data": [{ "url": "https://cdn.example/three.png" }] }
+                }
+            ]),
+            vec![],
+        );
+        assert_eq!(result["status"], "partial");
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated assets");
+
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-partial-1"
+            })),
+        );
+
+        assert_eq!(
+            saved["infiniteCanvas"]["outputMediaItemId"],
+            "media_batch_canvas_partial-1"
+        );
+        let items = saved["infiniteCanvas"]["outputMediaItems"]
+            .as_array()
+            .expect("outputMediaItems array");
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0]["itemIndex"], 1);
+        assert_eq!(items[1]["itemIndex"], 3);
+    }
+
+    /// P4-R2: an all-failed batch never saved anything, so the array is empty
+    /// — the card falls back to the existing typed failure classification.
+    #[test]
+    fn output_media_items_is_empty_for_a_fully_failed_batch() {
+        let mut result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_canvas_failed",
+            json!([{
+                "task_id": "task-a",
+                "status": "failed",
+                "error": { "code": "provider_error", "message": "boom" }
+            }]),
+            vec![],
+        );
+
+        attach_infinite_canvas_media_result(
+            &mut result,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-allfail-1"
+            })),
+        );
+
+        assert_eq!(result["status"], "failed");
+        assert_eq!(
+            result["infiniteCanvas"]["outputMediaItems"]
+                .as_array()
+                .expect("outputMediaItems array")
+                .len(),
+            0
+        );
     }
 
     #[tokio::test]
@@ -1722,6 +2039,15 @@ mod tests {
             .is_some_and(|path| {
                 path.ends_with("media/generated/media_batch_canvas_video/video-001.mp4")
             }));
+        // P4-R2: the additive array is kind-generic too.
+        let items = saved["infiniteCanvas"]["outputMediaItems"]
+            .as_array()
+            .expect("outputMediaItems array");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["mediaKind"], "video");
+        assert!(items[0]["relativePath"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("video-001.mp4")));
 
         let _ = tokio::fs::remove_dir_all(root).await;
     }
@@ -1791,6 +2117,9 @@ mod tests {
         assert!(saved["infiniteCanvas"].get("projectId").is_none());
         assert!(saved["infiniteCanvas"].get("artifactHandle").is_none());
         assert!(saved["infiniteCanvas"].get("outputMediaLabel").is_none());
+        // P4-R2 stays on the canvas side of the fence: the short drama
+        // enrichment gains nothing.
+        assert!(saved["shortDrama"].get("outputMediaItems").is_none());
 
         let _ = tokio::fs::remove_dir_all(root).await;
     }
