@@ -107,6 +107,28 @@ through its own Module Interface. Active contract:
   `InfiniteCanvasOpsBridge`). Short-drama runtime behavior is untouched; the
   same gateway lesson likely applies to
   `useWorkspaceMediaToolRefreshBridge.ts` (flagged, not yet fixed).
+- **Infinite Canvas P4 "workbench" (landed 2026-08-25, awaiting owner
+  acceptance).** Twelve slices turning the canvas from "can generate" into
+  "usable as a workbench", per
+  [the P4 plan](docs/plans/2026-08-25-infinite-canvas-p4-workbench.md):
+  full-screen viewer and save-a-copy; a generation parameter popover over a
+  model capability table (model / aspect ratio / resolution / video duration —
+  fields the backend already accepted but nothing surfaced) with the direct
+  command extended to pass them; batch `n > 1` fanning one submission into
+  sibling cards through `outputMediaItems`, with card and edge ids derived
+  from `operationId` + item index so replays and reconciliation stay
+  idempotent; in-memory undo/redo (capped at 50, cleared on close) scoped to
+  user edits only — landed media, agent-applied batches, and in-flight
+  generations are deliberately not undoable; multi-select, marquee, batch move,
+  and a delete confirmation that keeps the never-delete-files rule explicit;
+  copy/paste as reference copies (no second file on disk); and a task queue
+  panel whose "stop waiting" wording states plainly that the job keeps running
+  and the credits are still spent. Backend cancellation does not exist and was
+  not built — `start_media_job_polling` has no handle or token, so real
+  cancellation needs its own project. Alignment guides derive canvas→panel
+  coordinates from the panel's own viewport ref rather than a
+  `ReactFlowProvider`; W6/W7 reuse that trick, so the panel still has no
+  provider.
 
 ### AGENT hub and catalogs
 
