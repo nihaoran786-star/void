@@ -1053,6 +1053,15 @@
       "undoHint": "Undo your last edit (Ctrl+Z). Generated images and cards the assistant placed are not undone.",
       "redoHint": "Redo the edit you just undid (Ctrl+Shift+Z).",
       "staleDiscarded": "That step can no longer be undone: the cards it touched have changed since. The earlier steps were dropped too."
+    },
+    "delete": {
+      "title": "Delete cards",
+      "summary": "About to delete {{count}} card(s).",
+      "withMedia": "{{count}} of them hold an image or a video.",
+      "withPending": "{{count}} of them are still generating.",
+      "filesKept": "Only the cards are removed. The image and video files stay in your media library.",
+      "confirm": "Delete cards",
+      "cancel": "Cancel"
     }
   },
   "agentStudio": {

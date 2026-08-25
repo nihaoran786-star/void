@@ -185,6 +185,89 @@ export function moveNodeContent(
   };
 }
 
+/** One entry of a batch drag; the panel collects these per drag-end frame. */
+export interface InfiniteCanvasNodeMove {
+  nodeId: string;
+  position: { x: number; y: number };
+}
+
+/**
+ * P4 W6: lands a whole multi-selection drag in ONE mutation.
+ *
+ * Before this, `onNodesChange` called `moveNodeContent` once per moved card, so
+ * dragging ten selected cards queued ten serialised CAS writes (and ten undo
+ * entries). Positions are copied, so the caller's reactflow objects never end
+ * up aliased into the document.
+ */
+export function moveNodesContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  moves: readonly InfiniteCanvasNodeMove[],
+): InfiniteCanvasDocumentContent {
+  if (moves.length === 0) return content(document);
+  const positions = new Map(moves.map(move => [move.nodeId, move.position]));
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      const position = positions.get(node.nodeId);
+      return position ? { ...node, position: { ...position } } : node;
+    }),
+  };
+}
+
+/**
+ * P4 W6: what a delete request is actually about to remove.
+ *
+ * The counts drive the one confirmation the user sees. Two rules from plan
+ * §2.5 are encoded here and nowhere else:
+ *
+ * - Cards that carry a `mediaRef`, or that are mid-generation, make the whole
+ *   request confirmable — one dialog for the batch, never one per card.
+ * - Group nodes are not deletable through the panel in P4 (they have no UI at
+ *   all), so they are dropped from the request rather than silently removed.
+ *
+ * Deleting a card never touches the referenced file: the media truth lives in
+ * Workspace Media and the canvas only ever held a reference to it.
+ */
+export interface InfiniteCanvasDeletionSummary {
+  /** The ids that will actually be removed (existing, non-group). */
+  nodeIds: string[];
+  /** Of those, how many carry a mediaRef. */
+  mediaCount: number;
+  /** Of those, how many have a generation still running. */
+  pendingCount: number;
+  /** Of those, how many are neither — blank, text, or a failed placeholder. */
+  plainCount: number;
+  /** True when at least one card has media or is mid-generation. */
+  requiresConfirmation: boolean;
+}
+
+export function classifyDeletionTargets(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeIds: readonly string[],
+): InfiniteCanvasDeletionSummary {
+  const requested = new Set(nodeIds);
+  const targets = document.nodes.filter(
+    node => requested.has(node.nodeId) && node.kind !== 'group',
+  );
+  let mediaCount = 0;
+  let pendingCount = 0;
+  let plainCount = 0;
+  for (const node of targets) {
+    const hasMedia = node.mediaRef !== undefined;
+    const isPending = node.generation?.status === 'pending';
+    if (hasMedia) mediaCount += 1;
+    if (isPending) pendingCount += 1;
+    if (!hasMedia && !isPending) plainCount += 1;
+  }
+  return {
+    nodeIds: targets.map(node => node.nodeId),
+    mediaCount,
+    pendingCount,
+    plainCount,
+    requiresConfirmation: mediaCount > 0 || pendingCount > 0,
+  };
+}
+
 export function removeNodesContent(
   document: Readonly<InfiniteCanvasDocument>,
   nodeIds: readonly string[],

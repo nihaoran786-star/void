@@ -736,6 +736,12 @@
   }
 }
 
+// P4 W6: the deletion confirmation reuses the dialog shell; only the
+// "files are kept" line is lifted out of the muted hint colour.
+.infinite-canvas-dialog__hint--strong {
+  color: var(--infinite-canvas-text);
+}
+
 // ── Pickers (image library, style presets) ─────────────────────────────────
 
 .infinite-canvas-picker {

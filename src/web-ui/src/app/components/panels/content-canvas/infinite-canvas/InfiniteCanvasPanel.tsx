@@ -74,14 +74,17 @@ import {
   addImageNodeContent,
   addTextNodeContent,
   beginDerivedOperationContent,
+  classifyDeletionTargets,
   connectNodesContent,
   createInfiniteCanvasId,
   failOperationContent,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   INFINITE_CANVAS_VIDEO_NODE_TYPE,
-  moveNodeContent,
+  moveNodesContent,
   removeEdgesContent,
+  type InfiniteCanvasDeletionSummary,
+  type InfiniteCanvasNodeMove,
   removeFailedOperationContent,
   removeNodesContent,
   retryOperationContent,
@@ -129,6 +132,7 @@ import {
   InfiniteCanvasMediaViewer,
   type InfiniteCanvasViewerItem,
 } from './InfiniteCanvasMediaViewer';
+import { InfiniteCanvasConfirmDialog } from './InfiniteCanvasConfirmDialog';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
@@ -147,6 +151,9 @@ const NODE_TYPES = {
 // picker use, so generated results display through one verified code path.
 const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver =
   resolveInfiniteCanvasMediaPreviewUrl;
+
+/** P4 W6: any of the three adds to the selection (Windows and mac idioms). */
+const MULTI_SELECTION_KEYS = ['Meta', 'Control', 'Shift'];
 
 type PanelState =
   | { phase: 'loading' }
@@ -290,6 +297,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    * clears it, and nothing about it reaches the document or the disk.
    */
   const [history, setHistory] = React.useState(emptyInfiniteCanvasHistory);
+  /**
+   * P4 W6: the current multi-selection, mirrored out of reactflow. Kept as a
+   * ref as well so the keyboard listener never has to be re-registered (and
+   * never reads a stale closure) while the user is selecting.
+   */
+  const [selectedNodeIds, setSelectedNodeIds] = React.useState<string[]>([]);
+  const selectedNodeIdsRef = React.useRef<string[]>([]);
+  selectedNodeIdsRef.current = selectedNodeIds;
+  /** P4 W6: the pending deletion awaiting the one confirmation, if any. */
+  const [deleteRequest, setDeleteRequest] =
+    React.useState<InfiniteCanvasDeletionSummary | null>(null);
   /** Panel root, so the shortcut listener can tell whether focus is ours. */
   const panelRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -442,6 +460,47 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     const result = await service.loadDefaultDocument(workspaceRef);
     if (result.status !== 'failed') projectDocument(result.document);
   }, [projectDocument, service, workspaceRef]);
+
+  // —— P4 W6: the single deletion gate ——————————————————————————————————————
+
+  /**
+   * Every user-facing deletion — the Delete key, the selection toolbar, the
+   * context menu, and reactflow's own remove change — arrives here.
+   *
+   * Plain cards (blank, text, failed placeholders) go straight through: asking
+   * about those would be noise. As soon as one card carries an image or is
+   * mid-generation the whole batch waits for one confirmation that says what
+   * is going and that the files stay in the media library.
+   *
+   * This gate is the USER's; the AI-side protection (P3: agent ops may not
+   * delete a card that carries media) is a separate check in the ops bridge
+   * and is unaffected by anything here.
+   */
+  const deleteNodesNow = React.useCallback((nodeIds: readonly string[]) => {
+    if (nodeIds.length === 0) return;
+    const ids = [...nodeIds];
+    // One mutation for the whole batch — `removeNodesContent` cascades the
+    // edges — so a multi-card delete is also a single undo entry.
+    void commit(document => removeNodesContent(document, ids), { history: true });
+  }, [commit]);
+
+  const requestDeleteNodes = React.useCallback((nodeIds: readonly string[]) => {
+    const document = documentRef.current;
+    if (!document) return;
+    const summary = classifyDeletionTargets(document, nodeIds);
+    if (summary.nodeIds.length === 0) return;
+    if (!summary.requiresConfirmation) {
+      deleteNodesNow(summary.nodeIds);
+      return;
+    }
+    setDeleteRequest(summary);
+  }, [deleteNodesNow]);
+
+  const confirmDeleteRequest = React.useCallback(() => {
+    const request = deleteRequest;
+    setDeleteRequest(null);
+    if (request) deleteNodesNow(request.nodeIds);
+  }, [deleteNodesNow, deleteRequest]);
 
   // —— Generation dispatch (three entries, one lane) ————————————————————————
 
@@ -859,8 +918,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   React.useEffect(() => {
     if (state.phase !== 'ready') return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      const action = historyShortcutFor(event);
-      if (!action) return;
       if (isEditableTarget(event.target)) return;
       const root = panelRef.current;
       const active = window.document.activeElement;
@@ -870,12 +927,36 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         || Boolean(root?.contains(active))
       );
       if (!ours) return;
-      event.preventDefault();
-      void runHistory(action);
+      const action = historyShortcutFor(event);
+      if (action) {
+        event.preventDefault();
+        void runHistory(action);
+        return;
+      }
+      // P4 W6: reactflow's own delete handling is switched off
+      // (`deleteKeyCode={null}`) so the key lands here and goes through the
+      // one gate that can insert a confirmation.
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        const selected = selectedNodeIdsRef.current;
+        if (selected.length === 0) return;
+        event.preventDefault();
+        requestDeleteNodes(selected);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [runHistory, state.phase]);
+  }, [requestDeleteNodes, runHistory, state.phase]);
+
+  /** P4 W6: reactflow's selection, mirrored into panel state. */
+  const onSelectionChange = React.useCallback((selection: { nodes?: { id: string }[] }) => {
+    const ids = (selection.nodes ?? []).map(node => node.id);
+    setSelectedNodeIds(current => (
+      current.length === ids.length && current.every((id, index) => id === ids[index])
+        ? current
+        : ids
+    ));
+  }, []);
 
   const onNodesChange = React.useCallback((rawChanges: NodeChange[]) => {
     // P4 W9: a single in-flight drag gets nudged onto its neighbours before
@@ -923,21 +1004,30 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         : lines
     ));
 
-    setFlowNodes(nodes => applyNodeChanges(changes, nodes));
     const removedIds = changes
       .filter(change => change.type === 'remove')
       .map(change => change.id);
-    if (removedIds.length > 0) {
-      void commit(document => removeNodesContent(document, removedIds), { history: true });
-    }
+    // P4 W6: a removal is not applied to the view here — it goes through the
+    // deletion gate, and a cancelled confirmation must leave the card exactly
+    // where it was. The commit's re-projection is what makes cards disappear.
+    setFlowNodes(nodes => applyNodeChanges(
+      removedIds.length > 0 ? changes.filter(change => change.type !== 'remove') : changes,
+      nodes,
+    ));
+    if (removedIds.length > 0) requestDeleteNodes(removedIds);
+
+    // P4 W6: one drag of a multi-selection arrives as several position changes
+    // in the same frame; they land in ONE mutation (and one undo entry).
+    const moves: InfiniteCanvasNodeMove[] = [];
     for (const change of changes) {
       if (change.type === 'position' && change.dragging === false && change.position) {
-        const { id } = change;
-        const position = change.position;
-        void commit(document => moveNodeContent(document, id, position), { history: true });
+        moves.push({ nodeId: change.id, position: change.position });
       }
     }
-  }, [commit]);
+    if (moves.length > 0) {
+      void commit(document => moveNodesContent(document, moves), { history: true });
+    }
+  }, [commit, requestDeleteNodes]);
 
   const onEdgesChange = React.useCallback((changes: EdgeChange[]) => {
     setFlowEdges(edges => applyEdgeChanges(changes, edges));
@@ -1227,6 +1317,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onClose={() => setParamsNodeId(null)}
         />
       ) : null}
+      {deleteRequest ? (
+        <InfiniteCanvasConfirmDialog
+          summary={deleteRequest}
+          onConfirm={confirmDeleteRequest}
+          onCancel={() => setDeleteRequest(null)}
+        />
+      ) : null}
       {toolDialog ? (
         <InfiniteCanvasToolInstructionDialog
           toolId={toolDialog.toolId}
@@ -1249,9 +1346,19 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onConnect={onConnect}
           onMove={onMove}
           onMoveEnd={onMoveEnd}
+          onSelectionChange={onSelectionChange}
           defaultViewport={initialViewport}
           minZoom={0.1}
           maxZoom={4}
+          // P4 W6 selection model: left-drag keeps panning the canvas (the
+          // existing feel), Shift+drag marquee-selects, Ctrl/Cmd/Shift+click
+          // adds to the selection, and Delete is ours — reactflow must not
+          // remove anything on its own or the confirmation could be skipped.
+          selectionOnDrag={false}
+          selectionKeyCode="Shift"
+          multiSelectionKeyCode={MULTI_SELECTION_KEYS}
+          deleteKeyCode={null}
+          elevateNodesOnSelect
         >
           <Background />
           <Controls position="bottom-right" showInteractive={false} />

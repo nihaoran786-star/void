@@ -307,6 +307,14 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
       flow.props.onNodesChange([{ id: 'card-a', type: 'remove' }]);
       await new Promise(resolve => setTimeout(resolve, 0));
     });
+    // P4 W6: a card with an image goes through the deletion confirmation
+    // before it is removed; the undo entry is recorded on the confirmed
+    // delete, exactly as it was on the direct one.
+    const confirm = container.querySelector<HTMLButtonElement>(
+      '[data-canvas-confirm-action="confirm"]',
+    );
+    if (!confirm) throw new Error('no delete confirmation');
+    await click(confirm);
     expect(nodeIds()).toEqual([]);
 
     await click(toolbarButton('undo'));

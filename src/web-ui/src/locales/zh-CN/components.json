@@ -1053,6 +1053,15 @@
       "undoHint": "撤销你上一步编辑（Ctrl+Z）。已生成的图和 AI 放下的卡片不会被撤销。",
       "redoHint": "重做刚撤销的那一步（Ctrl+Shift+Z）。",
       "staleDiscarded": "这一步已经无法撤销：它涉及的卡片在这之后变过了。更早的步骤也一并放弃了。"
+    },
+    "delete": {
+      "title": "删除卡片",
+      "summary": "将删除 {{count}} 张卡。",
+      "withMedia": "其中 {{count}} 张已经有图或视频。",
+      "withPending": "其中 {{count}} 张还在生成中。",
+      "filesKept": "只删卡片，不删文件。图片和视频仍然留在媒体库里。",
+      "confirm": "删除卡片",
+      "cancel": "取消"
     }
   },
   "agentStudio": {

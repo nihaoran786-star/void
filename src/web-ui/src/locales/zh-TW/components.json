@@ -1053,6 +1053,15 @@
       "undoHint": "復原你上一步編輯（Ctrl+Z）。已生成的圖與 AI 放下的卡片不會被復原。",
       "redoHint": "重做剛復原的那一步（Ctrl+Shift+Z）。",
       "staleDiscarded": "這一步已經無法復原：它涉及的卡片在這之後變過了。更早的步驟也一併放棄了。"
+    },
+    "delete": {
+      "title": "刪除卡片",
+      "summary": "將刪除 {{count}} 張卡。",
+      "withMedia": "其中 {{count}} 張已經有圖或影片。",
+      "withPending": "其中 {{count}} 張還在生成中。",
+      "filesKept": "只刪卡片，不刪檔案。圖片與影片仍然留在媒體庫裡。",
+      "confirm": "刪除卡片",
+      "cancel": "取消"
     }
   },
   "agentStudio": {
