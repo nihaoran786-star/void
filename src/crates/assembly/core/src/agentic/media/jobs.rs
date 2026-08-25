@@ -838,6 +838,11 @@ where
                 .get("item_index")
                 .and_then(Value::as_u64)
                 .unwrap_or(1);
+            let asset_task_id = asset_object
+                .get("task_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
             let asset_kind = asset_object
                 .get("kind")
                 .and_then(Value::as_str)
@@ -862,6 +867,7 @@ where
                     asset_object.insert("save_status".to_string(), json!("saved"));
                     item_updates.push((
                         item_index,
+                        asset_task_id.clone(),
                         local_path.to_string_lossy().to_string(),
                         "saved".to_string(),
                         None,
@@ -873,6 +879,7 @@ where
                     asset_object.insert("save_error".to_string(), json!(message.clone()));
                     item_updates.push((
                         item_index,
+                        asset_task_id.clone(),
                         String::new(),
                         "failed".to_string(),
                         Some(message),
@@ -891,9 +898,22 @@ where
                 .get("item_index")
                 .and_then(Value::as_u64)
                 .unwrap_or(0);
-            if let Some((_, local_path, save_status, save_error)) = item_updates
+            let item_task_id = item_object
+                .get("task_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            // Prefer the task binding: with `n > 1` a single task owns several
+            // asset slots, so slot equality alone would hand one task's file to
+            // another task's item. Index matching stays as the fallback for
+            // records without a task id.
+            if let Some((_, _, local_path, save_status, save_error)) = item_updates
                 .iter()
-                .find(|(index, _, _, _)| *index == item_index)
+                .find(|(_, task_id, _, _, _)| !task_id.is_empty() && task_id == item_task_id)
+                .or_else(|| {
+                    item_updates
+                        .iter()
+                        .find(|(index, _, _, _, _)| *index == item_index)
+                })
             {
                 item_object.insert("save_status".to_string(), json!(save_status));
                 if !local_path.is_empty() {
@@ -1080,10 +1100,31 @@ fn default_media_role(kind: &str) -> &'static str {
     }
 }
 
+/// Assigns every produced asset its own `item_index` slot.
+///
+/// The index must be unique per asset: downstream it becomes the generated
+/// file name (`{kind}-{index:03}.{ext}`), so a shared index means several
+/// results overwrite one file on disk and the user loses images they paid
+/// for. A provider task can return more than one URL in a single submission
+/// (apimart `n > 1`), which the old `index + 1` (task ordinal) numbering
+/// collapsed onto one slot.
+///
+/// A task's *first* asset still takes that task's own ordinal slot whenever
+/// it is free, so batches where every task returns a single URL - including
+/// partially failed ones, where the failed task keeps its slot reserved -
+/// number exactly as before; only the second and later URLs of a multi-result
+/// task take fresh slots after it.
 fn extract_media_assets(kind: &str, task_items: &[Value]) -> Vec<Value> {
     let mut assets = Vec::new();
+    let mut last_used_index: u64 = 0;
     for (index, task) in task_items.iter().enumerate() {
+        // The task's own ordinal slot, unless earlier multi-result tasks have
+        // already consumed it.
+        let mut next_index = ((index as u64) + 1).max(last_used_index + 1);
         if task.get("status").and_then(Value::as_str) != Some("completed") {
+            // A non-completed task still owns a slot in `items[]`; keep it
+            // reserved so completed tasks after it keep their old numbering.
+            last_used_index = next_index;
             continue;
         }
 
@@ -1095,12 +1136,16 @@ fn extract_media_assets(kind: &str, task_items: &[Value]) -> Vec<Value> {
         collect_urls(task, &mut urls);
         for url in urls {
             assets.push(json!({
-                "item_index": index + 1,
+                "item_index": next_index,
                 "kind": kind,
                 "task_id": task_id,
                 "url": url,
             }));
+            last_used_index = next_index;
+            next_index += 1;
         }
+        // A completed task that returned no URL still reserves its slot.
+        last_used_index = last_used_index.max((index as u64) + 1);
     }
     assets
 }
@@ -1809,6 +1854,314 @@ mod tests {
             );
             assert_eq!(item["mediaKind"], "image");
         }
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    /// P4-C1 regression: one provider task that returns several URLs (apimart
+    /// `n > 1`, the common shape for the gemini models) must produce one file
+    /// per image. Numbering assets by task ordinal wrote every image to
+    /// `image-001.png`, so three of four paid-for images were overwritten on
+    /// disk and the canvas grew a single card.
+    #[tokio::test]
+    async fn saves_every_url_of_a_single_multi_result_task_to_its_own_file() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-canvas-multi-url-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_canvas_multi_url")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_canvas_multi_url",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [
+                        { "url": "https://cdn.example/one.png" },
+                        { "url": "https://cdn.example/two.png" },
+                        { "url": "https://cdn.example/three.png" },
+                        { "url": "https://cdn.example/four.png" }
+                    ]
+                }
+            }]),
+            vec![],
+        );
+
+        // Every URL is its own asset with its own slot.
+        let assets = result["batch"]["assets"]
+            .as_array()
+            .expect("assets array")
+            .clone();
+        assert_eq!(assets.len(), 4);
+        assert_eq!(
+            assets
+                .iter()
+                .map(|asset| asset["item_index"].as_u64().expect("item_index"))
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated assets");
+
+        let saved_paths = saved["batch"]["assets"]
+            .as_array()
+            .expect("assets array")
+            .iter()
+            .map(|asset| {
+                asset["local_path"]
+                    .as_str()
+                    .expect("local path")
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+        assert!(saved_paths[0].ends_with("image-001.png"));
+        assert!(saved_paths[1].ends_with("image-002.png"));
+        assert!(saved_paths[2].ends_with("image-003.png"));
+        assert!(saved_paths[3].ends_with("image-004.png"));
+        assert_eq!(
+            saved_paths
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            4
+        );
+
+        // Four distinct files really exist; nothing overwrote anything.
+        let batch_dir = root
+            .join("media")
+            .join("generated")
+            .join("media_batch_canvas_multi_url");
+        for name in [
+            "image-001.png",
+            "image-002.png",
+            "image-003.png",
+            "image-004.png",
+        ] {
+            assert!(batch_dir.join(name).exists(), "missing {name}");
+        }
+
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-multi-url-1"
+            })),
+        );
+
+        // Singular fields keep their pre-P4 meaning: batch item 1.
+        assert_eq!(
+            saved["infiniteCanvas"]["outputMediaItemId"],
+            "media_batch_canvas_multi_url-1"
+        );
+        assert!(saved["infiniteCanvas"]["outputMediaRelativePath"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("image-001.png")));
+
+        let items = saved["infiniteCanvas"]["outputMediaItems"]
+            .as_array()
+            .expect("outputMediaItems array");
+        assert_eq!(items.len(), 4);
+        for (offset, item) in items.iter().enumerate() {
+            let index = offset as u64 + 1;
+            assert_eq!(item["itemIndex"], index);
+            assert_eq!(
+                item["mediaItemId"],
+                format!("media_batch_canvas_multi_url-{index}")
+            );
+            assert_eq!(item["mediaKind"], "image");
+            assert!(item["relativePath"]
+                .as_str()
+                .expect("relativePath")
+                .ends_with(&format!("image-{index:03}.png")));
+        }
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    /// P4-C1: the mixed shape - one task returning two URLs next to a task
+    /// returning one - keeps every file distinct and keeps each `items[]`
+    /// record bound to a file its own task produced.
+    #[tokio::test]
+    async fn numbers_mixed_single_and_multi_result_tasks_without_collisions() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-canvas-mixed-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_canvas_mixed")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_canvas_mixed",
+            json!([
+                {
+                    "task_id": "task-a",
+                    "status": "completed",
+                    "response": {
+                        "data": [
+                            { "url": "https://cdn.example/a-one.png" },
+                            { "url": "https://cdn.example/a-two.png" }
+                        ]
+                    }
+                },
+                {
+                    "task_id": "task-b",
+                    "status": "completed",
+                    "response": { "data": [{ "url": "https://cdn.example/b-one.png" }] }
+                }
+            ]),
+            vec![],
+        );
+
+        let assets = result["batch"]["assets"].as_array().expect("assets array");
+        assert_eq!(assets.len(), 3);
+        assert_eq!(
+            assets
+                .iter()
+                .map(|asset| (
+                    asset["item_index"].as_u64().expect("item_index"),
+                    asset["task_id"].as_str().expect("task id").to_string()
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (1, "task-a".to_string()),
+                (2, "task-a".to_string()),
+                (3, "task-b".to_string())
+            ]
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated assets");
+
+        let saved_paths = saved["batch"]["assets"]
+            .as_array()
+            .expect("assets array")
+            .iter()
+            .map(|asset| {
+                asset["local_path"]
+                    .as_str()
+                    .expect("local path")
+                    .replace('\\', "/")
+            })
+            .collect::<Vec<_>>();
+        assert!(saved_paths[0].ends_with("image-001.png"));
+        assert!(saved_paths[1].ends_with("image-002.png"));
+        assert!(saved_paths[2].ends_with("image-003.png"));
+
+        // `items[]` is per task, so each item points at a file its own task
+        // produced - never at another task's file.
+        let items = saved["batch"]["items"].as_array().expect("items array");
+        assert_eq!(items[0]["task_id"], "task-a");
+        assert!(items[0]["local_path"]
+            .as_str()
+            .expect("local path")
+            .replace('\\', "/")
+            .ends_with("image-001.png"));
+        assert_eq!(items[1]["task_id"], "task-b");
+        assert!(items[1]["local_path"]
+            .as_str()
+            .expect("local path")
+            .replace('\\', "/")
+            .ends_with("image-003.png"));
+
+        attach_infinite_canvas_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-mixed-1"
+            })),
+        );
+
+        let output_items = saved["infiniteCanvas"]["outputMediaItems"]
+            .as_array()
+            .expect("outputMediaItems array");
+        assert_eq!(output_items.len(), 3);
+        assert_eq!(
+            output_items
+                .iter()
+                .map(|item| item["itemIndex"].as_u64().expect("itemIndex"))
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    /// P4-C1: a multi-result task must not change what the short drama
+    /// enrichment sees - it reads the first asset only, which keeps slot 1.
+    #[tokio::test]
+    async fn short_drama_binding_is_unchanged_by_a_multi_result_task() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-short-drama-multi-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path = media_job_store_path(Some(root.as_path()), "media_batch_short_drama_multi")
+            .expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_short_drama_multi",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [
+                        { "url": "https://cdn.example/sd-one.png" },
+                        { "url": "https://cdn.example/sd-two.png" }
+                    ]
+                }
+            }]),
+            vec![],
+        );
+
+        let mut saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
+            })
+            .await
+            .expect("save generated assets");
+
+        attach_short_drama_media_result(
+            &mut saved,
+            "image",
+            Some(&json!({
+                "projectId": "short-drama-project",
+                "stage": "assets",
+                "artifactHandle": "CHAR-001"
+            })),
+        );
+
+        assert_eq!(
+            saved["shortDrama"]["outputMediaItemId"],
+            "media_batch_short_drama_multi-1"
+        );
+        assert_eq!(
+            saved["shortDrama"]["outputPreviewUrl"],
+            "https://cdn.example/sd-one.png"
+        );
+        assert!(saved["shortDrama"]["outputMediaRelativePath"]
+            .as_str()
+            .is_some_and(|path| path.ends_with("image-001.png")));
+        assert!(saved["shortDrama"].get("outputMediaItems").is_none());
 
         let _ = tokio::fs::remove_dir_all(root).await;
     }
