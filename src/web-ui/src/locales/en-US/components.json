@@ -1062,6 +1062,17 @@
       "filesKept": "Only the cards are removed. The image and video files stay in your media library.",
       "confirm": "Delete cards",
       "cancel": "Cancel"
+    },
+    "menu": {
+      "copy": "Copy card",
+      "copySelection": "Copy selection",
+      "duplicate": "Duplicate",
+      "delete": "Delete card",
+      "deleteSelection": "Delete selection",
+      "paste": "Paste",
+      "reveal": "Show in folder",
+      "revealFailed": "Could not open the folder for this file.",
+      "selectionToolbar": "Selection actions"
     }
   },
   "agentStudio": {

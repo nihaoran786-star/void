@@ -1062,6 +1062,17 @@
       "filesKept": "只删卡片，不删文件。图片和视频仍然留在媒体库里。",
       "confirm": "删除卡片",
       "cancel": "取消"
+    },
+    "menu": {
+      "copy": "复制这张卡",
+      "copySelection": "复制所选",
+      "duplicate": "再制一份",
+      "delete": "删除这张卡",
+      "deleteSelection": "删除所选",
+      "paste": "粘贴",
+      "reveal": "在文件夹中显示",
+      "revealFailed": "打不开这个文件所在的文件夹。",
+      "selectionToolbar": "所选卡片操作"
     }
   },
   "agentStudio": {

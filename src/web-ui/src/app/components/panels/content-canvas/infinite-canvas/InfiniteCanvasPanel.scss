@@ -742,6 +742,76 @@
   color: var(--infinite-canvas-text);
 }
 
+// ── P4 W7: right-click menu and selection toolbar ──────────────────────────
+
+.infinite-canvas-menu {
+  position: absolute;
+  z-index: 12;
+  display: flex;
+  min-width: 156px;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 8px;
+  background: var(--infinite-canvas-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.infinite-canvas-menu__item {
+  display: flex;
+  height: 26px;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--infinite-canvas-text);
+  cursor: pointer;
+  font-size: 11px;
+  text-align: left;
+
+  &:hover:not(:disabled) {
+    background: var(--infinite-canvas-hover);
+  }
+
+  &:disabled {
+    color: var(--infinite-canvas-muted);
+    cursor: default;
+  }
+}
+
+.infinite-canvas-selection-toolbar {
+  position: absolute;
+  z-index: 11;
+  top: 12px;
+  left: 50%;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 8px;
+  background: var(--infinite-canvas-surface);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 20%);
+  transform: translateX(-50%);
+}
+
+.infinite-canvas-selection-toolbar__button {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--infinite-canvas-text);
+  cursor: pointer;
+  font-size: 11px;
+
+  &:hover {
+    background: var(--infinite-canvas-hover);
+  }
+}
+
 // ── Pickers (image library, style presets) ─────────────────────────────────
 
 .infinite-canvas-picker {

@@ -48,3 +48,17 @@ export function getInfiniteCanvasMediaSaver(): InfiniteCanvasMediaSaver {
     await downloadWorkspaceFileToDisk(filePath, null, () => undefined);
   };
 }
+
+/**
+ * P4 W7 "show in folder" port: the existing workspace `reveal_in_explorer`
+ * command, reached through a dynamic import so the panel chunk stays free of
+ * the API module. Read-only — it opens the OS file browser and nothing else.
+ */
+export type InfiniteCanvasMediaRevealer = (filePath: string) => Promise<void>;
+
+export function getInfiniteCanvasMediaRevealer(): InfiniteCanvasMediaRevealer {
+  return async filePath => {
+    const { workspaceAPI } = await import('@/infrastructure/api/service-api/WorkspaceAPI');
+    await workspaceAPI.revealInExplorer(filePath);
+  };
+}

@@ -63,7 +63,9 @@ import { workspaceMediaLibraryService } from '@/shared/services/workspace-media/
 import {
   getInfiniteCanvasDocumentService,
   getInfiniteCanvasMediaJobReader,
+  getInfiniteCanvasMediaRevealer,
   getInfiniteCanvasMediaSaver,
+  type InfiniteCanvasMediaRevealer,
   type InfiniteCanvasMediaSaver,
 } from './infiniteCanvasDocumentGateway';
 import {
@@ -132,7 +134,23 @@ import {
   InfiniteCanvasMediaViewer,
   type InfiniteCanvasViewerItem,
 } from './InfiniteCanvasMediaViewer';
+import {
+  clipboardSnapshotOrigin,
+  copySelectionSnapshot,
+  INFINITE_CANVAS_PASTE_OFFSET,
+  pasteSnapshotContent,
+  type InfiniteCanvasClipboardSnapshot,
+} from './infiniteCanvasClipboard';
 import { InfiniteCanvasConfirmDialog } from './InfiniteCanvasConfirmDialog';
+import {
+  InfiniteCanvasContextMenu,
+  type InfiniteCanvasContextMenuAction,
+  type InfiniteCanvasContextMenuState,
+} from './InfiniteCanvasContextMenu';
+import {
+  InfiniteCanvasSelectionToolbar,
+  type InfiniteCanvasSelectionAction,
+} from './InfiniteCanvasSelectionToolbar';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
@@ -223,6 +241,11 @@ export interface InfiniteCanvasPanelProps {
    * the panel never reaches for a Tauri plugin.
    */
   saveMediaAs?: InfiniteCanvasMediaSaver;
+  /**
+   * P4 W7 "show in folder" port. Production binds the workspace
+   * `reveal_in_explorer` lane; tests inject a stub.
+   */
+  revealMediaIn?: InfiniteCanvasMediaRevealer;
 }
 
 export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
@@ -237,6 +260,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   mediaEventBus,
   mediaJobReader,
   saveMediaAs,
+  revealMediaIn,
 }) => {
   const { t } = useI18n('components');
   const service = React.useMemo(
@@ -308,8 +332,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   /** P4 W6: the pending deletion awaiting the one confirmation, if any. */
   const [deleteRequest, setDeleteRequest] =
     React.useState<InfiniteCanvasDeletionSummary | null>(null);
+  /**
+   * P4 W7: the app-private clipboard. Panel memory only — it is deliberately
+   * not the system clipboard, and it dies with the panel.
+   */
+  const [clipboard, setClipboard] = React.useState<InfiniteCanvasClipboardSnapshot | null>(null);
+  const clipboardRef = React.useRef<InfiniteCanvasClipboardSnapshot | null>(null);
+  clipboardRef.current = clipboard;
+  /** Cascades repeated pastes of the same clipboard instead of stacking them. */
+  const pasteRunRef = React.useRef(0);
+  /** P4 W7: the open right-click menu, if any. */
+  const [contextMenu, setContextMenu] =
+    React.useState<InfiniteCanvasContextMenuState | null>(null);
   /** Panel root, so the shortcut listener can tell whether focus is ours. */
   const panelRef = React.useRef<HTMLDivElement | null>(null);
+  /** The flow viewport wrapper; the menu and the selection bar are placed in it. */
+  const flowRef = React.useRef<HTMLDivElement | null>(null);
 
   // Node callbacks flow through this ref so projectDocument stays stable while
   // the handlers depend on it (same seam the M3 commitText path used).
@@ -501,6 +539,65 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setDeleteRequest(null);
     if (request) deleteNodesNow(request.nodeIds);
   }, [deleteNodesNow, deleteRequest]);
+
+  // —— P4 W7: copy / paste / duplicate ——————————————————————————————————————
+
+  /**
+   * Copying a card with a picture copies the REFERENCE, not the file: the copy
+   * points at the same file in the media library. See `infiniteCanvasClipboard`
+   * for why (and for the field white list).
+   */
+  const copyNodes = React.useCallback((nodeIds: readonly string[]) => {
+    const document = documentRef.current;
+    if (!document) return false;
+    const snapshot = copySelectionSnapshot(document, nodeIds);
+    if (!snapshot) return false;
+    setClipboard(snapshot);
+    pasteRunRef.current = 0;
+    return true;
+  }, []);
+
+  const pasteSnapshot = React.useCallback((
+    snapshot: InfiniteCanvasClipboardSnapshot,
+    offset: { x: number; y: number },
+  ) => {
+    void commit(
+      document => pasteSnapshotContent(document, snapshot, {
+        offset,
+        createId: createInfiniteCanvasId,
+      }).content,
+      { history: true },
+    );
+  }, [commit]);
+
+  /**
+   * Ctrl+V, or "paste" from the empty-canvas menu. Without a target position
+   * repeated pastes cascade instead of stacking on one spot.
+   */
+  const pasteClipboard = React.useCallback((at?: { x: number; y: number }) => {
+    const snapshot = clipboardRef.current;
+    if (!snapshot || snapshot.nodes.length === 0) return;
+    if (at) {
+      const origin = clipboardSnapshotOrigin(snapshot);
+      pasteSnapshot(snapshot, { x: at.x - origin.x, y: at.y - origin.y });
+      return;
+    }
+    pasteRunRef.current += 1;
+    const step = INFINITE_CANVAS_PASTE_OFFSET * pasteRunRef.current;
+    pasteSnapshot(snapshot, { x: step, y: step });
+  }, [pasteSnapshot]);
+
+  /** Duplicate = copy + paste in one move, and it never touches the clipboard. */
+  const duplicateNodes = React.useCallback((nodeIds: readonly string[]) => {
+    const document = documentRef.current;
+    if (!document) return;
+    const snapshot = copySelectionSnapshot(document, nodeIds);
+    if (!snapshot) return;
+    pasteSnapshot(snapshot, {
+      x: INFINITE_CANVAS_PASTE_OFFSET,
+      y: INFINITE_CANVAS_PASTE_OFFSET,
+    });
+  }, [pasteSnapshot]);
 
   // —— Generation dispatch (three entries, one lane) ————————————————————————
 
@@ -942,11 +1039,42 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         if (selected.length === 0) return;
         event.preventDefault();
         requestDeleteNodes(selected);
+        return;
+      }
+      // P4 W7: copy / paste / duplicate. Same handlers the menu and the
+      // selection toolbar call, so there is only one implementation each.
+      if (!event.ctrlKey && !event.metaKey) return;
+      if (event.altKey || event.shiftKey) return;
+      const key = event.key.toLowerCase();
+      const selected = selectedNodeIdsRef.current;
+      if (key === 'c') {
+        if (selected.length === 0) return;
+        event.preventDefault();
+        copyNodes(selected);
+        return;
+      }
+      if (key === 'd') {
+        if (selected.length === 0) return;
+        event.preventDefault();
+        duplicateNodes(selected);
+        return;
+      }
+      if (key === 'v') {
+        if (!clipboardRef.current) return;
+        event.preventDefault();
+        pasteClipboard();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [requestDeleteNodes, runHistory, state.phase]);
+  }, [
+    copyNodes,
+    duplicateNodes,
+    pasteClipboard,
+    requestDeleteNodes,
+    runHistory,
+    state.phase,
+  ]);
 
   /** P4 W6: reactflow's selection, mirrored into panel state. */
   const onSelectionChange = React.useCallback((selection: { nodes?: { id: string }[] }) => {
@@ -1181,6 +1309,174 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     void commit(document => setNodeGenerationParamsContent(document, nodeId, params), { history: true });
   }, [commit, paramsNodeId]);
 
+  // —— P4 W7: right-click menu and the selection toolbar ————————————————————
+
+  const onRevealMedia = React.useCallback((nodeId: string) => {
+    const found = findMediaNode(nodeId);
+    if (!found?.node.mediaRef) return;
+    const filePath = infiniteCanvasMediaFilePath(found.node.mediaRef);
+    const port = revealMediaIn ?? getInfiniteCanvasMediaRevealer();
+    void Promise.resolve()
+      .then(() => port(filePath))
+      .catch(() => {
+        setNotice({ messageKey: 'infiniteCanvas.menu.revealFailed' });
+      });
+  }, [findMediaNode, revealMediaIn]);
+
+  /** Screen pixels → canvas units, from the last known pan/zoom. */
+  const toFlowPosition = React.useCallback((clientX: number, clientY: number) => {
+    const rect = flowRef.current?.getBoundingClientRect();
+    const { x, y, zoom } = viewportRef.current;
+    return {
+      x: (clientX - (rect?.left ?? 0) - x) / zoom,
+      y: (clientY - (rect?.top ?? 0) - y) / zoom,
+    };
+  }, []);
+
+  const openContextMenu = React.useCallback((
+    event: { clientX: number; clientY: number; preventDefault: () => void },
+    base: Omit<InfiniteCanvasContextMenuState, 'x' | 'y' | 'flowPosition'>,
+  ) => {
+    event.preventDefault();
+    const rect = flowRef.current?.getBoundingClientRect();
+    setContextMenu({
+      ...base,
+      x: event.clientX - (rect?.left ?? 0),
+      y: event.clientY - (rect?.top ?? 0),
+      flowPosition: toFlowPosition(event.clientX, event.clientY),
+    });
+  }, [toFlowPosition]);
+
+  const onNodeContextMenu = React.useCallback((
+    event: { clientX: number; clientY: number; preventDefault: () => void },
+    node: { id: string },
+  ) => {
+    // Right-clicking inside a multi-selection acts on the whole selection —
+    // otherwise the menu would silently narrow to one card.
+    if (selectedNodeIds.length > 1 && selectedNodeIds.includes(node.id)) {
+      openContextMenu(event, { kind: 'selection', selectionCount: selectedNodeIds.length });
+      return;
+    }
+    const found = findMediaNode(node.id);
+    openContextMenu(event, {
+      kind: 'node',
+      nodeId: node.id,
+      hasMedia: Boolean(found?.node.mediaRef),
+      canGenerate: Boolean(found),
+    });
+  }, [findMediaNode, openContextMenu, selectedNodeIds]);
+
+  const onSelectionContextMenu = React.useCallback((
+    event: { clientX: number; clientY: number; preventDefault: () => void },
+    nodes: { id: string }[],
+  ) => {
+    openContextMenu(event, { kind: 'selection', selectionCount: nodes.length });
+  }, [openContextMenu]);
+
+  const onPaneContextMenu = React.useCallback((
+    event: { clientX: number; clientY: number; preventDefault: () => void },
+  ) => {
+    openContextMenu(event, { kind: 'pane' });
+  }, [openContextMenu]);
+
+  /**
+   * One dispatcher for every menu item. Each branch calls exactly the handler
+   * the equivalent shortcut or toolbar button calls.
+   */
+  const onContextMenuAction = React.useCallback((action: InfiniteCanvasContextMenuAction) => {
+    const menu = contextMenu;
+    setContextMenu(null);
+    if (!menu) return;
+    const targets = menu.kind === 'selection'
+      ? selectedNodeIds
+      : menu.nodeId
+        ? [menu.nodeId]
+        : [];
+    switch (action) {
+      case 'view':
+        if (menu.nodeId) nodeActionsRef.current.openViewer(menu.nodeId);
+        return;
+      case 'save-as': {
+        const item = viewerItems.find(entry => entry.nodeId === menu.nodeId);
+        if (item) onSaveMediaAs(item);
+        return;
+      }
+      case 'reveal':
+        if (menu.nodeId) onRevealMedia(menu.nodeId);
+        return;
+      case 'params':
+        if (menu.nodeId) nodeActionsRef.current.openParams(menu.nodeId);
+        return;
+      case 'copy':
+        copyNodes(targets);
+        return;
+      case 'duplicate':
+        duplicateNodes(targets);
+        return;
+      case 'delete':
+        requestDeleteNodes(targets);
+        return;
+      case 'add-text':
+        void commit(document => addTextNodeContent(
+          document,
+          createInfiniteCanvasId('node'),
+          menu.flowPosition,
+        ), { history: true });
+        return;
+      case 'add-image-card':
+        void commit(document => addBlankGenerationCardContent(
+          document,
+          createInfiniteCanvasId('node'),
+          menu.flowPosition,
+        ), { history: true });
+        return;
+      case 'add-video-card':
+        void commit(document => addBlankVideoCardContent(
+          document,
+          createInfiniteCanvasId('node'),
+          menu.flowPosition,
+        ), { history: true });
+        return;
+      case 'paste':
+        pasteClipboard(menu.flowPosition);
+    }
+  }, [
+    commit,
+    contextMenu,
+    copyNodes,
+    duplicateNodes,
+    onRevealMedia,
+    onSaveMediaAs,
+    pasteClipboard,
+    requestDeleteNodes,
+    selectedNodeIds,
+    viewerItems,
+  ]);
+
+  const onSelectionToolbarAction = React.useCallback((
+    action: InfiniteCanvasSelectionAction,
+  ) => {
+    if (action === 'copy') copyNodes(selectedNodeIds);
+    else if (action === 'duplicate') duplicateNodes(selectedNodeIds);
+    else requestDeleteNodes(selectedNodeIds);
+  }, [copyNodes, duplicateNodes, requestDeleteNodes, selectedNodeIds]);
+
+  // Any press outside the menu dismisses it, the way a native menu behaves.
+  React.useEffect(() => {
+    if (!contextMenu) return undefined;
+    const onPointerDown = (event: Event) => {
+      const target = event.target;
+      if (target instanceof window.HTMLElement && target.closest('.infinite-canvas-menu')) return;
+      setContextMenu(null);
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('mousedown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('mousedown', onPointerDown, true);
+    };
+  }, [contextMenu]);
+
   const stylePickerCurrentPresetId = React.useMemo(() => {
     if (!stylePickerNodeId) return undefined;
     return documentRef.current?.nodes
@@ -1336,6 +1632,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       <div
         className="infinite-canvas-panel__flow"
         aria-label={t('infiniteCanvas.title')}
+        ref={flowRef}
       >
         <ReactFlow
           nodes={flowNodes}
@@ -1347,6 +1644,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onMove={onMove}
           onMoveEnd={onMoveEnd}
           onSelectionChange={onSelectionChange}
+          onNodeContextMenu={onNodeContextMenu}
+          onSelectionContextMenu={onSelectionContextMenu}
+          onPaneContextMenu={onPaneContextMenu}
           defaultViewport={initialViewport}
           minZoom={0.1}
           maxZoom={4}
@@ -1367,6 +1667,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           vertical={helperLines.vertical}
           horizontal={helperLines.horizontal}
         />
+        {selectedNodeIds.length >= 2 ? (
+          <InfiniteCanvasSelectionToolbar
+            nodeIds={selectedNodeIds}
+            containerRef={flowRef}
+            onAction={onSelectionToolbarAction}
+          />
+        ) : null}
+        {contextMenu ? (
+          <InfiniteCanvasContextMenu
+            state={contextMenu}
+            canPaste={Boolean(clipboard && clipboard.nodes.length > 0)}
+            onAction={onContextMenuAction}
+            onClose={() => setContextMenu(null)}
+          />
+        ) : null}
         {flowNodes.length === 0 ? (
           <div className="infinite-canvas-panel__empty">
             <Sparkles size={20} aria-hidden="true" />
