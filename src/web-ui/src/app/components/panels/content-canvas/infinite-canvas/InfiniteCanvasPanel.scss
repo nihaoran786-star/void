@@ -82,7 +82,7 @@
     flex: none;
   }
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--infinite-canvas-hover);
     color: var(--infinite-canvas-text);
   }
@@ -90,6 +90,13 @@
   &:focus-visible {
     outline: 1px solid var(--infinite-canvas-accent);
     outline-offset: -1px;
+  }
+
+  // P4 W5: nothing left to undo / redo — dimmed, not hidden, so the entry
+  // point stays discoverable.
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
   }
 }
 

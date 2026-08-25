@@ -1046,6 +1046,13 @@
       "countBilling": "Each image is billed separately.",
       "countLocked": "This model produces one image per run.",
       "providerDefault": "Provider default"
+    },
+    "history": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "undoHint": "Undo your last edit (Ctrl+Z). Generated images and cards the assistant placed are not undone.",
+      "redoHint": "Redo the edit you just undid (Ctrl+Shift+Z).",
+      "staleDiscarded": "That step can no longer be undone: the cards it touched have changed since. The earlier steps were dropped too."
     }
   },
   "agentStudio": {

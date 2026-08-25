@@ -28,7 +28,7 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Clapperboard, ImagePlus, Sparkles, Type } from 'lucide-react';
+import { Clapperboard, ImagePlus, Redo2, Sparkles, Type, Undo2 } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -107,6 +107,16 @@ import {
   type InfiniteCanvasImagePreviewResolver,
   type InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
+import {
+  applyHistoryEntryContent,
+  captureUserEdit,
+  emptyInfiniteCanvasHistory,
+  historyShortcutFor,
+  isEditableTarget,
+  pushHistoryEntry,
+  type InfiniteCanvasHistoryDirection,
+  type InfiniteCanvasHistoryEntry,
+} from './infiniteCanvasHistory';
 import { computeInfiniteCanvasHelperLines } from './infiniteCanvasHelperLines';
 // The overlay lives in its own file whose name differs from the pure module
 // by more than case: a case-only pair breaks resolution on Windows.
@@ -275,6 +285,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const [viewerNodeId, setViewerNodeId] = React.useState<string | null>(null);
   /** P4 W3: the card whose generation parameters are being edited. */
   const [paramsNodeId, setParamsNodeId] = React.useState<string | null>(null);
+  /**
+   * P4 W5: undo / redo stack. In panel memory only — closing the canvas
+   * clears it, and nothing about it reaches the document or the disk.
+   */
+  const [history, setHistory] = React.useState(emptyInfiniteCanvasHistory);
+  /** Panel root, so the shortcut listener can tell whether focus is ours. */
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
 
   // Node callbacks flow through this ref so projectDocument stays stable while
   // the handlers depend on it (same seam the M3 commitText path used).
@@ -360,14 +377,65 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setFlowEdges(toFlowEdgeViews(document.edges));
   }, [catalog, openStylePicker, resolvePreviewUrl]);
 
-  const commit = React.useCallback(async (mutator: InfiniteCanvasMutator) => {
-    const result = await service.mutateDefaultDocument(workspaceRef, mutator);
+  /**
+   * P4 W5: `history: true` marks a commit as the user's own edit, and only
+   * those go on the undo stack. Everything on the generation lane (dispatch,
+   * retry, produced media landing, agent ops) and the viewport deliberately
+   * commits without the flag — see plan §2.4 for why each is not undoable.
+   */
+  const commit = React.useCallback(async (
+    mutator: InfiniteCanvasMutator,
+    options: { history?: boolean } = {},
+  ) => {
+    let entry: InfiniteCanvasHistoryEntry | undefined;
+    const result = await service.mutateDefaultDocument(workspaceRef, current => {
+      const next = mutator(current);
+      // Diffed inside the mutator, i.e. inside the document service's
+      // per-path queue, so the entry describes the edit as it really landed.
+      if (options.history) entry = captureUserEdit(current, next);
+      return next;
+    });
     if (result.status === 'applied') {
+      if (entry) setHistory(state => pushHistoryEntry(state, entry!));
       projectDocument(result.document);
     } else {
       setState({ phase: 'failed', error: result.error });
     }
   }, [projectDocument, service, workspaceRef]);
+
+  /** Applies the newest undo (or redo) entry, or discards a stale branch. */
+  const runHistory = React.useCallback(async (
+    direction: InfiniteCanvasHistoryDirection,
+  ) => {
+    const stack = direction === 'undo' ? history.undo : history.redo;
+    const entry = stack[stack.length - 1];
+    if (!entry) return;
+    let stale = false;
+    const result = await service.mutateDefaultDocument(workspaceRef, current => {
+      const applied = applyHistoryEntryContent(current, entry, direction);
+      stale = applied.status === 'stale';
+      return applied.status === 'applied'
+        ? applied.content
+        : { nodes: current.nodes, edges: current.edges, viewport: current.viewport };
+    });
+    if (result.status === 'failed') {
+      setState({ phase: 'failed', error: result.error });
+      return;
+    }
+    if (stale) {
+      // This entry rebases on a document that has moved on; every older entry
+      // in the same branch would rebase on top of that, so the branch goes.
+      setHistory(state => (direction === 'undo'
+        ? { undo: [], redo: state.redo }
+        : { undo: state.undo, redo: [] }));
+      setNotice({ messageKey: 'infiniteCanvas.history.staleDiscarded' });
+      return;
+    }
+    setHistory(state => (direction === 'undo'
+      ? { undo: state.undo.slice(0, -1), redo: [...state.redo, entry] }
+      : { undo: [...state.undo, entry], redo: state.redo.slice(0, -1) }));
+    projectDocument(result.document);
+  }, [history, projectDocument, service, workspaceRef]);
 
   /** Re-projects the shared in-memory truth after bridge-side mutations. */
   const refreshFromService = React.useCallback(async () => {
@@ -623,10 +691,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   React.useEffect(() => {
     nodeActionsRef.current = {
       commitText: (nodeId, text) => {
-        void commit(document => setNodeTextContent(document, nodeId, text));
+        void commit(document => setNodeTextContent(document, nodeId, text), { history: true });
       },
       commitPrompt: (nodeId, prompt) => {
-        void commit(document => setNodePromptContent(document, nodeId, prompt));
+        void commit(document => setNodePromptContent(document, nodeId, prompt), { history: true });
       },
       generate: nodeId => {
         void generateForNode(nodeId);
@@ -665,7 +733,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             nodeId,
             videoNodeId,
           );
-        });
+        }, { history: true });
       },
       openViewer: nodeId => {
         const found = findMediaNode(nodeId);
@@ -783,6 +851,32 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     void service.flushPendingWrites();
   }, [service]);
 
+  // P4 W5: Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y. The listener sits on the
+  // window (reactflow's pane is not always the focused element) but only acts
+  // when focus is inside this panel or nowhere in particular, so a canvas in a
+  // background tab never steals another surface's undo. Typing inside a
+  // prompt box keeps the browser's own text undo.
+  React.useEffect(() => {
+    if (state.phase !== 'ready') return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = historyShortcutFor(event);
+      if (!action) return;
+      if (isEditableTarget(event.target)) return;
+      const root = panelRef.current;
+      const active = window.document.activeElement;
+      const ours = Boolean(root) && (
+        active === null
+        || active === window.document.body
+        || Boolean(root?.contains(active))
+      );
+      if (!ours) return;
+      event.preventDefault();
+      void runHistory(action);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [runHistory, state.phase]);
+
   const onNodesChange = React.useCallback((rawChanges: NodeChange[]) => {
     // P4 W9: a single in-flight drag gets nudged onto its neighbours before
     // reactflow applies it. Multi-node drags (changes.length > 1) are left
@@ -834,13 +928,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       .filter(change => change.type === 'remove')
       .map(change => change.id);
     if (removedIds.length > 0) {
-      void commit(document => removeNodesContent(document, removedIds));
+      void commit(document => removeNodesContent(document, removedIds), { history: true });
     }
     for (const change of changes) {
       if (change.type === 'position' && change.dragging === false && change.position) {
         const { id } = change;
         const position = change.position;
-        void commit(document => moveNodeContent(document, id, position));
+        void commit(document => moveNodeContent(document, id, position), { history: true });
       }
     }
   }, [commit]);
@@ -851,7 +945,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       .filter(change => change.type === 'remove')
       .map(change => change.id);
     if (removedIds.length > 0) {
-      void commit(document => removeEdgesContent(document, removedIds));
+      void commit(document => removeEdgesContent(document, removedIds), { history: true });
     }
   }, [commit]);
 
@@ -863,7 +957,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       createInfiniteCanvasId('edge'),
       source,
       target,
-    ));
+    ), { history: true });
   }, [commit]);
 
   const onMove = React.useCallback((_event: unknown, viewport: Viewport) => {
@@ -892,7 +986,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       document,
       createInfiniteCanvasId('node'),
       position,
-    ));
+    ), { history: true });
   }, [commit, nextSpawnPosition]);
 
   const onAddGenerationCard = React.useCallback(() => {
@@ -901,7 +995,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       document,
       createInfiniteCanvasId('node'),
       position,
-    ));
+    ), { history: true });
   }, [commit, nextSpawnPosition]);
 
   const onAddVideoCard = React.useCallback(() => {
@@ -910,7 +1004,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       document,
       createInfiniteCanvasId('node'),
       position,
-    ));
+    ), { history: true });
   }, [commit, nextSpawnPosition]);
 
   const onPickImage = React.useCallback((mediaRef: InfiniteCanvasMediaRef) => {
@@ -921,14 +1015,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       createInfiniteCanvasId('node'),
       position,
       mediaRef,
-    ));
+    ), { history: true });
   }, [commit, nextSpawnPosition]);
 
   const onPickStyle = React.useCallback((presetId: string | undefined) => {
     const nodeId = stylePickerNodeId;
     setStylePickerNodeId(null);
     if (!nodeId) return;
-    void commit(document => setNodeStylePresetContent(document, nodeId, presetId));
+    void commit(document => setNodeStylePresetContent(document, nodeId, presetId), { history: true });
   }, [commit, stylePickerNodeId]);
 
   // —— P4 W1: full-screen viewer + save a copy ——————————————————————————————
@@ -994,7 +1088,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const onChangeGenerationParams = React.useCallback((params: InfiniteCanvasGenerationParams) => {
     const nodeId = paramsNodeId;
     if (!nodeId) return;
-    void commit(document => setNodeGenerationParamsContent(document, nodeId, params));
+    void commit(document => setNodeGenerationParamsContent(document, nodeId, params), { history: true });
   }, [commit, paramsNodeId]);
 
   const stylePickerCurrentPresetId = React.useMemo(() => {
@@ -1030,7 +1124,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }
 
   return (
-    <div className="infinite-canvas-panel" data-canvas-surface-state="ready">
+    <div className="infinite-canvas-panel" data-canvas-surface-state="ready" ref={panelRef}>
       <div className="infinite-canvas-panel__toolbar" role="toolbar">
         <button
           type="button"
@@ -1064,6 +1158,32 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         >
           <Clapperboard size={14} aria-hidden="true" />
           {t('infiniteCanvas.toolbar.addVideoCard')}
+        </button>
+        <button
+          type="button"
+          className="infinite-canvas-panel__toolbar-button"
+          data-toolbar-action="undo"
+          disabled={history.undo.length === 0}
+          title={t('infiniteCanvas.history.undoHint')}
+          onClick={() => {
+            void runHistory('undo');
+          }}
+        >
+          <Undo2 size={14} aria-hidden="true" />
+          {t('infiniteCanvas.history.undo')}
+        </button>
+        <button
+          type="button"
+          className="infinite-canvas-panel__toolbar-button"
+          data-toolbar-action="redo"
+          disabled={history.redo.length === 0}
+          title={t('infiniteCanvas.history.redoHint')}
+          onClick={() => {
+            void runHistory('redo');
+          }}
+        >
+          <Redo2 size={14} aria-hidden="true" />
+          {t('infiniteCanvas.history.redo')}
         </button>
       </div>
       {notice ? (

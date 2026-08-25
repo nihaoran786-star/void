@@ -1046,6 +1046,13 @@
       "countBilling": "每張圖單獨計費。",
       "countLocked": "該模型一次只能出一張。",
       "providerDefault": "模型預設"
+    },
+    "history": {
+      "undo": "復原",
+      "redo": "重做",
+      "undoHint": "復原你上一步編輯（Ctrl+Z）。已生成的圖與 AI 放下的卡片不會被復原。",
+      "redoHint": "重做剛復原的那一步（Ctrl+Shift+Z）。",
+      "staleDiscarded": "這一步已經無法復原：它涉及的卡片在這之後變過了。更早的步驟也一併放棄了。"
     }
   },
   "agentStudio": {

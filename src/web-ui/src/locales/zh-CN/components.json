@@ -1046,6 +1046,13 @@
       "countBilling": "每张图单独计费。",
       "countLocked": "该模型一次只能出一张。",
       "providerDefault": "模型默认"
+    },
+    "history": {
+      "undo": "撤销",
+      "redo": "重做",
+      "undoHint": "撤销你上一步编辑（Ctrl+Z）。已生成的图和 AI 放下的卡片不会被撤销。",
+      "redoHint": "重做刚撤销的那一步（Ctrl+Shift+Z）。",
+      "staleDiscarded": "这一步已经无法撤销：它涉及的卡片在这之后变过了。更早的步骤也一并放弃了。"
     }
   },
   "agentStudio": {
