@@ -13,6 +13,11 @@
  *   → failed (`timeout`), which the panel offers for retry — never an
  *   endless spinner.
  *
+ * P4 review C4: cards the user "stopped waiting" on are scanned too. They are
+ * `failed / cancelled` rather than pending, but the anchor is deliberately
+ * intact and the job may still be running, so a completed batch must still
+ * land in them after a reopen. They are only ever resolved, never re-failed.
+ *
  * Writes go through `InfiniteCanvasDocumentService.mutateDefaultDocument`
  * like every other canvas mutation; the manifest is read through the same
  * persistence-port shape the document service uses. The never-overwrite
@@ -75,6 +80,33 @@ type ReconciliationIntent =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * A card that "stopped waiting" is NOT settled: `stopWaitingContent` only
+ * flipped it to `failed / cancelled` so it would stop spinning, and left the
+ * anchor intact precisely so a late result could still land in it (PRD §6-R1 —
+ * the money is spent either way). While the panel stays open the live media
+ * bridge honours that. Reopening the canvas used to break the promise, because
+ * this pass only ever looked at `status === 'pending'`.
+ *
+ * So the scan covers both: a pending card, and a stopped-waiting card that
+ * still has no media and still knows its media job.
+ */
+function isStoppedWaiting(node: InfiniteCanvasNode): boolean {
+  const generation = node.generation;
+  return Boolean(
+    generation
+    && generation.status === 'failed'
+    && generation.errorKind === 'cancelled'
+    && node.mediaRef === undefined
+    && generation.batchId,
+  );
+}
+
+function isReconcilable(node: InfiniteCanvasNode): boolean {
+  if (node.mediaRef !== undefined) return false;
+  return node.generation?.status === 'pending' || isStoppedWaiting(node);
 }
 
 /**
@@ -201,12 +233,13 @@ function applyIntent(
   const node = document.nodes.find(
     candidate => candidate.generation?.operationId === operationId,
   );
-  if (!node || node.generation?.status !== 'pending') return unchanged;
+  if (!node || !isReconcilable(node)) return unchanged;
   if (intent.intent === 'resolve') {
     // Never-overwrite lives inside the shared batch resolver.
     return resolveOperationBatchContent(document, operationId, workspacePath, intent.items);
   }
   const generation = node.generation;
+  if (!generation) return unchanged;
   return {
     ...unchanged,
     nodes: document.nodes.map((candidate): InfiniteCanvasNode => (
@@ -227,9 +260,7 @@ export async function reconcilePendingInfiniteCanvasGenerations(
 ): Promise<InfiniteCanvasPendingReconciliationResult> {
   const { workspace, document, reader, documentService } = options;
 
-  const pendingNodes = document.nodes.filter(
-    node => node.generation?.status === 'pending',
-  );
+  const pendingNodes = document.nodes.filter(isReconcilable);
   if (pendingNodes.length === 0) return { outcomes: [] };
 
   const intentsByOperationId = new Map<string, ReconciliationIntent>();
@@ -256,6 +287,11 @@ export async function reconcilePendingInfiniteCanvasGenerations(
         generation.mediaKind === 'video' ? 'video' : 'image',
       );
     }
+    // A stopped-waiting card is already settled as far as the user is
+    // concerned: only a real result may still change it. Re-stamping it as
+    // `timeout` because the job is still polling would throw away the honest
+    // "you stopped waiting, the job is still running" state.
+    if (intent.intent === 'fail' && isStoppedWaiting(node)) continue;
     intentsByOperationId.set(generation.operationId, intent);
     outcomes.push({
       operationId: generation.operationId,
@@ -264,6 +300,10 @@ export async function reconcilePendingInfiniteCanvasGenerations(
       ...(intent.intent === 'fail' ? { errorKind: intent.errorKind } : {}),
     });
   }
+
+  // Every scanned card turned out to need nothing (only stopped-waiting cards
+  // with an unresolved job): no mutation, so no revision bump and no write.
+  if (intentsByOperationId.size === 0) return { outcomes };
 
   const mutated = await documentService.mutateDefaultDocument(workspace, current => {
     // Folded one operation at a time: a batch resolve grows nodes AND edges,

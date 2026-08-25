@@ -193,14 +193,69 @@ export function infiniteCanvasBatchEdgeId(operationId: string, itemIndex: number
   return `edge-${operationId}-i${itemIndex}`;
 }
 
+/** Shared prefix of every deterministic sibling id of one operation. */
+function batchSiblingIdPrefix(operationId: string): string {
+  return `node-${operationId}-i`;
+}
+
+/**
+ * P4 review P2: finds the anchor of a batch whose registration is already gone.
+ *
+ * A partial batch can report twice: the first event carries item 1 only, a
+ * later one carries items 1..N. The first landing clears `generation` from the
+ * anchor, so looking the operation up by its registration finds nothing and
+ * every later item used to be dropped — "partial now, completed later" was a
+ * dead path. The anchor is still identifiable from what the first landing left
+ * behind, in descending order of certainty:
+ *
+ * 1. a deterministic sibling card points back at it (`derivedFrom.sourceNodeId`);
+ * 2. a derived-mode anchor still records the operation in its own `derivedFrom`;
+ * 3. self mode leaves no lineage, but the card carrying one of this batch's
+ *    own media paths can only be the anchor.
+ *
+ * Returns undefined when none of that holds — then nothing is written, exactly
+ * as before.
+ */
+function recoverBatchAnchor(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+  workspacePath: string,
+  items: readonly InfiniteCanvasBatchOutputItem[],
+): InfiniteCanvasNode | undefined {
+  const siblingPrefix = batchSiblingIdPrefix(operationId);
+  const byId = new Map(document.nodes.map(node => [node.nodeId, node]));
+  for (const node of document.nodes) {
+    if (!node.nodeId.startsWith(siblingPrefix)) continue;
+    const sourceNodeId = node.derivedFrom?.sourceNodeId;
+    const anchor = sourceNodeId ? byId.get(sourceNodeId) : undefined;
+    if (anchor) return anchor;
+  }
+  const derivedAnchor = document.nodes.find(node => (
+    node.derivedFrom?.operationId === operationId
+    && !node.nodeId.startsWith(siblingPrefix)
+  ));
+  if (derivedAnchor) return derivedAnchor;
+  const paths = new Set(items.map(item => item.relativePath));
+  return document.nodes.find(node => (
+    node.mediaRef !== undefined
+    && node.mediaRef.workspacePath === workspacePath
+    && paths.has(node.mediaRef.relativePath)
+  ));
+}
+
 /**
  * Lands a whole batch of produced media onto the document.
  *
  * Rules (plan §2.3, PRD §3.4):
  * - The anchor is still the node registered under `operationId`; nothing else
  *   is ever written.
- * - An anchor that already carries a mediaRef is left completely alone —
- *   never-overwrite wins over any claim the result makes. Zero writes.
+ * - A still-registered anchor that already carries a mediaRef is left
+ *   completely alone — never-overwrite wins over any claim the result makes.
+ *   Zero writes.
+ * - P4 review P2: when the registration is already gone the batch is not
+ *   discarded. The anchor is recovered from the lineage of the earlier landing
+ *   (see `recoverBatchAnchor`) and only the items that have not landed yet grow
+ *   their deterministic sibling cards, so "partial now, the rest later" works.
  * - Items are applied in ascending `itemIndex`. The FIRST supplied item lands
  *   in the anchor (so a partial batch whose item 1 failed still fills the card
  *   the user clicked); the rest become derived cards.
@@ -218,32 +273,53 @@ export function resolveOperationBatchContent(
   workspacePath: string,
   items: readonly InfiniteCanvasBatchOutputItem[],
 ): InfiniteCanvasDocumentContent {
-  const anchor = document.nodes.find(node => node.generation?.operationId === operationId);
-  if (!anchor || anchor.mediaRef !== undefined) return content(document);
-
   const ordered = [...items]
     .filter(item => typeof item.relativePath === 'string' && item.relativePath.trim().length > 0)
     .sort((left, right) => left.itemIndex - right.itemIndex);
   if (ordered.length === 0) return content(document);
 
-  const [head, ...rest] = ordered;
-  const nodes: InfiniteCanvasNode[] = document.nodes.map(node => {
-    if (node.nodeId !== anchor.nodeId) return node;
-    const { generation: _cleared, ...keep } = node;
-    return { ...keep, mediaRef: { workspacePath, relativePath: head.relativePath } };
-  });
+  const registered = document.nodes.find(node => node.generation?.operationId === operationId);
+  // A still-registered anchor that already carries media is the never-overwrite
+  // case: zero writes, exactly as before P4 review.
+  if (registered?.mediaRef !== undefined) return content(document);
+  // P2: with the registration already cleared the batch may still be landing
+  // its later items; recover the anchor and fill only the missing siblings.
+  const anchor = registered ?? recoverBatchAnchor(document, operationId, workspacePath, ordered);
+  if (!anchor) return content(document);
+
+  const head = ordered[0];
+  const landsHead = registered !== undefined;
+  const nodes: InfiniteCanvasNode[] = landsHead
+    ? document.nodes.map(node => {
+      if (node.nodeId !== anchor.nodeId) return node;
+      const { generation: _cleared, ...keep } = node;
+      return { ...keep, mediaRef: { workspacePath, relativePath: head.relativePath } };
+    })
+    : [...document.nodes];
 
   const edges: InfiniteCanvasEdge[] = [...document.edges];
+  let grew = false;
   const takenNodeIds = new Set(document.nodes.map(node => node.nodeId));
   const takenEdgeIds = new Set(document.edges.map(edge => edge.edgeId));
-  const toolId = anchor.generation?.toolId ?? 'generate';
+  const takenPaths = new Set(
+    document.nodes
+      .filter(node => node.mediaRef?.workspacePath === workspacePath)
+      .map(node => node.mediaRef!.relativePath),
+  );
+  const toolId = anchor.generation?.toolId ?? anchor.derivedFrom?.toolId ?? 'generate';
   const anchorWidth = anchor.size?.width ?? 0;
   let ordinal = 0;
-  for (const item of rest) {
+  for (const item of ordered) {
+    // The head item went into the anchor above; with a recovered anchor every
+    // item that already sits on a card of this document landed in an earlier
+    // event of the same batch (typically that very head item).
+    if (landsHead && item === head) continue;
+    if (!landsHead && takenPaths.has(item.relativePath)) continue;
     ordinal += 1;
     const nodeId = infiniteCanvasBatchNodeId(operationId, item.itemIndex);
     if (takenNodeIds.has(nodeId)) continue;
     takenNodeIds.add(nodeId);
+    grew = true;
     nodes.push({
       nodeId,
       kind: anchor.kind === 'video' ? 'video' : 'image',
@@ -254,6 +330,11 @@ export function resolveOperationBatchContent(
       // Siblings of the same shot: the prompt and the parameters that produced
       // them travel along, so regenerating from any of them keeps the setting.
       ...(anchor.prompt !== undefined ? { prompt: anchor.prompt } : {}),
+      // P4 review C6: the style preset is part of "the parameters that produced
+      // them" — dropping it made a sibling regenerate without the style.
+      ...(anchor.stylePresetId !== undefined
+        ? { stylePresetId: anchor.stylePresetId }
+        : {}),
       ...(anchor.generationParams !== undefined
         ? { generationParams: { ...anchor.generationParams } }
         : {}),
@@ -268,5 +349,8 @@ export function resolveOperationBatchContent(
     edges.push({ edgeId, sourceNodeId: anchor.nodeId, targetNodeId: nodeId, role: 'derived' });
   }
 
+  // A recovered anchor with nothing left to grow is a replay: return the very
+  // same arrays so callers can keep treating identity as "nothing happened".
+  if (!landsHead && !grew) return content(document);
   return { ...content(document), nodes, edges };
 }

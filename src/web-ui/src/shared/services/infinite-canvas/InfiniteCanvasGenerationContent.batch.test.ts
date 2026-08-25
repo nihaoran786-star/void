@@ -198,6 +198,89 @@ describe('resolveOperationBatchContent', () => {
     expect(content.edges).toBe(document.edges);
   });
 
+  // P4 review C6: siblings carry the style preset too. Without it, the pill on
+  // a sibling card claimed a style the card no longer had, and regenerating
+  // from it silently produced a differently styled image.
+  it('carries the style preset onto every sibling card', () => {
+    const document = documentWith([anchorCard({ stylePresetId: 'preset-noir' })]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
+
+    expect(content.nodes.map(node => node.stylePresetId))
+      .toEqual(['preset-noir', 'preset-noir', 'preset-noir']);
+  });
+
+  // P4 review P2: "partial now, the rest later" used to be a dead path — the
+  // first landing cleared the registration and every later item was dropped.
+  describe('a batch that reports in two events', () => {
+    it('grows the missing siblings after the anchor already landed item 1', () => {
+      const first = resolveOperationBatchContent(
+        documentWith([anchorCard()]),
+        'op-1',
+        WORKSPACE_PATH,
+        items(1),
+      );
+      const landed = { ...documentWith([]), ...first };
+
+      const second = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
+
+      expect(second.nodes.map(node => node.nodeId)).toEqual([
+        'card-anchor',
+        infiniteCanvasBatchNodeId('op-1', 2),
+        infiniteCanvasBatchNodeId('op-1', 3),
+      ]);
+      // The already-landed item is never duplicated into a sibling card.
+      expect(second.nodes.map(node => node.mediaRef?.relativePath)).toEqual([
+        'media/generated/batch-1/image-001.png',
+        'media/generated/batch-1/image-002.png',
+        'media/generated/batch-1/image-003.png',
+      ]);
+      expect(second.edges.map(edge => edge.edgeId)).toEqual([
+        infiniteCanvasBatchEdgeId('op-1', 2),
+        infiniteCanvasBatchEdgeId('op-1', 3),
+      ]);
+      // The anchor is never rewritten: no generation comes back, no media moves.
+      expect(second.nodes[0].generation).toBeUndefined();
+    });
+
+    it('stays idempotent: replaying the second event adds nothing at all', () => {
+      const first = resolveOperationBatchContent(
+        documentWith([anchorCard()]),
+        'op-1',
+        WORKSPACE_PATH,
+        items(1),
+      );
+      const second = resolveOperationBatchContent(
+        { ...documentWith([]), ...first },
+        'op-1',
+        WORKSPACE_PATH,
+        items(3),
+      );
+      const landed = { ...documentWith([]), ...second };
+
+      const third = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
+
+      expect(third.nodes).toBe(landed.nodes);
+      expect(third.edges).toBe(landed.edges);
+    });
+
+    it('leaves an unrelated document alone when no anchor can be recovered', () => {
+      const document = documentWith([
+        {
+          nodeId: 'card-other',
+          kind: 'image',
+          position: { x: 0, y: 0 },
+          mediaRef: { workspacePath: WORKSPACE_PATH, relativePath: 'media/generated/other.png' },
+        },
+      ]);
+
+      const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
+
+      expect(content.nodes).toBe(document.nodes);
+      expect(content.edges).toBe(document.edges);
+    });
+  });
+
   it('writes nothing for an unknown operation or an empty item list', () => {
     const document = documentWith([anchorCard()]);
 

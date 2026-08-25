@@ -317,6 +317,27 @@ function applyIntent(
   const node = findOperationNode(document, binding.operationId);
   const generation = node?.generation;
   if (!node || !generation) {
+    // P4 review P2: a partial batch reports twice — the first event lands item
+    // 1 and clears the registration, the second one carries the rest. Give the
+    // shared resolver a chance to grow the still-missing sibling cards before
+    // calling the event unknown; it recovers the anchor from the first
+    // landing's lineage and returns the same arrays when there is nothing left
+    // to add, so a plain duplicate event stays the idempotent no-op it was.
+    if (requestedIntent.intent === 'resolve-batch') {
+      const next = resolveOperationBatchContent(
+        document,
+        binding.operationId,
+        workspacePath,
+        requestedIntent.items,
+      );
+      if (next.nodes !== document.nodes || next.edges !== document.edges) {
+        return {
+          outcome: { status: 'applied', action: 'resolved' },
+          nodes: next.nodes as InfiniteCanvasNode[],
+          edges: next.edges as InfiniteCanvasEdge[],
+        };
+      }
+    }
     // After a successful resolve the generation field is gone, so duplicated
     // completion events land here — an idempotent no-op.
     return keep({ status: 'ignored', reason: 'operation_not_found' });

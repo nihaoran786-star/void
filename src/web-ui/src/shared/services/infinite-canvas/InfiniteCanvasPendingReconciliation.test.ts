@@ -489,4 +489,89 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
       .toBe('media/generated/batch-1/image-002.png');
     expect(persisted.edges).toEqual([]);
   });
+
+  // P4 review C4: "stop waiting" leaves the anchor intact on purpose, so a
+  // result that arrives later still lands. Before this fix that promise only
+  // held while the panel stayed open — the reopen pass skipped the card
+  // because its status had been flipped to failed/cancelled.
+  describe('a card the user stopped waiting on', () => {
+    function stoppedWaitingNode(): InfiniteCanvasNode {
+      const node = pendingNode('card-1', 'op-1', 'batch-1');
+      return {
+        ...node,
+        generation: { ...node.generation!, status: 'failed', errorKind: 'cancelled' },
+      };
+    }
+
+    it('still lands the media when the batch completed after all', async () => {
+      const { harness, document } = createHarness([stoppedWaitingNode()]);
+      harness.files.set(
+        mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+        completedManifest('C:/ws/media/generated/batch-1/image-001.png'),
+      );
+
+      const result = await reconcile(harness, document);
+
+      expect(result.outcomes).toEqual([
+        { operationId: 'op-1', nodeId: 'card-1', action: 'resolved' },
+      ]);
+      const persisted = harness.readDocument();
+      expect(persisted.nodes[0].mediaRef?.relativePath)
+        .toBe('media/generated/batch-1/image-001.png');
+      expect(persisted.nodes[0].generation).toBeUndefined();
+    });
+
+    it('lands every image of a batch that finished while the canvas was closed', async () => {
+      const { harness, document } = createHarness([stoppedWaitingNode()]);
+      harness.files.set(
+        mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+        multiResultManifest(3),
+      );
+
+      await reconcile(harness, document);
+
+      const persisted = harness.readDocument();
+      expect(persisted.nodes).toHaveLength(3);
+      expect(persisted.edges).toHaveLength(2);
+    });
+
+    it('is left exactly as it is while the job is still unresolved', async () => {
+      const { harness, document } = createHarness([stoppedWaitingNode()]);
+      // No manifest on disk at all: unknowable, which for a PENDING card means
+      // "timeout". A stopped-waiting card must not be re-stamped over that —
+      // it already tells the honest story and it stays retryable.
+      const result = await reconcile(harness, document);
+
+      expect(result.outcomes).toEqual([]);
+      expect(result.document).toBeUndefined();
+      expect(harness.readDocument().nodes[0].generation).toEqual({
+        operationId: 'op-1',
+        toolId: 'generate',
+        resultMode: 'self',
+        status: 'failed',
+        batchId: 'batch-1',
+        errorKind: 'cancelled',
+      });
+    });
+
+    it('is out of scope once it carries media or never had a media job', async () => {
+      const withMedia: InfiniteCanvasNode = {
+        ...stoppedWaitingNode(),
+        mediaRef: { workspacePath: WORKSPACE.workspacePath, relativePath: 'media/keep.png' },
+      };
+      const noBatch = pendingNode('card-2', 'op-2');
+      const { harness, document } = createHarness([
+        withMedia,
+        {
+          ...noBatch,
+          generation: { ...noBatch.generation!, status: 'failed', errorKind: 'cancelled' },
+        },
+      ]);
+
+      const result = await reconcile(harness, document);
+
+      expect(result.outcomes).toEqual([]);
+      expect(result.document).toBeUndefined();
+    });
+  });
 });
