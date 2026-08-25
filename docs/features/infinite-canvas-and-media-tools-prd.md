@@ -5,13 +5,17 @@
 媒体 Provider 复用决策、画布文档加法字段与边语义）；
 2026-08-24 按业主批准的 P3 计划修订 §3/§5/§6（AI 指挥画布工具面
 CanvasRead/CanvasOp、ops 操作日志与 `agentOps.appliedSeq` 水位、视频卡
-schema、GenerateVideo 绑定与 kind 交叉校验、防失控约束）
+schema、GenerateVideo 绑定与 kind 交叉校验、防失控约束）；
+2026-08-25 按业主批准的 P4 计划修订 §3/§5/§6（直连命令生成参数入参、
+完成回执的 `outputMediaItems` 多结果数组与批量落位不变量、节点
+`generationParams` 加法字段、撤销作用域与"停止等待"取舍）
 建立：2026-08-22
 上游规范：[Canvas 插件平台产品与架构规范](canvas-plugin-platform-prd.md)（最高规范，
 见其 §2.2 画布定位与 §2.3 贡献点类型）
 实施计划：[2026-08-22 无限画布第一期实施计划](../plans/2026-08-22-infinite-canvas-plugin-phase1.md)、
 [2026-08-23 第二期实施计划（K2 图像创作闭环）](../plans/2026-08-23-infinite-canvas-k2-image-tools.md)、
-[2026-08-24 第三期实施计划（P3 AI 指挥画布 + 视频卡）](../plans/2026-08-24-infinite-canvas-p3-agent-canvas.md)
+[2026-08-24 第三期实施计划（P3 AI 指挥画布 + 视频卡）](../plans/2026-08-24-infinite-canvas-p3-agent-canvas.md)、
+[2026-08-25 第四期实施计划（P4 工作台）](../plans/2026-08-25-infinite-canvas-p4-workbench.md)
 外部来源：kunpeng 项目（MIT 许可，归属见仓库根 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)）
 
 > 本文固化第一期（K0+K1+M1-M4）的四套接口契约，并在第二期（K2，业主已批准）
@@ -158,6 +162,30 @@ interface ImageToolResult {
 - **infinite_canvas 绑定回流**：提交时挂绑定对象，媒体完成后按绑定自动
   落回画布（见 §3.2-§3.4）；两条路径共用同一回流车道与绑定形状。
 
+**P4 加法：直连命令的生成参数入参（2026-08-25）**——
+`submit_infinite_canvas_media_job` 在既有 `model` / `size` / `n` 之外增加
+三个可选入参，均为 `#[serde(default)]` 的加法字段，缺省时组装出的工具
+输入与 P4 之前逐字段一致：
+
+| 入参 | 类型 | 适用 kind | 透传到工具层的键 |
+|---|---|---|---|
+| `resolution` | `string?` | image、video | `resolution` |
+| `duration` | `number?`（整数秒） | 仅 video | `duration` |
+| `aspectRatio` | `string?` | 仅 video | `aspect_ratio` |
+
+条款：
+
+- **取值必须来自后端真实允许表**（`agentic/media/capabilities.rs` 的按模型
+  允许表，唯一真相）；前端能力表只是它的镜像，漂移由 typed 失败兜底。
+- 命令本身**不做取值校验**——校验责任仍在工具层；非法值返回
+  `MediaValidationError`，经命令映射为 `invalid_input`，前端按
+  `ImageToolErrorKind.'invalid-input'` 落成**卡片失败态**（可解释、可重试），
+  不得静默、不得 toast 字符串协议。
+- 命令按 kind 分支组装工具输入：image 分支带 `n`、不带
+  `duration`/`aspect_ratio`；video 分支带 `duration`/`aspect_ratio`、不带
+  `n`（视频工具层本就不读 `n`）。
+- `GenerateImage` / `GenerateVideo` 的工具 schema、校验与短剧路径**零改动**。
+
 **resultMode 语义（两种落图模式）**：
 
 - `'self'`（写回自身）：**仅限"此前从无图的空卡首次生成成功"**——图落进
@@ -202,6 +230,37 @@ GenerateImage 接受该字段；**自 P3 起 GenerateVideo 同样接受该字段
 `attach_infinite_canvas_media_result`，其 `outputMediaKind` 按媒体 kind
 自动写入 `"video"`；short_drama 的任何函数与行为不变）。
 
+**P4 加法：`outputMediaItems` 多结果数组（2026-08-25）**——
+批次结果里本就有完整的多结果（`batch.items[]` / `batch.assets[]`），但完成
+充实此前**只描述第 1 项**。自 P4 起 `attach_infinite_canvas_media_result()`
+在**保留全部现有单数字段、语义一字不变**的前提下追加一个数组：
+
+```jsonc
+"outputMediaItems": [
+  {
+    "itemIndex": 1,                                   // 1 基，升序
+    "mediaItemId": "{batch_id}-{item_index}",
+    "mediaKind": "image",                             // 或 "video"
+    "relativePath": "media/generated/<batch>/image-001.png",
+    "previewUrl": "https://…",                        // 可选（供应商回报）
+    "path": "<绝对本地路径>"                            // 可选
+  }
+]
+```
+
+条款：
+
+- **单数字段不变**：`outputMediaItemId` / `outputMediaKind` /
+  `outputPreviewUrl` / `outputMediaPath` / `outputMediaRelativePath` 仍按
+  改动前的规则取**批次第 1 项**（含"第 1 项保存失败时不写路径"的既有
+  行为）。老前端读不到新字段 → 行为与 P4 之前一字不差（前滚兼容）。
+- **只收成功项**：数组只包含真实落盘、可换算出 workspace 相对路径的项；
+  失败 / 未保存的项不进数组。全失败 → 空数组（不代表成功）。
+- **相对路径由 Rust 生成**（复用该函数已有的换算），前端不得自己拼路径。
+- `n=1`（默认）→ 数组恰好一项，与单数字段指向同一结果。
+- `attach_short_drama_media_result()` 与短剧的任何行为**零触碰**（是另一个
+  函数，不共享代码路径）。
+
 ### 3.3 垫图参考的收集纪律（collectRefs）
 
 - **顺序唯一权威 = 指向该卡的连线的建立先后。** 文档 `edges` 数组即创建
@@ -231,6 +290,28 @@ GenerateImage 接受该字段；**自 P3 起 GenerateVideo 同样接受该字段
 - 重复事件幂等：operationId 已是终态则 no-op。
 - 失败按 `ImageToolErrorKind` 七类枚举显式呈现（含
   `provider_not_configured` → 显式失败态），禁止静默或 toast 字符串协议。
+
+**批量落位规则（P4，配合 §3.2 的 `outputMediaItems`）**：
+
+1. 落位锚点仍是 `operationId`（K2 §3.4 不变）；`outputMediaItems` 按
+   `itemIndex` 升序处理。
+2. **第 1 项落到绑定的 `nodeId`**（self 模式 = 空卡自身；derived 模式 =
+   派发时建的占位卡），走既有落位解析——其"已有 `mediaRef` 就跳过"的
+   never-overwrite 判据原样生效。
+3. 第 2..N 项各生成一张新卡：`kind` 同锚点卡，`mediaRef` = 该项，
+   `derivedFrom = { sourceNodeId: 锚点卡, toolId, operationId }`，同时新增
+   一条 `锚点卡 → 新卡` 的边（`role: 'derived'`，因此不进垫图参考收集，
+   K2 §3.3 语义保持）；位置 = 锚点卡右侧按序偏移。
+4. **派生 nodeId 必须确定性派生**：`node-<operationId>-i<itemIndex>`。
+   回流事件可能重放、pending 对账可能二次应用，确定性 ID 让"已存在即
+   no-op"天然幂等（与 P3 CanvasOp 的 ID 幂等纪律同源）。
+5. **半成功（`status: "partial"`）**：只落数组里真实带 `relativePath` 的项；
+   若第 1 项缺失但后面有成功项，把**第一个可用项落到锚点卡**（不让用户
+   点的那张卡空着），其余仍派生；一项都没有 → 走既有失败分类（typed，
+   卡上显示可重试）。
+6. `n=1`（默认）时数组长度为 1 → 与 P4 之前的行为逐字节等价。
+7. `mediaRef` 不可变与 never-overwrite 在批量路径下同样是硬不变量：批量
+   落位只允许**新增节点 / 新增边 / 填充自己登记的 pending 节点**。
 
 ### 3.5 保留不变量
 
@@ -405,6 +486,21 @@ interface InfiniteCanvasNode {
     /** P3 加法：本次生成的媒体种类；缺省 = 'image'。 */
     mediaKind?: 'image' | 'video';
   };
+
+  // —— P4 加法字段（schemaVersion 保持 '1'，解析器容错读取，旧文档无损）——
+  /**
+   * 这张生成卡上次选定的生成参数，下次生成沿用。取值必须来自后端真实
+   * 允许表（`capabilities.rs`），换模型时由 `normalizeGenerationParams`
+   * 夹紧到新模型支持的取值。
+   */
+  generationParams?: {
+    model?: string;
+    size?: string;
+    resolution?: string;
+    n?: number;          // 1..=4，且不得超过所选模型的 nMax
+    duration?: number;   // 仅视频卡
+    aspectRatio?: string;// 仅视频卡
+  };
 }
 
 interface InfiniteCanvasEdge {
@@ -424,6 +520,23 @@ K2 边语义（连线即参考、顺序即权威）：
 - 解析器对损坏的 `prompt`/`derivedFrom`/`generation` 值按"字段缺失"处理，
   不判 invalid-document；旧代码读新文档时未知字段被忽略，不炸。损坏的
   `generation.mediaKind` 与文档级 `agentOps` 同样按字段缺失处理（P3）。
+
+P4 `generationParams` 语义（加法字段）：
+
+- 与 `prompt` / `generation.mediaKind` 同款容错条款：损坏的
+  `generationParams`（字符串、数组、非法 `n`、非数字 `duration` 等）按
+  **字段缺失**处理，不判 `invalid-document`，且不影响同文档其它节点。
+  旧解析器读到该字段直接忽略（节点内未知键本就被丢弃），旧文档无损，
+  **不构成 P3 `kind:'video'` 那种整文档拒绝的风险**。
+- **AI 不得改这些参数**：`CanvasOp` 的 `update_node` 白名单**不含**
+  `generationParams`（保持 §3.6.4 白名单原样）——AI 改参数会放大花钱面，
+  与"防失控"条款同源；如需放开另行立项。
+- **复制卡片 = 复制引用**（P4）：复制/再制/粘贴带过去 `kind`、`position`
+  （偏移后）、`size`、`text`、`prompt`、`stylePresetId`、`generationParams`
+  与 `mediaRef`（**同一 workspacePath + relativePath，不复制媒体文件**，
+  符合本节"节点内嵌媒体是引用"的既定条款）；**不带** `generation`
+  （一个 operationId 只能有一个落点）、`derivedFrom`（血缘属于原卡）、
+  `domainRef`（K3 保留字段，任何路径不得赋值）。删卡只删卡，不删媒体文件。
 
 P3 视频卡语义（与图片卡同一套规则）：
 
@@ -479,6 +592,44 @@ OpsBridge 落位，§3.6）与视频卡（`kind:'video'`、GenerateVideo 的
 `infinite_canvas` 绑定、图生视频、kind 交叉校验）；仍不引入新
 Provider、渠道或密钥。
 
+**P4（业主已批准，见 [P4 实施计划](../plans/2026-08-25-infinite-canvas-p4-workbench.md)）
+覆盖**：全屏查看与另存本地、生成参数（模型/比例/清晰度/时长）、批量出图
+`n>1` 落成多张卡、撤销重做、多选与复制粘贴与右键菜单、任务队列面板、
+对齐辅助线与吸附。**不新增任何生成能力**，仍不引入新 Provider、渠道或
+密钥；后端只有两处可选字段加法（§3.1 的生成参数入参、§3.2 的
+`outputMediaItems`），短剧路径零触碰。
+
+**P4 撤销作用域与不可撤销清单**（契约条款，测试断言）：
+
+- **可撤销（用户手动编辑）**：加卡、删卡、拖动（拖动结束的那一次）、
+  连线/断线、改文本、改提示词、改风格预设、改 `generationParams`、
+  粘贴与再制。
+- **不可撤销（typed 拒绝 + 明确说明，不静默）**：
+
+| 操作 | 为什么不可撤销 |
+|---|---|
+| 生成成功落图（含批量派生卡） | 结果是花过钱的真实产物；撤销 = 悄悄扔掉已付费资产。要删请手动删（走删除确认）|
+| AI 的 `CanvasOp` 批次落位 | 另一条写入线且有 `agentOps.appliedSeq` 水位；撤销会让水位与内容脱节，日志重放又补回来 |
+| 发起生成 / 重试与失败标记 | 任务已发出，撤销不撤单；撤掉占位卡等于把回流落点删掉 |
+| 视口平移缩放 | 不是内容编辑；计入历史会让 Ctrl+Z 变成"回到上一个视角" |
+
+- **历史栈只在内存**：不进文档、不进磁盘，schema 零改动；深度上限 50，
+  面板卸载 / 切工作区即清空，重开画布不保留（UI 明说"本次打开有效"）。
+- **与 AI/回流并发**：不做整文档快照回滚；逐条反向补丁经
+  `mutateDefaultDocument` 排进既有按路径串行队列，并在 mutator 内按最新
+  文档前置校验——受影响节点若已获得 `mediaRef`、已挂上 `generation` 或
+  已被他人删除，则该条目及更早条目整体作废并给 typed 提示。
+
+**P4 已知取舍："停止等待" ≠ 取消**：后端媒体管线**没有任何中止入口**
+（轮询任务是游离的 `tokio::spawn`，无 `JoinHandle`、无 CancellationToken、
+无注册表；结果里出现的 `cancelled` 只是供应商回报的状态字符串）。因此
+任务面板的按钮叫**"停止等待"**而不是"取消"：前端把该节点置
+`generation.status='failed'` + `errorKind='cancelled'`（沿用七类枚举，
+不扩枚举），**远端任务继续执行、额度照常消耗**；若结果稍后回流，因锚点
+`operationId` 仍在且节点无 `mediaRef`，**图仍会落进这张卡**——这是刻意
+保留的行为（钱已经花了，不该把结果扔掉），并有测试断言。真正的后端
+取消需要新增中止令牌注册表与新桌面命令，需业主另行批准立项。
+
 P3 明确不做（详见 P3 计划 §5）：分组卡（`kind:'group'`）渲染（K4
 候选）、蒙版画笔（像素级遮罩 inpaint/erase）、画布与**现有 AI 短剧
 中心**（Short Drama center，即对标产品所说的"流水线工坊"在 Void 中的
@@ -489,3 +640,14 @@ P3 明确不做（详见 P3 计划 §5）：分组卡（`kind:'group'`）渲染�
 后台直连的领域命令端口（路径 B/C 直写画布）、远程 workspace（继续
 fail-closed）、修改短剧任何现有运行时行为。每一项都需要业主另行批准
 后进入后续切片。
+
+> 其中"批量出图出视频（`n` 固定 1）"一项自 P4 起解除：用户在画布上手动
+> 选择的 `n`（1..=4，且不超过所选模型 `nMax`）可批量出图并落成多张卡
+> （§3.2/§3.4）。**CanvasOp 单批 ≤ 20 不放宽，`begin_generation` 也不放开
+> `n`——AI 仍不得发起批量生成**。
+
+P4 明确不做（详见 P4 计划 §5）：蒙版画笔、裁剪、分镜拆分、图生提示词、
+机位预设库、风格缩略图、分组卡渲染、悬空连线建卡与节点缩放手柄、真正的
+后端取消、系统剪贴板互通、复制卡片时复制媒体文件、撤销记录持久化、
+让 AI 改 `generationParams` 或发起 `n>1` 批量、新 Provider/渠道/密钥、
+远程 workspace（继续 fail-closed）、修改短剧任何运行时行为。
