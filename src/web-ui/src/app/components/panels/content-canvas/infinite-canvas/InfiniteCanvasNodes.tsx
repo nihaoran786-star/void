@@ -42,6 +42,7 @@ import type {
   InfiniteCanvasGenerationParams,
 } from '@/shared/services/infinite-canvas';
 import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
+import { InfiniteCanvasVideoCard } from './InfiniteCanvasVideoCard';
 
 export interface InfiniteCanvasMediaRef {
   workspacePath: string;
@@ -286,18 +287,12 @@ const NodeMedia: React.FC<{
 
   if (previewUrl) {
     if (mediaKind === 'video') {
-      // preload="metadata" keeps off-screen cards cheap (poster frame +
-      // duration only); the video data streams when the user hits play.
-      // S4 replaces the browser chrome with the inline transport bar (§5);
-      // until then the native controls stay so the clip is playable.
+      // §5: the browser's control chrome is replaced by the inline transport
+      // bar, which only appears on hover.
       return (
-        // Generated clip: no caption track source exists for it.
-        <video
-          className="infinite-canvas-node__video nodrag"
+        <InfiniteCanvasVideoCard
           src={previewUrl}
-          controls
-          preload="metadata"
-          aria-label={fileNameOf(mediaRef.relativePath)}
+          label={fileNameOf(mediaRef.relativePath)}
           onError={onMediaError}
         />
       );

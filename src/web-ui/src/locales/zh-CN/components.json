@@ -931,8 +931,7 @@
       "addVideoCard": "新建视频卡"
     },
     "empty": {
-      "hint": "画布还是空的。先建一张生成卡，写好提示词就能出图。",
-      "createCard": "新建生成卡"
+      "hint": "这里还是空的。"
     },
     "textNode": {
       "ariaLabel": "文字节点",
@@ -1016,7 +1015,13 @@
       "pending": "视频生成中…",
       "blankHint": "连上参考图、写好提示词后点击生成视频。",
       "deriveFromImage": "生成视频",
-      "referenceNotSupported": "视频卡不能作为参考，请断开这条连线。"
+      "referenceNotSupported": "视频卡不能作为参考，请断开这条连线。",
+      "play": "播放",
+      "pause": "暂停",
+      "mute": "静音",
+      "unmute": "取消静音",
+      "fullscreen": "全屏",
+      "seek": "进度"
     },
     "viewer": {
       "title": "媒体查看器",

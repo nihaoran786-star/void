@@ -211,53 +211,18 @@
   }
 }
 
-// Empty canvas: one short line and one quiet entry point, centered above the
-// viewport; the canvas itself stays fully interactive underneath.
+// §9: an empty board is just the board. One short grey line, sitting above
+// the generator; the canvas stays fully interactive underneath it.
 .infinite-canvas-panel__empty {
   position: absolute;
   z-index: 4;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--infinite-canvas-muted);
-  pointer-events: none;
-
-  svg {
-    color: color-mix(in srgb, var(--infinite-canvas-muted) 70%, transparent);
-  }
-
-  p {
-    margin: 0;
-    font-size: 13px;
-  }
-}
-
-.infinite-canvas-panel__empty-cta {
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  border: 1px solid var(--infinite-canvas-accent-line);
-  border-radius: 6px;
-  background: var(--infinite-canvas-accent-soft);
-  color: var(--infinite-canvas-text);
-  cursor: pointer;
+  bottom: 190px;
+  left: 50%;
+  margin: 0;
+  color: var(--canvas-text-faint);
   font-size: 12px;
-  font-weight: 500;
-  pointer-events: auto;
-
-  &:hover {
-    border-color: var(--infinite-canvas-accent);
-  }
-
-  &:focus-visible {
-    outline: 1px solid var(--infinite-canvas-accent);
-    outline-offset: 2px;
-  }
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 
 // ── Node cards ─────────────────────────────────────────────────────────────
@@ -358,6 +323,119 @@
 
 .infinite-canvas-node__video {
   background: var(--canvas-surface-card);
+}
+
+// ── §5: the inline video transport ─────────────────────────────────────────
+// At rest the card is one frame. The bar and the mute toggle fade in on
+// hover (or when something inside them takes focus) and never take space.
+
+.infinite-canvas-video {
+  position: relative;
+  line-height: 0;
+}
+
+.infinite-canvas-video__mute,
+.infinite-canvas-video__transport {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.infinite-canvas-video:hover .infinite-canvas-video__mute,
+.infinite-canvas-video:hover .infinite-canvas-video__transport,
+.infinite-canvas-video:focus-within .infinite-canvas-video__mute,
+.infinite-canvas-video:focus-within .infinite-canvas-video__transport {
+  opacity: 1;
+}
+
+.infinite-canvas-video__mute {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+  color: #fff;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(0 0 0 / 65%);
+  }
+}
+
+.infinite-canvas-video__transport {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: linear-gradient(to top, rgb(0 0 0 / 62%), transparent);
+  color: #fff;
+  line-height: 1;
+}
+
+.infinite-canvas-video__button {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.infinite-canvas-video__time {
+  flex: none;
+  color: rgb(255 255 255 / 82%);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.infinite-canvas-video__track {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  height: 3px;
+  flex: 1;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 26%);
+}
+
+.infinite-canvas-video__progress {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  transform-origin: left center;
+}
+
+// The range input is the real (keyboard-reachable) control; the painted bar
+// above sits behind it.
+.infinite-canvas-video__seek {
+  position: absolute;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  inset: -5px 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
 }
 
 // The still image doubles as the viewer trigger; the button is a bare frame
@@ -748,14 +826,22 @@
 
 // ── Instruction dialog ─────────────────────────────────────────────────────
 
+// §7: dialogs share the picker surface — dark, large radius, no heavy border.
 .infinite-canvas-dialog {
+  position: absolute;
+  z-index: 15;
+  top: 16px;
+  left: 50%;
   display: flex;
-  flex: 0 0 auto;
+  width: min(460px, 84%);
   flex-direction: column;
   gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--infinite-canvas-hairline);
-  background: var(--infinite-canvas-surface);
+  padding: 14px 16px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 16px;
+  background: var(--canvas-surface-overlay);
+  box-shadow: 0 20px 48px rgb(0 0 0 / 50%);
+  transform: translateX(-50%);
 }
 
 .infinite-canvas-dialog__header {
@@ -1236,16 +1322,25 @@
 
 // ── Pickers (image library, style presets) ─────────────────────────────────
 
+// §7: one dark, large-radius floating surface for every picker and popover.
+// No heavy border, one small title line, dense options.
 .infinite-canvas-picker {
+  position: absolute;
+  z-index: 14;
+  top: 16px;
+  left: 50%;
   display: flex;
   overflow: auto;
-  max-height: 45%;
-  flex: 0 0 auto;
+  width: min(560px, 84%);
+  max-height: 62%;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--infinite-canvas-hairline);
-  background: var(--infinite-canvas-surface);
+  padding: 14px 16px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 16px;
+  background: var(--canvas-surface-overlay);
+  box-shadow: 0 20px 48px rgb(0 0 0 / 50%);
+  transform: translateX(-50%);
 }
 
 .infinite-canvas-picker__header {
@@ -1326,91 +1421,154 @@
   }
 }
 
-// Category filter: a scaled-down cousin of the Staff HQ filter pills.
+// §7: the category row is plain text, never coloured capsules.
 .infinite-canvas-picker__pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 12px;
 }
 
 .infinite-canvas-picker__pill {
-  padding: 2px 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: var(--infinite-canvas-hover);
-  color: var(--infinite-canvas-muted);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--canvas-text-faint);
   cursor: pointer;
   font-size: 11px;
   white-space: nowrap;
 
   &:hover {
-    color: var(--infinite-canvas-text);
+    color: var(--canvas-text-primary);
   }
 
   &[data-active='true'] {
-    background: var(--infinite-canvas-accent-soft);
-    color: var(--infinite-canvas-text);
+    color: var(--canvas-text-primary);
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
 }
 
+// §7: a thumbnail grid. Where no thumbnail exists the tile is a flat colour
+// block derived from the entry, so the grid still reads as a grid.
 .infinite-canvas-picker__list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   margin: 0;
   padding: 0;
-  gap: 6px;
+  gap: 8px;
   list-style: none;
 }
 
 .infinite-canvas-picker__item {
   display: flex;
   width: 100%;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 6px;
-  background: var(--infinite-canvas-bg);
-  color: var(--infinite-canvas-text);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--canvas-text-primary);
   cursor: pointer;
   font-size: 11px;
   text-align: left;
 
-  &:hover {
-    border-color: var(--infinite-canvas-border);
+  &:hover .infinite-canvas-picker__thumbnail,
+  &:hover .infinite-canvas-picker__swatch {
+    outline: 1px solid var(--canvas-surface-line);
   }
 
-  &[data-selected='true'] {
-    border-color: var(--infinite-canvas-accent);
-    background: var(--infinite-canvas-accent-soft);
+  &[data-selected='true'] .infinite-canvas-picker__thumbnail,
+  &[data-selected='true'] .infinite-canvas-picker__swatch {
+    outline: 2px solid var(--canvas-accent);
   }
 }
 
-// Style presets are text cards: name over category, tidy two-line grid cell.
-.infinite-canvas-picker--style .infinite-canvas-picker__item {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-}
-
-.infinite-canvas-picker__thumbnail {
-  width: 28px;
-  height: 28px;
-  flex: none;
-  border-radius: 4px;
+.infinite-canvas-picker__thumbnail,
+.infinite-canvas-picker__swatch {
+  display: block;
+  width: 100%;
+  height: 76px;
+  border-radius: 10px;
+  background: var(--canvas-surface-card);
   object-fit: cover;
+  outline-offset: -1px;
+}
+
+.infinite-canvas-picker__swatch {
+  background: hsl(var(--swatch-hue, 220) 24% 26%);
 }
 
 .infinite-canvas-picker__item-name {
   overflow: hidden;
   max-width: 100%;
+  padding: 0 2px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .infinite-canvas-picker__item-meta {
-  color: var(--infinite-canvas-muted);
+  padding: 0 2px;
+  color: var(--canvas-text-faint);
   font-size: 10px;
+}
+
+// ── §7: parameter popover — compact groups, values as small pills ──────────
+
+.infinite-canvas-params {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.infinite-canvas-params__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.infinite-canvas-params__label {
+  color: var(--canvas-text-faint);
+  font-size: 11px;
+}
+
+.infinite-canvas-params__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.infinite-canvas-params__option {
+  padding: 3px 10px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    border-color: var(--canvas-surface-line);
+    color: var(--canvas-text-primary);
+  }
+
+  &[data-selected='true'] {
+    border-color: transparent;
+    background: var(--canvas-text-primary);
+    color: var(--canvas-surface-base);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.infinite-canvas-params__hint {
+  color: var(--canvas-text-faint);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 // ── Alignment guides (P4 W9) ───────────────────────────────────────────────

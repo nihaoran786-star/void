@@ -19,6 +19,15 @@ const FAMILIES: readonly { family: StylePresetFamily; labelKey: string }[] = [
 
 const ALL_CATEGORIES = '';
 
+/** Stable pseudo-random hue per preset id; presentation only. */
+function swatchHue(presetId: string): number {
+  let hash = 0;
+  for (let index = 0; index < presetId.length; index += 1) {
+    hash = (hash * 31 + presetId.charCodeAt(index)) % 360;
+  }
+  return hash;
+}
+
 export interface InfiniteCanvasStylePickerProps {
   currentPresetId?: string;
   catalog?: StylePresetCatalog;
@@ -132,6 +141,17 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
                 data-selected={preset.presetId === currentPresetId ? 'true' : undefined}
                 onClick={() => onPick(preset.presetId)}
               >
+                {/*
+                  §7: the grid wants a tile. There are no preset thumbnails
+                  (K0-1 option A), so the tile is a flat colour block keyed off
+                  the preset id — stable per preset, and never mistaken for a
+                  real picture.
+                */}
+                <span
+                  className="infinite-canvas-picker__swatch"
+                  style={{ '--swatch-hue': swatchHue(preset.presetId) } as React.CSSProperties}
+                  aria-hidden="true"
+                />
                 <span className="infinite-canvas-picker__item-name">{preset.name}</span>
                 <span className="infinite-canvas-picker__item-meta">{preset.category}</span>
               </button>

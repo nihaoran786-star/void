@@ -321,6 +321,49 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
     expect(notice?.textContent).toContain('infiniteCanvas.viewer.saveFailed');
   });
 
+  // —— §5: the inline video transport ———————————————————————————————————————
+
+  it('gives a video card its own transport bar instead of the browser chrome', async () => {
+    seed([VIDEO_NODE]);
+    await renderPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const card = container.querySelector('[data-node-id="n-video"]');
+    expect(card).not.toBeNull();
+    const video = card!.querySelector('video');
+    expect(video).not.toBeNull();
+    // The native control chrome is gone; ours is there instead.
+    expect(video!.hasAttribute('controls')).toBe(false);
+    expect(card!.querySelector('[data-canvas-video="transport"]')).not.toBeNull();
+    for (const action of ['play', 'seek', 'fullscreen', 'mute']) {
+      expect(card!.querySelector(`[data-canvas-video-action="${action}"]`)).not.toBeNull();
+    }
+    expect(card!.querySelector('[data-canvas-video-time="elapsed"]')?.textContent).toBe('0:00');
+  });
+
+  it('toggles mute from the card without touching the document', async () => {
+    seed([VIDEO_NODE]);
+    await renderPanel();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const mute = container.querySelector<HTMLButtonElement>(
+      '[data-canvas-video-action="mute"]',
+    );
+    if (!mute) throw new Error('no mute toggle');
+    expect(mute.getAttribute('data-muted')).toBeNull();
+    await act(async () => {
+      Simulate.click(mute);
+    });
+    expect(
+      container.querySelector('[data-canvas-video-action="mute"]')
+        ?.getAttribute('data-muted'),
+    ).toBe('true');
+  });
+
   it('offers no viewer entry on a blank generation card', async () => {
     seed([BLANK_NODE]);
     await renderPanel();

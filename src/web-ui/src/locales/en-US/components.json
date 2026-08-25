@@ -931,8 +931,7 @@
       "addVideoCard": "New video card"
     },
     "empty": {
-      "hint": "An empty canvas. Start with a generation card: write a prompt and generate images.",
-      "createCard": "New generation card"
+      "hint": "Nothing here yet."
     },
     "textNode": {
       "ariaLabel": "Text node",
@@ -1016,7 +1015,13 @@
       "pending": "Generating video...",
       "blankHint": "Connect reference images, write a prompt, then generate the video.",
       "deriveFromImage": "Make video",
-      "referenceNotSupported": "A video card cannot be used as a reference; remove that connection."
+      "referenceNotSupported": "A video card cannot be used as a reference; remove that connection.",
+      "play": "Play",
+      "pause": "Pause",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "fullscreen": "Full screen",
+      "seek": "Seek"
     },
     "viewer": {
       "title": "Media viewer",

@@ -1,5 +1,8 @@
 /**
- * Generation parameter popover (P4 W3, plan §2.2).
+ * Generation parameter popover (P4 W3, plan §2.2), reworked for the visual
+ * language §7: one dark rounded surface, a one-line title, compact groups and
+ * values as small pill buttons. Values a model cannot produce are not offered
+ * at all rather than stacked up greyed out.
  *
  * Every choice offered here comes from the front-end capability table, which
  * mirrors `agentic/media/capabilities.rs`: the popover never invents a value
@@ -28,6 +31,55 @@ import {
 
 /** Sentinel for "send nothing, let the provider decide". */
 const PROVIDER_DEFAULT = '';
+
+interface ParamOption {
+  value: string;
+  label: string;
+}
+
+/** One compact group: a small label and a dense row of value pills. */
+const ParamGroup: React.FC<{
+  field: string;
+  label: string;
+  value: string;
+  options: readonly ParamOption[];
+  /** The model pins this field to a single value; the row is read-only. */
+  locked?: boolean;
+  hint?: string;
+  onPick: (value: string) => void;
+}> = ({ field, label, value, options, locked, hint, onPick }) => (
+  <div className="infinite-canvas-params__group">
+    <span className="infinite-canvas-params__label">{label}</span>
+    <div
+      className="infinite-canvas-params__options"
+      data-params-field={field}
+      data-params-value={value}
+      data-params-locked={locked ? 'true' : undefined}
+      role="group"
+      aria-label={label}
+    >
+      {options.map(option => (
+        <button
+          key={option.value}
+          type="button"
+          className="infinite-canvas-params__option"
+          data-params-option={option.value}
+          data-selected={option.value === value ? 'true' : undefined}
+          aria-pressed={option.value === value}
+          disabled={locked}
+          onClick={() => onPick(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+    {hint ? (
+      <small className="infinite-canvas-params__hint" data-params-hint={field}>{hint}</small>
+    ) : null}
+  </div>
+);
+
+ParamGroup.displayName = 'InfiniteCanvasParamGroup';
 
 export interface InfiniteCanvasParamsPopoverProps {
   mediaKind: InfiniteCanvasGenerationMediaKind;
@@ -74,6 +126,13 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
     : capability.aspectRatios;
   const ratioValue = (capability.mediaKind === 'image' ? params?.size : params?.aspectRatio)
     ?? PROVIDER_DEFAULT;
+  const providerDefaultOption: ParamOption = {
+    value: PROVIDER_DEFAULT,
+    label: t('infiniteCanvas.params.providerDefault'),
+  };
+  const nMax = capability.mediaKind === 'image'
+    ? Math.min(capability.nMax, INFINITE_CANVAS_MAX_BATCH_SIZE)
+    : 1;
 
   return (
     <aside
@@ -100,103 +159,81 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
           {t('infiniteCanvas.params.dropped', { values: dropped.join(', ') })}
         </p>
       ) : null}
-      <div className="infinite-canvas-picker__filters">
-        <label className="infinite-canvas-picker__filter">
-          <span>{t('infiniteCanvas.params.model')}</span>
-          <select
-            data-params-field="model"
-            value={selectedModelId}
-            onChange={event => update({}, event.target.value)}
-          >
-            {models.map(model => (
-              <option key={model.modelId} value={model.modelId}>
-                {model.modelId === defaultInfiniteCanvasModelId(mediaKind)
-                  ? `${model.modelId} (${t('infiniteCanvas.params.defaultModel')})`
-                  : model.modelId}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="infinite-canvas-picker__filter">
-          <span>{t('infiniteCanvas.params.aspectRatio')}</span>
-          <select
-            data-params-field="aspectRatio"
-            value={ratioValue}
-            onChange={event => {
-              const value = event.target.value || undefined;
-              update(isImage ? { size: value } : { aspectRatio: value });
-            }}
-          >
-            <option value={PROVIDER_DEFAULT}>{t('infiniteCanvas.params.providerDefault')}</option>
-            {ratios.map(ratio => (
-              <option key={ratio} value={ratio}>{ratio}</option>
-            ))}
-          </select>
-        </label>
+      <div className="infinite-canvas-params">
+        <ParamGroup
+          field="model"
+          label={t('infiniteCanvas.params.model')}
+          value={selectedModelId}
+          options={models.map(model => ({
+            value: model.modelId,
+            label: model.modelId === defaultInfiniteCanvasModelId(mediaKind)
+              ? `${model.modelId} (${t('infiniteCanvas.params.defaultModel')})`
+              : model.modelId,
+          }))}
+          onPick={value => update({}, value)}
+        />
+        <ParamGroup
+          field="aspectRatio"
+          label={t('infiniteCanvas.params.aspectRatio')}
+          value={ratioValue}
+          options={[
+            providerDefaultOption,
+            ...ratios.map(ratio => ({ value: ratio, label: ratio })),
+          ]}
+          onPick={raw => {
+            const value = raw || undefined;
+            update(isImage ? { size: value } : { aspectRatio: value });
+          }}
+        />
         {capability.resolutions.length > 0 ? (
-          <label className="infinite-canvas-picker__filter">
-            <span>{t('infiniteCanvas.params.resolution')}</span>
-            <select
-              data-params-field="resolution"
-              value={params?.resolution ?? PROVIDER_DEFAULT}
-              onChange={event => update({ resolution: event.target.value || undefined })}
-            >
-              <option value={PROVIDER_DEFAULT}>
-                {t('infiniteCanvas.params.providerDefault')}
-              </option>
-              {capability.resolutions.map(resolution => (
-                <option key={resolution} value={resolution}>{resolution}</option>
-              ))}
-            </select>
-          </label>
+          <ParamGroup
+            field="resolution"
+            label={t('infiniteCanvas.params.resolution')}
+            value={params?.resolution ?? PROVIDER_DEFAULT}
+            options={[
+              providerDefaultOption,
+              ...capability.resolutions.map(resolution => ({
+                value: resolution,
+                label: resolution,
+              })),
+            ]}
+            onPick={raw => update({ resolution: raw || undefined })}
+          />
         ) : null}
-        {capability.mediaKind === 'image' ? (() => {
+        {capability.mediaKind === 'image' ? (
           // P4 W4: the batch selector only offers what the chosen model can
           // actually produce in one call. gpt-image-2 is pinned to 1 by the
-          // Rust capability table, so the control is disabled there with the
+          // Rust capability table, so the row is read-only there with the
           // reason spelled out instead of silently missing.
-          const nMax = Math.min(capability.nMax, INFINITE_CANVAS_MAX_BATCH_SIZE);
-          const counts = Array.from({ length: nMax }, (_unused, index) => index + 1);
-          const locked = nMax <= 1;
-          return (
-            <label className="infinite-canvas-picker__filter">
-              <span>{t('infiniteCanvas.params.count')}</span>
-              <select
-                data-params-field="count"
-                value={String(Math.min(params?.n ?? 1, nMax))}
-                disabled={locked}
-                onChange={event => update({ n: Number(event.target.value) })}
-              >
-                {counts.map(count => (
-                  <option key={count} value={String(count)}>{String(count)}</option>
-                ))}
-              </select>
-              <small className="infinite-canvas-picker__hint" data-params-hint="count">
-                {locked
-                  ? t('infiniteCanvas.params.countLocked')
-                  : t('infiniteCanvas.params.countBilling')}
-              </small>
-            </label>
-          );
-        })() : null}
+          <ParamGroup
+            field="count"
+            label={t('infiniteCanvas.params.count')}
+            value={String(Math.min(params?.n ?? 1, nMax))}
+            options={Array.from({ length: nMax }, (_unused, index) => ({
+              value: String(index + 1),
+              label: String(index + 1),
+            }))}
+            locked={nMax <= 1}
+            hint={nMax <= 1
+              ? t('infiniteCanvas.params.countLocked')
+              : t('infiniteCanvas.params.countBilling')}
+            onPick={value => update({ n: Number(value) })}
+          />
+        ) : null}
         {capability.mediaKind === 'video' ? (
-          <label className="infinite-canvas-picker__filter">
-            <span>{t('infiniteCanvas.params.duration')}</span>
-            <select
-              data-params-field="duration"
-              value={params?.duration === undefined ? PROVIDER_DEFAULT : String(params.duration)}
-              onChange={event => update({
-                duration: event.target.value ? Number(event.target.value) : undefined,
-              })}
-            >
-              <option value={PROVIDER_DEFAULT}>
-                {t('infiniteCanvas.params.providerDefault')}
-              </option>
-              {capability.durations.map(duration => (
-                <option key={duration} value={String(duration)}>{`${duration}s`}</option>
-              ))}
-            </select>
-          </label>
+          <ParamGroup
+            field="duration"
+            label={t('infiniteCanvas.params.duration')}
+            value={params?.duration === undefined ? PROVIDER_DEFAULT : String(params.duration)}
+            options={[
+              providerDefaultOption,
+              ...capability.durations.map(duration => ({
+                value: String(duration),
+                label: `${duration}s`,
+              })),
+            ]}
+            onPick={raw => update({ duration: raw ? Number(raw) : undefined })}
+          />
         ) : null}
       </div>
     </aside>

@@ -29,7 +29,6 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Sparkles } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -2162,17 +2161,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           />
         ) : null}
         {flowNodes.length === 0 ? (
-          <div className="infinite-canvas-panel__empty">
-            <Sparkles size={20} aria-hidden="true" />
-            <p>{t('infiniteCanvas.empty.hint')}</p>
-            <button
-              type="button"
-              className="infinite-canvas-panel__empty-cta"
-              onClick={onAddGenerationCard}
-            >
-              {t('infiniteCanvas.empty.createCard')}
-            </button>
-          </div>
+          // §9: an empty board is the board. One short grey line above the
+          // generator — no illustration, no paragraph, no second CTA (the
+          // generator below it already is the way in).
+          <p className="infinite-canvas-panel__empty">{t('infiniteCanvas.empty.hint')}</p>
         ) : null}
       </div>
       {viewerNodeId ? (

@@ -106,7 +106,11 @@ export const InfiniteCanvasImagePicker: React.FC<InfiniteCanvasImagePickerProps>
                     alt=""
                     draggable={false}
                   />
-                ) : null}
+                ) : (
+                  // §7: the grid stays a grid — a file with no thumbnail gets
+                  // a flat block rather than a ragged text-only row.
+                  <span className="infinite-canvas-picker__swatch" aria-hidden="true" />
+                )}
                 <span className="infinite-canvas-picker__item-name">
                   {item.fileName}
                 </span>

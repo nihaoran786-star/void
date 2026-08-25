@@ -198,21 +198,33 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     });
   }
 
-  function field(name: string): HTMLSelectElement {
-    const element = container.querySelector<HTMLSelectElement>(`[data-params-field="${name}"]`);
+  // §7: parameter values are small pill buttons now, not native selects.
+  function field(name: string): HTMLElement {
+    const element = container.querySelector<HTMLElement>(`[data-params-field="${name}"]`);
     if (!element) throw new Error(`params field not found: ${name}`);
     return element;
   }
 
   function optionsOf(name: string): string[] {
-    return Array.from(field(name).options).map(option => option.value);
+    return Array.from(field(name).querySelectorAll('[data-params-option]'))
+      .map(option => option.getAttribute('data-params-option') ?? '');
+  }
+
+  function valueOf(name: string): string {
+    return field(name).getAttribute('data-params-value') ?? '';
+  }
+
+  function isLocked(name: string): boolean {
+    return field(name).getAttribute('data-params-locked') === 'true';
   }
 
   async function choose(name: string, value: string): Promise<void> {
-    const select = field(name);
+    const option = field(name).querySelector<HTMLButtonElement>(
+      `[data-params-option="${value}"]`,
+    );
+    if (!option) throw new Error(`params option not found: ${name}=${value}`);
     await act(async () => {
-      select.value = value;
-      Simulate.change(select);
+      Simulate.click(option);
     });
   }
 
@@ -286,9 +298,9 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     root = createRoot(container);
     await renderPanel();
     await openParams('card-image');
-    expect(field('model').value).toBe('gemini-3.1-flash-image-preview');
-    expect(field('aspectRatio').value).toBe('1:4');
-    expect(field('resolution').value).toBe('0.5K');
+    expect(valueOf('model')).toBe('gemini-3.1-flash-image-preview');
+    expect(valueOf('aspectRatio')).toBe('1:4');
+    expect(valueOf('resolution')).toBe('0.5K');
 
     await generate('card-image');
     expect(invocations).toHaveLength(1);
@@ -348,7 +360,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
 
     // gpt-image-2 has n_max = 1 in the Rust capability table.
     expect(optionsOf('count')).toEqual(['1']);
-    expect(field('count').disabled).toBe(true);
+    expect(isLocked('count')).toBe(true);
     expect(container.querySelector('[data-params-hint="count"]')?.textContent)
       .toBe('infiniteCanvas.params.countLocked');
   });
@@ -360,7 +372,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
 
     await choose('model', 'gemini-3-pro-image-preview');
     expect(optionsOf('count')).toEqual(['1', '2', '3', '4']);
-    expect(field('count').disabled).toBe(false);
+    expect(isLocked('count')).toBe(false);
     expect(container.querySelector('[data-params-hint="count"]')?.textContent)
       .toBe('infiniteCanvas.params.countBilling');
 
@@ -384,7 +396,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
 
     // Nothing worth persisting is left, so the field goes away entirely.
     expect(nodeOf('card-image')).not.toHaveProperty('generationParams');
-    expect(field('count').value).toBe('1');
+    expect(valueOf('count')).toBe('1');
   });
 
   it('never offers a batch selector on a video card', async () => {
