@@ -829,6 +829,141 @@ describe('InfiniteCanvasDocumentService', () => {
     expect(result.document.nodes[0].generation).not.toHaveProperty('mediaKind');
   });
 
+  it('round-trips the P4 additive generationParams on image and video cards', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 1 });
+
+    await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [{
+        nodeId: 'image-1',
+        kind: 'image' as const,
+        position: { x: 0, y: 0 },
+        prompt: 'a red fox',
+        generationParams: {
+          model: 'gemini-3-pro-image-preview',
+          size: '16:9',
+          resolution: '2K',
+          n: 3,
+        },
+      }, {
+        nodeId: 'video-1',
+        kind: 'video' as const,
+        position: { x: 400, y: 0 },
+        generationParams: { aspectRatio: '9:16', resolution: '1080p', duration: 8 },
+      }],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+    await service.flushPendingWrites();
+
+    const reloaded = await new InfiniteCanvasDocumentService(store.port)
+      .loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(reloaded.status).toBe('loaded');
+    if (reloaded.status !== 'loaded') return;
+    expect(reloaded.document.nodes).toEqual([
+      {
+        nodeId: 'image-1',
+        kind: 'image',
+        position: { x: 0, y: 0 },
+        prompt: 'a red fox',
+        generationParams: {
+          model: 'gemini-3-pro-image-preview',
+          size: '16:9',
+          resolution: '2K',
+          n: 3,
+        },
+      },
+      {
+        nodeId: 'video-1',
+        kind: 'video',
+        position: { x: 400, y: 0 },
+        generationParams: { aspectRatio: '9:16', resolution: '1080p', duration: 8 },
+      },
+    ]);
+  });
+
+  it('drops broken P4 generationParams field by field, sparing sibling nodes', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 1,
+      nodes: [
+        // Whole field is a string → absent, the node itself survives.
+        { nodeId: 'image-1', kind: 'image', position: { x: 0, y: 0 }, generationParams: 'nope' },
+        // Whole field is an array → absent.
+        { nodeId: 'image-2', kind: 'image', position: { x: 1, y: 1 }, generationParams: ['16:9'] },
+        {
+          nodeId: 'image-3',
+          kind: 'image',
+          position: { x: 2, y: 2 },
+          generationParams: {
+            model: 7,
+            size: '',
+            resolution: '2K',
+            n: 9,
+            duration: 2.5,
+            aspectRatio: null,
+          },
+        },
+        // Every field broken → the whole object collapses to absent.
+        { nodeId: 'image-4', kind: 'image', position: { x: 3, y: 3 }, generationParams: { n: 0 } },
+        // Untouched sibling: the broken neighbours must not affect it.
+        {
+          nodeId: 'image-5',
+          kind: 'image',
+          position: { x: 4, y: 4 },
+          generationParams: { n: 4 },
+        },
+      ],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    expect(result.document.nodes).toEqual([
+      { nodeId: 'image-1', kind: 'image', position: { x: 0, y: 0 } },
+      { nodeId: 'image-2', kind: 'image', position: { x: 1, y: 1 } },
+      {
+        nodeId: 'image-3',
+        kind: 'image',
+        position: { x: 2, y: 2 },
+        generationParams: { resolution: '2K' },
+      },
+      { nodeId: 'image-4', kind: 'image', position: { x: 3, y: 3 } },
+      { nodeId: 'image-5', kind: 'image', position: { x: 4, y: 4 }, generationParams: { n: 4 } },
+    ]);
+  });
+
+  it('loads a pre-P4 document without inventing generationParams', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 3,
+      nodes: [{ nodeId: 'image-1', kind: 'image', position: { x: 1, y: 2 }, prompt: 'kept' }],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    expect(result.document.nodes[0]).not.toHaveProperty('generationParams');
+  });
+
   it('dispose drops pending writes without touching the disk', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
     const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 20 });

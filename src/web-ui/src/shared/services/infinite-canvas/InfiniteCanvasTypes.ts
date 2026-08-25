@@ -42,6 +42,28 @@ export type InfiniteCanvasNodeKind = 'text' | 'image' | 'group' | 'video';
 /** P3: which media kind a generation produces; absent means 'image'. */
 export type InfiniteCanvasGenerationMediaKind = 'image' | 'video';
 
+/**
+ * P4 §2.2: the generation parameters a card remembers between shots.
+ *
+ * Every field is optional and an absent field means exactly what it meant
+ * before P4: the parameter is not sent at all and the provider default
+ * applies. The allowed values are per-model and their single source of truth
+ * is `src/crates/assembly/core/src/agentic/media/capabilities.rs`; the
+ * front-end mirror lives in `infiniteCanvasGenerationCapabilities.ts`.
+ *
+ * `size` is the image aspect ratio, `aspectRatio` the video one (the video
+ * request field differs per model — see the capability table); `n` is the
+ * image batch size (1..4, further capped by the model's own `nMax`).
+ */
+export interface InfiniteCanvasGenerationParams {
+  model?: string;
+  size?: string;
+  resolution?: string;
+  n?: number;
+  duration?: number;
+  aspectRatio?: string;
+}
+
 export interface InfiniteCanvasNode {
   nodeId: string;
   kind: InfiniteCanvasNodeKind;
@@ -64,6 +86,14 @@ export interface InfiniteCanvasNode {
     toolId: CanvasImageOperationKind;
     operationId: string;
   };
+  /**
+   * P4 additive: the generation parameters chosen on this card (model, aspect
+   * ratio, resolution, batch size, video duration). Additive, schemaVersion
+   * stays '1'; a corrupted value is parsed as "field absent", and the AI's
+   * `update_node` white list deliberately does NOT include it (P3 §3.6.4
+   * stays as it is — parameter changes widen the spend surface).
+   */
+  generationParams?: InfiniteCanvasGenerationParams;
   /** In-flight / failed generation state; the whole field is removed on success. */
   generation?: {
     operationId: string;

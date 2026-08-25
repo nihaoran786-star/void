@@ -126,6 +126,33 @@ function parseGeneration(value: unknown): InfiniteCanvasNode['generation'] {
 }
 
 /**
+ * P4 additive field; same tolerance rule as {@link parseDerivedFrom}: a
+ * corrupted `generationParams` (string, array, illegal `n`, …) is dropped
+ * field by field and never invalidates the node or the document. The bounds
+ * here are only the contract-level ones (`n` 1..4 and `duration` 1..15 are
+ * the backend schema caps); the per-model allowed values live in
+ * `infiniteCanvasGenerationCapabilities.ts` and are enforced at dispatch.
+ */
+function parseGenerationParams(value: unknown): InfiniteCanvasNode['generationParams'] {
+  if (!isRecord(value)) return undefined;
+  const params: NonNullable<InfiniteCanvasNode['generationParams']> = {};
+  if (isNonEmptyString(value.model)) params.model = value.model;
+  if (isNonEmptyString(value.size)) params.size = value.size;
+  if (isNonEmptyString(value.resolution)) params.resolution = value.resolution;
+  if (isNonEmptyString(value.aspectRatio)) params.aspectRatio = value.aspectRatio;
+  if (isFiniteNumber(value.n) && Number.isInteger(value.n) && value.n >= 1 && value.n <= 4) {
+    params.n = value.n;
+  }
+  if (isFiniteNumber(value.duration)
+    && Number.isInteger(value.duration)
+    && value.duration >= 1
+    && value.duration <= 15) {
+    params.duration = value.duration;
+  }
+  return Object.keys(params).length > 0 ? params : undefined;
+}
+
+/**
  * P3 additive document field; a broken value is treated as "field absent",
  * never as an invalid document.
  */
@@ -172,6 +199,8 @@ function parseNode(value: unknown): InfiniteCanvasNode | undefined {
   }
   if (isNonEmptyString(value.stylePresetId)) node.stylePresetId = value.stylePresetId;
   if (typeof value.prompt === 'string') node.prompt = value.prompt;
+  const generationParams = parseGenerationParams(value.generationParams);
+  if (generationParams) node.generationParams = generationParams;
   const derivedFrom = parseDerivedFrom(value.derivedFrom);
   if (derivedFrom) node.derivedFrom = derivedFrom;
   const generation = parseGeneration(value.generation);

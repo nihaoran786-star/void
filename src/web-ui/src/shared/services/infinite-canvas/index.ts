@@ -1,4 +1,5 @@
 export * from './InfiniteCanvasTypes';
+export * from './infiniteCanvasGenerationCapabilities';
 export * from './InfiniteCanvasPersistencePort';
 export * from './ImageToolTypes';
 export * from './InfiniteCanvasAgentTaskTypes';
