@@ -1,8 +1,8 @@
 @mixin styles {
-  // §1 theme exception: the canvas is a dark light-table in BOTH themes, so
-  // the minimal overlay no longer remaps the colour tokens — it only adopts
-  // the workspace type family and spacing scale. Colours stay as the
-  // --canvas-* set defined on .infinite-canvas-panel.
+  // §1: colour is settled once, on .infinite-canvas-panel, as a dark set and a
+  // light set switched by the app theme. The minimal overlay therefore remaps
+  // no colours at all — it only adopts the workspace type family and spacing
+  // scale, and inherits whichever --canvas-* set is in force.
   .void-ui--minimal .infinite-canvas-panel {
     font-family: var(--workspace-font-family);
   }

@@ -1,16 +1,23 @@
 @use './InfiniteCanvasPanel.minimal' as minimal;
 
-// Infinite Canvas panel — a dark light-table, per
+// Infinite Canvas panel — a light table for pictures and clips, per
 // docs/design/infinite-canvas-visual-language.md.
 //
-// §1 THEME EXCEPTION: this panel is deliberately dark in BOTH themes. It is a
-// viewing surface for pictures and clips, the same way an image viewer is, so
-// the canvas-owned --canvas-* tokens below resolve to one dark set and the
-// minimal overlay does NOT remap them. Everything else still routes through
-// the local --infinite-canvas-* aliases, so the pickers, dialogs, task queue
-// and viewer follow the canvas without a second colour vocabulary.
+// §1: the canvas FOLLOWS THE APP THEME (owner, 2026-08-26 — this reverses the
+// earlier "always dark" trade-off). The canvas keeps its own --canvas-* colour
+// vocabulary, but that vocabulary now resolves to two sets: the near-black
+// board below, and the light set further down, switched by the theme service's
+// `data-theme-type` attribute with no remount. Everything else in this
+// stylesheet routes through those tokens (or the --infinite-canvas-* aliases),
+// so the cards, the attached generator, the toolbars, the rail, the popovers,
+// the edges and the handles all change together — never a black slab inside a
+// light window.
+//
+// One deliberate exception keeps its own colours in both themes: the video
+// transport bar, which is drawn ON the video frame rather than on the board,
+// so it stays a white-on-scrim overlay the way every player's does.
 .infinite-canvas-panel {
-  // Canvas-owned tokens (§1). Same values under classic and minimal.
+  // Canvas-owned tokens (§1), dark set. Same values under classic and minimal.
   --canvas-surface-base: #0b0c0e;
   --canvas-surface-card: #17191d;
   --canvas-surface-raised: #1d2025;
@@ -23,6 +30,13 @@
   --canvas-accent: #4c8dff;
   --canvas-danger: #ff6b6b;
   --canvas-hairline: rgb(255 255 255 / 8%);
+  // Derived surfaces that used to be hard-coded white / black washes: they
+  // have to flip with the rest, or a light board keeps dark-theme hovers.
+  --canvas-hover-wash: rgb(255 255 255 / 7%);
+  --canvas-select-ring: rgb(255 255 255 / 72%);
+  --canvas-shadow-soft: rgb(0 0 0 / 22%);
+  --canvas-shadow-heavy: rgb(0 0 0 / 46%);
+  --canvas-scheme: dark;
 
   --infinite-canvas-bg: var(--canvas-surface-base);
   --infinite-canvas-text: var(--canvas-text-primary);
@@ -44,9 +58,33 @@
   overflow: hidden;
   background: var(--infinite-canvas-bg);
   color: var(--infinite-canvas-text);
-  // Native widgets (the picker selects, the video transport) must follow the
-  // dark surface even while the app runs the light theme.
-  color-scheme: dark;
+  // Native widgets (the picker selects, scrollbars) follow whichever set is
+  // in force, so they never arrive from the other theme.
+  color-scheme: var(--canvas-scheme);
+}
+
+// §1 light set. Same shapes, same weights, lighter paint: a very pale board,
+// a fainter dot grid, dark text, and an accent that still reads on white.
+// `data-theme-type` is written by the theme service on <html>, so switching
+// the app theme repaints the canvas immediately.
+:root[data-theme-type='light'] .infinite-canvas-panel {
+  --canvas-surface-base: #f3f4f6;
+  --canvas-surface-card: #fff;
+  --canvas-surface-raised: #fafbfc;
+  --canvas-surface-overlay: #fff;
+  --canvas-surface-dot: #cdd2da;
+  --canvas-surface-line: #aeb5c0;
+  --canvas-text-primary: #1a1d22;
+  --canvas-text-muted: #565d68;
+  --canvas-text-faint: #7d848f;
+  --canvas-accent: #2f6fe4;
+  --canvas-danger: #c53434;
+  --canvas-hairline: rgb(16 20 28 / 12%);
+  --canvas-hover-wash: rgb(16 20 28 / 7%);
+  --canvas-select-ring: var(--canvas-accent);
+  --canvas-shadow-soft: rgb(16 20 28 / 10%);
+  --canvas-shadow-heavy: rgb(16 20 28 / 18%);
+  --canvas-scheme: light;
 }
 
 .infinite-canvas-panel--loading,
@@ -181,18 +219,19 @@
   // more — the corner buttons below replace them.
 }
 
-// §9: an empty board is just the board. One short grey line, sitting above
-// the generator; the canvas stays fully interactive underneath it.
+// §9: an empty board is just the board. One short grey line in the middle of
+// it — there is no generator to sit above any more — and the canvas stays
+// fully interactive underneath.
 .infinite-canvas-panel__empty {
   position: absolute;
   z-index: 4;
-  bottom: 190px;
+  top: 50%;
   left: 50%;
   margin: 0;
   color: var(--canvas-text-faint);
   font-size: 12px;
   pointer-events: none;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
 }
 
 // ── Node cards ─────────────────────────────────────────────────────────────
@@ -212,13 +251,13 @@
   overflow: hidden;
   border-radius: 12px;
   background: var(--canvas-surface-card);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  box-shadow: 0 1px 2px var(--canvas-shadow-soft);
   line-height: 0;
 }
 
 // Selection is one hairline ring — nothing else changes about the card.
 .infinite-canvas-node[data-selected='true'] .infinite-canvas-node__frame {
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 72%);
+  box-shadow: 0 0 0 1px var(--canvas-select-ring);
 }
 
 // §2: type label OUTSIDE the card, above it. Small neutral grey, no pill.
@@ -564,7 +603,7 @@
   border: 1px solid var(--canvas-hairline);
   border-radius: 999px;
   background: var(--canvas-surface-overlay);
-  box-shadow: 0 10px 26px rgb(0 0 0 / 45%);
+  box-shadow: 0 10px 26px var(--canvas-shadow-heavy);
   transform: translateX(-50%);
   white-space: nowrap;
 }
@@ -608,7 +647,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: rgb(255 255 255 / 8%);
+    background: var(--canvas-hover-wash);
     color: var(--canvas-text-primary);
   }
 
@@ -656,7 +695,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: rgb(255 255 255 / 7%);
+    background: var(--canvas-hover-wash);
     color: var(--canvas-text-primary);
   }
 
@@ -698,7 +737,7 @@
   cursor: pointer;
 
   &:hover {
-    background: rgb(255 255 255 / 7%);
+    background: var(--canvas-hover-wash);
     color: var(--canvas-text-primary);
   }
 
@@ -732,7 +771,7 @@
   border: 1px solid var(--canvas-hairline);
   border-radius: 12px;
   background: var(--canvas-surface-overlay);
-  box-shadow: 0 14px 34px rgb(0 0 0 / 46%);
+  box-shadow: 0 14px 34px var(--canvas-shadow-heavy);
 }
 
 .infinite-canvas-rail__menu-item {
@@ -756,7 +795,7 @@
   }
 
   &:hover {
-    background: rgb(255 255 255 / 7%);
+    background: var(--canvas-hover-wash);
   }
 }
 
@@ -831,7 +870,7 @@
   border: 1px solid var(--canvas-hairline);
   border-radius: 16px;
   background: var(--canvas-surface-overlay);
-  box-shadow: 0 20px 48px rgb(0 0 0 / 50%);
+  box-shadow: 0 20px 48px var(--canvas-shadow-heavy);
   transform: translateX(-50%);
 }
 
@@ -935,7 +974,7 @@
   border: 1px solid var(--infinite-canvas-border);
   border-radius: 8px;
   background: var(--infinite-canvas-surface);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+  box-shadow: 0 8px 24px var(--canvas-shadow-soft);
 }
 
 .infinite-canvas-menu__item {
@@ -972,7 +1011,7 @@
   border: 1px solid var(--infinite-canvas-border);
   border-radius: 8px;
   background: var(--infinite-canvas-surface);
-  box-shadow: 0 6px 18px rgb(0 0 0 / 20%);
+  box-shadow: 0 6px 18px var(--canvas-shadow-soft);
   transform: translateX(-50%);
 }
 
@@ -1013,7 +1052,7 @@
   border: 1px solid var(--canvas-hairline);
   border-radius: 18px;
   background: var(--canvas-surface-overlay);
-  box-shadow: 0 18px 44px rgb(0 0 0 / 46%);
+  box-shadow: 0 18px 44px var(--canvas-shadow-heavy);
   transform: translateX(-50%);
 
   &[data-canvas-generator-anchored='true'] {
@@ -1159,7 +1198,9 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: #fff;
+    // A tint towards the accent, not towards white: on a light board a white
+    // hover would erase the button.
+    background: color-mix(in srgb, var(--canvas-text-primary) 78%, var(--canvas-accent));
   }
 
   &:focus-visible {
@@ -1189,7 +1230,7 @@
   border-radius: 13px;
   background: var(--infinite-canvas-surface);
   color: var(--infinite-canvas-text);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  box-shadow: 0 4px 14px var(--canvas-shadow-soft);
   cursor: pointer;
   font-size: 11px;
 
@@ -1212,7 +1253,7 @@
   border: 1px solid var(--infinite-canvas-border);
   border-radius: 10px;
   background: var(--infinite-canvas-surface);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  box-shadow: 0 8px 24px var(--canvas-shadow-soft);
 }
 
 .infinite-canvas-tasks__header {
@@ -1333,7 +1374,7 @@
   border: 1px solid var(--canvas-hairline);
   border-radius: 16px;
   background: var(--canvas-surface-overlay);
-  box-shadow: 0 20px 48px rgb(0 0 0 / 50%);
+  box-shadow: 0 20px 48px var(--canvas-shadow-heavy);
   transform: translateX(-50%);
 }
 
