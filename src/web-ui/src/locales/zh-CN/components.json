@@ -1073,6 +1073,18 @@
       "reveal": "在文件夹中显示",
       "revealFailed": "打不开这个文件所在的文件夹。",
       "selectionToolbar": "所选卡片操作"
+    },
+    "tasks": {
+      "title": "出图队列",
+      "pill": "{{pending}} 个在跑 · {{failed}} 个失败",
+      "counts": "{{pending}} 个在跑，{{failed}} 个失败。",
+      "collapse": "收起",
+      "noPrompt": "（没有提示词）",
+      "retryAll": "重试全部失败项",
+      "locate": "定位到这张卡",
+      "stopWaiting": "停止等待",
+      "stoppedWaiting": "已停止等待，可重试。",
+      "stopWaitingHint": "“停止等待”只是让这张卡不再转圈，并不是取消：任务仍在渠道那边跑，额度照样消耗。如果结果稍后回来，图仍然会落进这张卡。"
     }
   },
   "agentStudio": {

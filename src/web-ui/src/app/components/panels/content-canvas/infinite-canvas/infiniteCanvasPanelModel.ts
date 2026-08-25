@@ -426,6 +426,87 @@ export function retryOperationContent(
   };
 }
 
+// —— P4 W8: the task queue is a projection, not a second store ——————————————
+
+/** One row of the task queue: an in-flight or failed generation on this canvas. */
+export interface InfiniteCanvasGenerationTask {
+  nodeId: string;
+  operationId: string;
+  toolId: NonNullable<InfiniteCanvasNode['generation']>['toolId'];
+  status: 'pending' | 'failed';
+  mediaKind: 'image' | 'video';
+  errorKind?: ImageToolErrorKind;
+  /** First line of the card's prompt, for the row label. May be empty. */
+  promptLine: string;
+}
+
+/**
+ * Projects the queue straight out of the document.
+ *
+ * There is deliberately no task store and no extra subscription: the cards
+ * already record "I am running" / "I failed", and the same predicate the
+ * pending reconciliation uses (`node.generation` is present) is the queue.
+ * Recomputing this after every projection is cheaper than keeping a second
+ * copy of the truth in sync with the first.
+ */
+export function collectGenerationTasks(
+  document: Readonly<InfiniteCanvasDocument>,
+): InfiniteCanvasGenerationTask[] {
+  const tasks: InfiniteCanvasGenerationTask[] = [];
+  for (const node of document.nodes) {
+    const generation = node.generation;
+    if (!generation) continue;
+    tasks.push({
+      nodeId: node.nodeId,
+      operationId: generation.operationId,
+      toolId: generation.toolId,
+      status: generation.status,
+      mediaKind: generation.mediaKind ?? (node.kind === 'video' ? 'video' : 'image'),
+      ...(generation.errorKind === undefined ? {} : { errorKind: generation.errorKind }),
+      promptLine: (node.prompt ?? '').split('\n')[0].trim(),
+    });
+  }
+  return tasks;
+}
+
+/**
+ * "Stop waiting" — NOT a cancel.
+ *
+ * There is no cancellation entry point on the backend: a media job is a
+ * detached polling task with no handle and no token, so nothing the front end
+ * can do will stop it. This marks the card as a retryable failure so it stops
+ * spinning, and that is the whole of it: the remote job keeps running and the
+ * quota is still spent. The UI copy has to say exactly that.
+ *
+ * `errorKind: 'cancelled'` is one of the existing seven kinds, so no enum
+ * grows here.
+ *
+ * The anchor is left intact on purpose. If the result does come back later,
+ * the node still carries this operationId and still has no mediaRef, so the
+ * picture lands in this card after all — the money was spent, throwing the
+ * result away would be worse than keeping it.
+ */
+export function stopWaitingContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      if (node.generation?.operationId !== operationId) return node;
+      if (node.generation.status !== 'pending') return node;
+      return {
+        ...node,
+        generation: {
+          ...node.generation,
+          status: 'failed' as const,
+          errorKind: 'cancelled' as const,
+        },
+      };
+    }),
+  };
+}
+
 /**
  * Removes a failed operation placeholder — a plain node removal, restricted to
  * nodes whose generation actually failed and that never received a mediaRef.

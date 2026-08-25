@@ -45,6 +45,7 @@ import type {
   InfiniteCanvasGenerationParams,
   InfiniteCanvasMediaJobReader,
 } from '@/shared/services/infinite-canvas';
+import type { InfiniteCanvasGenerationTask } from './infiniteCanvasPanelModel';
 import {
   summarizeInfiniteCanvasGenerationParams,
   connectInfiniteCanvasMediaBridgeToEventBus,
@@ -77,6 +78,7 @@ import {
   addTextNodeContent,
   beginDerivedOperationContent,
   classifyDeletionTargets,
+  collectGenerationTasks,
   connectNodesContent,
   createInfiniteCanvasId,
   failOperationContent,
@@ -93,6 +95,7 @@ import {
   setNodeStylePresetContent,
   setNodeTextContent,
   setViewportContent,
+  stopWaitingContent,
   toFlowEdgeViews,
   toFlowNodeViews,
 } from './infiniteCanvasPanelModel';
@@ -151,6 +154,7 @@ import {
   InfiniteCanvasSelectionToolbar,
   type InfiniteCanvasSelectionAction,
 } from './InfiniteCanvasSelectionToolbar';
+import { InfiniteCanvasTaskQueuePanel } from './InfiniteCanvasTaskQueuePanel';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
@@ -348,6 +352,20 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   /** The flow viewport wrapper; the menu and the selection bar are placed in it. */
   const flowRef = React.useRef<HTMLDivElement | null>(null);
+  /**
+   * P4 W8: the task queue, recomputed from the document on every projection.
+   * No separate store and no separate subscription — see
+   * `collectGenerationTasks`.
+   */
+  const [tasks, setTasks] = React.useState<InfiniteCanvasGenerationTask[]>([]);
+  /**
+   * The reactflow instance, captured on init. This is how "take me to this
+   * card" pans the canvas without wrapping the panel in a ReactFlowProvider
+   * and restructuring the overlays around hooks.
+   */
+  const flowInstanceRef = React.useRef<{
+    setCenter?: (x: number, y: number, options?: { zoom?: number; duration?: number }) => void;
+  } | null>(null);
 
   // Node callbacks flow through this ref so projectDocument stays stable while
   // the handlers depend on it (same seam the M3 commitText path used).
@@ -369,6 +387,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   const projectDocument = React.useCallback((document: InfiniteCanvasDocument) => {
     documentRef.current = document;
+    setTasks(collectGenerationTasks(document));
     const referenceLabels = referenceLabelsByNode(document);
     setFlowNodes(toFlowNodeViews(document.nodes).map(view => ({
       id: view.id,
@@ -1477,6 +1496,44 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     };
   }, [contextMenu]);
 
+  // —— P4 W8: task queue actions ————————————————————————————————————————————
+
+  /**
+   * "Stop waiting" is not a cancel and must never be presented as one: the
+   * backend has no cancellation entry point, the remote job carries on, and
+   * the quota is spent. All this does is stop the card from spinning and make
+   * it retryable. If the result arrives later it still lands in this card —
+   * the anchor operationId is intact and the card still has no media — and
+   * that is on purpose.
+   */
+  const onStopWaiting = React.useCallback((operationId: string) => {
+    // Not a user edit: leaving it off the undo stack keeps undo from
+    // "resurrecting" a wait for a task nobody is waiting on any more.
+    void commit(document => stopWaitingContent(document, operationId));
+  }, [commit]);
+
+  const onRetryAllFailed = React.useCallback(async () => {
+    const document = documentRef.current;
+    if (!document) return;
+    const failed = collectGenerationTasks(document).filter(task => task.status === 'failed');
+    // Serial on purpose: a burst of retries would be a burst of spend.
+    for (const task of failed) {
+      await retryGeneration(task.nodeId);
+    }
+  }, [retryGeneration]);
+
+  const onLocateNode = React.useCallback((nodeId: string) => {
+    const node = flowNodesRef.current.find(candidate => candidate.id === nodeId);
+    if (!node) return;
+    const width = node.measured?.width ?? 0;
+    const height = node.measured?.height ?? 0;
+    flowInstanceRef.current?.setCenter?.(
+      node.position.x + width / 2,
+      node.position.y + height / 2,
+      { zoom: viewportRef.current.zoom, duration: 200 },
+    );
+  }, []);
+
   const stylePickerCurrentPresetId = React.useMemo(() => {
     if (!stylePickerNodeId) return undefined;
     return documentRef.current?.nodes
@@ -1647,6 +1704,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onNodeContextMenu={onNodeContextMenu}
           onSelectionContextMenu={onSelectionContextMenu}
           onPaneContextMenu={onPaneContextMenu}
+          // P4 W8: the instance is captured here rather than through a
+          // ReactFlowProvider + hook, so "take me to this card" needs no
+          // restructuring of the panel or its overlays.
+          onInit={instance => {
+            flowInstanceRef.current = instance;
+          }}
           defaultViewport={initialViewport}
           minZoom={0.1}
           maxZoom={4}
@@ -1674,6 +1737,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             onAction={onSelectionToolbarAction}
           />
         ) : null}
+        <InfiniteCanvasTaskQueuePanel
+          tasks={tasks}
+          onRetry={nodeId => {
+            void retryGeneration(nodeId);
+          }}
+          onRetryAllFailed={() => {
+            void onRetryAllFailed();
+          }}
+          onStopWaiting={onStopWaiting}
+          onLocate={onLocateNode}
+        />
         {contextMenu ? (
           <InfiniteCanvasContextMenu
             state={contextMenu}

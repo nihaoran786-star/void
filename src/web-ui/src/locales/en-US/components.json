@@ -1073,6 +1073,18 @@
       "reveal": "Show in folder",
       "revealFailed": "Could not open the folder for this file.",
       "selectionToolbar": "Selection actions"
+    },
+    "tasks": {
+      "title": "Generation queue",
+      "pill": "{{pending}} running · {{failed}} failed",
+      "counts": "{{pending}} running, {{failed}} failed.",
+      "collapse": "Hide",
+      "noPrompt": "(no prompt)",
+      "retryAll": "Retry every failed one",
+      "locate": "Take me there",
+      "stopWaiting": "Stop waiting",
+      "stoppedWaiting": "Stopped waiting. You can retry.",
+      "stopWaitingHint": "\"Stop waiting\" only stops this card from waiting. It does NOT cancel the job: it keeps running on the provider and the credits are still spent. If the result does come back, it will still land in this card."
     }
   },
   "agentStudio": {
