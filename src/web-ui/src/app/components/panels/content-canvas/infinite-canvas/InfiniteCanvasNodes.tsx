@@ -9,9 +9,9 @@
  * infinite-canvas-visual-language.md`): a card IS its media. The frame has no
  * padding, no title bar and no file name; the type label sits OUTSIDE the card
  * above it as small grey text; every control is absent until the card is
- * hovered or selected. S1 parks the prompt editor and the generate button in
- * that hover layer so the generation lane keeps working unchanged; S2 hands
- * them to the bottom floating generator and the card loses them entirely.
+ * hovered or selected. The prompt editor and the generate button are gone from
+ * the card face entirely: they live in the generator that floats under the
+ * selected card (§6).
  */
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
@@ -254,12 +254,14 @@ const NodeMedia: React.FC<{
   mediaRef: InfiniteCanvasMediaRef;
   mediaKind: 'image' | 'video';
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
-  /** When present the still image doubles as the full-screen viewer trigger. */
-  onOpen?: () => void;
-}> = ({ mediaRef, mediaKind, resolvePreviewUrl, onOpen }) => {
+}> = ({ mediaRef, mediaKind, resolvePreviewUrl }) => {
   const { t } = useI18n('components');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const [failed, setFailed] = React.useState(false);
+  // §6: a single click selects the card (and floats its generator); it must
+  // never enlarge. Full screen is the toolbar's expand entry or a double
+  // click on the card, both handled by the card body — so the media itself
+  // carries no click surface of its own.
 
   React.useEffect(() => {
     let cancelled = false;
@@ -297,7 +299,7 @@ const NodeMedia: React.FC<{
         />
       );
     }
-    const image = (
+    return (
       <img
         className="infinite-canvas-node__image"
         src={previewUrl}
@@ -305,20 +307,6 @@ const NodeMedia: React.FC<{
         draggable={false}
         onError={onMediaError}
       />
-    );
-    if (!onOpen) return image;
-    // A button wrapper (not a click handler on the img) keeps the viewer
-    // trigger keyboard-reachable; `nodrag` stops reactflow from panning.
-    return (
-      <button
-        type="button"
-        className="infinite-canvas-node__image-button nodrag"
-        data-node-action="open-viewer"
-        aria-label={t('infiniteCanvas.viewer.openImage')}
-        onClick={onOpen}
-      >
-        {image}
-      </button>
     );
   }
   // §2: no words on the card face — a static icon carries the state, and the
@@ -365,6 +353,11 @@ const InfiniteCanvasMediaCard: React.FC<
       className={`infinite-canvas-node infinite-canvas-node--${mediaKind}`}
       data-selected={selected ? 'true' : undefined}
       data-generation-status={generation?.status}
+      // §6: clicking a card only selects it. Enlarging is explicit — this
+      // double click, or the expand entry in the toolbar above.
+      onDoubleClick={mediaRef && data.onOpenViewer
+        ? () => data.onOpenViewer?.(id)
+        : undefined}
     >
       <Handle type="target" position={Position.Left} />
       <NodeLabel
@@ -381,11 +374,6 @@ const InfiniteCanvasMediaCard: React.FC<
             mediaRef={mediaRef}
             mediaKind={mediaKind}
             resolvePreviewUrl={data.resolvePreviewUrl}
-            onOpen={
-              mediaKind === 'image' && data.onOpenViewer
-                ? () => data.onOpenViewer?.(id)
-                : undefined
-            }
           />
         ) : failed ? (
           <div
@@ -441,7 +429,10 @@ const InfiniteCanvasMediaCard: React.FC<
       </div>
       {/*
         §3: the small `+` off the right edge derives the next card. Dim at
-        rest, bright on hover — the card itself stays undecorated.
+        rest, bright on hover — the card itself stays undecorated. §6 adds the
+        drag gesture: dragging off this edge onto empty board creates a blank
+        card wired to this one; that drag is reactflow's connection drag on the
+        source handle below, so the click and the drag share one edge.
       */}
       {data.onSpawnNext ? (
         <button

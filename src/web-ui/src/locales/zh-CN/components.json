@@ -1026,7 +1026,6 @@
     "viewer": {
       "title": "媒体查看器",
       "open": "看大图",
-      "openImage": "全屏查看这张图",
       "close": "关闭",
       "previous": "上一张媒体卡",
       "next": "下一张媒体卡",
@@ -1124,13 +1123,18 @@
       "style": "风格",
       "count": "{{n}}张",
       "targetImage": "作用于选中的图片卡",
-      "targetVideo": "作用于选中的视频卡",
-      "newCard": "将新建一张卡片"
+      "targetVideo": "作用于选中的视频卡"
     },
     "rail": {
       "label": "画布工具",
       "create": "新建",
       "library": "素材库"
+    },
+    "zoom": {
+      "fit": "适应画布",
+      "in": "放大",
+      "label": "缩放控件",
+      "out": "缩小"
     }
   },
   "agentStudio": {

@@ -1,11 +1,11 @@
 /**
- * Test-only driver for the bottom floating generator (visual language §6).
+ * Test-only driver for the card-anchored generator (visual language §6).
  *
  * Starting a generation used to mean "click the generate button on the card".
  * The card face has no controls any more: a generation is started by selecting
- * a card (or selecting nothing, to make a new one) and pressing send in the
- * generator. Every panel test that needs a live generation goes through here,
- * so the next presentation change is one edit, not ten.
+ * the card and pressing send in the generator that floats under it. Every
+ * panel test that needs a live generation goes through here, so the next
+ * presentation change is one edit, not ten.
  *
  * Not imported by any production module.
  */
@@ -52,22 +52,22 @@ export async function selectCanvasCards(
 }
 
 /**
- * Selects `nodeId` (when given) and presses the generator's send button. The
- * generator adopts the selected card's stored prompt, so a seeded card
+ * Selects `nodeId` and presses the send button of the generator that floats
+ * under it. The generator adopts that card's stored prompt, so a seeded card
  * dispatches exactly what the card carries — the same input the old on-card
  * generate button used.
  */
 export async function generateFromCanvasGenerator(
   container: ParentNode,
   flow: { props: { onSelectionChange?: (selection: { nodes: { id: string }[] }) => void } },
-  nodeId?: string,
+  nodeId: string,
 ): Promise<void> {
-  await selectCanvasCards(flow, nodeId ? [nodeId] : []);
+  await selectCanvasCards(flow, [nodeId]);
   const send = container.querySelector<HTMLButtonElement>(
-    '[data-canvas-generator-action="send"]',
+    `[data-canvas-generator-target="${nodeId}"] [data-canvas-generator-action="send"]`,
   );
-  if (!send) throw new Error('no generator send button');
-  if (send.disabled) throw new Error(`generator send is disabled for ${nodeId ?? 'a new card'}`);
+  if (!send) throw new Error(`no generator send button for ${nodeId}`);
+  if (send.disabled) throw new Error(`generator send is disabled for ${nodeId}`);
   await act(async () => {
     Simulate.click(send);
     await new Promise(resolve => setTimeout(resolve, 0));

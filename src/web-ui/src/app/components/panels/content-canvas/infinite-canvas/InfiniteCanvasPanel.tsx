@@ -13,11 +13,11 @@
  * gateway; the media bridge lands results back while the panel is mounted.
  */
 import React from 'react';
+import { Maximize, Minus, Plus } from 'lucide-react';
 import {
   applyEdgeChanges,
   applyNodeChanges,
   Background,
-  Controls,
   ReactFlow,
   type Connection,
   type Edge,
@@ -193,6 +193,14 @@ const CANVAS_DOT_SIZE = 1;
 const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver =
   resolveInfiniteCanvasMediaPreviewUrl;
 
+/** §6: the gap between a card's lower edge and its generator, in panel px. */
+const GENERATOR_CARD_GAP = 12;
+/** A very small card must not squeeze the prompt row into unusability. */
+const GENERATOR_MIN_WIDTH = 320;
+
+/** §8.1: reactflow's own attribution watermark is not part of this language. */
+const FLOW_PRO_OPTIONS = { hideAttribution: true };
+
 /** P4 W6: any of the three adds to the selection (Windows and mac idioms). */
 const MULTI_SELECTION_KEYS = ['Meta', 'Control', 'Shift'];
 
@@ -345,15 +353,19 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     y: 0,
     zoom: 1,
   });
+  /**
+   * §6: the card-anchored generator is placed in panel pixels, so it needs the
+   * live transform in render — but pan and zoom must not re-render the panel
+   * on every frame. This mirror is therefore only written while exactly one
+   * card is selected, i.e. only while something is actually anchored.
+   */
+  const [viewportTransform, setViewportTransform] = React.useState<Viewport>({
+    x: 0,
+    y: 0,
+    zoom: 1,
+  });
 
   const [imagePickerOpen, setImagePickerOpen] = React.useState(false);
-  /**
-   * §6: reference cards staged in the bottom generator while no card is
-   * selected. They are ordinary image cards on the board already (the picker
-   * created them through the existing command); this list only remembers
-   * which ones the next "generate" should wire up as references.
-   */
-  const [stagedReferenceIds, setStagedReferenceIds] = React.useState<string[]>([]);
   /** Whether the library picker was opened to place a card or add a reference. */
   const [imagePickerIntent, setImagePickerIntent] =
     React.useState<'card' | 'reference'>('card');
@@ -432,6 +444,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    */
   const flowInstanceRef = React.useRef<{
     setCenter?: (x: number, y: number, options?: { zoom?: number; duration?: number }) => void;
+    zoomIn?: (options?: { duration?: number }) => void;
+    zoomOut?: (options?: { duration?: number }) => void;
+    fitView?: (options?: { duration?: number; padding?: number }) => void;
   } | null>(null);
 
   // Node callbacks flow through this ref so projectDocument stays stable while
@@ -463,10 +478,16 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     documentRef.current = document;
     setTasks(collectGenerationTasks(document));
     const referenceLabels = referenceLabelsByNode(document);
+    const selectedIds = new Set(selectedNodeIdsRef.current);
     setFlowNodes(toFlowNodeViews(document.nodes).map(view => ({
       id: view.id,
       type: view.type,
       position: view.position,
+      // The projection is rebuilt on every commit, and reactflow's node list
+      // is controlled here — so a re-projection that dropped `selected` would
+      // silently deselect the card mid-edit and take its generator (§6) with
+      // it. Selection is panel state; carry it across.
+      selected: selectedIds.has(view.id),
       data: view.type === INFINITE_CANVAS_TEXT_NODE_TYPE
         ? {
             text: view.data.text ?? '',
@@ -1130,7 +1151,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setStylePickerNodeId(null);
     setNotice(null);
     setToolDialog(null);
-    setStagedReferenceIds([]);
   }, [documentId, workspaceId]);
 
   React.useEffect(() => {
@@ -1170,6 +1190,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       projectDocument(document);
       setInitialViewport(document.viewport);
       viewportRef.current = document.viewport;
+      setViewportTransform(document.viewport);
       setState({ phase: 'ready' });
     });
     return () => {
@@ -1309,6 +1330,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   /** P4 W6: reactflow's selection, mirrored into panel state. */
   const onSelectionChange = React.useCallback((selection: { nodes?: { id: string }[] }) => {
     const ids = (selection.nodes ?? []).map(node => node.id);
+    selectedNodeIdsRef.current = ids;
+    // The transform mirror is only maintained while something is anchored, so
+    // it can be stale from a pan made with nothing selected. Re-sync here, or
+    // the generator would appear at the card's old screen position.
+    if (ids.length === 1) setViewportTransform(viewportRef.current);
     setSelectedNodeIds(current => (
       current.length === ids.length && current.every((id, index) => id === ids[index])
         ? current
@@ -1408,15 +1434,107 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     ), { history: true });
   }, [commit]);
 
-  const onMove = React.useCallback((_event: unknown, viewport: Viewport) => {
-    // Ref only: pan/zoom must not re-render the panel on every frame.
-    viewportRef.current = viewport;
+  /**
+   * §6: the card the user started dragging a connection FROM, while that drag
+   * is in flight. Only a drag off a source handle (the card's right edge, the
+   * `+`) can end in a new card.
+   */
+  const connectSourceRef = React.useRef<string | null>(null);
+
+  const onConnectStart = React.useCallback((
+    _event: unknown,
+    params: { nodeId?: string | null; handleType?: string | null },
+  ) => {
+    connectSourceRef.current = params.handleType === 'target'
+      ? null
+      : params.nodeId ?? null;
   }, []);
 
-  const onMoveEnd = React.useCallback((_event: unknown, viewport: Viewport) => {
-    viewportRef.current = viewport;
-    void commit(document => setViewportContent(document, viewport));
+  /**
+   * §6: dragging off a card's right edge onto empty board creates a blank card
+   * there, wires the dragged-from card to it as a reference, and selects it —
+   * so its (empty) generator floats under it, ready for a prompt.
+   *
+   * The new card's kind mirrors the card it came from: an image card continues
+   * the image lane, a video card the video lane. That is the one choice this
+   * build can make without inventing a handle-side menu, and it is reversible
+   * — the card is blank, so deleting it costs nothing. Nothing new on the
+   * command side: the same blank-card + connect pair `spawnNext` uses, in one
+   * mutation and therefore one undo entry.
+   */
+  const onConnectEnd = React.useCallback((event: MouseEvent | TouchEvent) => {
+    const sourceNodeId = connectSourceRef.current;
+    connectSourceRef.current = null;
+    if (!sourceNodeId) return;
+    // Landing on another card / handle is an ordinary connection: reactflow
+    // has already reported it through `onConnect`.
+    const target = event.target as Element | null;
+    const droppedOnEmptyBoard = Boolean(
+      target
+      && typeof target.classList?.contains === 'function'
+      && target.classList.contains('react-flow__pane'),
+    );
+    if (!droppedOnEmptyBoard) return;
+    const document = documentRef.current;
+    const source = document?.nodes.find(node => node.nodeId === sourceNodeId);
+    if (!document || !source) return;
+    const point = 'changedTouches' in event && event.changedTouches?.length
+      ? { clientX: event.changedTouches[0].clientX, clientY: event.changedTouches[0].clientY }
+      : { clientX: (event as MouseEvent).clientX, clientY: (event as MouseEvent).clientY };
+    const host = flowRef.current?.getBoundingClientRect?.();
+    const { x: panX, y: panY, zoom } = viewportRef.current;
+    const position = {
+      x: (point.clientX - (host?.left ?? 0) - panX) / zoom,
+      y: (point.clientY - (host?.top ?? 0) - panY) / zoom,
+    };
+    const nextNodeId = createInfiniteCanvasId('node');
+    const edgeId = createInfiniteCanvasId('edge');
+    const addBlankCard = source.kind === 'video'
+      ? addBlankVideoCardContent
+      : addBlankGenerationCardContent;
+    void commit(current => {
+      const withCard = addBlankCard(current, nextNodeId, position);
+      return connectNodesContent(
+        { ...current, ...withCard },
+        edgeId,
+        sourceNodeId,
+        nextNodeId,
+      );
+    }, { history: true }).then(() => {
+      // The new card is what the user is about to write a prompt into, so it
+      // takes the selection — and with it the generator.
+      selectedNodeIdsRef.current = [nextNodeId];
+      setViewportTransform(viewportRef.current);
+      setSelectedNodeIds([nextNodeId]);
+      setFlowNodes(nodes => nodes.map(node => (
+        node.selected === (node.id === nextNodeId)
+          ? node
+          : { ...node, selected: node.id === nextNodeId }
+      )));
+    });
   }, [commit]);
+
+  /** Keeps the anchored generator on its card while the board is panned. */
+  const trackViewport = React.useCallback((viewport: Viewport) => {
+    viewportRef.current = viewport;
+    if (selectedNodeIdsRef.current.length !== 1) return;
+    setViewportTransform(current => (
+      current.x === viewport.x && current.y === viewport.y && current.zoom === viewport.zoom
+        ? current
+        : viewport
+    ));
+  }, []);
+
+  const onMove = React.useCallback((_event: unknown, viewport: Viewport) => {
+    // Ref first: with nothing anchored, pan/zoom must not re-render the panel
+    // on every frame.
+    trackViewport(viewport);
+  }, [trackViewport]);
+
+  const onMoveEnd = React.useCallback((_event: unknown, viewport: Viewport) => {
+    trackViewport(viewport);
+    void commit(document => setViewportContent(document, viewport));
+  }, [commit, trackViewport]);
 
   const nextSpawnPosition = React.useCallback(() => {
     const document = documentRef.current;
@@ -1485,11 +1603,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         targetNodeId,
       );
     }, { history: true });
-    // No selected card: remember it so the next generate wires it up to the
-    // card that generate creates.
-    if (asReference && !targetNodeId) {
-      setStagedReferenceIds(current => [...current, nodeId]);
-    }
   }, [commit, imagePickerIntent, nextSpawnPosition, singleSelectedMediaNodeId]);
 
   const onPickStyle = React.useCallback((presetId: string | undefined) => {
@@ -1802,13 +1915,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     );
   }, []);
 
-  // —— §6: the bottom floating generator ————————————————————————————————————
+  // —— §6: the generator that floats under the selected card ————————————————
 
   /**
-   * The generator's target card, projected for display. Exactly one selected
-   * generation-capable card takes over the generator; anything else (nothing
-   * selected, a text card, a multi-selection) leaves it in "make a new card"
-   * mode. Nothing here dispatches: it is the same projection the cards read.
+   * The card the generator is attached to, projected for display. Exactly one
+   * selected generation-capable card gets a generator; anything else (nothing
+   * selected, a text card, a multi-selection) gets none at all — with no
+   * selection the board carries no input surface. Nothing here dispatches: it
+   * is the same projection the cards read.
    */
   const generatorTarget = React.useMemo(() => {
     if (selectedNodeIds.length !== 1) return undefined;
@@ -1835,10 +1949,29 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, [flowNodes, selectedNodeIds, t]);
 
   /**
-   * The thumbnail queue. With a target it is that card's incoming reference
-   * cards in edge order; without one it is what the user staged through the
-   * generator's `+`. Tolerant on purpose — a reference whose media has not
-   * landed yet shows as an empty square rather than blanking the queue.
+   * §6: where the generator sits — directly under its card, as wide as the
+   * card, in panel pixels. Falls back to `undefined` (the stylesheet's own
+   * placement) when the card has not been measured yet, so the input is never
+   * missing while reactflow is still measuring.
+   */
+  const generatorPlacement = React.useMemo(() => {
+    if (!generatorTarget) return undefined;
+    const node = flowNodes.find(entry => entry.id === generatorTarget.nodeId);
+    const width = node?.measured?.width;
+    const height = node?.measured?.height;
+    if (!node || !width || !height) return undefined;
+    const { x, y, zoom } = viewportTransform;
+    return {
+      left: node.position.x * zoom + x,
+      top: (node.position.y + height) * zoom + y + GENERATOR_CARD_GAP,
+      width: Math.max(width * zoom, GENERATOR_MIN_WIDTH),
+    };
+  }, [flowNodes, generatorTarget, viewportTransform]);
+
+  /**
+   * The thumbnail queue: the target card's incoming reference cards, in edge
+   * order. Tolerant on purpose — a reference whose media has not landed yet
+   * shows as an empty square rather than blanking the queue.
    */
   const generatorReferences = React.useMemo<InfiniteCanvasGeneratorReference[]>(() => {
     const nodeById = new Map(flowNodes.map(node => [node.id, node]));
@@ -1846,7 +1979,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       ? flowEdges
         .filter(edge => edge.target === generatorTarget.nodeId)
         .map(edge => edge.source)
-      : stagedReferenceIds;
+      : [];
     const seen = new Set<string>();
     const references: InfiniteCanvasGeneratorReference[] = [];
     for (const sourceId of sourceIds) {
@@ -1861,48 +1994,24 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       });
     }
     return references;
-  }, [flowEdges, flowNodes, generatorTarget, stagedReferenceIds]);
+  }, [flowEdges, flowNodes, generatorTarget]);
 
   /**
-   * The one send path. With a target the prompt is written to that card and
-   * the existing dispatch runs on it (self for a blank card, derived for one
-   * that already holds media). Without a target a new generation card is
-   * created, the staged references are wired to it, and the same dispatch
-   * runs. Both branches go through `commit` and `generateForNode` — no second
-   * generation lane, no change to the gateway contract.
+   * The one send path: the edited prompt is written to the attached card and
+   * the existing dispatch runs on it — self for a blank card, derived for one
+   * that already holds media. Same `commit`, same `generateForNode`: no second
+   * generation lane and no change to the gateway contract.
    */
   const onGeneratorSubmit = React.useCallback(async (prompt: string) => {
     const target = generatorTarget;
-    if (target) {
-      if (prompt !== target.prompt) {
-        await commit(document => setNodePromptContent(document, target.nodeId, prompt), {
-          history: true,
-        });
-      }
-      await generateForNode(target.nodeId);
-      return;
-    }
-    const nodeId = createInfiniteCanvasId('node');
-    const position = nextSpawnPosition();
-    const staged = stagedReferenceIds;
-    const edgeIds = staged.map(() => createInfiniteCanvasId('edge'));
-    await commit(document => {
-      let next = addBlankGenerationCardContent(document, nodeId, position);
-      next = setNodePromptContent({ ...document, ...next }, nodeId, prompt);
-      staged.forEach((sourceId, index) => {
-        if (!document.nodes.some(node => node.nodeId === sourceId)) return;
-        next = connectNodesContent(
-          { ...document, ...next },
-          edgeIds[index],
-          sourceId,
-          nodeId,
-        );
+    if (!target) return;
+    if (prompt !== target.prompt) {
+      await commit(document => setNodePromptContent(document, target.nodeId, prompt), {
+        history: true,
       });
-      return next;
-    }, { history: true });
-    setStagedReferenceIds([]);
-    await generateForNode(nodeId);
-  }, [commit, generateForNode, generatorTarget, nextSpawnPosition, stagedReferenceIds]);
+    }
+    await generateForNode(target.nodeId);
+  }, [commit, generateForNode, generatorTarget]);
 
   const onGeneratorAddReference = React.useCallback(() => {
     setImagePickerIntent('reference');
@@ -2050,6 +2159,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onConnectStart={onConnectStart}
+          onConnectEnd={onConnectEnd}
+          proOptions={FLOW_PRO_OPTIONS}
           onMove={onMove}
           onMoveEnd={onMoveEnd}
           onSelectionChange={onSelectionChange}
@@ -2076,8 +2188,50 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           elevateNodesOnSelect
         >
           <Background gap={CANVAS_DOT_GAP} size={CANVAS_DOT_SIZE} />
-          <Controls position="bottom-right" showInteractive={false} />
         </ReactFlow>
+        {/*
+          §8.1: reactflow's stacked `+ − ⛶` control block is replaced by three
+          hairline icon buttons in the corner — no background until hovered,
+          same weight as the left rail. They drive the same instance methods
+          the default control block called.
+        */}
+        <div
+          className="infinite-canvas-zoom"
+          role="group"
+          data-canvas-zoom="root"
+          aria-label={t('infiniteCanvas.zoom.label')}
+        >
+          <button
+            type="button"
+            className="infinite-canvas-zoom__button"
+            data-canvas-zoom-action="in"
+            aria-label={t('infiniteCanvas.zoom.in')}
+            title={t('infiniteCanvas.zoom.in')}
+            onClick={() => flowInstanceRef.current?.zoomIn?.({ duration: 160 })}
+          >
+            <Plus size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="infinite-canvas-zoom__button"
+            data-canvas-zoom-action="out"
+            aria-label={t('infiniteCanvas.zoom.out')}
+            title={t('infiniteCanvas.zoom.out')}
+            onClick={() => flowInstanceRef.current?.zoomOut?.({ duration: 160 })}
+          >
+            <Minus size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="infinite-canvas-zoom__button"
+            data-canvas-zoom-action="fit"
+            aria-label={t('infiniteCanvas.zoom.fit')}
+            title={t('infiniteCanvas.zoom.fit')}
+            onClick={() => flowInstanceRef.current?.fitView?.({ duration: 160, padding: 0.2 })}
+          >
+            <Maximize size={14} aria-hidden="true" />
+          </button>
+        </div>
         <InfiniteCanvasHelperLines
           vertical={helperLines.vertical}
           horizontal={helperLines.horizontal}
@@ -2125,33 +2279,31 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onLocate={onLocateNode}
         />
         {/*
-          §6: the bottom floating generator. Always present — on a blank board
-          it creates the first card, with a card selected it regenerates that
-          card or uses it as the edit target.
+          §6: the generator belongs to the selected card and floats under it.
+          No selection, no input surface anywhere on the board.
         */}
-        <InfiniteCanvasGenerator
-          target={generatorTarget}
-          references={generatorReferences}
-          resolvePreviewUrl={resolvePreviewUrl}
-          onSubmit={prompt => {
-            void onGeneratorSubmit(prompt);
-          }}
-          onCommitPrompt={generatorTarget
-            ? prompt => {
+        {generatorTarget ? (
+          <InfiniteCanvasGenerator
+            target={generatorTarget}
+            placement={generatorPlacement}
+            references={generatorReferences}
+            resolvePreviewUrl={resolvePreviewUrl}
+            onSubmit={prompt => {
+              void onGeneratorSubmit(prompt);
+            }}
+            onCommitPrompt={prompt => {
               void commit(
                 document => setNodePromptContent(document, generatorTarget.nodeId, prompt),
                 { history: true },
               );
-            }
-            : undefined}
-          onAddReference={onGeneratorAddReference}
-          onOpenParams={generatorTarget
-            ? () => nodeActionsRef.current.openParams(generatorTarget.nodeId)
-            : undefined}
-          onOpenStyle={generatorTarget?.mediaKind === 'image'
-            ? () => openStylePicker(generatorTarget.nodeId)
-            : undefined}
-        />
+            }}
+            onAddReference={onGeneratorAddReference}
+            onOpenParams={() => nodeActionsRef.current.openParams(generatorTarget.nodeId)}
+            onOpenStyle={generatorTarget.mediaKind === 'image'
+              ? () => openStylePicker(generatorTarget.nodeId)
+              : undefined}
+          />
+        ) : null}
         {contextMenu ? (
           <InfiniteCanvasContextMenu
             state={contextMenu}
@@ -2161,9 +2313,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           />
         ) : null}
         {flowNodes.length === 0 ? (
-          // §9: an empty board is the board. One short grey line above the
-          // generator — no illustration, no paragraph, no second CTA (the
-          // generator below it already is the way in).
+          // §9: an empty board is the board — dark surface, the left rail, and
+          // one short grey line. No illustration, no paragraph, and (§6) no
+          // input box: a generator needs a card to belong to.
           <p className="infinite-canvas-panel__empty">{t('infiniteCanvas.empty.hint')}</p>
         ) : null}
       </div>

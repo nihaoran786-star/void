@@ -512,7 +512,9 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     await renderPanel();
     await dragTo('card-a', { x: 300, y: 0 });
 
-    const textarea = container.querySelector('textarea');
+    // §6: the prompt box only exists while its card is selected.
+    await selectCanvasCards(flow, ['card-a']);
+    const textarea = container.querySelector('[data-canvas-generator-field="prompt"]');
     if (!textarea) throw new Error('no prompt editor');
     await pressKey({ key: 'z' }, textarea);
 

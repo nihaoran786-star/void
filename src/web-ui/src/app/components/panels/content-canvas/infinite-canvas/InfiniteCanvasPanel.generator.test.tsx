@@ -1,12 +1,15 @@
 /**
- * §6 behavior closure: the bottom floating generator.
+ * §6 behavior closure: the generator that belongs to the selected card.
  *
  * Behavior only — no style assertions. What is pinned here: the card face
- * carries no prompt box and no generate button any more, the generator makes
- * a card when nothing is selected, it acts on the selected card when there is
- * one, and the reference thumbnail queue mirrors that card's incoming
- * reference edges. Everything dispatches through the same gateway lane the
- * on-card button used, with the same invocation shape.
+ * carries no prompt box and no generate button, the board carries NO input
+ * surface while nothing is selected, selecting a card brings up a generator
+ * carrying that card's last prompt, a blank card's generator starts empty and
+ * lands its result in that card, the thumbnail queue mirrors that card's
+ * incoming reference edges, and dragging off a card's right edge onto empty
+ * board creates a wired blank card that takes the selection. Everything
+ * dispatches through the same gateway lane the on-card button used, with the
+ * same invocation shape.
  */
 import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -158,7 +161,7 @@ function createRecordingGateway(): RecordingGateway {
   return recording;
 }
 
-describe('InfiniteCanvasPanel bottom generator', () => {
+describe('InfiniteCanvasPanel card-anchored generator', () => {
   let dom: JSDOM;
   let container: HTMLDivElement;
   let root: Root;
@@ -232,22 +235,57 @@ describe('InfiniteCanvasPanel bottom generator', () => {
     expect(card).not.toBeNull();
     expect(card!.querySelector('textarea')).toBeNull();
     expect(card!.querySelector('.infinite-canvas-node__generate-button')).toBeNull();
+
+    await selectCanvasCards(flow, ['card-a']);
     expect(container.querySelector('[data-canvas-generator="root"]')).not.toBeNull();
   });
 
-  it('creates a card, writes the prompt on it and dispatches when nothing is selected', async () => {
-    seed(memory);
+  it('shows no input surface at all while nothing is selected', async () => {
+    seed(memory, { nodes: [imageNode('card-a', { prompt: 'a fox' })] });
     await renderPanel();
+
+    // A freshly opened board has no selection, so no generator.
+    expect(container.querySelector('[data-canvas-generator="root"]')).toBeNull();
+
+    await selectCanvasCards(flow, ['card-a']);
+    expect(container.querySelector('[data-canvas-generator="root"]')).not.toBeNull();
+
+    // Deselecting takes it away again.
     await selectCanvasCards(flow, []);
+    expect(container.querySelector('[data-canvas-generator="root"]')).toBeNull();
+  });
+
+  it('carries the selected card\'s last prompt, and starts empty on a blank card', async () => {
+    seed(memory, {
+      nodes: [
+        imageNode('card-used', { mediaRef: mediaRefOf('hero.png'), prompt: 'a fox at dawn' }),
+        imageNode('card-blank'),
+      ],
+    });
+    await renderPanel();
+
+    await selectCanvasCards(flow, ['card-used']);
+    expect(promptField().value).toBe('a fox at dawn');
+    expect(promptField().closest('[data-canvas-generator="root"]')
+      ?.getAttribute('data-canvas-generator-target')).toBe('card-used');
+
+    await selectCanvasCards(flow, ['card-blank']);
+    expect(promptField().value).toBe('');
+  });
+
+  it('writes the typed prompt onto the selected blank card and lands the result there', async () => {
+    seed(memory, { nodes: [imageNode('card-blank')] });
+    await renderPanel();
+    await selectCanvasCards(flow, ['card-blank']);
 
     await type('a lighthouse at dusk');
-    await generateFromCanvasGenerator(container, flow);
+    await generateFromCanvasGenerator(container, flow, 'card-blank');
 
     expect(recording.invocations).toHaveLength(1);
-    const invocation = recording.invocations[0];
-    expect(invocation).toMatchObject({
+    expect(recording.invocations[0]).toMatchObject({
       kind: 'generate',
       resultMode: 'self',
+      nodeId: 'card-blank',
       prompt: 'a lighthouse at dusk',
       references: [],
     });
@@ -255,8 +293,8 @@ describe('InfiniteCanvasPanel bottom generator', () => {
     await service.flushPendingWrites();
     const nodes = readDocument(memory).nodes;
     expect(nodes).toHaveLength(1);
+    expect(nodes[0].nodeId).toBe('card-blank');
     expect(nodes[0].prompt).toBe('a lighthouse at dusk');
-    expect(nodes[0].nodeId).toBe(invocation.nodeId);
     expect(nodes[0].generation).toMatchObject({ status: 'pending', resultMode: 'self' });
   });
 
@@ -295,7 +333,7 @@ describe('InfiniteCanvasPanel bottom generator', () => {
     });
     await renderPanel();
 
-    // Nothing selected: the queue is empty and the generator will make a card.
+    // Nothing selected: there is no generator, so there is no queue either.
     expect(container.querySelectorAll('[data-canvas-generator-reference]')).toHaveLength(0);
 
     await selectCanvasCards(flow, ['card-target']);
@@ -310,14 +348,69 @@ describe('InfiniteCanvasPanel bottom generator', () => {
       .toEqual(['ref-b', 'ref-a']);
   });
 
-  it('leaves the generator in "new card" mode for a multi-selection', async () => {
+  it('shows no generator for a multi-selection: it would have no single card', async () => {
     seed(memory, {
       nodes: [imageNode('card-a', { prompt: 'a' }), imageNode('card-b', { prompt: 'b' })],
     });
     await renderPanel();
     await selectCanvasCards(flow, ['card-a', 'card-b']);
 
+    expect(container.querySelector('[data-canvas-generator="root"]')).toBeNull();
+  });
+
+  it('creates a wired blank card when a connection is dragged onto empty board', async () => {
+    seed(memory, {
+      nodes: [imageNode('card-src', { mediaRef: mediaRefOf('hero.png'), prompt: 'a fox' })],
+    });
+    await renderPanel();
+
+    await act(async () => {
+      flow.props.onConnectStart?.({}, { nodeId: 'card-src', handleType: 'source' });
+      flow.props.onConnectEnd?.({
+        target: { classList: { contains: (name: string) => name === 'react-flow__pane' } },
+        clientX: 640,
+        clientY: 320,
+      });
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await service.flushPendingWrites();
+
+    const document = readDocument(memory);
+    expect(document.nodes).toHaveLength(2);
+    const created = document.nodes.find(node => node.nodeId !== 'card-src');
+    expect(created?.kind).toBe('image');
+    expect(created?.mediaRef).toBeUndefined();
+    // The card it was dragged from becomes its reference.
+    expect(document.edges).toHaveLength(1);
+    expect(document.edges[0]).toMatchObject({
+      sourceNodeId: 'card-src',
+      targetNodeId: created!.nodeId,
+    });
+
+    // The new card is selected, so its (empty) generator is the one on screen.
     const generator = container.querySelector('[data-canvas-generator="root"]');
-    expect(generator?.getAttribute('data-canvas-generator-target')).toBeNull();
+    expect(generator?.getAttribute('data-canvas-generator-target')).toBe(created!.nodeId);
+    expect(promptField().value).toBe('');
+  });
+
+  it('ignores a connection drag that ends on something other than empty board', async () => {
+    seed(memory, {
+      nodes: [imageNode('card-src', { mediaRef: mediaRefOf('hero.png') })],
+    });
+    await renderPanel();
+
+    await act(async () => {
+      flow.props.onConnectStart?.({}, { nodeId: 'card-src', handleType: 'source' });
+      flow.props.onConnectEnd?.({
+        target: { classList: { contains: () => false } },
+        clientX: 640,
+        clientY: 320,
+      });
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await service.flushPendingWrites();
+
+    expect(readDocument(memory).nodes).toHaveLength(1);
+    expect(readDocument(memory).edges).toHaveLength(0);
   });
 });

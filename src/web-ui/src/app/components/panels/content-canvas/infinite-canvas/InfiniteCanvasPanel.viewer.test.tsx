@@ -373,4 +373,23 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
     expect(card?.querySelector('[data-node-action="open-viewer-entry"]')).toBeNull();
     expect(card?.querySelector('[data-node-action="open-viewer"]')).toBeNull();
   });
+
+  // §6 (owner correction): clicking a card selects it. Enlarging is explicit.
+  it('does not enlarge on a single click, and does on a double click', async () => {
+    seed([IMAGE_NODE]);
+    await renderPanel();
+
+    const card = container.querySelector('[data-node-id="n-image"] .infinite-canvas-node');
+    expect(card).not.toBeNull();
+
+    await act(async () => {
+      Simulate.click(card!);
+    });
+    expect(viewer()).toBeNull();
+
+    await act(async () => {
+      Simulate.doubleClick(card!);
+    });
+    expect(viewer()).not.toBeNull();
+  });
 });

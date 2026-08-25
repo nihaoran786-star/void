@@ -1,11 +1,11 @@
 /**
- * Bottom floating generator (visual language §6) — the single place a canvas
- * generation is started.
+ * Card-anchored generator (visual language §6, owner correction 2026-08-26).
  *
- * The card face no longer carries a prompt box or a generate button: this
- * panel floats over the lower half of the board, is always present, and acts
- * on the selected card when there is one (regenerate / use as the edit target)
- * or creates a new card when there is not.
+ * This is NOT a global input box parked at the bottom of the board. It belongs
+ * to the one selected card and floats directly under it: the prompt it shows is
+ * that card's last prompt, and the parameter summary, the count and the send
+ * button all act on that card. Deselect the card and it is gone — with nothing
+ * selected the canvas carries no input surface at all.
  *
  * Pure presentation: every action is a callback the panel routes through the
  * same DocumentService commands and the same DirectImageGenerationGateway lane
@@ -42,8 +42,21 @@ export interface InfiniteCanvasGeneratorTarget {
   pending: boolean;
 }
 
+/**
+ * Where the generator sits, in panel pixels: directly under the card it
+ * belongs to, as wide as that card. The panel recomputes it whenever the card
+ * moves or the viewport pans / zooms, so the input tracks its card.
+ */
+export interface InfiniteCanvasGeneratorPlacement {
+  left: number;
+  top: number;
+  width: number;
+}
+
 export interface InfiniteCanvasGeneratorProps {
-  target?: InfiniteCanvasGeneratorTarget;
+  /** The selected card. There is no generator without one. */
+  target: InfiniteCanvasGeneratorTarget;
+  placement?: InfiniteCanvasGeneratorPlacement;
   references: readonly InfiniteCanvasGeneratorReference[];
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
   onSubmit: (prompt: string) => void;
@@ -101,6 +114,7 @@ GeneratorThumbnail.displayName = 'InfiniteCanvasGeneratorThumbnail';
 
 export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = ({
   target,
+  placement,
   references,
   resolvePreviewUrl,
   onSubmit,
@@ -110,17 +124,18 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   onOpenStyle,
 }) => {
   const { t } = useI18n('components');
-  const [draft, setDraft] = React.useState(target?.prompt ?? '');
-  const targetNodeId = target?.nodeId;
-  const targetPrompt = target?.prompt;
+  const [draft, setDraft] = React.useState(target.prompt);
+  const targetNodeId = target.nodeId;
+  const targetPrompt = target.prompt;
 
-  // Switching target adopts that card's prompt; the generator is a view of the
-  // card it is acting on, not a second place where a prompt could hide.
+  // Selecting another card adopts that card's prompt; the generator is a view
+  // of the card it is attached to, not a second place a prompt could hide. A
+  // blank generation card therefore opens with an empty field.
   React.useEffect(() => {
-    setDraft(targetPrompt ?? '');
+    setDraft(targetPrompt);
   }, [targetNodeId, targetPrompt]);
 
-  const pending = target?.pending ?? false;
+  const pending = target.pending;
   const submit = React.useCallback(() => {
     if (pending) return;
     onSubmit(draft);
@@ -131,8 +146,18 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
       className="infinite-canvas-generator"
       data-canvas-generator="root"
       data-canvas-generator-target={targetNodeId}
+      // Until the card has been measured the stylesheet's own placement keeps
+      // the input on screen; once it is measured, the inline box wins.
+      data-canvas-generator-anchored={placement ? 'true' : undefined}
       role="group"
       aria-label={t('infiniteCanvas.generator.label')}
+      style={placement
+        ? {
+            left: `${placement.left}px`,
+            top: `${placement.top}px`,
+            width: `${placement.width}px`,
+          }
+        : undefined}
     >
       <div className="infinite-canvas-generator__references">
         {onOpenStyle ? (
@@ -142,9 +167,9 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
             type="button"
             className="infinite-canvas-generator__icon-button"
             data-canvas-generator-action="style"
-            data-has-style={target?.stylePresetName ? 'true' : undefined}
+            data-has-style={target.stylePresetName ? 'true' : undefined}
             aria-label={t('infiniteCanvas.generator.style')}
-            title={target?.stylePresetName ?? t('infiniteCanvas.generator.style')}
+            title={target.stylePresetName ?? t('infiniteCanvas.generator.style')}
             onClick={onOpenStyle}
           >
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -189,7 +214,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         rows={2}
         onChange={event => setDraft(event.target.value)}
         onBlur={() => {
-          if (draft !== (targetPrompt ?? '')) onCommitPrompt?.(draft);
+          if (draft !== targetPrompt) onCommitPrompt?.(draft);
         }}
         onKeyDown={event => {
           if (event.key !== 'Enter' || event.shiftKey) return;
@@ -198,45 +223,35 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         }}
       />
       <div className="infinite-canvas-generator__bar">
-        {target ? (
-          <>
-            <button
-              type="button"
-              className="infinite-canvas-generator__meta"
-              data-canvas-generator-action="model"
-              onClick={onOpenParams}
-            >
-              {target.modelLabel}
-            </button>
-            <span className="infinite-canvas-generator__dot" aria-hidden="true" />
-            <button
-              type="button"
-              className="infinite-canvas-generator__meta"
-              data-canvas-generator-action="params"
-              data-has-params={target.paramsSummary ? 'true' : undefined}
-              title={target.paramsSummary || t('infiniteCanvas.params.button')}
-              onClick={onOpenParams}
-            >
-              {target.paramsSummary || t('infiniteCanvas.params.button')}
-            </button>
-            <span className="infinite-canvas-generator__dot" aria-hidden="true" />
-            <button
-              type="button"
-              className="infinite-canvas-generator__meta"
-              data-canvas-generator-action="count"
-              onClick={onOpenParams}
-            >
-              {/* `n`, not `count`: i18next reserves `count` for plurals. */}
-              {t('infiniteCanvas.generator.count', { n: target.count ?? 1 })}
-            </button>
-          </>
-        ) : (
-          // No card selected: the generator will create one. Parameters and
-          // style belong to a card, so they appear once the card exists.
-          <span className="infinite-canvas-generator__hint">
-            {t('infiniteCanvas.generator.newCard')}
-          </span>
-        )}
+        <button
+          type="button"
+          className="infinite-canvas-generator__meta"
+          data-canvas-generator-action="model"
+          onClick={onOpenParams}
+        >
+          {target.modelLabel}
+        </button>
+        <span className="infinite-canvas-generator__dot" aria-hidden="true" />
+        <button
+          type="button"
+          className="infinite-canvas-generator__meta"
+          data-canvas-generator-action="params"
+          data-has-params={target.paramsSummary ? 'true' : undefined}
+          title={target.paramsSummary || t('infiniteCanvas.params.button')}
+          onClick={onOpenParams}
+        >
+          {target.paramsSummary || t('infiniteCanvas.params.button')}
+        </button>
+        <span className="infinite-canvas-generator__dot" aria-hidden="true" />
+        <button
+          type="button"
+          className="infinite-canvas-generator__meta"
+          data-canvas-generator-action="count"
+          onClick={onOpenParams}
+        >
+          {/* `n`, not `count`: i18next reserves `count` for plurals. */}
+          {t('infiniteCanvas.generator.count', { n: target.count ?? 1 })}
+        </button>
         <span className="infinite-canvas-generator__spacer" />
         <button
           type="button"

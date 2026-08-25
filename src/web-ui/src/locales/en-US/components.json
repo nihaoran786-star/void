@@ -1026,7 +1026,6 @@
     "viewer": {
       "title": "Media viewer",
       "open": "View",
-      "openImage": "View this image full screen",
       "close": "Close",
       "previous": "Previous media card",
       "next": "Next media card",
@@ -1124,13 +1123,18 @@
       "style": "Style",
       "count": "{{n}}x",
       "targetImage": "Acting on the selected image card",
-      "targetVideo": "Acting on the selected video card",
-      "newCard": "A new card will be created"
+      "targetVideo": "Acting on the selected video card"
     },
     "rail": {
       "label": "Canvas tools",
       "create": "Create",
       "library": "Media library"
+    },
+    "zoom": {
+      "fit": "Fit the board to the view",
+      "in": "Zoom in",
+      "label": "Zoom controls",
+      "out": "Zoom out"
     }
   },
   "agentStudio": {

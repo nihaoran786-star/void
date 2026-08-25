@@ -1026,7 +1026,6 @@
     "viewer": {
       "title": "媒體檢視器",
       "open": "看大圖",
-      "openImage": "全螢幕檢視這張圖",
       "close": "關閉",
       "previous": "上一張媒體卡",
       "next": "下一張媒體卡",
@@ -1124,13 +1123,18 @@
       "style": "風格",
       "count": "{{n}}張",
       "targetImage": "作用於選取的圖片卡",
-      "targetVideo": "作用於選取的影片卡",
-      "newCard": "將新增一張卡片"
+      "targetVideo": "作用於選取的影片卡"
     },
     "rail": {
       "label": "畫布工具",
       "create": "新增",
       "library": "素材庫"
+    },
+    "zoom": {
+      "fit": "適應畫布",
+      "in": "放大",
+      "label": "縮放控件",
+      "out": "縮小"
     }
   },
   "agentStudio": {

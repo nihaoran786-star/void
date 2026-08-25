@@ -177,38 +177,8 @@
     border-color: var(--canvas-accent);
   }
 
-  // Zoom controls: same quiet icon-button language as sibling panels.
-  .react-flow__controls {
-    overflow: hidden;
-    border: 1px solid var(--infinite-canvas-hairline);
-    border-radius: 6px;
-    box-shadow: none;
-  }
-
-  .react-flow__controls-button {
-    width: 26px;
-    height: 26px;
-    border-bottom: 1px solid var(--infinite-canvas-hairline);
-    background: var(--infinite-canvas-raised);
-
-    svg {
-      fill: var(--infinite-canvas-muted);
-      max-width: 12px;
-      max-height: 12px;
-    }
-
-    &:hover {
-      background: var(--infinite-canvas-hover);
-
-      svg {
-        fill: var(--infinite-canvas-text);
-      }
-    }
-
-    &:last-child {
-      border-bottom: 0;
-    }
-  }
+  // §8.1: reactflow's own control block and attribution are not rendered any
+  // more — the corner buttons below replace them.
 }
 
 // §9: an empty board is just the board. One short grey line, sitting above
@@ -436,22 +406,6 @@
   background: transparent;
   cursor: pointer;
   opacity: 0;
-}
-
-// The still image doubles as the viewer trigger; the button is a bare frame
-// so the card's visual weight is unchanged until it is hovered or focused.
-.infinite-canvas-node__image-button {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-
-  &:focus-visible {
-    outline: 1px solid var(--canvas-accent);
-    outline-offset: -1px;
-  }
 }
 
 .infinite-canvas-node__view-button {
@@ -714,6 +668,43 @@
   &:disabled {
     cursor: default;
     opacity: 0.3;
+  }
+}
+
+// ── §8.1: the tiny zoom controls in the lower-right corner ─────────────────
+// Hairline icons, no background of their own, lit only on hover — the same
+// weight as the left rail, so the board keeps the corner.
+
+.infinite-canvas-zoom {
+  position: absolute;
+  z-index: 8;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.infinite-canvas-zoom__button {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--canvas-text-faint);
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(255 255 255 / 7%);
+    color: var(--canvas-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: -1px;
   }
 }
 
@@ -1002,9 +993,11 @@
   }
 }
 
-// ── §6: bottom floating generator ──────────────────────────────────────────
-// A dark, large-radius panel that floats low and centred over the board:
-// reference queue on top, one big soft prompt area, one compact meta row.
+// ── §6: the generator attached to the selected card ────────────────────────
+// A dark, large-radius panel that hangs directly under the card it belongs to:
+// reference queue on top, one big soft prompt area, one compact meta row. The
+// panel supplies left/top/width inline once the card has been measured; the
+// centred box below is only the pre-measurement fallback.
 
 .infinite-canvas-generator {
   position: absolute;
@@ -1022,6 +1015,12 @@
   background: var(--canvas-surface-overlay);
   box-shadow: 0 18px 44px rgb(0 0 0 / 46%);
   transform: translateX(-50%);
+
+  &[data-canvas-generator-anchored='true'] {
+    bottom: auto;
+    width: auto;
+    transform: none;
+  }
 }
 
 .infinite-canvas-generator__references {
@@ -1132,11 +1131,6 @@
   &[data-has-params='true'] {
     color: var(--canvas-text-primary);
   }
-}
-
-.infinite-canvas-generator__hint {
-  color: var(--canvas-text-faint);
-  font-size: 11px;
 }
 
 .infinite-canvas-generator__dot {
