@@ -205,7 +205,7 @@ Required state model:
 
 ### Persistent Interactive Artifacts
 
-`docs/architecture/canvas-artifact-domain-rfc.md` is the Void-owned RFC for future Canvas-like persistent interactive artifacts. It is documentation only until a later issue accepts storage, runtime, security, and tool-exposure implementation.
+`docs/features/canvas-plugin-platform-prd.md` is the current specification for Canvas surfaces, plugin contributions, and persistent interactive artifacts. The three 2026-07-04 pre-implementation gate documents that preceded it were retired on 2026-08-25; their still-binding generated-runtime rules now live in that PRD.
 
 Current ownership remains unchanged:
 
@@ -224,9 +224,9 @@ AI/tool event -> Artifact tool/core permission interface -> workspace-scoped art
 
 `ContentCanvas`, content-canvas `canvasStore`, Flow Chat tool cards, generated-widget frames, MiniApp scenes, and `ShortDramaCenterPanel` are not allowed to become persistent artifact source-of-truth modules.
 
-`docs/architecture/visual-artifact-boundary-decision.md` defines the route-level ownership matrix for visual artifact surfaces. `GenerativeUI` remains a chat-scoped tool result, MiniApps remain reusable app/runtime entities, AI media remains asset/manifest owned, AI short-drama remains project/manifest owned, and future persistent interactive artifacts require an explicit save/promote/import route through a Void-owned artifact module. No route may automatically promote a generated widget, media asset, MiniApp, or short-drama artifact into persistent Canvas-like state without the future module interface and tests.
+Each visual artifact route keeps exactly one owner. `GenerativeUI` remains a chat-scoped tool result, MiniApps remain reusable app/runtime entities, AI media remains asset/manifest owned, AI short-drama remains project/manifest owned, and a persistent interactive artifact requires an explicit save/promote/import route through a Void-owned module. No route may automatically promote a generated widget, media asset, MiniApp, or short-drama artifact into persistent Canvas-like state.
 
-`docs/architecture/canvas-runtime-security-review.md` is the security gate for any future persistent interactive artifact runtime. It rejects direct upstream Canvas runtime, desktop API, iframe bridge, generated-content host actions, HTML export, skills, `core.canvas`, and auto-repair until a separate issue defines iframe/worker isolation, message validation, host action policy, user confirmation, structured runtime diagnostics, revision-aware state persistence, CSP/source/bundle policy, and contract tests. Current `GenerativeUI` bridge actions such as `sendPrompt` and `open-file` remain chat-scoped only.
+The generated-content runtime security baseline is owned by `docs/features/canvas-plugin-platform-prd.md` section 7.1: iframe/worker isolation, message validation, host action policy, user confirmation, structured runtime diagnostics, revision-aware state persistence, CSP/source/bundle policy, and the tests required before any new generated runtime. Current `GenerativeUI` bridge actions such as `sendPrompt` and `open-file` remain chat-scoped only.
 
 Flow Chat tool-card display names, confirmation policy, MCP display-name fallback, and unknown-tool fallback are owned by `src/web-ui/src/flow_chat/tool-cards/toolCardMetadata.ts`. `src/web-ui/src/flow_chat/tool-cards/index.ts` is the component registry and compatibility re-export layer only; pages, tool cards, and registries must not duplicate display-name or confirmation decisions. MiniApp icon-name conversion and fallback are owned by `src/web-ui/src/app/scenes/miniapps/utils/miniAppIcons.tsx`; Gallery/Card/Store surfaces may render helper output but must not infer icon availability or duplicate fallback logic.
 

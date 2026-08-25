@@ -8,7 +8,7 @@
 更新：2026-08-15
 主产品：Void
 上游参考：BitFun
-前沿参考：DeepSeek Harness（DSH）；本地源码 `D:\codex\DSH`
+前沿参考：DeepSeek Harness（DSH）；本地源码为与本仓库同级的 `DSH` 目录
 
 > 本文固化用户确认的最终产品方向，用于跨会话续作和阶段验收。
 > 本文不授权直接开始源码实现；每个实现阶段仍需用户明确批准。
@@ -476,6 +476,58 @@ MiniApp 已经是独立产品能力，拥有 iframe、Bridge、权限、持久�
 未来若允许 MiniApp 贡献 Canvas Surface，应通过一个 `MiniAppCanvasAdapter`，而不是让
 Canvas Host 直接读取 MiniApp 存储或调用其 worker。
 
+### 7.1 GenerativeUI 生成内容运行时安全基线
+
+这一节 2026-08-25 从三份 2026-07-04 的 Canvas 前置门文档合并而来。那三份文档的
+产物契约部分已被本文与已落地的无限画布取代，但下面这些关于**现有生成内容运行时**
+的约束仍然有效。
+
+现状基线（`GenerativeUI` 聊天内挂件）：
+
+- 挂件在 `srcDoc` iframe 中运行，sandbox 为
+  `allow-scripts allow-forms allow-modals allow-popups`。
+- 宿主处理消息前必须同时校验 `event.source === iframe.contentWindow`、
+  `data.source === 'void-widget'` 和匹配的 `widgetId`。
+- iframe 外壳用 `targetOrigin: '*'` 回发消息，这只因为它是聊天作用域的 `srcDoc`
+  挂件才被接受。
+- 允许的桥动作仅限：resize/ready、`sendPrompt` / `voidWidget.sendPrompt`、
+  上下文菜单选择、`void-widget:open-file` 跳转。
+
+必须长期成立的约束：
+
+1. `GenerativeUI` 是聊天作用域的工具结果，不是持久化存储。右侧面板页签只是该工具
+   结果的投影，编辑/保存只更新当前会话轮次的工具结果；只有显式的 save/promote 命令
+   才能生成持久领域产物，任何路径都不得自动提升。
+2. `targetOrigin: '*'` 不是任何持久化或插件化运行时的可接受契约。若 `srcDoc` /
+   `blob:` 强制不透明 origin，必须用来源窗口身份、产物/修订令牌、request id、
+   payload schema、大小限制和动作级权限补偿。
+3. 生成内容不得直接调用宿主能力，只能通过返回显式结果的策略层请求动作。默认允许
+   的只有：报告 ready、报告运行时错误、上报测量尺寸、请求当前主题、请求当前产物与
+   修订的状态。
+4. 下列动作必须先取得用户确认，且确认结果必须是机器可读的（取消/超时/不支持/拒绝
+   不能退化成一个泛化错误字符串）：打开工作区文件、切换或打开会话、在产物模块之外
+   持久化可变状态、导出或下载生成的 HTML、写剪贴板、发送修复提示词、请求
+   Provider/模型/工具执行、访问超出已渲染引用的媒体或短剧细节。
+5. 打开工作区文件若被允许，必须先规范化路径、默认拒绝绝对路径、证明目标位于当前
+   workspace 或显式允许的根内，并返回机器可读的 denied/unsupported/error。
+6. 自动修复循环（auto-repair）未被批准。任何修复循环都需要单独立项定义用户确认、
+   最大尝试次数、去重键、冷却、源修订锁定、发送的上下文、停止条件、失败呈现，以及
+   多代理/子代理与 BTW 子对话状态的保护；绝不允许仅由 iframe 启动触发。
+7. 运行时诊断必须结构化：severity、category、code、message、源修订、位置/堆栈、
+   建议修复、firstSeen/lastSeen、去重键、count、来源（runtime / host-bridge /
+   compiler / policy）。失败的运行时修订不得覆盖最后可用产物；UI 必须显式呈现失败
+   状态，不得从 iframe 空白推断。空白 iframe、无消息、启动延迟都不是成功渲染。
+8. 生成运行时的状态写入必须携带产物引用与已见源修订，陈旧修订按冲突拒绝，且不得
+   触碰 MiniApp 存储、`.void/media-jobs`、媒体清单/文件或 `.void/short-drama`。
+9. 类 Canvas 的写工具（create/update/patch）不得在核心 Agent 模式下默认全局暴露，
+   必须放进显式能力包；只读清单不得包含写工具。
+
+引入任何新的生成内容运行时之前，至少需要下列测试：消息来源拒绝、产物引用不匹配
+拒绝、陈旧修订拒绝、未知动作拒绝、畸形/超大 payload 拒绝、动作限流或去重、确认的
+接受/拒绝/超时路径、诊断持久化与去重、失败运行时保留最后可用产物、空白 iframe 产生
+显式超时或失败状态、状态写入不触碰 MiniApp/媒体/短剧存储、未确认时无法开文件或切
+会话、未确认时无法写剪贴板或导出下载、写工具不出现在只读清单与默认核心模式。
+
 ## 8. DeepSeek Harness 借鉴与兼容策略
 
 ### 8.1 已核实的官方设计
@@ -498,7 +550,7 @@ Canvas Host 直接读取 MiniApp 存储或调用其 worker。
 官方来源：
 
 - [DeepSeek Harness repository](https://github.com/deepseek-ai/deepseek-harness)
-- 本地 clone：`D:\codex\DSH`（2026-08-17，HEAD `47f943859b`）
+- 本地 clone：与本仓库同级的 `DSH` 目录（2026-08-17，HEAD `47f943859b`）
 - [DeepSeek Harness architecture](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md)
 - [DeepSeek Harness capability seams](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/capability-seams.md)
 

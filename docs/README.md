@@ -53,9 +53,10 @@ the area you are changing.
 - [Web UI performance boundaries](architecture/web-ui-performance-boundaries.md)
 - [Web authorization boundary](architecture/auth-web-authorization.md)
 - [Deep Review architecture](architecture/deep-review.md)
-- [Canvas artifact domain RFC](architecture/canvas-artifact-domain-rfc.md)
-- [Canvas runtime security review](architecture/canvas-runtime-security-review.md)
-- [Visual artifact boundary decision](architecture/visual-artifact-boundary-decision.md)
+- Canvas artifact ownership, visual artifact route boundaries, and the
+  generated-runtime security gate are specified in the
+  [Canvas plugin platform PRD](features/canvas-plugin-platform-prd.md); the three
+  2026-07-04 pre-implementation gate documents were retired on 2026-08-25.
 - [i18n architecture](architecture/i18n.md) and the
   [development i18n guide](development/i18n.md)
 
@@ -130,9 +131,9 @@ a current specification above.
 
 - [Session runtime usage report design](features/session-runtime-usage-report-design.md)
 - [Workspace media gallery](features/workspace-media-gallery-prd.md)
-- [Media workspace assets](features/media-workspace-assets-prd.md)
-- [Media result interactions](features/media-result-interactions-prd.md)
-- [APIMart media tools](features/apimart-media-tools-prd.md)
+- [APIMart media tools](features/apimart-media-tools-prd.md) — also carries the
+  landed media result persistence, preview, and reference rules that were
+  previously kept as two separate small-change records
 - [Automation phase A behaviour](features/automation-phase-a-behavior.md)
 - [Compact chat floating window](features/agent-companion-shaped-compact-chat-floating-window-prd.md)
   — the compact chat is a protected capability

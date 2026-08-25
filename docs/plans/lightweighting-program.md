@@ -69,7 +69,7 @@ src/crates/core/                     225,644  ← 占全部 Rust 的 72%
 
 ### 2.1 上游是按「依赖层」分目录的，我们把它拍平了
 
-`D:\codex\BitFun-upstream\src\crates` 有 6 个层目录，每层一个 `AGENTS.md`：
+上游 BitFun 本地克隆（与本仓库同级的 `BitFun-upstream` 目录）的 `src/crates` 有 6 个层目录，每层一个 `AGENTS.md`：
 
 | 层 | LOC | 包含的 crate |
 |---|---|---|
@@ -220,7 +220,7 @@ Rust 侧唯一值得投入的是 §2 的分层拆分。
 |---|---|
 | `session-runtime-usage-report-design.md`(1,668) 的符号 `sessionRuntime*`/`usageReport`/`RuntimeUsage*` 在 `src/` 命中 0，是错误认知文档 | **假**。该功能已完整交付，横跨 TS 与 Rust：`flow_chat/services/usageReportService.ts`、`flow_chat/services/openSessionUsageReport.ts`、`flow_chat/components/usage/{SessionUsagePanel,SessionUsageReportCard}.tsx`、`flow_chat/components/usage/usageReportUtils.ts`、`crates/core/src/service/session_usage/{mod,service}.rs`、`crates/services-core/tests/session_usage_contracts.rs`。这是一份**已实现功能的设计文档**，不是错误认知 |
 | 上述 14 个文件均为「孤儿」 | **假**。逐个统计入链数，14 个**全部有 1–4 处入链**（详见下表） |
-| 多个文件标 `Status: Draft` | **半假**。只有 `ui-system-foundation-prd.md`（确为 `Status: Superseded as a current queue on 2026-08-08`）和 `workspace-media-gallery-prd.md`（确为 `Status: Draft`）属实；`media-result-interactions-prd.md`、`automation-phase-a-behavior.md`、`void-brand-replacement-prd.md`、`apimart-media-tools-prd.md` **根本没有 status 行** |
+| 多个文件标 `Status: Draft` | **半假**。只有 `ui-system-foundation-prd.md`（确为 `Status: Superseded as a current queue on 2026-08-08`）和 `workspace-media-gallery-prd.md`（确为 `Status: Draft`）属实；两份媒体小改动记录、`automation-phase-a-behavior.md`、`void-brand-replacement-prd.md`、`apimart-media-tools-prd.md` **根本没有 status 行** |
 
 实测入链数（`grep -rl <basename> docs/ CONTEXT.md AGENTS.md README.md`，排除自身）：
 
@@ -230,9 +230,14 @@ Rust 侧唯一值得投入的是 §2 的分层拆分。
 2  web-ui-performance-phase2-results.md        2  web-ui-performance-phase2-audit.md
 1  ui-system-foundation-prd.md                 1  apimart-media-tools-prd.md
 2  void-brand-replacement-prd.md               4  workspace-media-gallery-prd.md
-1  media-workspace-assets-prd.md               1  media-result-interactions-prd.md
 3  agent-companion-shaped-compact-chat-…       2  automation-phase-a-behavior.md
 ```
+
+后记（2026-08-25）：上表中的两份媒体小改动记录（各 1 处入链）已由业主逐个点名批准
+删除，其仍然有效的落地约束先并入 `apimart-media-tools-prd.md` 的
+「Media Result Persistence, Preview, And Reference (landed)」一节。同日还删除了三份
+2026-07-04 的 Canvas 前置门文档，其仍然有效的生成内容运行时安全约束并入
+`canvas-plugin-platform-prd.md` §7.1。
 
 **处理方式**：这些文件的删除必须在 B1-a + B1-c + B1-d 完成后重做一次判定——
 因为它们的入链大多来自 `docs/issues/` 和三大流水账，那些一旦删掉，入链会自然归零，
@@ -419,7 +424,7 @@ src/crates/
 `scripts/dev.cjs` 里与 `prepare-flashgrep-resource.mjs` 不一致的重复平台名单
 （dev.cjs 只认 linux-gnu，helper 是 musl 优先双候选），dev 桌面流程改走 helper。
 
-「dsh（deepseek harness）」本地源码已就位（2026-08-17）：`D:\codex\DSH`，
+「dsh（deepseek harness）」本地源码已就位（2026-08-17）：与本仓库同级的 `DSH` 目录，
 克隆自 `deepseek-ai/deepseek-harness`，HEAD `47f943859b`。此前"全盘未找到"的
 记录已过时。PRD §8.1 的六项机制主张已逐条对照该源码的
 `docs/architecture.md` 与 `docs/capability-seams.md` 核实为真；P2-B 兼容桥

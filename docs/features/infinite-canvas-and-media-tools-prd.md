@@ -480,7 +480,9 @@ OpsBridge 落位，§3.6）与视频卡（`kind:'video'`、GenerateVideo 的
 Provider、渠道或密钥。
 
 P3 明确不做（详见 P3 计划 §5）：分组卡（`kind:'group'`）渲染（K4
-候选）、蒙版画笔（像素级遮罩 inpaint/erase）、画布与短剧/工坊双向
+候选）、蒙版画笔（像素级遮罩 inpaint/erase）、画布与**现有 AI 短剧
+中心**（Short Drama center，即对标产品所说的"流水线工坊"在 Void 中的
+对应物，复用现有 short-drama 领域模块，不新建工坊）双向
 同步与 `domainRef` 赋值（K3）、批量出图出视频（`n` 固定 1；CanvasOp
 单批 ≤ 20 不放宽）、多文档、协作分享、3D 预演（K5）、自动布局算法
 工具、音频卡等其他节点类型、视频卡作垫图参考、AI 删除带媒体的卡、

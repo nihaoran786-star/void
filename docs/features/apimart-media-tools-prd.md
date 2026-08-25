@@ -128,6 +128,39 @@ MediaAsset = {
 - Real video generation smoke tests without explicit user approval.
 - Uploading video/audio assets as APIMart asset URLs for Seedance avatar workflows.
 
+## Media Result Persistence, Preview, And Reference (landed)
+
+These rules were merged here on 2026-08-25 from two earlier small-change records
+(media result interactions and media workspace assets) that are now implemented.
+They describe current behaviour and remain binding.
+
+- Uploaded and pasted chat images keep `dataUrl` in `ImageContext` as the
+  source of truth for current-turn reference images, and are additionally
+  written to `media/input/` when the active workspace is local and writable.
+  Frontend and backend long-term persistence redact large data URLs.
+- Completed generated media is saved by the backend under
+  `media/generated/<batch_id>/`. Each batch writes `manifest.json` recording
+  batch id, prompt, model, task ids, remote URLs, `local_path`, kind,
+  `save_status`, and `save_error`.
+- URL-backed image contexts must be preserved end-to-end as `image_path` by the
+  backend payload mapper, so the tool layer can resolve them into
+  APIMart-supported `image_urls`. The frontend must never fetch remote media and
+  convert it to base64 in order to build a reference.
+- Image reference reuse prefers `local_path` when it exists and falls back to
+  the remote URL, using stable generated ids so repeated references do not
+  duplicate input chips. Video and audio expose copyable paths/URLs but must not
+  offer an image-reference action unless a supported image-like reference exists.
+- Pure image/video/audio preview opens in a lightweight app-owned media overlay
+  with native `img`/`video`/`audio` elements. `BrowserPanel` remains for
+  webpages, localhost previews, and HTML artifacts, and must not be instantiated
+  for pure media.
+- Media cards render a normalized media asset view model (remote URL, local
+  path, preview URL, save status) and own only presentation state such as
+  collapsed/expanded. They must not inspect provider details, and batch status
+  stays derived from the media view model rather than from filesystem guesses.
+- Partial download failures must stay visible as explicit save status; they must
+  not masquerade as successful local assets.
+
 ## Further Notes
 
 - Uploading images is paid, so upload decisions must be explicit and testable.
