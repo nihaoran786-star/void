@@ -15,6 +15,8 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import { generateFromCanvasGenerator } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({ props: null as any, setCenter: null as any }));
@@ -244,16 +246,13 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
     await service.flushPendingWrites();
   }
 
-  /** Starts a real generation on a blank card so the queue has a live row. */
+  /**
+   * Starts a real generation on a blank card so the queue has a live row.
+   * The card face carries no controls since the §6 rebuild: selecting the
+   * card and sending from the bottom generator is the one dispatch entry.
+   */
   async function startGeneration(nodeId: string): Promise<void> {
-    const button = Array.from(
-      container.querySelectorAll<HTMLButtonElement>(`[data-node-id="${nodeId}"] button`),
-    ).find(candidate => candidate.textContent === 'infiniteCanvas.generation.generate');
-    if (!button) throw new Error(`no generate button on ${nodeId}`);
-    await act(async () => {
-      Simulate.click(button);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await generateFromCanvasGenerator(container, flow, nodeId);
   }
 
   const CARD_A: InfiniteCanvasNode = {

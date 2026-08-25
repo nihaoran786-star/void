@@ -13,22 +13,31 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
+import { generateFromCanvasGenerator } from './infiniteCanvasGeneratorDriver.testkit';
+
+// Captured so a test can mirror a card selection into the panel: the bottom
+// generator acts on the selected card (visual language §6).
+const flow = vi.hoisted(() => ({ props: null as any }));
+
 vi.mock('@xyflow/react', async () => {
   const React = (await import('react')).default;
   return {
-    ReactFlow: (props: any) => React.createElement(
-      'div',
-      { 'data-testid': 'react-flow' },
-      props.nodes.map((node: any) => {
-        const NodeComponent = props.nodeTypes[node.type];
-        return React.createElement(
-          'div',
-          { key: node.id, 'data-node-id': node.id },
-          React.createElement(NodeComponent, { id: node.id, data: node.data, selected: false }),
-        );
-      }),
-      props.children,
-    ),
+    ReactFlow: (props: any) => {
+      flow.props = props;
+      return React.createElement(
+        'div',
+        { 'data-testid': 'react-flow' },
+        props.nodes.map((node: any) => {
+          const NodeComponent = props.nodeTypes[node.type];
+          return React.createElement(
+            'div',
+            { key: node.id, 'data-node-id': node.id },
+            React.createElement(NodeComponent, { id: node.id, data: node.data, selected: false }),
+          );
+        }),
+        props.children,
+      );
+    },
     Background: () => null,
     Controls: () => null,
     Handle: () => null,
@@ -217,13 +226,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
   }
 
   async function generate(nodeId: string): Promise<void> {
-    const button = container.querySelector<HTMLButtonElement>(
-      `[data-node-id="${nodeId}"] .infinite-canvas-node__generate-button`,
-    );
-    if (!button) throw new Error(`no generate button on ${nodeId}`);
-    await act(async () => {
-      Simulate.click(button);
-    });
+    await generateFromCanvasGenerator(container, flow, nodeId);
   }
 
   it('offers only the values the chosen model supports, and clamps on a switch', async () => {

@@ -1106,6 +1106,20 @@
     "handles": {
       "spawnNext": "Continue from this card",
       "insertOnEdge": "Insert a card on this connection"
+    },
+    "generator": {
+      "label": "Canvas generator",
+      "placeholder": "Describe what you want to generate, or type @ for the media library and quick actions",
+      "send": "Generate",
+      "sendHint": "Enter to generate, Shift+Enter for a new line",
+      "addReference": "Add a reference image",
+      "references": "Reference images",
+      "referenceThumbnail": "Reference {{order}}",
+      "style": "Style",
+      "count": "{{n}}x",
+      "targetImage": "Acting on the selected image card",
+      "targetVideo": "Acting on the selected video card",
+      "newCard": "A new card will be created"
     }
   },
   "agentStudio": {

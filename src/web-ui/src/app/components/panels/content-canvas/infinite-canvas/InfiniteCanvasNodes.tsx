@@ -69,6 +69,12 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   /** Ordered reference badges (edge creation order), e.g. tu-yi/tu-er labels. */
   referenceLabels?: readonly string[];
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
+  /**
+   * §6: the prompt and the dispatch live in the bottom generator now. These
+   * two stay on the node data because the panel's projection is one shape and
+   * the generator reads the card's prompt through it; the card face itself no
+   * longer renders either.
+   */
   onCommitPrompt: (nodeId: string, prompt: string) => void;
   onGenerate: (nodeId: string) => void;
   onRetryGeneration: (nodeId: string) => void;
@@ -325,12 +331,6 @@ const InfiniteCanvasMediaCard: React.FC<
   const { t } = useI18n('components');
   const { mediaRef, generation } = data;
   const imageData = mediaKind === 'image' ? data as InfiniteCanvasImageNodeData : undefined;
-  const [promptDraft, setPromptDraft] = React.useState(data.prompt ?? '');
-
-  React.useEffect(() => {
-    setPromptDraft(data.prompt ?? '');
-  }, [data.prompt]);
-
   const pending = generation?.status === 'pending';
   const failed = generation?.status === 'failed';
   const referenceLabels = data.referenceLabels ?? [];
@@ -431,26 +431,12 @@ const InfiniteCanvasMediaCard: React.FC<
         </button>
       ) : null}
       {/*
-        S1 hover layer. Temporary home for the prompt editor and the generate
-        button so the creation loop keeps working while §6's bottom generator
-        is built; the parameter, style and tool entries move to §4's pill bar.
+        §6: the card face carries NO input controls any more — the prompt and
+        the send button live in the bottom floating generator. What is left
+        here is the hover layer of card-scoped entries; §4 takes them into the
+        pill toolbar above the card.
       */}
       <div className="infinite-canvas-node__overlay nodrag">
-        <textarea
-          className="infinite-canvas-node__prompt-input nodrag"
-          aria-label={t(mediaKind === 'video'
-            ? 'infiniteCanvas.video.promptLabel'
-            : 'infiniteCanvas.generation.promptLabel')}
-          placeholder={t(mediaKind === 'video'
-            ? 'infiniteCanvas.video.promptPlaceholder'
-            : 'infiniteCanvas.generation.promptPlaceholder')}
-          value={promptDraft}
-          disabled={pending}
-          onChange={event => setPromptDraft(event.target.value)}
-          onBlur={() => {
-            if (promptDraft !== (data.prompt ?? '')) data.onCommitPrompt(id, promptDraft);
-          }}
-        />
         <div className="infinite-canvas-node__footer">
           {mediaRef && data.onOpenViewer ? (
             // The video element owns its own click surface, so both kinds
@@ -464,20 +450,6 @@ const InfiniteCanvasMediaCard: React.FC<
               {t('infiniteCanvas.viewer.open')}
             </button>
           ) : null}
-          <button
-            type="button"
-            className="infinite-canvas-node__generate-button nodrag"
-            disabled={pending}
-            onClick={() => data.onGenerate(id)}
-          >
-            {mediaKind === 'video'
-              ? (mediaRef
-                ? t('infiniteCanvas.video.regenerate')
-                : t('infiniteCanvas.video.generate'))
-              : (mediaRef
-                ? t('infiniteCanvas.generation.regenerate')
-                : t('infiniteCanvas.generation.generate'))}
-          </button>
           {data.onOpenParams ? (
             // Collapsed pill: the chosen model / ratio / resolution, or the
             // plain label while the card still runs on provider defaults.

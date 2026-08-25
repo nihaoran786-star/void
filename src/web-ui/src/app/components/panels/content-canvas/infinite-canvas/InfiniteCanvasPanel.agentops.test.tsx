@@ -13,6 +13,11 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import {
+  generateFromCanvasGenerator,
+  selectCanvasCards,
+} from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({
@@ -291,10 +296,10 @@ describe('InfiniteCanvasPanel P3 agent-canvas loop (W5)', () => {
       flow.props.onConnect({ source: 'card-src', target: videoNodeId });
     });
 
-    // Write the camera-move prompt on the video card.
-    const promptInput = container.querySelector(
-      `[data-node-id="${videoNodeId}"] .infinite-canvas-node__prompt-input`,
-    );
+    // Write the camera-move prompt in the bottom generator, which acts on the
+    // selected video card (visual language §6).
+    await selectCanvasCards(flow, [videoNodeId]);
+    const promptInput = container.querySelector('[data-canvas-generator-field="prompt"]');
     expect(promptInput).not.toBeNull();
     await act(async () => {
       Simulate.change(promptInput!, { target: { value: 'slow dolly-in on the hero' } } as never);
@@ -304,13 +309,7 @@ describe('InfiniteCanvasPanel P3 agent-canvas loop (W5)', () => {
     });
 
     // Generate: registers a self pending VIDEO generation, then dispatches.
-    const generate = container.querySelector(
-      `[data-node-id="${videoNodeId}"] .infinite-canvas-node__generate-button`,
-    );
-    expect(generate).not.toBeNull();
-    await act(async () => {
-      generate!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await generateFromCanvasGenerator(container, flow, videoNodeId);
 
     expect(recording.invocations).toHaveLength(1);
     const invocation = recording.invocations[0];

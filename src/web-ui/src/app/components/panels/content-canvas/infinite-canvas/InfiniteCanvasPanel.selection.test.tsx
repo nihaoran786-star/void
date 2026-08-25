@@ -12,6 +12,8 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import { generateFromCanvasGenerator } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({ props: null as any }));
@@ -317,11 +319,7 @@ describe('InfiniteCanvasPanel P4 W6 selection and deletion', () => {
 
     // Card c is put in flight for real: a pending state seeded into the file
     // would have been reconciled to a timeout failure at load.
-    const generate = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('[data-node-id="c"] button'),
-    ).find(button => button.textContent === 'infiniteCanvas.generation.generate');
-    if (!generate) throw new Error('no generate button on card c');
-    await click(generate);
+    await generateFromCanvasGenerator(container, flow, 'c');
     expect(persistedOrProjected('c')?.generation?.status).toBe('pending');
 
     await select(['a', 'b', 'c']);

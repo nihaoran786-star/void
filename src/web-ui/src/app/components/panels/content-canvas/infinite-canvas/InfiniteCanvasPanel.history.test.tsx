@@ -12,6 +12,11 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import {
+  generateFromCanvasGenerator,
+  selectCanvasCards,
+} from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({ props: null as any }));
@@ -329,7 +334,11 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     seed([CARD_A]);
     await renderPanel();
 
-    const textarea = container.querySelector('textarea');
+    // §6: the prompt box is the bottom generator's, and it edits the card
+    // that is selected. Blur still persists the draft, so it is still one
+    // undoable edit.
+    await selectCanvasCards(flow, ['card-a']);
+    const textarea = container.querySelector('[data-canvas-generator-field="prompt"]');
     if (!textarea) throw new Error('no prompt editor');
     await act(async () => {
       (textarea as HTMLTextAreaElement).value = 'a badger';
@@ -357,11 +366,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     await click(toolbarButton('undo'));
     expect(toolbarButton('undo').disabled).toBe(true);
 
-    const generateButton = container.querySelector<HTMLButtonElement>(
-      '[data-node-id="card-a"] .infinite-canvas-node__generate-button',
-    );
-    if (!generateButton) throw new Error('no generate button');
-    await click(generateButton);
+    await generateFromCanvasGenerator(container, flow, 'card-a');
     // Dispatch itself is not an edit either.
     expect(toolbarButton('undo').disabled).toBe(true);
 
@@ -419,10 +424,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     expect(toolbarButton('undo').disabled).toBe(false);
 
     // While the drag sits on the stack, a generation result fills that card.
-    const generateButton = container.querySelector<HTMLButtonElement>(
-      '[data-node-id="card-a"] .infinite-canvas-node__generate-button',
-    );
-    await click(generateButton!);
+    await generateFromCanvasGenerator(container, flow, 'card-a');
     await act(async () => {
       eventBus.emit({
         eventType: 'Completed',
@@ -613,14 +615,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
   // the card did not exist, and no second one is coming.
   /** Runs the real dispatch lane so `card-a` is genuinely mid-generation. */
   async function startGeneration(): Promise<void> {
-    const button = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('[data-node-id="card-a"] button'),
-    ).find(candidate => candidate.textContent === 'infiniteCanvas.generation.generate');
-    if (!button) throw new Error('no generate button');
-    await act(async () => {
-      Simulate.click(button);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await generateFromCanvasGenerator(container, flow, 'card-a');
   }
 
   /** Deletes `card-a` through the one gate, confirming the pending warning. */

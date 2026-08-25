@@ -1106,6 +1106,20 @@
     "handles": {
       "spawnNext": "從這張卡繼續",
       "insertOnEdge": "在這條連線上插入卡片"
+    },
+    "generator": {
+      "label": "畫布生成器",
+      "placeholder": "描述你想生成的內容，或輸入 @ 呼叫素材庫與快捷操作",
+      "send": "生成",
+      "sendHint": "Enter 生成，Shift+Enter 換行",
+      "addReference": "新增參考圖",
+      "references": "參考圖",
+      "referenceThumbnail": "參考圖 {{order}}",
+      "style": "風格",
+      "count": "{{n}}張",
+      "targetImage": "作用於選取的圖片卡",
+      "targetVideo": "作用於選取的影片卡",
+      "newCard": "將新增一張卡片"
     }
   },
   "agentStudio": {

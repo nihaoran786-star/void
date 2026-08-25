@@ -7,6 +7,8 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import { generateFromCanvasGenerator } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({
@@ -244,15 +246,23 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     return flow.props.nodes.find((node: any) => node.id === nodeId);
   }
 
+  /**
+   * Since the §6 rebuild the card face has no generate button: a dispatch is
+   * "select the card, press send in the bottom generator". The generator
+   * adopts the selected card's stored prompt, so the dispatched input is
+   * exactly what the seeded card carries.
+   */
+  function generateCard(nodeId: string): Promise<void> {
+    return generateFromCanvasGenerator(container, flow, nodeId);
+  }
+
   it('registers a self pending state and dispatches when a blank card generates', async () => {
     seedDocument(memory, {
       nodes: [imageNode('card-blank', { prompt: 'a lighthouse at dusk' })],
     });
     await renderPanel();
 
-    await clickButton(button => (
-      button.className.includes('infinite-canvas-node__generate-button')
-    ));
+    await generateCard('card-blank');
 
     expect(recording.invocations).toHaveLength(1);
     const invocation = recording.invocations[0];
@@ -295,16 +305,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     // The target card shows its 垫图 order badges, in edge-creation order.
     expect(flowNode('card-target').data.referenceLabels).toEqual(['图一', '图二']);
 
-    const generateButtons = Array.from(
-      container.querySelectorAll('.infinite-canvas-node__generate-button'),
-    );
-    const targetButton = container
-      .querySelector('[data-node-id="card-target"] .infinite-canvas-node__generate-button');
-    expect(generateButtons.length).toBeGreaterThan(0);
-    expect(targetButton).not.toBeNull();
-    await act(async () => {
-      targetButton!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await generateCard('card-target');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0].references.map(reference => ({
@@ -337,12 +338,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
 
     expect(flowNode('card-v2').data.referenceLabels).toEqual([]);
 
-    const targetButton = container
-      .querySelector('[data-node-id="card-v2"] .infinite-canvas-node__generate-button');
-    expect(targetButton).not.toBeNull();
-    await act(async () => {
-      targetButton!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await generateCard('card-v2');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
@@ -371,11 +367,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
     await renderPanel();
 
-    const targetButton = container
-      .querySelector('[data-node-id="card-target"] .infinite-canvas-node__generate-button');
-    await act(async () => {
-      targetButton!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await generateCard('card-target');
 
     // No task, no pending placeholder — only the explicit notice.
     expect(recording.invocations).toHaveLength(0);
@@ -444,9 +436,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
 
     // Dispatch first: the pending registration and the bridged completion
     // share the same runtime-generated operationId.
-    await clickButton(button => (
-      button.className.includes('infinite-canvas-node__generate-button')
-    ));
+    await generateCard('card-blank');
     expect(recording.invocations).toHaveLength(1);
     const operationId = recording.invocations[0].operationId;
     expect(flowNode('card-blank').data.generation.status).toBe('pending');
@@ -498,9 +488,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
     await renderPanel();
 
-    await clickButton(button => (
-      button.className.includes('infinite-canvas-node__generate-button')
-    ));
+    await generateCard('card-blank');
 
     expect(recording.invocations).toHaveLength(1);
     const firstOperationId = recording.invocations[0].operationId;
@@ -547,9 +535,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     };
     await renderPanel();
 
-    await clickButton(button => (
-      button.className.includes('infinite-canvas-node__generate-button')
-    ));
+    await generateCard('card-blank');
 
     expect(recording.invocations).toHaveLength(1);
     await service.flushPendingWrites();
@@ -656,9 +642,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
     await renderPanel();
 
-    await clickButton(button => (
-      button.className.includes('infinite-canvas-node__generate-button')
-    ));
+    await generateCard('card-src');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({

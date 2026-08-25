@@ -110,6 +110,10 @@ import {
   setNodePromptContent,
 } from './infiniteCanvasGenerationModel';
 import { InfiniteCanvasEdge } from './InfiniteCanvasEdge';
+import {
+  InfiniteCanvasGenerator,
+  type InfiniteCanvasGeneratorReference,
+} from './InfiniteCanvasGenerator';
 import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
 import {
   InfiniteCanvasImageNode,
@@ -332,6 +336,16 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   });
 
   const [imagePickerOpen, setImagePickerOpen] = React.useState(false);
+  /**
+   * §6: reference cards staged in the bottom generator while no card is
+   * selected. They are ordinary image cards on the board already (the picker
+   * created them through the existing command); this list only remembers
+   * which ones the next "generate" should wire up as references.
+   */
+  const [stagedReferenceIds, setStagedReferenceIds] = React.useState<string[]>([]);
+  /** Whether the library picker was opened to place a card or add a reference. */
+  const [imagePickerIntent, setImagePickerIntent] =
+    React.useState<'card' | 'reference'>('card');
   const [stylePickerNodeId, setStylePickerNodeId] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<GenerationNotice | null>(null);
   const [toolDialog, setToolDialog] = React.useState<ToolDialogRequest | null>(null);
@@ -1090,6 +1104,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setStylePickerNodeId(null);
     setNotice(null);
     setToolDialog(null);
+    setStagedReferenceIds([]);
   }, [documentId, workspaceId]);
 
   React.useEffect(() => {
@@ -1414,16 +1429,42 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     ), { history: true });
   }, [commit, nextSpawnPosition]);
 
+  /**
+   * §6: the card the bottom generator is acting on — exactly one selected
+   * generation-capable card, or nothing (then the generator creates a card).
+   * Read off refs so callbacks never go stale mid-selection.
+   */
+  const singleSelectedMediaNodeId = React.useCallback(() => {
+    const selected = selectedNodeIdsRef.current;
+    if (selected.length !== 1) return undefined;
+    return findMediaNode(selected[0]) ? selected[0] : undefined;
+  }, [findMediaNode]);
+
   const onPickImage = React.useCallback((mediaRef: InfiniteCanvasMediaRef) => {
     const position = nextSpawnPosition();
+    const asReference = imagePickerIntent === 'reference';
     setImagePickerOpen(false);
-    void commit(document => addImageNodeContent(
-      document,
-      createInfiniteCanvasId('node'),
-      position,
-      mediaRef,
-    ), { history: true });
-  }, [commit, nextSpawnPosition]);
+    const nodeId = createInfiniteCanvasId('node');
+    // Always the same command: a picked library image becomes an image card.
+    // "Add a reference" only differs in what happens to that card next.
+    const targetNodeId = asReference ? singleSelectedMediaNodeId() : undefined;
+    const edgeId = createInfiniteCanvasId('edge');
+    void commit(document => {
+      const withCard = addImageNodeContent(document, nodeId, position, mediaRef);
+      if (!targetNodeId) return withCard;
+      return connectNodesContent(
+        { ...document, ...withCard },
+        edgeId,
+        nodeId,
+        targetNodeId,
+      );
+    }, { history: true });
+    // No selected card: remember it so the next generate wires it up to the
+    // card that generate creates.
+    if (asReference && !targetNodeId) {
+      setStagedReferenceIds(current => [...current, nodeId]);
+    }
+  }, [commit, imagePickerIntent, nextSpawnPosition, singleSelectedMediaNodeId]);
 
   const onPickStyle = React.useCallback((presetId: string | undefined) => {
     const nodeId = stylePickerNodeId;
@@ -1715,6 +1756,113 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     );
   }, []);
 
+  // —— §6: the bottom floating generator ————————————————————————————————————
+
+  /**
+   * The generator's target card, projected for display. Exactly one selected
+   * generation-capable card takes over the generator; anything else (nothing
+   * selected, a text card, a multi-selection) leaves it in "make a new card"
+   * mode. Nothing here dispatches: it is the same projection the cards read.
+   */
+  const generatorTarget = React.useMemo(() => {
+    if (selectedNodeIds.length !== 1) return undefined;
+    const node = flowNodes.find(entry => entry.id === selectedNodeIds[0]);
+    if (!node
+      || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
+        && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
+      return undefined;
+    }
+    const params = node.data.generationParams as InfiniteCanvasGenerationParams | undefined;
+    const generation = node.data.generation as { status?: string } | undefined;
+    return {
+      nodeId: node.id,
+      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE
+        ? 'video' as const
+        : 'image' as const,
+      prompt: (node.data.prompt as string | undefined) ?? '',
+      paramsSummary: node.data.generationParamsSummary as string | undefined,
+      modelLabel: params?.model || t('infiniteCanvas.params.defaultModel'),
+      count: params?.n,
+      stylePresetName: node.data.stylePresetName as string | undefined,
+      pending: generation?.status === 'pending',
+    };
+  }, [flowNodes, selectedNodeIds, t]);
+
+  /**
+   * The thumbnail queue. With a target it is that card's incoming reference
+   * cards in edge order; without one it is what the user staged through the
+   * generator's `+`. Tolerant on purpose — a reference whose media has not
+   * landed yet shows as an empty square rather than blanking the queue.
+   */
+  const generatorReferences = React.useMemo<InfiniteCanvasGeneratorReference[]>(() => {
+    const nodeById = new Map(flowNodes.map(node => [node.id, node]));
+    const sourceIds = generatorTarget
+      ? flowEdges
+        .filter(edge => edge.target === generatorTarget.nodeId)
+        .map(edge => edge.source)
+      : stagedReferenceIds;
+    const seen = new Set<string>();
+    const references: InfiniteCanvasGeneratorReference[] = [];
+    for (const sourceId of sourceIds) {
+      if (seen.has(sourceId)) continue;
+      const node = nodeById.get(sourceId);
+      if (!node || node.type === INFINITE_CANVAS_TEXT_NODE_TYPE) continue;
+      seen.add(sourceId);
+      references.push({
+        nodeId: sourceId,
+        order: references.length + 1,
+        mediaRef: node.data.mediaRef as InfiniteCanvasMediaRef | undefined,
+      });
+    }
+    return references;
+  }, [flowEdges, flowNodes, generatorTarget, stagedReferenceIds]);
+
+  /**
+   * The one send path. With a target the prompt is written to that card and
+   * the existing dispatch runs on it (self for a blank card, derived for one
+   * that already holds media). Without a target a new generation card is
+   * created, the staged references are wired to it, and the same dispatch
+   * runs. Both branches go through `commit` and `generateForNode` — no second
+   * generation lane, no change to the gateway contract.
+   */
+  const onGeneratorSubmit = React.useCallback(async (prompt: string) => {
+    const target = generatorTarget;
+    if (target) {
+      if (prompt !== target.prompt) {
+        await commit(document => setNodePromptContent(document, target.nodeId, prompt), {
+          history: true,
+        });
+      }
+      await generateForNode(target.nodeId);
+      return;
+    }
+    const nodeId = createInfiniteCanvasId('node');
+    const position = nextSpawnPosition();
+    const staged = stagedReferenceIds;
+    const edgeIds = staged.map(() => createInfiniteCanvasId('edge'));
+    await commit(document => {
+      let next = addBlankGenerationCardContent(document, nodeId, position);
+      next = setNodePromptContent({ ...document, ...next }, nodeId, prompt);
+      staged.forEach((sourceId, index) => {
+        if (!document.nodes.some(node => node.nodeId === sourceId)) return;
+        next = connectNodesContent(
+          { ...document, ...next },
+          edgeIds[index],
+          sourceId,
+          nodeId,
+        );
+      });
+      return next;
+    }, { history: true });
+    setStagedReferenceIds([]);
+    await generateForNode(nodeId);
+  }, [commit, generateForNode, generatorTarget, nextSpawnPosition, stagedReferenceIds]);
+
+  const onGeneratorAddReference = React.useCallback(() => {
+    setImagePickerIntent('reference');
+    setImagePickerOpen(true);
+  }, []);
+
   const stylePickerCurrentPresetId = React.useMemo(() => {
     if (!stylePickerNodeId) return undefined;
     return documentRef.current?.nodes
@@ -1761,7 +1909,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         <button
           type="button"
           className="infinite-canvas-panel__toolbar-button"
-          onClick={() => setImagePickerOpen(open => !open)}
+          onClick={() => {
+            setImagePickerIntent('card');
+            setImagePickerOpen(open => !open);
+          }}
         >
           <ImagePlus size={14} aria-hidden="true" />
           {t('infiniteCanvas.toolbar.addImage')}
@@ -1966,6 +2117,34 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           }}
           onStopWaiting={onStopWaiting}
           onLocate={onLocateNode}
+        />
+        {/*
+          §6: the bottom floating generator. Always present — on a blank board
+          it creates the first card, with a card selected it regenerates that
+          card or uses it as the edit target.
+        */}
+        <InfiniteCanvasGenerator
+          target={generatorTarget}
+          references={generatorReferences}
+          resolvePreviewUrl={resolvePreviewUrl}
+          onSubmit={prompt => {
+            void onGeneratorSubmit(prompt);
+          }}
+          onCommitPrompt={generatorTarget
+            ? prompt => {
+              void commit(
+                document => setNodePromptContent(document, generatorTarget.nodeId, prompt),
+                { history: true },
+              );
+            }
+            : undefined}
+          onAddReference={onGeneratorAddReference}
+          onOpenParams={generatorTarget
+            ? () => nodeActionsRef.current.openParams(generatorTarget.nodeId)
+            : undefined}
+          onOpenStyle={generatorTarget?.mediaKind === 'image'
+            ? () => openStylePicker(generatorTarget.nodeId)
+            : undefined}
         />
         {contextMenu ? (
           <InfiniteCanvasContextMenu
