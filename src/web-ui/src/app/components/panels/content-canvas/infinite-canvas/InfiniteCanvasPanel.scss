@@ -1038,13 +1038,14 @@
 // panel supplies left/top/width inline once the card has been measured; the
 // centred box below is only the pre-measurement fallback.
 
+// Left/top/width always arrive inline from the measured card box: the panel
+// never renders before it has one, so there is no board-anchored fallback to
+// fall back to. Height stays content-driven — pinning both top and bottom is
+// what stretched the panel to the board's floor in the first pass.
 .infinite-canvas-generator {
   position: absolute;
   z-index: 9;
-  bottom: 20px;
-  left: 50%;
   display: flex;
-  width: min(52%, 720px);
   min-width: 320px;
   flex-direction: column;
   gap: 8px;
@@ -1053,13 +1054,6 @@
   border-radius: 18px;
   background: var(--canvas-surface-overlay);
   box-shadow: 0 18px 44px var(--canvas-shadow-heavy);
-  transform: translateX(-50%);
-
-  &[data-canvas-generator-anchored='true'] {
-    bottom: auto;
-    width: auto;
-    transform: none;
-  }
 }
 
 .infinite-canvas-generator__references {

@@ -197,6 +197,9 @@ const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver =
 const GENERATOR_CARD_GAP = 12;
 /** A very small card must not squeeze the prompt row into unusability. */
 const GENERATOR_MIN_WIDTH = 320;
+/** The stylesheet's card box, used until reactflow reports a measured one. */
+const CARD_FALLBACK_WIDTH = 280;
+const CARD_FALLBACK_HEIGHT = 200;
 
 /** §8.1: reactflow's own attribution watermark is not part of this language. */
 const FLOW_PRO_OPTIONS = { hideAttribution: true };
@@ -1957,9 +1960,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const generatorPlacement = React.useMemo(() => {
     if (!generatorTarget) return undefined;
     const node = flowNodes.find(entry => entry.id === generatorTarget.nodeId);
-    const width = node?.measured?.width;
-    const height = node?.measured?.height;
-    if (!node || !width || !height) return undefined;
+    if (!node) return undefined;
+    // Before reactflow has measured the card (first frame, and always under
+    // jsdom) fall back to the stylesheet's card box rather than to a
+    // board-anchored panel: the generator must always read as the card's own
+    // input, never as a global composer.
+    const width = node.measured?.width || CARD_FALLBACK_WIDTH;
+    const height = node.measured?.height || CARD_FALLBACK_HEIGHT;
     const { x, y, zoom } = viewportTransform;
     return {
       left: node.position.x * zoom + x,
@@ -2282,7 +2289,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           §6: the generator belongs to the selected card and floats under it.
           No selection, no input surface anywhere on the board.
         */}
-        {generatorTarget ? (
+        {generatorTarget && generatorPlacement ? (
           <InfiniteCanvasGenerator
             target={generatorTarget}
             placement={generatorPlacement}
