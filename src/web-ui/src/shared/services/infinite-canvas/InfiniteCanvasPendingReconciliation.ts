@@ -21,10 +21,15 @@
 import type { ImageToolErrorKind } from './ImageToolTypes';
 import type {
   InfiniteCanvasDocument,
+  InfiniteCanvasDocumentContent,
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
 } from './InfiniteCanvasTypes';
 import type { InfiniteCanvasDocumentService } from './InfiniteCanvasDocumentService';
+import {
+  resolveOperationBatchContent,
+  type InfiniteCanvasBatchOutputItem,
+} from './InfiniteCanvasGenerationContent';
 
 /** Read side of the persistence port; `null` when the file does not exist. */
 export interface InfiniteCanvasMediaJobReader {
@@ -57,7 +62,15 @@ export interface InfiniteCanvasPendingReconciliationOptions {
 }
 
 type ReconciliationIntent =
-  | { intent: 'resolve'; relativePath: string }
+  /**
+   * P4 W4: the whole batch, ascending by item index. A single item behaves
+   * exactly like the pre-P4 single-path resolve; several items land item 1 in
+   * the pending card and grow a derived card per remaining item — the same
+   * deterministic ids the live media bridge would have used, so a batch that
+   * finished while the canvas was closed comes back complete, not truncated
+   * to its first image.
+   */
+  | { intent: 'resolve'; items: InfiniteCanvasBatchOutputItem[] }
   | { intent: 'fail'; errorKind: ImageToolErrorKind };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -77,20 +90,35 @@ function generatedMediaRelativePath(localPath: string): string | undefined {
   return undefined;
 }
 
-/** First saved local path in the batch manifest (assets first, then items). */
-function firstSavedLocalPath(batch: Record<string, unknown>): string | undefined {
+/**
+ * Every saved result of the batch manifest, ascending by 1-based item index
+ * (assets first, items as the fallback for indices without an asset entry).
+ * Mirrors the Rust `collect_infinite_canvas_output_items`: entries without a
+ * derivable workspace-relative path are dropped, and a path is kept only once.
+ */
+function savedBatchOutputItems(
+  batch: Record<string, unknown>,
+): InfiniteCanvasBatchOutputItem[] {
+  const items: InfiniteCanvasBatchOutputItem[] = [];
+  const seenPaths = new Set<string>();
   for (const key of ['assets', 'items'] as const) {
     const entries = batch[key];
     if (!Array.isArray(entries)) continue;
     for (const entry of entries) {
       if (!isRecord(entry)) continue;
       const localPath = entry.local_path;
-      if (typeof localPath === 'string' && localPath.trim().length > 0) {
-        return localPath;
-      }
+      if (typeof localPath !== 'string' || localPath.trim().length === 0) continue;
+      const relativePath = generatedMediaRelativePath(localPath);
+      if (!relativePath || seenPaths.has(relativePath)) continue;
+      seenPaths.add(relativePath);
+      const rawIndex = entry.item_index;
+      const itemIndex = typeof rawIndex === 'number' && Number.isInteger(rawIndex) && rawIndex >= 1
+        ? rawIndex
+        : 1;
+      items.push({ itemIndex, relativePath });
     }
   }
-  return undefined;
+  return items.sort((left, right) => left.itemIndex - right.itemIndex);
 }
 
 /** A batch id is used as a file name component; anything unusual times out. */
@@ -142,9 +170,8 @@ function classifyManifest(
       return { intent: 'fail', errorKind: 'invalid-input' };
     }
     const batch = isRecord(parsed.batch) ? parsed.batch : undefined;
-    const localPath = batch ? firstSavedLocalPath(batch) : undefined;
-    const relativePath = localPath ? generatedMediaRelativePath(localPath) : undefined;
-    if (relativePath) return { intent: 'resolve', relativePath };
+    const items = batch ? savedBatchOutputItems(batch) : [];
+    if (items.length > 0) return { intent: 'resolve', items };
     // Terminal batch without a saved asset can never land an image.
     return { intent: 'fail', errorKind: 'backend' };
   }
@@ -153,27 +180,40 @@ function classifyManifest(
   return { intent: 'fail', errorKind: 'timeout' };
 }
 
+/**
+ * Applies one operation's intent to the running content. Re-verified against
+ * the latest document inside the mutator (same discipline as the media
+ * bridge's `applyIntent`): an operation that is no longer pending — because
+ * the live bridge got there first, or the card was deleted — is skipped
+ * entirely, so the two lanes can never double-apply a batch.
+ */
 function applyIntent(
-  node: InfiniteCanvasNode,
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
   intent: ReconciliationIntent,
   workspacePath: string,
-): InfiniteCanvasNode {
+): InfiniteCanvasDocumentContent {
+  const unchanged: InfiniteCanvasDocumentContent = {
+    nodes: document.nodes,
+    edges: document.edges,
+    viewport: document.viewport,
+  };
+  const node = document.nodes.find(
+    candidate => candidate.generation?.operationId === operationId,
+  );
+  if (!node || node.generation?.status !== 'pending') return unchanged;
   if (intent.intent === 'resolve') {
-    if (node.mediaRef !== undefined) return node;
-    const { generation: _cleared, ...rest } = node;
-    return {
-      ...rest,
-      mediaRef: { workspacePath, relativePath: intent.relativePath },
-    };
+    // Never-overwrite lives inside the shared batch resolver.
+    return resolveOperationBatchContent(document, operationId, workspacePath, intent.items);
   }
-  if (!node.generation) return node;
+  const generation = node.generation;
   return {
-    ...node,
-    generation: {
-      ...node.generation,
-      status: 'failed',
-      errorKind: intent.errorKind,
-    },
+    ...unchanged,
+    nodes: document.nodes.map((candidate): InfiniteCanvasNode => (
+      candidate.nodeId === node.nodeId
+        ? { ...candidate, generation: { ...generation, status: 'failed', errorKind: intent.errorKind } }
+        : candidate
+    )),
   };
 }
 
@@ -225,16 +265,24 @@ export async function reconcilePendingInfiniteCanvasGenerations(
     });
   }
 
-  const mutated = await documentService.mutateDefaultDocument(workspace, current => ({
-    nodes: current.nodes.map(node => {
-      const operationId = node.generation?.operationId;
-      if (!operationId || node.generation?.status !== 'pending') return node;
-      const intent = intentsByOperationId.get(operationId);
-      return intent ? applyIntent(node, intent, workspace.workspacePath) : node;
-    }),
-    edges: current.edges,
-    viewport: current.viewport,
-  }));
+  const mutated = await documentService.mutateDefaultDocument(workspace, current => {
+    // Folded one operation at a time: a batch resolve grows nodes AND edges,
+    // so a single `nodes.map` no longer covers it.
+    let content: InfiniteCanvasDocumentContent = {
+      nodes: current.nodes,
+      edges: current.edges,
+      viewport: current.viewport,
+    };
+    for (const [operationId, intent] of intentsByOperationId) {
+      content = applyIntent(
+        { ...current, ...content },
+        operationId,
+        intent,
+        workspace.workspacePath,
+      );
+    }
+    return content;
+  });
 
   if (mutated.status !== 'applied') return { outcomes };
   return { outcomes, document: mutated.document };

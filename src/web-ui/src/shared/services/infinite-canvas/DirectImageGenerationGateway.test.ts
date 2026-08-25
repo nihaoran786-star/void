@@ -207,10 +207,45 @@ describe('DirectImageGenerationGateway', () => {
     expect(request.model).toBe('gemini-3-pro-image-preview');
     expect(request.size).toBe('16:9');
     expect(request.resolution).toBe('2K');
-    // W3 keeps n pinned to 1; batching is W4.
+    // No batch size chosen: n stays 1, the pre-P4 request.
     expect(request.n).toBe(1);
     expect(request.duration).toBeUndefined();
     expect(request.aspectRatio).toBeUndefined();
+  });
+
+  it('sends the chosen batch size when the model supports it (P4 W4)', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      ...BLANK_CARD_INVOCATION,
+      generationParams: { model: 'gemini-3-pro-image-preview', n: 3 },
+    });
+
+    expect(calls[0].request.n).toBe(3);
+  });
+
+  it('clamps a stored batch size the chosen model cannot honour back to 1', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      ...BLANK_CARD_INVOCATION,
+      // gpt-image-2 has n_max = 1; a stale n from another model must not ship.
+      generationParams: { model: 'gpt-image-2', n: 4 },
+    });
+
+    expect(calls[0].request.n).toBe(1);
+  });
+
+  it('never sends n on the video lane, whatever the card stored', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      ...BLANK_CARD_INVOCATION,
+      mediaKind: 'video',
+      generationParams: { n: 4 },
+    });
+
+    expect(calls[0].request.n).toBeUndefined();
   });
 
   it('clamps stored parameters the chosen model cannot honour before dispatch', async () => {

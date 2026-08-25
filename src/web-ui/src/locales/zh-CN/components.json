@@ -1042,6 +1042,9 @@
       "aspectRatio": "画面比例",
       "resolution": "清晰度",
       "duration": "时长",
+      "count": "一次出几张",
+      "countBilling": "每张图单独计费。",
+      "countLocked": "该模型一次只能出一张。",
       "providerDefault": "模型默认"
     }
   },

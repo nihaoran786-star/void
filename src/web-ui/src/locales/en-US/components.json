@@ -1042,6 +1042,9 @@
       "aspectRatio": "Aspect ratio",
       "resolution": "Resolution",
       "duration": "Duration",
+      "count": "Images per run",
+      "countBilling": "Each image is billed separately.",
+      "countLocked": "This model produces one image per run.",
       "providerDefault": "Provider default"
     }
   },

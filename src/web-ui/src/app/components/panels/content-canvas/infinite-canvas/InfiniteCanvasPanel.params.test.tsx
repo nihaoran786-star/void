@@ -315,6 +315,62 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     expect(optionsOf('aspectRatio')).toEqual(['', '16:9', '9:16', '1:1']);
   });
 
+  // —— P4 W4: the batch-size selector ——————————————————————————————————————
+
+  it('locks the batch selector to 1 on a model that cannot batch, and says why', async () => {
+    seed([BLANK_IMAGE_CARD]);
+    await renderPanel();
+    await openParams('card-image');
+
+    // gpt-image-2 has n_max = 1 in the Rust capability table.
+    expect(optionsOf('count')).toEqual(['1']);
+    expect(field('count').disabled).toBe(true);
+    expect(container.querySelector('[data-params-hint="count"]')?.textContent)
+      .toBe('infiniteCanvas.params.countLocked');
+  });
+
+  it('offers up to four images on a batching model and dispatches the choice', async () => {
+    seed([BLANK_IMAGE_CARD]);
+    await renderPanel();
+    await openParams('card-image');
+
+    await choose('model', 'gemini-3-pro-image-preview');
+    expect(optionsOf('count')).toEqual(['1', '2', '3', '4']);
+    expect(field('count').disabled).toBe(false);
+    expect(container.querySelector('[data-params-hint="count"]')?.textContent)
+      .toBe('infiniteCanvas.params.countBilling');
+
+    await choose('count', '3');
+    expect(nodeOf('card-image')?.generationParams)
+      .toEqual({ model: 'gemini-3-pro-image-preview', n: 3 });
+
+    await generate('card-image');
+    expect(invocations[0].generationParams)
+      .toEqual({ model: 'gemini-3-pro-image-preview', n: 3 });
+  });
+
+  it('drops a stored batch size when the card switches to a single-image model', async () => {
+    seed([BLANK_IMAGE_CARD]);
+    await renderPanel();
+    await openParams('card-image');
+    await choose('model', 'gemini-3-pro-image-preview');
+    await choose('count', '4');
+
+    await choose('model', 'gpt-image-2');
+
+    // Nothing worth persisting is left, so the field goes away entirely.
+    expect(nodeOf('card-image')).not.toHaveProperty('generationParams');
+    expect(field('count').value).toBe('1');
+  });
+
+  it('never offers a batch selector on a video card', async () => {
+    seed([BLANK_VIDEO_CARD]);
+    await renderPanel();
+    await openParams('card-video');
+
+    expect(container.querySelector('[data-params-field="count"]')).toBeNull();
+  });
+
   it('toggles the popover from the card pill and closes it with the close button', async () => {
     seed([BLANK_IMAGE_CARD]);
     await renderPanel();

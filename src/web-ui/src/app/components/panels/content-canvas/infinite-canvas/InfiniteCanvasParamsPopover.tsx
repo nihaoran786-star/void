@@ -20,6 +20,7 @@ import type {
 } from '@/shared/services/infinite-canvas';
 import {
   defaultInfiniteCanvasModelId,
+  INFINITE_CANVAS_MAX_BATCH_SIZE,
   listInfiniteCanvasModels,
   normalizeInfiniteCanvasGenerationParams,
   resolveInfiniteCanvasModelCapability,
@@ -130,6 +131,35 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
             </select>
           </label>
         ) : null}
+        {capability.mediaKind === 'image' ? (() => {
+          // P4 W4: the batch selector only offers what the chosen model can
+          // actually produce in one call. gpt-image-2 is pinned to 1 by the
+          // Rust capability table, so the control is disabled there with the
+          // reason spelled out instead of silently missing.
+          const nMax = Math.min(capability.nMax, INFINITE_CANVAS_MAX_BATCH_SIZE);
+          const counts = Array.from({ length: nMax }, (_unused, index) => index + 1);
+          const locked = nMax <= 1;
+          return (
+            <label className="infinite-canvas-picker__filter">
+              <span>{t('infiniteCanvas.params.count')}</span>
+              <select
+                data-params-field="count"
+                value={String(Math.min(params?.n ?? 1, nMax))}
+                disabled={locked}
+                onChange={event => update({ n: Number(event.target.value) })}
+              >
+                {counts.map(count => (
+                  <option key={count} value={String(count)}>{String(count)}</option>
+                ))}
+              </select>
+              <small className="infinite-canvas-picker__hint" data-params-hint="count">
+                {locked
+                  ? t('infiniteCanvas.params.countLocked')
+                  : t('infiniteCanvas.params.countBilling')}
+              </small>
+            </label>
+          );
+        })() : null}
         {capability.mediaKind === 'video' ? (
           <label className="infinite-canvas-picker__filter">
             <span>{t('infiniteCanvas.params.duration')}</span>

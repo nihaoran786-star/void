@@ -159,6 +159,17 @@ function completedMediaEvent(bindingOverrides: Record<string, unknown> = {}): Re
   };
 }
 
+/** P4-R2 `outputMediaItems` payload for a batch of `count` produced images. */
+function batchItems(count: number): Record<string, unknown>[] {
+  return Array.from({ length: count }, (_unused, index) => ({
+    itemIndex: index + 1,
+    mediaItemId: `batch-1-${index + 1}`,
+    mediaKind: 'image',
+    relativePath: `media/generated/batch-1/image-00${index + 1}.png`,
+    path: `C:/ws/media/generated/batch-1/image-00${index + 1}.png`,
+  }));
+}
+
 function node(document: InfiniteCanvasDocument, nodeId: string): InfiniteCanvasNode {
   const found = document.nodes.find(candidate => candidate.nodeId === nodeId);
   if (!found) throw new Error(`node ${nodeId} missing`);
@@ -537,6 +548,162 @@ describe('InfiniteCanvasMediaBridge', () => {
     }));
 
     expect(result).toMatchObject({ status: 'ignored', reason: 'operation_not_found' });
+  });
+
+  // —— P4 W4: batch (n > 1) landing ————————————————————————————————————————
+
+  it('lands an n=1 batch array exactly like the singular field did', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      outputMediaItems: [{
+        itemIndex: 1,
+        mediaItemId: 'batch-1-1',
+        mediaKind: 'image',
+        relativePath: 'media/generated/batch-1/image-001.png',
+        path: 'C:/ws/media/generated/batch-1/image-001.png',
+      }],
+    }));
+
+    expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-self' });
+    const document = await readDocument();
+    expect(document.nodes).toHaveLength(5);
+    expect(document.edges).toHaveLength(1);
+    const card = node(document, 'card-self');
+    expect(card.mediaRef).toEqual({
+      workspacePath: 'C:/ws',
+      relativePath: 'media/generated/batch-1/image-001.png',
+    });
+    expect(card.generation).toBeUndefined();
+    expect(card.prompt).toBe(seedNodes()[0].prompt);
+  });
+
+  it('fans an n=3 batch into the anchor card plus two derived cards and edges', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      outputMediaItems: batchItems(3),
+    }));
+
+    expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-self' });
+    const document = await readDocument();
+    expect(node(document, 'card-self').mediaRef?.relativePath)
+      .toBe('media/generated/batch-1/image-001.png');
+    const siblings = document.nodes.filter(
+      candidate => candidate.derivedFrom?.operationId === 'op-self',
+    );
+    expect(siblings.map(candidate => candidate.nodeId))
+      .toEqual(['node-op-self-i2', 'node-op-self-i3']);
+    expect(siblings.map(candidate => candidate.mediaRef?.relativePath)).toEqual([
+      'media/generated/batch-1/image-002.png',
+      'media/generated/batch-1/image-003.png',
+    ]);
+    expect(siblings[0].position).not.toEqual(siblings[1].position);
+    const newEdges = document.edges.filter(edge => edge.edgeId !== 'edge-1');
+    expect(newEdges).toEqual([
+      {
+        edgeId: 'edge-op-self-i2',
+        sourceNodeId: 'card-self',
+        targetNodeId: 'node-op-self-i2',
+        role: 'derived',
+      },
+      {
+        edgeId: 'edge-op-self-i3',
+        sourceNodeId: 'card-self',
+        targetNodeId: 'node-op-self-i3',
+        role: 'derived',
+      },
+    ]);
+  });
+
+  it('is idempotent when the same batch completion event is replayed', async () => {
+    const { bridge, readDocument } = createHarness();
+    const event = completedMediaEvent({ outputMediaItems: batchItems(3) });
+
+    await bridge.handleToolRunEvent(event);
+    const afterFirst = await readDocument();
+    const replay = await bridge.handleToolRunEvent(event);
+    const afterSecond = await readDocument();
+
+    expect(replay).toMatchObject({ status: 'ignored', reason: 'operation_not_found' });
+    expect(afterSecond.nodes.map(candidate => candidate.nodeId))
+      .toEqual(afterFirst.nodes.map(candidate => candidate.nodeId));
+    expect(afterSecond.edges.map(edge => edge.edgeId))
+      .toEqual(afterFirst.edges.map(edge => edge.edgeId));
+  });
+
+  it('lands only the surviving items of a partial batch, first one into the anchor', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    await bridge.handleToolRunEvent({
+      ...completedMediaEvent({
+        outputMediaItems: [batchItems(3)[1], batchItems(3)[2]],
+      }),
+    });
+
+    const document = await readDocument();
+    expect(node(document, 'card-self').mediaRef?.relativePath)
+      .toBe('media/generated/batch-1/image-002.png');
+    const siblings = document.nodes.filter(
+      candidate => candidate.derivedFrom?.operationId === 'op-self',
+    );
+    expect(siblings.map(candidate => candidate.nodeId)).toEqual(['node-op-self-i3']);
+  });
+
+  it('settles a batch with no usable item as a typed failure, adding no cards', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent({
+      sessionId: 'session-1',
+      eventType: 'Completed',
+      toolId: 'tool-call-1',
+      toolName: 'GenerateImage',
+      result: {
+        status: 'partial',
+        kind: 'image',
+        batch: { batch_id: 'batch-1' },
+        infiniteCanvas: binding({ outputMediaKind: 'image', outputMediaItems: [] }),
+      },
+    });
+
+    expect(result).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'backend' });
+    const document = await readDocument();
+    expect(document.nodes).toHaveLength(5);
+    expect(node(document, 'card-self').generation?.status).toBe('failed');
+  });
+
+  it('writes nothing at all when the anchor card was tampered into holding media', async () => {
+    const { bridge, readDocument } = createHarness();
+    const before = await readDocument();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-occupied',
+      operationId: 'op-occupied',
+      outputMediaItems: batchItems(3),
+    }));
+
+    expect(result).toMatchObject({ status: 'ignored', reason: 'result_mode_mismatch' });
+    const after = await readDocument();
+    expect(after.nodes).toEqual(before.nodes);
+    expect(after.edges).toEqual(before.edges);
+  });
+
+  it('drops corrupted batch entries but still lands the valid ones', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    await bridge.handleToolRunEvent(completedMediaEvent({
+      outputMediaItems: [
+        batchItems(2)[0],
+        { itemIndex: 'two', relativePath: 'media/generated/batch-1/image-002.png' },
+        { itemIndex: 3 },
+        'nonsense',
+      ],
+    }));
+
+    const document = await readDocument();
+    expect(node(document, 'card-self').mediaRef?.relativePath)
+      .toBe('media/generated/batch-1/image-001.png');
+    expect(document.nodes).toHaveLength(5);
   });
 });
 

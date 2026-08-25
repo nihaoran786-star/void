@@ -19,6 +19,7 @@ import type {
   CanvasImageOperationKind,
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentContent,
+  InfiniteCanvasEdge,
   InfiniteCanvasGenerationMediaKind,
   InfiniteCanvasNode,
 } from './InfiniteCanvasTypes';
@@ -156,4 +157,116 @@ export function beginDerivedOperationContent(
       { edgeId, sourceNodeId, targetNodeId: derivedNodeId, role: 'derived' },
     ],
   };
+}
+
+// —— P4 W4: batch (n > 1) landing ————————————————————————————————————————
+//
+// One submitted operation can come back with several produced media items
+// (`outputMediaItems`, R2). Item 1 lands in the anchor card exactly like a
+// single result did before P4; items 2..N each grow their own derived card
+// wired back to the anchor. Both the live media bridge and the residual
+// pending reconciliation call this one function, so "landed while open" and
+// "reconciled after reopening" can never disagree.
+
+/** One produced media item of a batch, as carried by R2's `outputMediaItems`. */
+export interface InfiniteCanvasBatchOutputItem {
+  /** 1-based index within the batch; decides ordering and the derived node id. */
+  itemIndex: number;
+  /** Workspace-relative landing path; entries without one are never passed in. */
+  relativePath: string;
+}
+
+/**
+ * Deterministic id of the card that carries batch item `itemIndex`.
+ *
+ * Determinism is the whole idempotency story (plan §2.3-4): tool-run events
+ * can be replayed and the pending reconciliation can run over an already
+ * landed batch, so "the card for this item already exists" has to be a
+ * decidable, id-based question rather than a guess.
+ */
+export function infiniteCanvasBatchNodeId(operationId: string, itemIndex: number): string {
+  return `node-${operationId}-i${itemIndex}`;
+}
+
+/** Deterministic id of the anchor→item edge, for the same replay reason. */
+export function infiniteCanvasBatchEdgeId(operationId: string, itemIndex: number): string {
+  return `edge-${operationId}-i${itemIndex}`;
+}
+
+/**
+ * Lands a whole batch of produced media onto the document.
+ *
+ * Rules (plan §2.3, PRD §3.4):
+ * - The anchor is still the node registered under `operationId`; nothing else
+ *   is ever written.
+ * - An anchor that already carries a mediaRef is left completely alone —
+ *   never-overwrite wins over any claim the result makes. Zero writes.
+ * - Items are applied in ascending `itemIndex`. The FIRST supplied item lands
+ *   in the anchor (so a partial batch whose item 1 failed still fills the card
+ *   the user clicked); the rest become derived cards.
+ * - Every derived card and edge uses a deterministic id, so re-applying the
+ *   same batch is a no-op instead of a duplicate card.
+ * - An empty item list returns the content unchanged; the caller settles the
+ *   generation as a typed failure.
+ *
+ * With exactly one item this reproduces `resolveOperationContent` field for
+ * field — the n = 1 regression guard the plan calls the most important one.
+ */
+export function resolveOperationBatchContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  operationId: string,
+  workspacePath: string,
+  items: readonly InfiniteCanvasBatchOutputItem[],
+): InfiniteCanvasDocumentContent {
+  const anchor = document.nodes.find(node => node.generation?.operationId === operationId);
+  if (!anchor || anchor.mediaRef !== undefined) return content(document);
+
+  const ordered = [...items]
+    .filter(item => typeof item.relativePath === 'string' && item.relativePath.trim().length > 0)
+    .sort((left, right) => left.itemIndex - right.itemIndex);
+  if (ordered.length === 0) return content(document);
+
+  const [head, ...rest] = ordered;
+  const nodes: InfiniteCanvasNode[] = document.nodes.map(node => {
+    if (node.nodeId !== anchor.nodeId) return node;
+    const { generation: _cleared, ...keep } = node;
+    return { ...keep, mediaRef: { workspacePath, relativePath: head.relativePath } };
+  });
+
+  const edges: InfiniteCanvasEdge[] = [...document.edges];
+  const takenNodeIds = new Set(document.nodes.map(node => node.nodeId));
+  const takenEdgeIds = new Set(document.edges.map(edge => edge.edgeId));
+  const toolId = anchor.generation?.toolId ?? 'generate';
+  const anchorWidth = anchor.size?.width ?? 0;
+  let ordinal = 0;
+  for (const item of rest) {
+    ordinal += 1;
+    const nodeId = infiniteCanvasBatchNodeId(operationId, item.itemIndex);
+    if (takenNodeIds.has(nodeId)) continue;
+    takenNodeIds.add(nodeId);
+    nodes.push({
+      nodeId,
+      kind: anchor.kind === 'video' ? 'video' : 'image',
+      position: {
+        x: anchor.position.x + anchorWidth + DERIVED_NODE_OFFSET_X * ordinal,
+        y: anchor.position.y,
+      },
+      // Siblings of the same shot: the prompt and the parameters that produced
+      // them travel along, so regenerating from any of them keeps the setting.
+      ...(anchor.prompt !== undefined ? { prompt: anchor.prompt } : {}),
+      ...(anchor.generationParams !== undefined
+        ? { generationParams: { ...anchor.generationParams } }
+        : {}),
+      mediaRef: { workspacePath, relativePath: item.relativePath },
+      derivedFrom: { sourceNodeId: anchor.nodeId, toolId, operationId },
+    });
+    const edgeId = infiniteCanvasBatchEdgeId(operationId, item.itemIndex);
+    if (takenEdgeIds.has(edgeId)) continue;
+    takenEdgeIds.add(edgeId);
+    // role 'derived': a batch sibling is lineage, never a base-image
+    // reference, so reference collection skips this edge.
+    edges.push({ edgeId, sourceNodeId: anchor.nodeId, targetNodeId: nodeId, role: 'derived' });
+  }
+
+  return { ...content(document), nodes, edges };
 }

@@ -62,6 +62,25 @@ function completedManifest(localPath: string): string {
   });
 }
 
+/** P4 W4: a manifest of a batch that produced `count` saved images. */
+function multiResultManifest(count: number): string {
+  const entries = Array.from({ length: count }, (_unused, index) => ({
+    item_index: index + 1,
+    kind: 'image',
+    local_path: `C:/ws/media/generated/batch-1/image-00${index + 1}.png`,
+  }));
+  return JSON.stringify({
+    status: 'completed',
+    kind: 'image',
+    batch: {
+      batch_id: 'batch-1',
+      status: 'completed',
+      assets: entries.map(entry => ({ ...entry, url: `https://x/${entry.item_index}` })),
+      items: entries,
+    },
+  });
+}
+
 interface Harness {
   service: InfiniteCanvasDocumentService;
   files: Map<string, string>;
@@ -368,5 +387,106 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
     await reconcile(harness, document);
 
     expect(harness.readDocument().nodes[0].mediaRef).toEqual(keptMediaRef);
+  });
+
+  // —— P4 W4: multi-result batches reconciled after a reopen ————————————————
+
+  it('reconciles a batch that produced three images into three cards', async () => {
+    const { harness, document } = createHarness([
+      pendingNode('card-1', 'op-1', 'batch-1'),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+      multiResultManifest(3),
+    );
+
+    const result = await reconcile(harness, document);
+
+    expect(result.outcomes).toEqual([
+      { operationId: 'op-1', nodeId: 'card-1', action: 'resolved' },
+    ]);
+    const persisted = harness.readDocument();
+    expect(persisted.nodes[0].mediaRef?.relativePath)
+      .toBe('media/generated/batch-1/image-001.png');
+    expect(persisted.nodes.slice(1).map(node => node.nodeId))
+      .toEqual(['node-op-1-i2', 'node-op-1-i3']);
+    expect(persisted.nodes.slice(1).map(node => node.mediaRef?.relativePath)).toEqual([
+      'media/generated/batch-1/image-002.png',
+      'media/generated/batch-1/image-003.png',
+    ]);
+    expect(persisted.edges).toEqual([
+      {
+        edgeId: 'edge-op-1-i2',
+        sourceNodeId: 'card-1',
+        targetNodeId: 'node-op-1-i2',
+        role: 'derived',
+      },
+      {
+        edgeId: 'edge-op-1-i3',
+        sourceNodeId: 'card-1',
+        targetNodeId: 'node-op-1-i3',
+        role: 'derived',
+      },
+    ]);
+  });
+
+  it('uses the same deterministic ids as the live bridge, so a second pass adds nothing', async () => {
+    const { harness, document } = createHarness([
+      pendingNode('card-1', 'op-1', 'batch-1'),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+      multiResultManifest(3),
+    );
+
+    await reconcile(harness, document);
+    const afterFirst = harness.readDocument();
+    await reconcile(harness, afterFirst);
+    const afterSecond = harness.readDocument();
+
+    expect(afterSecond.nodes.map(node => node.nodeId))
+      .toEqual(afterFirst.nodes.map(node => node.nodeId));
+    expect(afterSecond.edges.map(edge => edge.edgeId))
+      .toEqual(afterFirst.edges.map(edge => edge.edgeId));
+  });
+
+  it('reconciles a partial batch by landing its first surviving item in the card', async () => {
+    const { harness, document } = createHarness([
+      pendingNode('card-1', 'op-1', 'batch-1'),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+      JSON.stringify({
+        status: 'partial',
+        kind: 'image',
+        batch: {
+          batch_id: 'batch-1',
+          status: 'partial',
+          assets: [
+            {
+              item_index: 2,
+              kind: 'image',
+              local_path: 'C:/ws/media/generated/batch-1/image-002.png',
+            },
+          ],
+          items: [
+            { item_index: 1, kind: 'image', status: 'failed' },
+            {
+              item_index: 2,
+              kind: 'image',
+              local_path: 'C:/ws/media/generated/batch-1/image-002.png',
+            },
+          ],
+        },
+      }),
+    );
+
+    await reconcile(harness, document);
+
+    const persisted = harness.readDocument();
+    expect(persisted.nodes).toHaveLength(1);
+    expect(persisted.nodes[0].mediaRef?.relativePath)
+      .toBe('media/generated/batch-1/image-002.png');
+    expect(persisted.edges).toEqual([]);
   });
 });

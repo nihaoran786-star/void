@@ -48,6 +48,15 @@ export interface InfiniteCanvasFlowEdgeView {
 // re-exports keep every existing panel-side import working unchanged.
 export type { InfiniteCanvasDocumentContent } from '@/shared/services/infinite-canvas';
 export { beginDerivedOperationContent } from '@/shared/services/infinite-canvas';
+// P4 W4: the batch (n > 1) landing rules live in shared for the same reason —
+// the media bridge and the pending reconciliation both apply them, and a
+// second copy in the app layer would be a second set of card ids.
+export {
+  infiniteCanvasBatchEdgeId,
+  infiniteCanvasBatchNodeId,
+  resolveOperationBatchContent,
+} from '@/shared/services/infinite-canvas';
+export type { InfiniteCanvasBatchOutputItem } from '@/shared/services/infinite-canvas';
 
 import type { InfiniteCanvasDocumentContent } from '@/shared/services/infinite-canvas';
 

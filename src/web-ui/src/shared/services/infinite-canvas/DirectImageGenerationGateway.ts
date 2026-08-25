@@ -200,6 +200,21 @@ export function buildGenerationParamFields(
   return fields;
 }
 
+/**
+ * Batch size to request for an image generation (P4 W4).
+ *
+ * The stored `n` is clamped against the chosen model's own `nMax` (and the
+ * schema ceiling of 4) one last time here — a card that stored `n: 4` and was
+ * later switched to a single-image model must not send 4. With no parameters
+ * at all this returns 1, i.e. the pre-P4 request byte for byte.
+ */
+export function resolveInfiniteCanvasBatchSize(
+  params: InfiniteCanvasGenerationParams | undefined,
+): number {
+  if (!params) return 1;
+  return normalizeInfiniteCanvasGenerationParams(params, 'image').n ?? 1;
+}
+
 // —— Gateway ————————————————————————————————————————————————————————————————
 
 export function createDirectImageGenerationGateway(
@@ -285,9 +300,12 @@ export function createDirectImageGenerationGateway(
         prompt: finalInstruction,
         imageUrls: [],
         localReferencePaths,
-        // n is pinned to 1 for images (K2 §2.2 rule); video count is not a
-        // provider concept on this lane.
-        ...(kind === 'image' ? { n: 1 } : {}),
+        // P4 W4: the image batch size comes from the card's own parameters,
+        // clamped to the model's nMax; it stays 1 when nothing was chosen.
+        // Video count is not a provider concept on this lane.
+        ...(kind === 'image'
+          ? { n: resolveInfiniteCanvasBatchSize(invocation.generationParams) }
+          : {}),
         ...buildGenerationParamFields(invocation.generationParams, kind),
         infiniteCanvas: binding,
       };

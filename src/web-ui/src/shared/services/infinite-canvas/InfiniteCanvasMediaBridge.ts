@@ -29,11 +29,16 @@ import type { ImageToolErrorKind } from './ImageToolTypes';
 import type {
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
+  InfiniteCanvasEdge,
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
 } from './InfiniteCanvasTypes';
 import type { InfiniteCanvasDocumentService } from './InfiniteCanvasDocumentService';
 import type { InfiniteCanvasMediaRef } from './InfiniteCanvasAgentTaskTypes';
+import {
+  resolveOperationBatchContent,
+  type InfiniteCanvasBatchOutputItem,
+} from './InfiniteCanvasGenerationContent';
 
 export type InfiniteCanvasMediaBridgeIgnoredReason =
   | 'missing_event_fields'
@@ -98,6 +103,34 @@ interface ExtractedBinding {
   mediaKind?: 'image' | 'video';
   /** Kind of the produced media, attached by the Rust completion enrichment. */
   outputMediaKind?: 'image' | 'video';
+  /**
+   * P4-R2 additive: every produced item of the batch. Absent on receipts from
+   * a backend that predates R2 — the singular `outputMediaRelativePath` above
+   * still describes item 1, so those keep landing exactly as before.
+   */
+  outputMediaItems?: InfiniteCanvasBatchOutputItem[];
+}
+
+/**
+ * Parses `outputMediaItems`, keeping only entries the front end can actually
+ * place: a positive integer index and a non-empty relative path. A corrupted
+ * entry is dropped rather than failing the whole batch — the singular field
+ * still guarantees item 1 lands.
+ */
+function parseBatchOutputItems(value: unknown): InfiniteCanvasBatchOutputItem[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items: InfiniteCanvasBatchOutputItem[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const relativePath = getString(entry, 'relativePath');
+    const itemIndex = entry.itemIndex;
+    if (!relativePath || typeof itemIndex !== 'number'
+      || !Number.isInteger(itemIndex) || itemIndex < 1) {
+      continue;
+    }
+    items.push({ itemIndex, relativePath });
+  }
+  return items;
 }
 
 function getMediaKind(
@@ -152,6 +185,10 @@ function parseBinding(raw: Record<string, unknown>): ExtractedBinding | undefine
     outputMediaRelativePath: getString(raw, 'outputMediaRelativePath'),
     mediaKind: getMediaKind(raw, 'mediaKind'),
     outputMediaKind: getMediaKind(raw, 'outputMediaKind'),
+    ...(() => {
+      const items = parseBatchOutputItems(raw.outputMediaItems);
+      return items && items.length > 0 ? { outputMediaItems: items } : {};
+    })(),
   };
 }
 
@@ -177,6 +214,7 @@ type BridgeIntent =
   | { intent: 'pending' }
   | { intent: 'attach-batch'; batchId: string }
   | { intent: 'resolve'; mediaRef: InfiniteCanvasMediaRef }
+  | { intent: 'resolve-batch'; items: InfiniteCanvasBatchOutputItem[] }
   | { intent: 'fail'; errorKind: ImageToolErrorKind }
   | { intent: 'ignore'; reason: InfiniteCanvasMediaBridgeIgnoredReason };
 
@@ -192,6 +230,13 @@ function classifyCompletedResult(
   binding: ExtractedBinding,
   workspacePath: string,
 ): BridgeIntent {
+  // P4 W4: the R2 multi-result array wins when present — with a single item
+  // it lands byte-for-byte like the singular path below, with several it fans
+  // items 2..N out into derived cards. A `partial` batch simply carries fewer
+  // items; the first surviving one still fills the anchor card.
+  if (binding.outputMediaItems && binding.outputMediaItems.length > 0) {
+    return { intent: 'resolve-batch', items: binding.outputMediaItems };
+  }
   // The enriched binding carries the landing path; its presence is the
   // single success criterion (§3.4).
   if (binding.outputMediaRelativePath) {
@@ -239,6 +284,12 @@ interface MutationDecision {
     | { status: 'applied'; action: InfiniteCanvasMediaBridgeAction; errorKind?: ImageToolErrorKind }
     | { status: 'ignored'; reason: InfiniteCanvasMediaBridgeIgnoredReason };
   nodes: InfiniteCanvasNode[];
+  /**
+   * P4 W4: a batch landing also grows the anchor→sibling lineage edges, so
+   * the decision has to carry the edge list too. Every other outcome returns
+   * the document's own edges unchanged.
+   */
+  edges: InfiniteCanvasEdge[];
 }
 
 function findOperationNode(
@@ -256,21 +307,26 @@ function applyIntent(
   document: Readonly<InfiniteCanvasDocument>,
   binding: ExtractedBinding,
   requestedIntent: Exclude<BridgeIntent, { intent: 'ignore' }>,
+  workspacePath: string,
 ): MutationDecision {
   const unchanged = document.nodes as InfiniteCanvasNode[];
+  const unchangedEdges = document.edges as InfiniteCanvasEdge[];
+  const keep = (
+    outcome: MutationDecision['outcome'],
+  ): MutationDecision => ({ outcome, nodes: unchanged, edges: unchangedEdges });
   const node = findOperationNode(document, binding.operationId);
   const generation = node?.generation;
   if (!node || !generation) {
     // After a successful resolve the generation field is gone, so duplicated
     // completion events land here — an idempotent no-op.
-    return { outcome: { status: 'ignored', reason: 'operation_not_found' }, nodes: unchanged };
+    return keep({ status: 'ignored', reason: 'operation_not_found' });
   }
 
   // resultMode cross-check: the binding must agree with what the front end
   // registered at dispatch. A node that already carries an image is never
   // written again, no matter what the binding claims.
   if (binding.resultMode !== generation.resultMode || node.mediaRef !== undefined) {
-    return { outcome: { status: 'ignored', reason: 'result_mode_mismatch' }, nodes: unchanged };
+    return keep({ status: 'ignored', reason: 'result_mode_mismatch' });
   }
 
   // P3 §3.5 media-kind cross-check: the produced kind (enriched
@@ -288,12 +344,12 @@ function applyIntent(
 
   if (intent.intent === 'pending') {
     // Dispatch already registered the pending state; Started only confirms it.
-    return { outcome: { status: 'applied', action: 'pending' }, nodes: unchanged };
+    return keep({ status: 'applied', action: 'pending' });
   }
 
   if (intent.intent === 'attach-batch') {
     if (generation.batchId === intent.batchId) {
-      return { outcome: { status: 'applied', action: 'batch-attached' }, nodes: unchanged };
+      return keep({ status: 'applied', action: 'batch-attached' });
     }
     return {
       outcome: { status: 'applied', action: 'batch-attached' },
@@ -302,6 +358,24 @@ function applyIntent(
           ? { ...candidate, generation: { ...generation, batchId: intent.batchId } }
           : candidate
       )),
+      edges: unchangedEdges,
+    };
+  }
+
+  if (intent.intent === 'resolve-batch') {
+    // One shared pure function with the reconciliation lane, so a batch that
+    // lands live and a batch that is reconciled after a reopen produce the
+    // same cards, edges and ids.
+    const next = resolveOperationBatchContent(
+      document,
+      binding.operationId,
+      workspacePath,
+      intent.items,
+    );
+    return {
+      outcome: { status: 'applied', action: 'resolved' },
+      nodes: next.nodes as InfiniteCanvasNode[],
+      edges: next.edges as InfiniteCanvasEdge[],
     };
   }
 
@@ -313,15 +387,17 @@ function applyIntent(
         const { generation: _cleared, ...rest } = candidate;
         return { ...rest, mediaRef: { ...intent.mediaRef } };
       }),
+      edges: unchangedEdges,
     };
   }
 
   // intent === 'fail'
   if (generation.status === 'failed' && generation.errorKind === intent.errorKind) {
-    return { outcome: { status: 'ignored', reason: 'already_terminal' }, nodes: unchanged };
+    return keep({ status: 'ignored', reason: 'already_terminal' });
   }
   return {
     outcome: { status: 'applied', action: 'failed', errorKind: intent.errorKind },
+    edges: unchangedEdges,
     nodes: document.nodes.map(candidate => (
       candidate.nodeId === node.nodeId
         ? {
@@ -397,10 +473,10 @@ export function createInfiniteCanvasMediaBridge(
 
       let decision: MutationDecision | undefined;
       const mutated = await documentService.mutateDefaultDocument(workspace, current => {
-        decision = applyIntent(current, binding, intent);
+        decision = applyIntent(current, binding, intent, workspace.workspacePath);
         return {
           nodes: decision.nodes,
-          edges: current.edges,
+          edges: decision.edges,
           viewport: current.viewport,
         };
       });
