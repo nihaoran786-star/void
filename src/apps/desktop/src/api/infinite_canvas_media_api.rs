@@ -51,6 +51,18 @@ pub struct SubmitInfiniteCanvasMediaJobRequest {
     pub n: Option<u8>,
     #[serde(default)]
     pub size: Option<String>,
+    /// P4 additive: output resolution (image and video). Allowed values are
+    /// per-model and live in `agentic/media/capabilities.rs` (the single
+    /// source of truth); this command does not validate them — the tool
+    /// layer does, and illegal values come back as typed `invalid_input`.
+    #[serde(default)]
+    pub resolution: Option<String>,
+    /// P4 additive: video clip duration in seconds (video only).
+    #[serde(default)]
+    pub duration: Option<u8>,
+    /// P4 additive: video aspect ratio (video only). Images use `size`.
+    #[serde(default)]
+    pub aspect_ratio: Option<String>,
     /// The §3.2 binding object; passed through verbatim so completed media
     /// flows back to the right canvas card.
     pub infinite_canvas: Value,
@@ -158,6 +170,45 @@ fn validate_request(
         }
     }
     Ok(())
+}
+
+/// Assembles the shared submission orchestration input (the same shape the
+/// GenerateImage / GenerateVideo tools receive). Pure so the P4 pass-through
+/// is testable without a network or a live workspace.
+///
+/// Additive by construction: with none of the P4 params set, the image branch
+/// produces exactly the pre-P4 object (`prompt`, `model`, `size`, `n`,
+/// `image_urls`, `infinite_canvas`). The video branch omits `n` — the video
+/// request builder (`video_request_from_input`) never reads it — and carries
+/// `duration` / `aspect_ratio` instead.
+fn build_submission_input(
+    request: &SubmitInfiniteCanvasMediaJobRequest,
+    image_urls: &[String],
+) -> Value {
+    let is_video = request.kind == "video";
+    let mut input = serde_json::Map::new();
+    input.insert("prompt".to_string(), json!(request.prompt));
+    input.insert("model".to_string(), json!(request.model));
+    input.insert("size".to_string(), json!(request.size));
+    if is_video {
+        if let Some(duration) = request.duration {
+            input.insert("duration".to_string(), json!(duration));
+        }
+        if let Some(aspect_ratio) = request.aspect_ratio.as_deref() {
+            input.insert("aspect_ratio".to_string(), json!(aspect_ratio));
+        }
+    } else {
+        input.insert("n".to_string(), json!(request.n));
+    }
+    if let Some(resolution) = request.resolution.as_deref() {
+        input.insert("resolution".to_string(), json!(resolution));
+    }
+    input.insert("image_urls".to_string(), json!(image_urls));
+    input.insert(
+        "infinite_canvas".to_string(),
+        request.infinite_canvas.clone(),
+    );
+    Value::Object(input)
 }
 
 fn completion_sink(
@@ -275,14 +326,7 @@ pub async fn submit_infinite_canvas_media_job(
         }
     }
 
-    let input = json!({
-        "prompt": request.prompt,
-        "model": request.model,
-        "size": request.size,
-        "n": request.n,
-        "image_urls": image_urls,
-        "infinite_canvas": request.infinite_canvas,
-    });
+    let input = build_submission_input(&request, &image_urls);
     let sink = Some(completion_sink(app, tool_name, operation_id));
     let submitted = if request.kind == "video" {
         submit_video_generation_job(&input, Some(&workspace_root), sink, tool_name).await
@@ -299,7 +343,8 @@ pub async fn submit_infinite_canvas_media_job(
 #[cfg(test)]
 mod tests {
     use super::{
-        submission_response, validate_request, SubmitInfiniteCanvasMediaJobRequest,
+        build_submission_input, submission_response, validate_request,
+        SubmitInfiniteCanvasMediaJobRequest,
     };
     use serde_json::{json, Value};
     use void_core::agentic::tools::implementations::media_tools::MediaGenerationSubmission;
@@ -319,6 +364,9 @@ mod tests {
             local_reference_paths: vec!["media/generated/batch/image-001.png".to_string()],
             n: Some(1),
             size: None,
+            resolution: None,
+            duration: None,
+            aspect_ratio: None,
             infinite_canvas: json!({
                 "workspaceId": "workspace-1",
                 "documentId": "doc-1",
@@ -372,6 +420,106 @@ mod tests {
         let mut request = sample_request();
         request.infinite_canvas = json!({ "workspaceId": "workspace-1" });
         assert!(validate_request(&request).is_err());
+    }
+
+    // —— P4-R1: generation parameter pass-through ——
+    // The allowed values per model live in
+    // `src/crates/assembly/core/src/agentic/media/capabilities.rs` (single
+    // source of truth). This command intentionally does not validate them.
+
+    #[test]
+    fn image_input_without_p4_params_is_identical_to_the_pre_p4_shape() {
+        let request = sample_request();
+        let input = build_submission_input(&request, &["https://cdn/a.png".to_string()]);
+        assert_eq!(
+            input,
+            json!({
+                "prompt": "a red fox",
+                "model": Value::Null,
+                "size": Value::Null,
+                "n": 1,
+                "image_urls": ["https://cdn/a.png"],
+                "infinite_canvas": request.infinite_canvas,
+            })
+        );
+    }
+
+    #[test]
+    fn image_input_passes_resolution_through_when_requested() {
+        let mut request = sample_request();
+        request.model = Some("gemini-3-pro-image-preview".to_string());
+        request.size = Some("16:9".to_string());
+        request.resolution = Some("2K".to_string());
+        request.n = Some(3);
+        let input = build_submission_input(&request, &[]);
+        assert_eq!(input["model"], "gemini-3-pro-image-preview");
+        assert_eq!(input["size"], "16:9");
+        assert_eq!(input["resolution"], "2K");
+        assert_eq!(input["n"], 3);
+        // Video-only keys must never leak onto the image branch.
+        assert!(input.get("duration").is_none());
+        assert!(input.get("aspect_ratio").is_none());
+    }
+
+    #[test]
+    fn video_input_passes_duration_and_aspect_ratio_and_never_sends_n() {
+        let mut request = sample_request();
+        request.kind = "video".to_string();
+        request.duration = Some(8);
+        request.aspect_ratio = Some("9:16".to_string());
+        request.resolution = Some("1080p".to_string());
+        let input = build_submission_input(&request, &[]);
+        assert_eq!(input["duration"], 8);
+        assert_eq!(input["aspect_ratio"], "9:16");
+        assert_eq!(input["resolution"], "1080p");
+        // `n` is meaningless for video (the video request builder never reads
+        // it); the branch must not send it.
+        assert!(input.get("n").is_none());
+    }
+
+    #[test]
+    fn video_input_without_p4_params_omits_the_optional_keys() {
+        let mut request = sample_request();
+        request.kind = "video".to_string();
+        let input = build_submission_input(&request, &[]);
+        assert_eq!(
+            input,
+            json!({
+                "prompt": "a red fox",
+                "model": Value::Null,
+                "size": Value::Null,
+                "image_urls": [],
+                "infinite_canvas": request.infinite_canvas,
+            })
+        );
+    }
+
+    #[test]
+    fn p4_params_are_optional_on_the_wire() {
+        // Front ends that predate P4 send no new keys at all; serde defaults
+        // keep the request deserializable and the input shape unchanged.
+        let request: SubmitInfiniteCanvasMediaJobRequest = serde_json::from_value(json!({
+            "workspaceId": "workspace-1",
+            "workspacePath": if cfg!(windows) { "C:\\workspace" } else { "/workspace" },
+            "kind": "image",
+            "prompt": "a red fox",
+            "infiniteCanvas": {
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-1"
+            }
+        }))
+        .expect("request without P4 params must deserialize");
+        assert!(request.resolution.is_none());
+        assert!(request.duration.is_none());
+        assert!(request.aspect_ratio.is_none());
+        assert!(validate_request(&request).is_ok());
+        let input = build_submission_input(&request, &[]);
+        assert!(input.get("resolution").is_none());
+        assert_eq!(input["n"], Value::Null);
     }
 
     #[test]
