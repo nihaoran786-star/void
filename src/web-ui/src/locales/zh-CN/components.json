@@ -1032,6 +1032,17 @@
       "saveFailed": "保存失败，未写入任何文件。",
       "previewLoading": "正在加载媒体…",
       "previewUnavailable": "无法显示这个媒体。"
+    },
+    "params": {
+      "title": "生成参数",
+      "close": "关闭",
+      "button": "参数",
+      "model": "模型",
+      "defaultModel": "默认",
+      "aspectRatio": "画面比例",
+      "resolution": "清晰度",
+      "duration": "时长",
+      "providerDefault": "模型默认"
     }
   },
   "agentStudio": {

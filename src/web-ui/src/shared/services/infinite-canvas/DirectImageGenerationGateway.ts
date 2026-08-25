@@ -32,6 +32,11 @@ import { stylePresetCatalog } from '@/shared/services/style-preset';
 
 import type { ImageToolErrorKind, ImageToolResult } from './ImageToolTypes';
 import type { InfiniteCanvasImageBinding } from './InfiniteCanvasAgentTaskTypes';
+import type { InfiniteCanvasGenerationParams } from './InfiniteCanvasTypes';
+import {
+  normalizeInfiniteCanvasGenerationParams,
+  resolveInfiniteCanvasModelCapability,
+} from './infiniteCanvasGenerationCapabilities';
 import { classifyMediaErrorKind } from './InfiniteCanvasMediaBridge';
 import {
   buildFinalInstruction,
@@ -61,6 +66,12 @@ export interface SubmitInfiniteCanvasMediaJobArgs {
   localReferencePaths: string[];
   n?: number;
   size?: string;
+  /** P4-R1 additive: output resolution (image and video). */
+  resolution?: string;
+  /** P4-R1 additive: clip duration in seconds (video only). */
+  duration?: number;
+  /** P4-R1 additive: video aspect ratio (images use `size`). */
+  aspectRatio?: string;
   infiniteCanvas: InfiniteCanvasImageBinding;
 }
 
@@ -146,6 +157,47 @@ export function ensureInfiniteCanvasDirectMediaJobEventForwarder(): void {
   if (forwarderStarted) return;
   forwarderStarted = true;
   connectInfiniteCanvasDirectMediaJobEvents();
+}
+
+// —— P4 generation parameters ————————————————————————————————————————————
+
+type GenerationParamFields = Partial<Pick<
+  SubmitInfiniteCanvasMediaJobArgs,
+  'model' | 'size' | 'resolution' | 'duration' | 'aspectRatio'
+>>;
+
+/**
+ * Turns a card's stored generation parameters into request fields (P4 W3).
+ *
+ * Clamped once more against the model's allow list right before dispatch —
+ * the document may still hold values written before a capability change, and
+ * plan §2.2 wants that second guard. Every field is omitted when unset, so a
+ * card with no parameters produces exactly the pre-P4 request.
+ *
+ * The aspect ratio of a video travels in whichever request field the chosen
+ * model accepts (`aspectRatio` for Omni-Flash-Ext / kling, `size` for
+ * seedance — see the capability table).
+ */
+export function buildGenerationParamFields(
+  params: InfiniteCanvasGenerationParams | undefined,
+  kind: 'image' | 'video',
+): GenerationParamFields {
+  if (!params) return {};
+  const normalized = normalizeInfiniteCanvasGenerationParams(params, kind);
+  const fields: GenerationParamFields = {};
+  if (normalized.model !== undefined) fields.model = normalized.model;
+  if (normalized.resolution !== undefined) fields.resolution = normalized.resolution;
+  if (kind === 'image') {
+    if (normalized.size !== undefined) fields.size = normalized.size;
+    return fields;
+  }
+  if (normalized.duration !== undefined) fields.duration = normalized.duration;
+  if (normalized.aspectRatio !== undefined) {
+    const capability = resolveInfiniteCanvasModelCapability('video', normalized.model);
+    const field = capability.mediaKind === 'video' ? capability.aspectRatioField : 'aspectRatio';
+    fields[field] = normalized.aspectRatio;
+  }
+  return fields;
 }
 
 // —— Gateway ————————————————————————————————————————————————————————————————
@@ -236,6 +288,7 @@ export function createDirectImageGenerationGateway(
         // n is pinned to 1 for images (K2 §2.2 rule); video count is not a
         // provider concept on this lane.
         ...(kind === 'image' ? { n: 1 } : {}),
+        ...buildGenerationParamFields(invocation.generationParams, kind),
         infiniteCanvas: binding,
       };
 

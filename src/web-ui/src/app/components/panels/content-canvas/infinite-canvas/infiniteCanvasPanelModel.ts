@@ -10,6 +10,7 @@ import type {
   ImageToolErrorKind,
   InfiniteCanvasDocument,
   InfiniteCanvasEdge,
+  InfiniteCanvasGenerationParams,
   InfiniteCanvasNode,
   InfiniteCanvasViewport,
 } from '@/shared/services/infinite-canvas';
@@ -30,6 +31,7 @@ export interface InfiniteCanvasFlowNodeView {
     mediaRef?: { workspacePath: string; relativePath: string };
     stylePresetId?: string;
     prompt?: string;
+    generationParams?: InfiniteCanvasGenerationParams;
     derivedFrom?: NonNullable<InfiniteCanvasNode['derivedFrom']>;
     generation?: NonNullable<InfiniteCanvasNode['generation']>;
   };
@@ -82,6 +84,9 @@ export function toFlowNodeViews(
         ...(node.mediaRef === undefined ? {} : { mediaRef: { ...node.mediaRef } }),
         ...(node.stylePresetId === undefined ? {} : { stylePresetId: node.stylePresetId }),
         ...(node.prompt === undefined ? {} : { prompt: node.prompt }),
+        ...(node.generationParams === undefined
+          ? {}
+          : { generationParams: { ...node.generationParams } }),
         ...(node.derivedFrom === undefined ? {} : { derivedFrom: { ...node.derivedFrom } }),
         ...(node.generation === undefined ? {} : { generation: { ...node.generation } }),
       },

@@ -540,6 +540,36 @@
   }
 }
 
+// P4 W3: generation parameter pill — same quiet chip language as the style
+// button, filled once the card carries a non-default choice.
+.infinite-canvas-node__params-button {
+  display: inline-flex;
+  overflow: hidden;
+  height: 24px;
+  max-width: 100%;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--infinite-canvas-hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--infinite-canvas-border);
+    color: var(--infinite-canvas-text);
+  }
+
+  &[data-has-params='true'] {
+    border-color: transparent;
+    background: var(--infinite-canvas-accent-soft);
+    color: var(--infinite-canvas-text);
+  }
+}
+
 // Five-tool surface: shows on hover/selection only, quiet chip buttons.
 .infinite-canvas-node__tools {
   display: none;

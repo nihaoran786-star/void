@@ -14,7 +14,12 @@
  */
 import type {
   InfiniteCanvasDocument,
+  InfiniteCanvasGenerationParams,
   InfiniteCanvasNode,
+} from '@/shared/services/infinite-canvas';
+import {
+  isEmptyGenerationParams,
+  normalizeInfiniteCanvasGenerationParams,
 } from '@/shared/services/infinite-canvas';
 
 import type { InfiniteCanvasDocumentContent } from './infiniteCanvasPanelModel';
@@ -71,6 +76,41 @@ export function setNodePromptContent(
         ? { ...node, prompt }
         : node
     )),
+  };
+}
+
+/**
+ * P4 W3: writes the generation parameters of an image or video card.
+ *
+ * The set is clamped onto the card's own media kind and chosen model before
+ * it is stored, so a document can never hold a combination the backend would
+ * reject (the dispatch path clamps a second time — the belt-and-braces rule
+ * of plan §2.2). A set that clamps down to nothing removes the field
+ * entirely, which is exactly the pre-P4 card: no parameters are sent and the
+ * provider defaults apply.
+ */
+export function setNodeGenerationParamsContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  params: InfiniteCanvasGenerationParams | undefined,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      if (node.nodeId !== nodeId || (node.kind !== 'image' && node.kind !== 'video')) {
+        return node;
+      }
+      const normalized = normalizeInfiniteCanvasGenerationParams(
+        params,
+        node.kind === 'video' ? 'video' : 'image',
+      );
+      if (isEmptyGenerationParams(normalized)) {
+        if (node.generationParams === undefined) return node;
+        const { generationParams: _cleared, ...rest } = node;
+        return rest;
+      }
+      return { ...node, generationParams: normalized };
+    }),
   };
 }
 

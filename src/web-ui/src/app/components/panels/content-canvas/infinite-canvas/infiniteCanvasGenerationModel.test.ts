@@ -7,6 +7,7 @@ import {
   addBlankGenerationCardContent,
   beginSelfGenerationContent,
   collectReferenceNodes,
+  setNodeGenerationParamsContent,
   setNodePromptContent,
 } from './infiniteCanvasGenerationModel';
 import {
@@ -321,5 +322,110 @@ describe('infiniteCanvasGenerationModel', () => {
         status: 'pending',
       },
     }]);
+  });
+
+  describe('setNodeGenerationParamsContent (P4 W3)', () => {
+    const imageCard = {
+      nodeId: 'image-1',
+      kind: 'image' as const,
+      position: { x: 0, y: 0 },
+      prompt: 'a red fox',
+    };
+    const videoCard = {
+      nodeId: 'video-1',
+      kind: 'video' as const,
+      position: { x: 400, y: 0 },
+    };
+    const textCard = { nodeId: 'text-1', kind: 'text' as const, position: { x: 0, y: 200 } };
+
+    it('stores the parameters a card and its model actually support', () => {
+      const document = makeDocument({ nodes: [imageCard, textCard] });
+
+      const next = setNodeGenerationParamsContent(document, 'image-1', {
+        model: 'gemini-3.1-flash-image-preview',
+        size: '1:4',
+        resolution: '0.5K',
+      });
+
+      expect(next.nodes[0]).toEqual({
+        ...imageCard,
+        generationParams: {
+          model: 'gemini-3.1-flash-image-preview',
+          size: '1:4',
+          resolution: '0.5K',
+        },
+      });
+      expect(next.nodes[1]).toBe(textCard);
+    });
+
+    it('clamps a set the chosen model cannot honour instead of storing it', () => {
+      const document = makeDocument({ nodes: [imageCard] });
+
+      // 1:4 and 0.5K only exist on the flash model; n_max on gpt-image-2 is 1.
+      const next = setNodeGenerationParamsContent(document, 'image-1', {
+        size: '1:4',
+        resolution: '0.5K',
+        n: 4,
+      });
+
+      expect(next.nodes[0]).not.toHaveProperty('generationParams');
+    });
+
+    it('separates video fields from image fields', () => {
+      const document = makeDocument({ nodes: [videoCard] });
+
+      const next = setNodeGenerationParamsContent(document, 'video-1', {
+        aspectRatio: '9:16',
+        resolution: '1080p',
+        duration: 8,
+        size: '21:9',
+        n: 3,
+      });
+
+      expect(next.nodes[0]).toEqual({
+        ...videoCard,
+        generationParams: { aspectRatio: '9:16', resolution: '1080p', duration: 8 },
+      });
+    });
+
+    it('removes the field when the set clamps down to nothing', () => {
+      const document = makeDocument({
+        nodes: [{ ...imageCard, generationParams: { size: '16:9' } }],
+      });
+
+      const next = setNodeGenerationParamsContent(document, 'image-1', undefined);
+
+      expect(next.nodes[0]).toEqual(imageCard);
+    });
+
+    it('leaves text cards and unknown ids alone', () => {
+      const document = makeDocument({ nodes: [imageCard, textCard] });
+
+      expect(setNodeGenerationParamsContent(document, 'text-1', { size: '16:9' }).nodes)
+        .toEqual([imageCard, textCard]);
+      expect(setNodeGenerationParamsContent(document, 'nope', { size: '16:9' }).nodes)
+        .toEqual([imageCard, textCard]);
+    });
+
+    it('round-trips through the document parser', () => {
+      const document = makeDocument({ nodes: [imageCard] });
+      const next = setNodeGenerationParamsContent(document, 'image-1', {
+        model: 'gemini-3-pro-image-preview',
+        size: '21:9',
+        resolution: '4K',
+      });
+
+      const parsed = parseInfiniteCanvasDocument(
+        JSON.stringify({ ...document, nodes: next.nodes }),
+      );
+
+      expect(parsed.status).toBe('ok');
+      if (parsed.status !== 'ok') return;
+      expect(parsed.document.nodes[0].generationParams).toEqual({
+        model: 'gemini-3-pro-image-preview',
+        size: '21:9',
+        resolution: '4K',
+      });
+    });
   });
 });

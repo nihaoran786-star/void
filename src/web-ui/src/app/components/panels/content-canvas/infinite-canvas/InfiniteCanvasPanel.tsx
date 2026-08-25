@@ -41,8 +41,12 @@ import type {
   InfiniteCanvasMutator,
   SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
-import type { InfiniteCanvasMediaJobReader } from '@/shared/services/infinite-canvas';
+import type {
+  InfiniteCanvasGenerationParams,
+  InfiniteCanvasMediaJobReader,
+} from '@/shared/services/infinite-canvas';
 import {
+  summarizeInfiniteCanvasGenerationParams,
   connectInfiniteCanvasMediaBridgeToEventBus,
   connectInfiniteCanvasOpsBridgeToEventBus,
   createInfiniteCanvasMediaBridge,
@@ -92,8 +96,10 @@ import {
   addBlankVideoCardContent,
   beginSelfGenerationContent,
   collectReferenceNodes,
+  setNodeGenerationParamsContent,
   setNodePromptContent,
 } from './infiniteCanvasGenerationModel';
+import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
 import {
   InfiniteCanvasImageNode,
   InfiniteCanvasTextNode,
@@ -159,6 +165,8 @@ interface NodeActions {
   deriveVideoCard: (nodeId: string) => void;
   /** P4 W1: opens the full-screen viewer on this card's media. */
   openViewer: (nodeId: string) => void;
+  /** P4 W3: opens the generation parameter popover for this card. */
+  openParams: (nodeId: string) => void;
 }
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
@@ -265,6 +273,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const [toolDialog, setToolDialog] = React.useState<ToolDialogRequest | null>(null);
   /** P4 W1: the card whose media the full-screen viewer is showing. */
   const [viewerNodeId, setViewerNodeId] = React.useState<string | null>(null);
+  /** P4 W3: the card whose generation parameters are being edited. */
+  const [paramsNodeId, setParamsNodeId] = React.useState<string | null>(null);
 
   // Node callbacks flow through this ref so projectDocument stays stable while
   // the handlers depend on it (same seam the M3 commitText path used).
@@ -277,6 +287,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     removeFailed: () => undefined,
     deriveVideoCard: () => undefined,
     openViewer: () => undefined,
+    openParams: () => undefined,
   });
 
   const openStylePicker = React.useCallback((nodeId: string) => {
@@ -319,6 +330,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
                   ),
                 }
               : {}),
+            // P4 W3: every generation-capable card carries the parameter
+            // entry; the pill shows the collapsed choice, if any.
+            generationParams: view.data.generationParams,
+            generationParamsSummary: summarizeInfiniteCanvasGenerationParams(
+              view.data.generationParams,
+              view.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
+            ),
+            onOpenParams: (nodeId: string) => nodeActionsRef.current.openParams(nodeId),
             // The image-only surface (style preset, five tools, derive-video)
             // stays off the P3-minimal video card.
             ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
@@ -445,6 +464,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     const references = prepareDispatch(document, nodeId, prompt);
     if (!references) return;
 
+    // P4 W3: the card's own parameters ride along; the gateway clamps them
+    // once more against the model's allow list before the request goes out.
+    const generationParams = node.generationParams;
+
     const operationId = createInfiniteCanvasId('op');
     if (node.mediaRef === undefined) {
       // Blank card first shot: the result lands in the card itself.
@@ -460,6 +483,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         prompt,
         stylePresetId: node.stylePresetId,
         references,
+        ...(generationParams ? { generationParams } : {}),
       });
       return;
     }
@@ -478,7 +502,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         edgeId,
         { mediaKind },
       );
-      return setNodePromptContent({ ...current, ...begun }, derivedNodeId, prompt);
+      const withPrompt = setNodePromptContent(
+        { ...current, ...begun },
+        derivedNodeId,
+        prompt,
+      );
+      // The placeholder inherits the source card's parameters, so a retry or
+      // a further regenerate from it keeps the same settings.
+      return setNodeGenerationParamsContent(
+        { ...current, ...withPrompt },
+        derivedNodeId,
+        generationParams,
+      );
     });
     await submitOperation({
       operationId,
@@ -490,6 +525,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       prompt,
       stylePresetId: node.stylePresetId,
       references,
+      ...(generationParams ? { generationParams } : {}),
     });
   }, [commit, findMediaNode, prepareDispatch, submitOperation]);
 
@@ -575,6 +611,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       prompt,
       stylePresetId: isDerived ? source?.stylePresetId : node.stylePresetId,
       references,
+      // A retry re-sends the card's own parameters; a card that never had
+      // any (e.g. a five-tool placeholder) still sends none.
+      ...(node.generationParams ? { generationParams: node.generationParams } : {}),
       ...(isDerived && generation.toolId !== 'generate' && source?.mediaRef
         ? { editTargetMediaRef: source.mediaRef }
         : {}),
@@ -632,6 +671,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         const found = findMediaNode(nodeId);
         if (!found?.node.mediaRef) return;
         setViewerNodeId(nodeId);
+      },
+      openParams: nodeId => {
+        if (!findMediaNode(nodeId)) return;
+        setParamsNodeId(current => (current === nodeId ? null : nodeId));
       },
     };
   }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
@@ -923,6 +966,37 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       });
   }, [saveMediaAs]);
 
+  // —— P4 W3: generation parameters ————————————————————————————————————————
+
+  /**
+   * The card the popover is editing, if it still exists and still qualifies.
+   * Read off the projection (not documentRef) so the popover re-renders as
+   * soon as a written parameter comes back through the document.
+   */
+  const paramsTarget = React.useMemo(() => {
+    if (!paramsNodeId) return undefined;
+    const node = flowNodes.find(entry => entry.id === paramsNodeId);
+    if (!node
+      || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
+        && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
+      return undefined;
+    }
+    return {
+      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' as const : 'image' as const,
+      params: node.data.generationParams as InfiniteCanvasGenerationParams | undefined,
+    };
+  }, [flowNodes, paramsNodeId]);
+
+  React.useEffect(() => {
+    if (paramsNodeId && !paramsTarget) setParamsNodeId(null);
+  }, [paramsNodeId, paramsTarget]);
+
+  const onChangeGenerationParams = React.useCallback((params: InfiniteCanvasGenerationParams) => {
+    const nodeId = paramsNodeId;
+    if (!nodeId) return;
+    void commit(document => setNodeGenerationParamsContent(document, nodeId, params));
+  }, [commit, paramsNodeId]);
+
   const stylePickerCurrentPresetId = React.useMemo(() => {
     if (!stylePickerNodeId) return undefined;
     return documentRef.current?.nodes
@@ -1023,6 +1097,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           catalog={catalog}
           onPick={onPickStyle}
           onClose={() => setStylePickerNodeId(null)}
+        />
+      ) : null}
+      {paramsTarget ? (
+        <InfiniteCanvasParamsPopover
+          mediaKind={paramsTarget.mediaKind}
+          params={paramsTarget.params}
+          onChange={onChangeGenerationParams}
+          onClose={() => setParamsNodeId(null)}
         />
       ) : null}
       {toolDialog ? (

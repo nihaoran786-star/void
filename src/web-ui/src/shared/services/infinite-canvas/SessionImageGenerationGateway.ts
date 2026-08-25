@@ -27,6 +27,7 @@ import type {
 import type {
   CanvasImageOperationKind,
   InfiniteCanvasGenerationMediaKind,
+  InfiniteCanvasGenerationParams,
 } from './InfiniteCanvasTypes';
 import type {
   InfiniteCanvasAgentTaskSessionSender,
@@ -61,6 +62,13 @@ export interface SessionImageGenerationInvocation {
   /** User prompt (generate) or the completed instruction template (five tools). */
   prompt: string;
   stylePresetId?: string;
+  /**
+   * P4: the card's generation parameters (model / aspect ratio / resolution /
+   * batch size / duration). Only the direct desktop-command gateway sends
+   * them; the session lane keeps its K2 message shape untouched. Absent
+   * reproduces the pre-P4 request field for field.
+   */
+  generationParams?: InfiniteCanvasGenerationParams;
   /** Reference cards in connection order (§3.2 collectRefs discipline). */
   references: readonly SessionImageReference[];
   /**

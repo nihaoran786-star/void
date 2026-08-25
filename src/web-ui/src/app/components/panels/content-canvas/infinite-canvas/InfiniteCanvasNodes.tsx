@@ -18,6 +18,7 @@ import type {
   CanvasImageOperationKind,
   ImageToolErrorKind,
   ImageToolId,
+  InfiniteCanvasGenerationParams,
 } from '@/shared/services/infinite-canvas';
 import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
 
@@ -70,6 +71,12 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   onRemoveFailedGeneration: (nodeId: string) => void;
   /** P4 W1: opens the full-screen viewer on this card's media. */
   onOpenViewer?: (nodeId: string) => void;
+  /** P4 W3: the card's generation parameters, as stored on the node. */
+  generationParams?: InfiniteCanvasGenerationParams;
+  /** P4 W3: collapsed summary of the card's generation parameters. */
+  generationParamsSummary?: string;
+  /** P4 W3: opens the generation parameter popover for this card. */
+  onOpenParams?: (nodeId: string) => void;
 }
 
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
@@ -390,6 +397,20 @@ const InfiniteCanvasMediaCard: React.FC<
               ? t('infiniteCanvas.generation.regenerate')
               : t('infiniteCanvas.generation.generate'))}
         </button>
+        {data.onOpenParams ? (
+          // Collapsed pill: the chosen model / ratio / resolution, or the
+          // plain label while the card still runs on provider defaults.
+          <button
+            type="button"
+            className="infinite-canvas-node__params-button nodrag"
+            data-node-action="open-params"
+            data-has-params={data.generationParamsSummary ? 'true' : undefined}
+            title={data.generationParamsSummary || t('infiniteCanvas.params.button')}
+            onClick={() => data.onOpenParams?.(id)}
+          >
+            {data.generationParamsSummary || t('infiniteCanvas.params.button')}
+          </button>
+        ) : null}
         {imageData ? (
           <button
             type="button"

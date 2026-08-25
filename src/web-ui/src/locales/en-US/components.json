@@ -1032,6 +1032,17 @@
       "saveFailed": "Saving the file failed. Nothing was written to disk.",
       "previewLoading": "Loading media...",
       "previewUnavailable": "This media cannot be displayed."
+    },
+    "params": {
+      "title": "Generation parameters",
+      "close": "Close",
+      "button": "Parameters",
+      "model": "Model",
+      "defaultModel": "default",
+      "aspectRatio": "Aspect ratio",
+      "resolution": "Resolution",
+      "duration": "Duration",
+      "providerDefault": "Provider default"
     }
   },
   "agentStudio": {

@@ -171,6 +171,131 @@ describe('DirectImageGenerationGateway', () => {
     expect(events[0]).toMatchObject({ toolName: 'GenerateVideo' });
   });
 
+  // —— P4 W3: generation parameter pass-through ——————————————————————————
+
+  it('omits every P4 parameter field when the card carries none (regression guard)', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke(BLANK_CARD_INVOCATION);
+
+    const request = calls[0].request;
+    expect(Object.keys(request).sort()).toEqual([
+      'imageUrls',
+      'infiniteCanvas',
+      'kind',
+      'localReferencePaths',
+      'n',
+      'prompt',
+      'workspaceId',
+      'workspacePath',
+    ]);
+  });
+
+  it('passes the image model, aspect ratio, and resolution through to the command', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      ...BLANK_CARD_INVOCATION,
+      generationParams: {
+        model: 'gemini-3-pro-image-preview',
+        size: '16:9',
+        resolution: '2K',
+      },
+    });
+
+    const request = calls[0].request;
+    expect(request.model).toBe('gemini-3-pro-image-preview');
+    expect(request.size).toBe('16:9');
+    expect(request.resolution).toBe('2K');
+    // W3 keeps n pinned to 1; batching is W4.
+    expect(request.n).toBe(1);
+    expect(request.duration).toBeUndefined();
+    expect(request.aspectRatio).toBeUndefined();
+  });
+
+  it('clamps stored parameters the chosen model cannot honour before dispatch', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      ...BLANK_CARD_INVOCATION,
+      // `2K` is gemini casing; gpt-image-2 only knows `1k/2k/4k`.
+      generationParams: { model: 'gpt-image-2', size: '16:9', resolution: '2K' },
+    });
+
+    const request = calls[0].request;
+    expect(request.size).toBe('16:9');
+    expect(request.resolution).toBeUndefined();
+    // The default model is never spelled out: an absent field already means it.
+    expect(request.model).toBeUndefined();
+  });
+
+  it('sends video duration and resolution, routing the ratio to the model field', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      operationId: 'op-video-2',
+      kind: 'generate',
+      mediaKind: 'video',
+      resultMode: 'self',
+      nodeId: 'video-card-2',
+      prompt: '缓慢推近镜头',
+      references: [],
+      generationParams: { aspectRatio: '9:16', resolution: '1080p', duration: 8 },
+    });
+
+    const request = calls[0].request;
+    expect(request.aspectRatio).toBe('9:16');
+    expect(request.resolution).toBe('1080p');
+    expect(request.duration).toBe(8);
+    expect(request.size).toBeUndefined();
+    expect(request.n).toBeUndefined();
+  });
+
+  it('carries a seedance aspect ratio in `size`, the only field that model accepts', async () => {
+    const { gateway, calls } = createGateway();
+
+    await gateway.invoke({
+      operationId: 'op-video-3',
+      kind: 'generate',
+      mediaKind: 'video',
+      resultMode: 'self',
+      nodeId: 'video-card-3',
+      prompt: '镜头环绕',
+      references: [],
+      generationParams: { model: 'doubao-seedance-2.0', aspectRatio: '4:3', duration: 5 },
+    });
+
+    const request = calls[0].request;
+    expect(request.model).toBe('doubao-seedance-2.0');
+    expect(request.size).toBe('4:3');
+    expect(request.aspectRatio).toBeUndefined();
+    expect(request.duration).toBe(5);
+  });
+
+  it('settles a backend parameter rejection as a retryable invalid-input failure', async () => {
+    const { gateway, calls } = createGateway({
+      status: 'error',
+      error: { code: 'invalid_input', message: 'resolution 2K is not allowed for gpt-image-2' },
+    });
+
+    const first = await gateway.invoke({
+      ...BLANK_CARD_INVOCATION,
+      generationParams: { resolution: '4k' },
+    });
+
+    expect(first).toEqual({
+      operationId: 'op-self-1',
+      status: 'failed',
+      error: {
+        kind: 'invalid-input',
+        message: 'resolution 2K is not allowed for gpt-image-2',
+      },
+    });
+    // Not memoized: fixing the parameter and retrying must reach the backend.
+    await gateway.invoke(BLANK_CARD_INVOCATION);
+    expect(calls).toHaveLength(2);
+  });
+
   it('maps typed command errors onto the K0-2 kinds and stays retryable', async () => {
     const { gateway, calls, events } = createGateway({
       status: 'error',

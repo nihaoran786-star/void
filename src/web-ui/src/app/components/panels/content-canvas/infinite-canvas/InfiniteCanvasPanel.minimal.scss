@@ -26,6 +26,10 @@
     background: var(--workspace-surface-panel);
   }
 
+  .void-ui--minimal .infinite-canvas-node__params-button {
+    font-size: var(--workspace-font-size-label);
+  }
+
   .void-ui--minimal .infinite-canvas-panel__tool-notice {
     padding: var(--workspace-space-1) var(--workspace-space-3);
     border-color: var(--workspace-border-subtle);

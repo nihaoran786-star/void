@@ -1032,6 +1032,17 @@
       "saveFailed": "儲存失敗，未寫入任何檔案。",
       "previewLoading": "正在載入媒體…",
       "previewUnavailable": "無法顯示這個媒體。"
+    },
+    "params": {
+      "title": "生成參數",
+      "close": "關閉",
+      "button": "參數",
+      "model": "模型",
+      "defaultModel": "預設",
+      "aspectRatio": "畫面比例",
+      "resolution": "清晰度",
+      "duration": "時長",
+      "providerDefault": "模型預設"
     }
   },
   "agentStudio": {
