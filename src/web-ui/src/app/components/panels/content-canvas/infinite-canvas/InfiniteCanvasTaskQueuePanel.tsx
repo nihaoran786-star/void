@@ -38,6 +38,10 @@ export const InfiniteCanvasTaskQueuePanel: React.FC<InfiniteCanvasTaskQueuePanel
 
   const pending = tasks.filter(task => task.status === 'pending');
   const failed = tasks.filter(task => task.status === 'failed');
+  // P4 review C3: a stopped-waiting row is never part of "retry every failed
+  // one" — its job may still be running and already paid for, so re-spending
+  // on it stays a deliberate, per-card decision with its own confirmation.
+  const bulkRetryable = failed.filter(task => task.errorKind !== 'cancelled');
 
   // Nothing running and nothing broken: the queue is not a thing on screen.
   if (tasks.length === 0) return null;
@@ -85,7 +89,7 @@ export const InfiniteCanvasTaskQueuePanel: React.FC<InfiniteCanvasTaskQueuePanel
           failed: failed.length,
         })}
       </p>
-      {failed.length > 1 ? (
+      {bulkRetryable.length > 1 ? (
         <button
           type="button"
           className="infinite-canvas-tasks__retry-all"

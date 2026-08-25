@@ -95,6 +95,7 @@ import {
   setNodeStylePresetContent,
   setNodeTextContent,
   setViewportContent,
+  settleResurrectedPendingContent,
   stopWaitingContent,
   toFlowEdgeViews,
   toFlowNodeViews,
@@ -124,6 +125,7 @@ import {
   pushHistoryEntry,
   type InfiniteCanvasHistoryDirection,
   type InfiniteCanvasHistoryEntry,
+  type InfiniteCanvasHistoryState,
 } from './infiniteCanvasHistory';
 import { computeInfiniteCanvasHelperLines } from './infiniteCanvasHelperLines';
 // The overlay lives in its own file whose name differs from the pure module
@@ -326,6 +328,24 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    */
   const [history, setHistory] = React.useState(emptyInfiniteCanvasHistory);
   /**
+   * P4 review C2: the stack as the KEYBOARD sees it.
+   *
+   * Holding Ctrl+Z fires key repeats far faster than React re-renders, so two
+   * handlers used to run inside the same render closure, read the same top
+   * entry, and replay it twice — the second replay rebased on a document that
+   * had already moved on, was judged stale, and threw the whole undo stack
+   * away. The ref is written synchronously, and `runHistory` claims its entry
+   * before awaiting anything, so a key-repeat burst walks the stack one step
+   * at a time instead of hammering the same step.
+   */
+  const historyRef = React.useRef(history);
+  const applyHistoryState = React.useCallback((
+    reducer: (state: InfiniteCanvasHistoryState) => InfiniteCanvasHistoryState,
+  ) => {
+    historyRef.current = reducer(historyRef.current);
+    setHistory(historyRef.current);
+  }, []);
+  /**
    * P4 W6: the current multi-selection, mirrored out of reactflow. Kept as a
    * ref as well so the keyboard listener never has to be re-registered (and
    * never reads a stale closure) while the user is selecting.
@@ -333,6 +353,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const [selectedNodeIds, setSelectedNodeIds] = React.useState<string[]>([]);
   const selectedNodeIdsRef = React.useRef<string[]>([]);
   selectedNodeIdsRef.current = selectedNodeIds;
+  /**
+   * P4 review C3: the card whose retry is waiting for the "yes, charge me
+   * again" confirmation. Only ever set for a card the user stopped waiting on.
+   */
+  const [retryConfirmNodeId, setRetryConfirmNodeId] = React.useState<string | null>(null);
   /** P4 W6: the pending deletion awaiting the one confirmation, if any. */
   const [deleteRequest, setDeleteRequest] =
     React.useState<InfiniteCanvasDeletionSummary | null>(null);
@@ -471,46 +496,67 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       return next;
     });
     if (result.status === 'applied') {
-      if (entry) setHistory(state => pushHistoryEntry(state, entry!));
+      if (entry) applyHistoryState(state => pushHistoryEntry(state, entry!));
       projectDocument(result.document);
     } else {
       setState({ phase: 'failed', error: result.error });
     }
-  }, [projectDocument, service, workspaceRef]);
+  }, [applyHistoryState, projectDocument, service, workspaceRef]);
 
   /** Applies the newest undo (or redo) entry, or discards a stale branch. */
   const runHistory = React.useCallback(async (
     direction: InfiniteCanvasHistoryDirection,
   ) => {
-    const stack = direction === 'undo' ? history.undo : history.redo;
+    const stack = direction === 'undo'
+      ? historyRef.current.undo
+      : historyRef.current.redo;
     const entry = stack[stack.length - 1];
     if (!entry) return;
+    // Claim the entry up front (C2): whatever happens next, the next keypress
+    // must see the step below it, never this one again.
+    applyHistoryState(state => (direction === 'undo'
+      ? { undo: state.undo.slice(0, -1), redo: state.redo }
+      : { undo: state.undo, redo: state.redo.slice(0, -1) }));
+    const giveBack = () => applyHistoryState(state => (direction === 'undo'
+      ? { undo: [...state.undo, entry], redo: state.redo }
+      : { undo: state.undo, redo: [...state.redo, entry] }));
     let stale = false;
     const result = await service.mutateDefaultDocument(workspaceRef, current => {
       const applied = applyHistoryEntryContent(current, entry, direction);
       stale = applied.status === 'stale';
-      return applied.status === 'applied'
-        ? applied.content
-        : { nodes: current.nodes, edges: current.edges, viewport: current.viewport };
+      if (applied.status !== 'applied') {
+        return { nodes: current.nodes, edges: current.edges, viewport: current.viewport };
+      }
+      // P4 review P4: an undone deletion can bring a card back that was still
+      // generating when it went. Its completion event was discarded long ago,
+      // so it would spin forever; settle the resurrected ones instead.
+      const before = new Set(current.nodes.map(node => node.nodeId));
+      return settleResurrectedPendingContent(
+        applied.content,
+        applied.content.nodes
+          .filter(node => !before.has(node.nodeId))
+          .map(node => node.nodeId),
+      );
     });
     if (result.status === 'failed') {
+      giveBack();
       setState({ phase: 'failed', error: result.error });
       return;
     }
     if (stale) {
       // This entry rebases on a document that has moved on; every older entry
       // in the same branch would rebase on top of that, so the branch goes.
-      setHistory(state => (direction === 'undo'
+      applyHistoryState(state => (direction === 'undo'
         ? { undo: [], redo: state.redo }
         : { undo: state.undo, redo: [] }));
       setNotice({ messageKey: 'infiniteCanvas.history.staleDiscarded' });
       return;
     }
-    setHistory(state => (direction === 'undo'
-      ? { undo: state.undo.slice(0, -1), redo: [...state.redo, entry] }
-      : { undo: [...state.undo, entry], redo: state.redo.slice(0, -1) }));
+    applyHistoryState(state => (direction === 'undo'
+      ? { undo: state.undo, redo: [...state.redo, entry] }
+      : { undo: [...state.undo, entry], redo: state.redo }));
     projectDocument(result.document);
-  }, [history, projectDocument, service, workspaceRef]);
+  }, [applyHistoryState, projectDocument, service, workspaceRef]);
 
   /** Re-projects the shared in-memory truth after bridge-side mutations. */
   const refreshFromService = React.useCallback(async () => {
@@ -810,12 +856,26 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     });
   }, [commit, findImageNode, prepareDispatch, submitOperation, toolDialog]);
 
-  const retryGeneration = React.useCallback(async (nodeId: string) => {
+  const retryGeneration = React.useCallback(async (
+    nodeId: string,
+    options: { confirmedRespend?: boolean } = {},
+  ) => {
     const found = findMediaNode(nodeId);
     if (!found) return;
     const { document, node } = found;
     const generation = node.generation;
     if (!generation || generation.status !== 'failed') return;
+
+    // P4 review C3: "stop waiting" is not a cancel — the original job is very
+    // likely still running and still billed, and the retry takes a NEW
+    // operationId, which un-anchors that first result: the user would pay
+    // twice and keep one picture. Nobody may walk into that by accident, so
+    // this one retry asks first (and "retry every failed one" skips these
+    // rows entirely).
+    if (generation.errorKind === 'cancelled' && !options.confirmedRespend) {
+      setRetryConfirmNodeId(nodeId);
+      return;
+    }
 
     const isDerived = generation.resultMode === 'derived';
     const sourceNodeId = node.derivedFrom?.sourceNodeId;
@@ -921,6 +981,31 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       },
     };
   }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
+
+  /**
+   * P4 review C5 (plan §265): every piece of panel memory is scoped to ONE
+   * document. Switching workspaces used to keep the undo stack and the
+   * clipboard, so a Ctrl+Z in workspace B could re-insert a card deleted in
+   * workspace A — mediaRef and all, pointing at A's files. Anything that
+   * remembers nodes by id is therefore dropped the moment the document
+   * changes; the document itself is reloaded by the effect below.
+   */
+  React.useEffect(() => {
+    historyRef.current = emptyInfiniteCanvasHistory();
+    setHistory(historyRef.current);
+    clipboardRef.current = null;
+    setClipboard(null);
+    pasteRunRef.current = 0;
+    selectedNodeIdsRef.current = [];
+    setSelectedNodeIds([]);
+    setContextMenu(null);
+    setDeleteRequest(null);
+    setViewerNodeId(null);
+    setParamsNodeId(null);
+    setStylePickerNodeId(null);
+    setNotice(null);
+    setToolDialog(null);
+  }, [documentId, workspaceId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1515,12 +1600,23 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const onRetryAllFailed = React.useCallback(async () => {
     const document = documentRef.current;
     if (!document) return;
-    const failed = collectGenerationTasks(document).filter(task => task.status === 'failed');
+    const failed = collectGenerationTasks(document).filter(task => (
+      task.status === 'failed'
+      // C3: a stopped-waiting row is excluded — its original job may still be
+      // running and paid for, so re-spending on it is never a bulk decision.
+      && task.errorKind !== 'cancelled'
+    ));
     // Serial on purpose: a burst of retries would be a burst of spend.
     for (const task of failed) {
       await retryGeneration(task.nodeId);
     }
   }, [retryGeneration]);
+
+  const confirmRetryRespend = React.useCallback(() => {
+    const nodeId = retryConfirmNodeId;
+    setRetryConfirmNodeId(null);
+    if (nodeId) void retryGeneration(nodeId, { confirmedRespend: true });
+  }, [retryConfirmNodeId, retryGeneration]);
 
   const onLocateNode = React.useCallback((nodeId: string) => {
     const node = flowNodesRef.current.find(candidate => candidate.id === nodeId);
@@ -1676,6 +1772,43 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onConfirm={confirmDeleteRequest}
           onCancel={() => setDeleteRequest(null)}
         />
+      ) : null}
+      {retryConfirmNodeId ? (
+        <div
+          className="infinite-canvas-dialog infinite-canvas-dialog--confirm"
+          role="dialog"
+          aria-label={t('infiniteCanvas.tasks.retryCancelled.title')}
+          data-canvas-confirm="retry-cancelled"
+          data-canvas-confirm-node={retryConfirmNodeId}
+        >
+          <div className="infinite-canvas-dialog__header">
+            <h4>{t('infiniteCanvas.tasks.retryCancelled.title')}</h4>
+            <button
+              type="button"
+              className="infinite-canvas-dialog__close"
+              data-canvas-confirm-action="cancel"
+              onClick={() => setRetryConfirmNodeId(null)}
+            >
+              {t('infiniteCanvas.tasks.retryCancelled.cancel')}
+            </button>
+          </div>
+          <p className="infinite-canvas-dialog__hint infinite-canvas-dialog__hint--strong">
+            {t('infiniteCanvas.tasks.retryCancelled.body')}
+          </p>
+          <p className="infinite-canvas-dialog__hint">
+            {t('infiniteCanvas.tasks.retryCancelled.detail')}
+          </p>
+          <div className="infinite-canvas-dialog__actions">
+            <button
+              type="button"
+              className="infinite-canvas-dialog__confirm"
+              data-canvas-confirm-action="confirm"
+              onClick={confirmRetryRespend}
+            >
+              {t('infiniteCanvas.tasks.retryCancelled.confirm')}
+            </button>
+          </div>
+        </div>
       ) : null}
       {toolDialog ? (
         <InfiniteCanvasToolInstructionDialog

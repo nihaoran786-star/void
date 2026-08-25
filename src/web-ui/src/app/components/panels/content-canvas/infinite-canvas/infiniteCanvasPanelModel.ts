@@ -508,6 +508,51 @@ export function stopWaitingContent(
 }
 
 /**
+ * P4 review P4: settles generations that came back from the dead.
+ *
+ * Undoing "delete a card that was still generating" restores the card exactly
+ * as it was — spinner included — but its completion event was discarded while
+ * the card did not exist, and no second one is coming. Left alone the card
+ * spins forever, which is precisely the failure mode W5 promised never to
+ * ship.
+ *
+ * So a resurrected pending card is settled the same way the residual
+ * reconciliation settles an unknowable outcome: a typed, retryable
+ * `timeout` failure. The one exception is a card that still knows its media
+ * job (`batchId`) — that one is genuinely reconcilable against the batch
+ * manifest, so it is left pending for the reconciliation pass to resolve or
+ * fail on real evidence.
+ *
+ * `restoredNodeIds` is the caller's list of nodes the history step added back;
+ * nothing else is ever touched, so live generations keep running.
+ */
+export function settleResurrectedPendingContent(
+  content: InfiniteCanvasDocumentContent,
+  restoredNodeIds: readonly string[],
+): InfiniteCanvasDocumentContent {
+  if (restoredNodeIds.length === 0) return content;
+  const restored = new Set(restoredNodeIds);
+  let changed = false;
+  const nodes = content.nodes.map(node => {
+    if (!restored.has(node.nodeId)) return node;
+    const generation = node.generation;
+    if (!generation || generation.status !== 'pending') return node;
+    if (generation.batchId) return node;
+    if (node.mediaRef !== undefined) return node;
+    changed = true;
+    return {
+      ...node,
+      generation: {
+        ...generation,
+        status: 'failed' as const,
+        errorKind: 'timeout' as const,
+      },
+    };
+  });
+  return changed ? { ...content, nodes } : content;
+}
+
+/**
  * Removes a failed operation placeholder — a plain node removal, restricted to
  * nodes whose generation actually failed and that never received a mediaRef.
  */

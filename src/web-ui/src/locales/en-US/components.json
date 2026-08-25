@@ -1045,7 +1045,8 @@
       "count": "Images per run",
       "countBilling": "Each image is billed separately.",
       "countLocked": "This model produces one image per run.",
-      "providerDefault": "Provider default"
+      "providerDefault": "Provider default",
+      "dropped": "Cancelled settings this model does not support: {{values}}."
     },
     "history": {
       "undo": "Undo",
@@ -1084,7 +1085,14 @@
       "locate": "Take me there",
       "stopWaiting": "Stop waiting",
       "stoppedWaiting": "Stopped waiting. You can retry.",
-      "stopWaitingHint": "\"Stop waiting\" only stops this card from waiting. It does NOT cancel the job: it keeps running on the provider and the credits are still spent. If the result does come back, it will still land in this card."
+      "stopWaitingHint": "\"Stop waiting\" only stops this card from waiting. It does NOT cancel the job: it keeps running on the provider and the credits are still spent. If the result does come back, it will still land in this card.",
+      "retryCancelled": {
+        "title": "Retry this one?",
+        "body": "This may charge you a second time.",
+        "detail": "You only stopped waiting for this card. The first job was never cancelled: it may still be running and it was already billed. Retrying starts a NEW job with its own charge, and the first result can no longer land in this card.",
+        "confirm": "Retry and charge again",
+        "cancel": "Keep waiting"
+      }
     }
   },
   "agentStudio": {

@@ -519,4 +519,177 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     expect(persisted().nodes[0].position).toEqual({ x: 300, y: 0 });
     expect(toolbarButton('undo').disabled).toBe(false);
   });
+
+  // P4 review C2: holding Ctrl+Z fires key repeats faster than React
+  // re-renders. Both handlers used to read the same top entry out of the same
+  // render closure, replay it twice, and the second replay — rebased on a
+  // document that had already moved — was judged stale and threw the WHOLE
+  // undo stack away, with a scary notice on top.
+  it('walks the stack when two undos arrive inside one render', async () => {
+    seed([]);
+    await renderPanel();
+    await clickToolbar('infiniteCanvas.toolbar.addText');
+    await clickToolbar('infiniteCanvas.toolbar.addText');
+    expect(nodeIds()).toHaveLength(2);
+
+    // Two keydowns with no await between them: one render closure, both.
+    await act(async () => {
+      for (let press = 0; press < 2; press += 1) {
+        dom.window.document.body.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: 'z',
+        }));
+      }
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    await service.flushPendingWrites();
+
+    expect(nodeIds()).toEqual([]);
+    expect(persisted().nodes).toEqual([]);
+    // The stack was walked, not discarded: both steps are redoable and no
+    // "that step can no longer be undone" notice was raised.
+    expect(toolbarButton('undo').disabled).toBe(true);
+    expect(toolbarButton('redo').disabled).toBe(false);
+    expect(container.querySelector('.infinite-canvas-panel__tool-notice')).toBeNull();
+
+    await click(toolbarButton('redo'));
+    await click(toolbarButton('redo'));
+    expect(nodeIds()).toHaveLength(2);
+  });
+
+  // P4 review C5 (plan §265): the undo stack and the clipboard remember nodes
+  // by id. Carrying them into another workspace could re-insert workspace A's
+  // card — mediaRef and all — into workspace B's document.
+  it('drops the undo stack when the panel switches workspace', async () => {
+    seed([CARD_A]);
+    const other = { workspaceId: 'workspace-other', workspacePath: 'C:/workspace-o' };
+    memory.files.set(
+      infiniteCanvasDocumentFilePath(
+        other.workspacePath,
+        defaultInfiniteCanvasDocumentId(other.workspaceId),
+      ),
+      JSON.stringify({
+        documentId: defaultInfiniteCanvasDocumentId(other.workspaceId),
+        schemaVersion: '1',
+        workspaceId: other.workspaceId,
+        revision: 1,
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+        updatedAt: new Date(0).toISOString(),
+      }),
+    );
+    await renderPanel();
+    await dragTo('card-a', { x: 300, y: 0 });
+    expect(toolbarButton('undo').disabled).toBe(false);
+
+    await act(async () => {
+      root.render(
+        <InfiniteCanvasPanel
+          workspaceId={other.workspaceId}
+          workspacePath={other.workspacePath}
+          isActive
+          service={service}
+          resolvePreviewUrl={async () => undefined}
+          mediaEventBus={eventBus}
+          generationRuntime={{
+            gateway: { invoke: async () => ({ operationId: 'x', status: 'succeeded' as const }) },
+            hasTargetSession: () => true,
+          } as never}
+        />,
+      );
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(nodeIds()).toEqual([]);
+    expect(toolbarButton('undo').disabled).toBe(true);
+    expect(toolbarButton('redo').disabled).toBe(true);
+  });
+
+  // P4 review P4: undoing the deletion of a still-generating card used to
+  // bring the spinner back forever — its completion event was discarded while
+  // the card did not exist, and no second one is coming.
+  /** Runs the real dispatch lane so `card-a` is genuinely mid-generation. */
+  async function startGeneration(): Promise<void> {
+    const button = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[data-node-id="card-a"] button'),
+    ).find(candidate => candidate.textContent === 'infiniteCanvas.generation.generate');
+    if (!button) throw new Error('no generate button');
+    await act(async () => {
+      Simulate.click(button);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+  }
+
+  /** Deletes `card-a` through the one gate, confirming the pending warning. */
+  async function deleteCardAWithConfirmation(): Promise<void> {
+    await act(async () => {
+      flow.props.onNodesChange([{ id: 'card-a', type: 'remove' }]);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    const confirm = container.querySelector<HTMLButtonElement>(
+      '[data-canvas-confirm-action="confirm"]',
+    );
+    if (!confirm) throw new Error('no delete confirmation');
+    await click(confirm);
+    expect(nodeIds()).toEqual([]);
+  }
+
+  it('settles a resurrected pending card instead of spinning forever', async () => {
+    seed([CARD_A]);
+    await renderPanel();
+    await startGeneration();
+    await deleteCardAWithConfirmation();
+
+    await click(toolbarButton('undo'));
+    await service.flushPendingWrites();
+
+    const restored = persisted().nodes[0];
+    expect(restored.nodeId).toBe('card-a');
+    // Back as a typed, retryable failure — never as a spinner nobody will end.
+    expect(restored.generation).toMatchObject({ status: 'failed', errorKind: 'timeout' });
+  });
+
+  it('leaves a resurrected card that still knows its media job to reconciliation', async () => {
+    seed([CARD_A]);
+    await renderPanel();
+    await startGeneration();
+    // The provider reported its batch id before the card was deleted.
+    await act(async () => {
+      eventBus.emit({
+        // A still-polling result is how the batch id reaches the card.
+        eventType: 'Completed',
+        toolName: 'CallDeferredTool',
+        result: {
+          status: 'polling',
+          kind: 'image',
+          batch: { batch_id: 'batch-live' },
+          infiniteCanvas: {
+            workspaceId: WORKSPACE.workspaceId,
+            documentId: DOCUMENT_ID,
+            nodeId: 'card-a',
+            resultMode: 'self',
+            toolId: 'generate',
+            operationId: invocations[0].operationId,
+          },
+        },
+      });
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    await service.flushPendingWrites();
+    expect(persisted().nodes[0].generation).toMatchObject({ batchId: 'batch-live' });
+
+    await deleteCardAWithConfirmation();
+    await click(toolbarButton('undo'));
+    await service.flushPendingWrites();
+
+    // This one IS answerable against the batch manifest, so it stays pending
+    // for the reconciliation pass rather than being failed on a guess.
+    expect(persisted().nodes[0].generation).toMatchObject({
+      status: 'pending',
+      batchId: 'batch-live',
+    });
+  });
 });

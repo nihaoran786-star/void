@@ -220,6 +220,30 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
     await click('[data-canvas-tasks="collapsed"]');
   }
 
+  /** Lets the provider report a real (backend) failure for a running card. */
+  async function failGeneration(nodeId: string, operationId: string): Promise<void> {
+    await act(async () => {
+      eventBus.emit({
+        eventType: 'Failed',
+        toolName: 'CallDeferredTool',
+        result: {
+          status: 'failed',
+          kind: 'image',
+          infiniteCanvas: {
+            workspaceId: WORKSPACE.workspaceId,
+            documentId: DOCUMENT_ID,
+            nodeId,
+            resultMode: 'self',
+            toolId: 'generate',
+            operationId,
+          },
+        },
+      });
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    await service.flushPendingWrites();
+  }
+
   /** Starts a real generation on a blank card so the queue has a live row. */
   async function startGeneration(nodeId: string): Promise<void> {
     const button = Array.from(
@@ -336,7 +360,7 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
     await startGeneration('card-a');
     const firstOperationId = invocations[0].operationId;
     await expandQueue();
-    await click('[data-canvas-task-action="stop-waiting"]');
+    await failGeneration('card-a', firstOperationId);
 
     await click('[data-canvas-task-action="retry"]');
     await service.flushPendingWrites();
@@ -353,16 +377,8 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
     await startGeneration('card-a');
     await startGeneration('card-b');
     await expandQueue();
-
-    const stops = container.querySelectorAll<HTMLButtonElement>(
-      '[data-canvas-task-action="stop-waiting"]',
-    );
-    expect(stops).toHaveLength(2);
-    await act(async () => {
-      Simulate.click(stops[0]);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-    await click('[data-canvas-task-action="stop-waiting"]');
+    await failGeneration('card-a', invocations[0].operationId);
+    await failGeneration('card-b', invocations[1].operationId);
     expect(invocations).toHaveLength(2);
 
     await click('[data-canvas-tasks-action="retry-all"]');
@@ -370,6 +386,73 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
 
     expect(invocations).toHaveLength(4);
     expect(persisted().nodes.every(node => node.generation?.status === 'pending')).toBe(true);
+  });
+
+  // —— P4 review C3: retrying after "stop waiting" can be charged twice ————
+  //
+  // Stopping the wait does NOT cancel the provider job, but the retry takes a
+  // fresh operationId, which un-anchors the original result: pay twice, keep
+  // one picture. So this one retry is never automatic and never bulk.
+  describe('retrying a card the user stopped waiting on', () => {
+    async function stopWaitingOnA(): Promise<void> {
+      seed([CARD_A]);
+      await renderPanel();
+      await startGeneration('card-a');
+      await expandQueue();
+      await click('[data-canvas-task-action="stop-waiting"]');
+    }
+
+    it('asks before spending again, and sends nothing if the answer is no', async () => {
+      await stopWaitingOnA();
+
+      await click('[data-canvas-task-action="retry"]');
+
+      const dialog = container.querySelector('[data-canvas-confirm="retry-cancelled"]');
+      expect(dialog).not.toBeNull();
+      expect(dialog?.getAttribute('data-canvas-confirm-node')).toBe('card-a');
+      expect(invocations).toHaveLength(1);
+
+      await click('[data-canvas-confirm="retry-cancelled"] [data-canvas-confirm-action="cancel"]');
+      expect(container.querySelector('[data-canvas-confirm="retry-cancelled"]')).toBeNull();
+      expect(invocations).toHaveLength(1);
+    });
+
+    it('sends the retry once the user confirms the second charge', async () => {
+      await stopWaitingOnA();
+      const firstOperationId = invocations[0].operationId;
+
+      await click('[data-canvas-task-action="retry"]');
+      await click('[data-canvas-confirm="retry-cancelled"] [data-canvas-confirm-action="confirm"]');
+      await service.flushPendingWrites();
+
+      expect(container.querySelector('[data-canvas-confirm="retry-cancelled"]')).toBeNull();
+      expect(invocations).toHaveLength(2);
+      expect(invocations[1].operationId).not.toBe(firstOperationId);
+      expect(persisted().nodes[0].generation).toMatchObject({ status: 'pending' });
+    });
+
+    it('is never part of "retry every failed one"', async () => {
+      seed([CARD_A, CARD_B]);
+      await renderPanel();
+      await startGeneration('card-a');
+      await startGeneration('card-b');
+      await expandQueue();
+
+      const stops = container.querySelectorAll<HTMLButtonElement>(
+        '[data-canvas-task-action="stop-waiting"]',
+      );
+      expect(stops).toHaveLength(2);
+      await act(async () => {
+        Simulate.click(stops[0]);
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      await click('[data-canvas-task-action="stop-waiting"]');
+
+      // Two failed rows, but both are stopped-waiting: there is nothing left
+      // for the bulk button to do, so it is not offered at all.
+      expect(container.querySelector('[data-canvas-tasks-action="retry-all"]')).toBeNull();
+      expect(invocations).toHaveLength(2);
+    });
   });
 
   it('takes the viewport to the card behind a row', async () => {
