@@ -12,6 +12,7 @@ import {
   listInfiniteCanvasModels,
   maxBatchSizeForModel,
   normalizeInfiniteCanvasGenerationParams,
+  normalizeInfiniteCanvasGenerationParamsWithReport,
   resolveInfiniteCanvasModelCapability,
   summarizeInfiniteCanvasGenerationParams,
 } from './infiniteCanvasGenerationCapabilities';
@@ -92,12 +93,13 @@ describe('normalizeInfiniteCanvasGenerationParams', () => {
   });
 
   it('clamps everything the new model cannot do when the model switches', () => {
-    // gemini → gpt-image-2: `2K` is not in the lower-case list and n_max is 1.
+    // gemini → gpt-image-2: n_max is 1, and `2K` survives as gpt-image-2's own
+    // `2k` spelling (P4 review C7 — a case difference is not a lost setting).
     expect(normalizeInfiniteCanvasGenerationParams(
       { model: 'gemini-3-pro-image-preview', size: '21:9', resolution: '2K', n: 4 },
       'image',
       'gpt-image-2',
-    )).toEqual({ size: '21:9' });
+    )).toEqual({ size: '21:9', resolution: '2k' });
     // 1:4 only exists on the flash model.
     expect(normalizeInfiniteCanvasGenerationParams(
       { model: 'gemini-3.1-flash-image-preview', size: '1:4', resolution: '0.5K' },
@@ -159,6 +161,52 @@ describe('normalizeInfiniteCanvasGenerationParams', () => {
       'image',
     );
     expect(normalizeInfiniteCanvasGenerationParams(once, 'image')).toEqual(once);
+  });
+});
+
+// P4 review C7: the two halves of "a model switch never loses a setting in
+// silence" — map what only differs by letter case, and report what really goes.
+describe('normalizeInfiniteCanvasGenerationParamsWithReport', () => {
+  it('maps a resolution that differs only by case onto the target spelling', () => {
+    const report = normalizeInfiniteCanvasGenerationParamsWithReport(
+      { model: 'gemini-3-pro-image-preview', resolution: '1K' },
+      'image',
+      'gpt-image-2',
+    );
+
+    expect(report.params.resolution).toBe('1k');
+    expect(report.dropped).toEqual([]);
+
+    // …and back again, with the gemini spelling restored.
+    const back = normalizeInfiniteCanvasGenerationParamsWithReport(
+      { model: 'gpt-image-2', resolution: '1k' },
+      'image',
+      'gemini-3-pro-image-preview',
+    );
+    expect(back.params.resolution).toBe('1K');
+    expect(back.dropped).toEqual([]);
+  });
+
+  it('reports every value the target model really cannot keep', () => {
+    const report = normalizeInfiniteCanvasGenerationParamsWithReport(
+      { model: 'gemini-3.1-flash-image-preview', size: '1:4', resolution: '0.5K', n: 4 },
+      'image',
+      'gpt-image-2',
+    );
+
+    expect(report.params).toEqual({});
+    expect(report.dropped).toEqual(['1:4', '0.5K', 'x4']);
+  });
+
+  it('reports a video duration the target model does not offer', () => {
+    const report = normalizeInfiniteCanvasGenerationParamsWithReport(
+      { model: 'doubao-seedance-2.0', aspectRatio: '4:3', duration: 12 },
+      'video',
+      'Omni-Flash-Ext',
+    );
+
+    expect(report.dropped).toEqual(['4:3', '12s']);
+    expect(report.params).toEqual({});
   });
 });
 

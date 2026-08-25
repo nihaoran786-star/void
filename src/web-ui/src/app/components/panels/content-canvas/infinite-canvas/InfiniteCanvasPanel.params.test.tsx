@@ -241,12 +241,33 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     expect(nodeOf('card-image')?.generationParams)
       .toEqual({ size: '9:21', resolution: '2k' });
 
-    // Switching to gemini pro: 9:21 and 2k are both gone from its allow lists.
+    // Switching to gemini pro: 9:21 is gone from its ratio list, while `2k`
+    // survives as that model's own `2K` spelling (P4 review C7 — letter case
+    // is not a reason to lose a setting).
     await choose('model', 'gemini-3-pro-image-preview');
     expect(nodeOf('card-image')?.generationParams)
-      .toEqual({ model: 'gemini-3-pro-image-preview' });
+      .toEqual({ model: 'gemini-3-pro-image-preview', resolution: '2K' });
     expect(optionsOf('resolution')).toEqual(['', '1K', '2K', '4K']);
     expect(optionsOf('aspectRatio')).not.toContain('9:21');
+  });
+
+  // P4 review C7: whatever a model switch really cannot keep is named out loud
+  // instead of the control quietly snapping back to "provider default".
+  it('says which settings a model switch had to drop', async () => {
+    seed([BLANK_IMAGE_CARD]);
+    await renderPanel();
+    await openParams('card-image');
+    await choose('model', 'gemini-3.1-flash-image-preview');
+    await choose('aspectRatio', '1:4');
+    await choose('resolution', '0.5K');
+    expect(container.querySelector('[data-params-dropped]')).toBeNull();
+
+    await choose('model', 'gpt-image-2');
+
+    const notice = container.querySelector('[data-params-dropped]');
+    expect(notice?.getAttribute('data-params-dropped')).toBe('1:4,0.5K');
+    // Nothing survived, so the card carries no parameter set at all.
+    expect(nodeOf('card-image')?.generationParams).toBeUndefined();
   });
 
   it('keeps the card parameters across a remount and sends them on dispatch', async () => {

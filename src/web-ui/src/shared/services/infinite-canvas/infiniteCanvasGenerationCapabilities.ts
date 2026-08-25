@@ -23,6 +23,11 @@
  * request: the field is not sent and the provider's own default applies.
  * The Rust table has no per-model default values to copy, so inventing them
  * front-side would change behaviour behind the user's back.
+ *
+ * Two P4-review refinements, neither of which invents anything: a value that
+ * differs from an allow-list entry only by letter case is MAPPED onto that
+ * entry (`1K` → `1k`), and whatever really cannot be carried over is reported
+ * back to the caller so the UI can say what it dropped.
  */
 import type {
   InfiniteCanvasGenerationMediaKind,
@@ -205,11 +210,35 @@ export function maxBatchSizeForModel(
   return capability.mediaKind === 'image' ? capability.nMax : 1;
 }
 
+/**
+ * Picks the allow-list entry for `value`.
+ *
+ * Exact match first, then a case-insensitive one that returns the allow list's
+ * OWN spelling. The Rust table really does spell the same resolution `1K` on
+ * the gemini models and `1k` on gpt-image-2 (plan §506), so switching between
+ * them used to silently throw the user's choice away over letter case alone.
+ * Mapping is not inventing a value: the result is still a verbatim entry of
+ * the target model's allow list.
+ */
 function pick(
   allowed: readonly string[],
   value: string | undefined,
 ): string | undefined {
-  return value !== undefined && allowed.includes(value) ? value : undefined;
+  if (value === undefined) return undefined;
+  if (allowed.includes(value)) return value;
+  const folded = value.trim().toLowerCase();
+  return allowed.find(entry => entry.toLowerCase() === folded);
+}
+
+/**
+ * What a normalization had to give up, in the user's own terms: the values
+ * that could not be carried over to the target model. The popover shows them
+ * so switching a model never loses a setting silently (P4 review C7).
+ */
+export interface InfiniteCanvasGenerationParamsNormalization {
+  params: InfiniteCanvasGenerationParams;
+  /** Verbatim values that were dropped, e.g. `['4:1', 'x4']`. Never localized. */
+  dropped: string[];
 }
 
 /**
@@ -228,37 +257,65 @@ export function normalizeInfiniteCanvasGenerationParams(
   mediaKind: InfiniteCanvasGenerationMediaKind,
   model?: string,
 ): InfiniteCanvasGenerationParams {
+  return normalizeInfiniteCanvasGenerationParamsWithReport(params, mediaKind, model).params;
+}
+
+/**
+ * Same clamp as {@link normalizeInfiniteCanvasGenerationParams}, plus the list
+ * of values it had to give up. The UI needs both: the clamped set to persist
+ * and the losses to say out loud (P4 review C7 — dropping a setting behind the
+ * user's back is the bug, dropping it is still the right behaviour).
+ */
+export function normalizeInfiniteCanvasGenerationParamsWithReport(
+  params: InfiniteCanvasGenerationParams | undefined,
+  mediaKind: InfiniteCanvasGenerationMediaKind,
+  model?: string,
+): InfiniteCanvasGenerationParamsNormalization {
   const requested = model !== undefined ? model : params?.model;
   const capability = findInfiniteCanvasModelCapability(mediaKind, requested);
   const next: InfiniteCanvasGenerationParams = {};
-  if (!capability) return next;
+  const dropped: string[] = [];
+  if (!capability) return { params: next, dropped };
   // Only a non-default model is worth persisting; the default one is what an
   // absent field already means.
   if (capability.modelId !== defaultInfiniteCanvasModelId(mediaKind)) {
     next.model = capability.modelId;
   }
+  const keepOrReport = (
+    allowed: readonly string[],
+    value: string | undefined,
+  ): string | undefined => {
+    const kept = pick(allowed, value);
+    if (kept === undefined && value !== undefined) dropped.push(value);
+    return kept;
+  };
+
   if (capability.mediaKind === 'image') {
-    const size = pick(capability.sizes, params?.size);
+    const size = keepOrReport(capability.sizes, params?.size);
     if (size !== undefined) next.size = size;
-    const resolution = pick(capability.resolutions, params?.resolution);
+    const resolution = keepOrReport(capability.resolutions, params?.resolution);
     if (resolution !== undefined) next.resolution = resolution;
     const n = params?.n;
     if (n !== undefined && Number.isInteger(n) && n >= 1) {
       const clamped = Math.min(n, capability.nMax, INFINITE_CANVAS_MAX_BATCH_SIZE);
       // n = 1 is the implicit default; storing it would only add noise.
       if (clamped > 1) next.n = clamped;
+      // Batch size is spend: shrinking it silently is exactly the surprise C7
+      // is about, so the lost count is reported like any other dropped value.
+      if (clamped < n) dropped.push(`x${n}`);
     }
-    return next;
+    return { params: next, dropped };
   }
-  const aspectRatio = pick(capability.aspectRatios, params?.aspectRatio);
+  const aspectRatio = keepOrReport(capability.aspectRatios, params?.aspectRatio);
   if (aspectRatio !== undefined) next.aspectRatio = aspectRatio;
-  const resolution = pick(capability.resolutions, params?.resolution);
+  const resolution = keepOrReport(capability.resolutions, params?.resolution);
   if (resolution !== undefined) next.resolution = resolution;
   const duration = params?.duration;
-  if (duration !== undefined && capability.durations.includes(duration)) {
-    next.duration = duration;
+  if (duration !== undefined) {
+    if (capability.durations.includes(duration)) next.duration = duration;
+    else dropped.push(`${duration}s`);
   }
-  return next;
+  return { params: next, dropped };
 }
 
 /** True when the set carries nothing worth persisting on the node. */

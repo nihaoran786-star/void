@@ -253,13 +253,15 @@ describe('DirectImageGenerationGateway', () => {
 
     await gateway.invoke({
       ...BLANK_CARD_INVOCATION,
-      // `2K` is gemini casing; gpt-image-2 only knows `1k/2k/4k`.
+      // `2K` is gemini casing; gpt-image-2 only knows `1k/2k/4k`. P4 review C7:
+      // letter case alone must not cost the user the setting, so the value is
+      // mapped onto the target model's own spelling rather than dropped.
       generationParams: { model: 'gpt-image-2', size: '16:9', resolution: '2K' },
     });
 
     const request = calls[0].request;
     expect(request.size).toBe('16:9');
-    expect(request.resolution).toBeUndefined();
+    expect(request.resolution).toBe('2k');
     // The default model is never spelled out: an absent field already means it.
     expect(request.model).toBeUndefined();
   });

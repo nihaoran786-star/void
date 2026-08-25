@@ -22,7 +22,7 @@ import {
   defaultInfiniteCanvasModelId,
   INFINITE_CANVAS_MAX_BATCH_SIZE,
   listInfiniteCanvasModels,
-  normalizeInfiniteCanvasGenerationParams,
+  normalizeInfiniteCanvasGenerationParamsWithReport,
   resolveInfiniteCanvasModelCapability,
 } from '@/shared/services/infinite-canvas';
 
@@ -48,15 +48,25 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
   const isImage = capability.mediaKind === 'image';
   const selectedModelId = capability.modelId;
 
+  /**
+   * P4 review C7: what the last change could not carry over. Switching to a
+   * model with a narrower allow list still drops the value — that is correct,
+   * a made-up substitute would be worse — but it now says so instead of the
+   * control quietly snapping back to "provider default".
+   */
+  const [dropped, setDropped] = React.useState<string[]>([]);
+
   const update = React.useCallback((
     patch: Partial<InfiniteCanvasGenerationParams>,
     model?: string,
   ) => {
-    onChange(normalizeInfiniteCanvasGenerationParams(
+    const normalized = normalizeInfiniteCanvasGenerationParamsWithReport(
       { ...params, ...patch },
       mediaKind,
       model,
-    ));
+    );
+    setDropped(normalized.dropped);
+    onChange(normalized.params);
   }, [mediaKind, onChange, params]);
 
   const ratios = capability.mediaKind === 'image'
@@ -81,6 +91,15 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
           {t('infiniteCanvas.params.close')}
         </button>
       </header>
+      {dropped.length > 0 ? (
+        <p
+          className="infinite-canvas-picker__notice"
+          role="status"
+          data-params-dropped={dropped.join(',')}
+        >
+          {t('infiniteCanvas.params.dropped', { values: dropped.join(', ') })}
+        </p>
+      ) : null}
       <div className="infinite-canvas-picker__filters">
         <label className="infinite-canvas-picker__filter">
           <span>{t('infiniteCanvas.params.model')}</span>

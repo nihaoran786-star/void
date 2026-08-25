@@ -1012,6 +1012,14 @@
   gap: 12px;
 }
 
+// P4 review C7: the one line that names the settings a model switch dropped.
+.infinite-canvas-picker__notice {
+  margin: 0 0 8px;
+  color: var(--infinite-canvas-warning, var(--infinite-canvas-muted));
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .infinite-canvas-picker__filter {
   display: flex;
   align-items: center;
