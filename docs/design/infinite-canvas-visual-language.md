@@ -27,6 +27,13 @@
   `docs/design` 与 PRD 的已知取舍里记一笔"此面板是主题例外"。
 - 不要给画布加边框、内阴影或渐变。
 
+> **已知取舍（S1 已落地）**：画布专属 token 定义在 `.infinite-canvas-panel`
+> 上（`--canvas-surface-*` / `--canvas-text-*` / `--canvas-accent`），
+> `InfiniteCanvasPanel.minimal.scss` 只接管字体与间距、不再重映射颜色，
+> 因此两套主题解析为同一组暗色。代价是浅色主题下这一个面板不跟随全局配色；
+> 同一条记录在[无限画布 PRD](../features/infinite-canvas-and-media-tools-prd.md)
+> 的已知取舍里。
+
 ## 2. 卡片 = 媒体本身
 
 参考图里的卡片没有任何"卡面装饰"：

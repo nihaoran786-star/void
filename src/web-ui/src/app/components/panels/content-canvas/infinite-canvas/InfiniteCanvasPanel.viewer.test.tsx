@@ -214,7 +214,7 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
   async function openViewer(nodeId: string): Promise<void> {
     const card = container.querySelector(`[data-node-id="${nodeId}"]`);
     const trigger = card?.querySelector<HTMLButtonElement>(
-      '[data-node-action="open-viewer-caption"]',
+      '[data-node-action="open-viewer-entry"]',
     );
     if (!trigger) throw new Error(`no viewer entry on ${nodeId}`);
     await act(async () => {
@@ -327,7 +327,7 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
 
     const card = container.querySelector('[data-node-id="n-blank"]');
     expect(card).not.toBeNull();
-    expect(card?.querySelector('[data-node-action="open-viewer-caption"]')).toBeNull();
+    expect(card?.querySelector('[data-node-action="open-viewer-entry"]')).toBeNull();
     expect(card?.querySelector('[data-node-action="open-viewer"]')).toBeNull();
   });
 });

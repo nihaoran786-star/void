@@ -1093,6 +1093,19 @@
         "confirm": "重试，并接受再计一次费",
         "cancel": "继续等"
       }
+    },
+    "cardLabel": {
+      "image": "图片生成",
+      "video": "视频生成",
+      "reference": "参考图",
+      "text": "文字"
+    },
+    "status": {
+      "ready": "已完成"
+    },
+    "handles": {
+      "spawnNext": "从这张卡继续",
+      "insertOnEdge": "在这条连接上插入卡片"
     }
   },
   "agentStudio": {

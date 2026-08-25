@@ -1,19 +1,14 @@
 @mixin styles {
+  // §1 theme exception: the canvas is a dark light-table in BOTH themes, so
+  // the minimal overlay no longer remaps the colour tokens — it only adopts
+  // the workspace type family and spacing scale. Colours stay as the
+  // --canvas-* set defined on .infinite-canvas-panel.
   .void-ui--minimal .infinite-canvas-panel {
-    --infinite-canvas-bg: var(--workspace-surface-canvas);
-    --infinite-canvas-text: var(--workspace-text-primary);
-    --infinite-canvas-muted: var(--workspace-text-muted);
-    --infinite-canvas-border: var(--workspace-border-subtle);
-    --infinite-canvas-surface: var(--workspace-surface-panel);
-    --infinite-canvas-raised: var(--workspace-surface-raised);
-    --infinite-canvas-accent: var(--workspace-accent);
     font-family: var(--workspace-font-family);
   }
 
   .void-ui--minimal .infinite-canvas-panel__toolbar {
     padding: var(--workspace-space-1) var(--workspace-space-3);
-    border-color: var(--workspace-border-subtle);
-    background: var(--workspace-surface-panel);
   }
 
   .void-ui--minimal .infinite-canvas-panel__toolbar-button {
@@ -22,8 +17,6 @@
 
   .void-ui--minimal .infinite-canvas-picker {
     padding: var(--workspace-space-2) var(--workspace-space-3);
-    border-color: var(--workspace-border-subtle);
-    background: var(--workspace-surface-panel);
   }
 
   .void-ui--minimal .infinite-canvas-node__params-button {
@@ -32,7 +25,6 @@
 
   .void-ui--minimal .infinite-canvas-panel__tool-notice {
     padding: var(--workspace-space-1) var(--workspace-space-3);
-    border-color: var(--workspace-border-subtle);
     font-size: var(--workspace-font-size-label);
   }
 
@@ -41,16 +33,9 @@
   // workspace scale here.
   .void-ui--minimal .infinite-canvas-viewer__chrome {
     padding: var(--workspace-space-1) var(--workspace-space-3);
-    border-color: var(--workspace-border-subtle);
-    background: var(--workspace-surface-panel);
   }
 
   .void-ui--minimal .infinite-canvas-viewer__button {
     font-size: var(--workspace-font-size-label);
-  }
-
-  .void-ui--minimal .infinite-canvas-viewer__step {
-    border-color: var(--workspace-border-subtle);
-    background: var(--workspace-surface-panel);
   }
 }

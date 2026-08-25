@@ -22,6 +22,7 @@ import {
   type Connection,
   type Edge,
   type EdgeChange,
+  type EdgeTypes,
   type Node,
   type NodeChange,
   type NodeTypes,
@@ -108,6 +109,7 @@ import {
   setNodeGenerationParamsContent,
   setNodePromptContent,
 } from './infiniteCanvasGenerationModel';
+import { InfiniteCanvasEdge } from './InfiniteCanvasEdge';
 import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
 import {
   InfiniteCanvasImageNode,
@@ -170,6 +172,17 @@ const NODE_TYPES = {
   [INFINITE_CANVAS_VIDEO_NODE_TYPE]: InfiniteCanvasVideoNode,
 } as unknown as NodeTypes;
 
+/** §3: one custom edge — a hairline bezier with the midpoint insert handle. */
+const INFINITE_CANVAS_EDGE_TYPE = 'infinite-canvas-edge';
+
+const EDGE_TYPES = {
+  [INFINITE_CANVAS_EDGE_TYPE]: InfiniteCanvasEdge,
+} as unknown as EdgeTypes;
+
+/** §1: the point grid — smaller and darker than reactflow's default. */
+const CANVAS_DOT_GAP = 26;
+const CANVAS_DOT_SIZE = 1;
+
 // Default preview lane: convertFileSrc over the joined absolute path — the
 // same proven conversion the Workspace Media thumbnails and the canvas image
 // picker use, so generated results display through one verified code path.
@@ -208,6 +221,10 @@ interface NodeActions {
   openViewer: (nodeId: string) => void;
   /** P4 W3: opens the generation parameter popover for this card. */
   openParams: (nodeId: string) => void;
+  /** §3: the card's right-edge `+` — derive the next generation card. */
+  spawnNext: (nodeId: string) => void;
+  /** §3: the midpoint handle — insert a generation card on that connection. */
+  insertOnEdge: (edgeId: string) => void;
 }
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
@@ -404,6 +421,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     deriveVideoCard: () => undefined,
     openViewer: () => undefined,
     openParams: () => undefined,
+    spawnNext: () => undefined,
+    insertOnEdge: () => undefined,
   });
 
   const openStylePicker = React.useCallback((nodeId: string) => {
@@ -455,6 +474,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               view.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
             ),
             onOpenParams: (nodeId: string) => nodeActionsRef.current.openParams(nodeId),
+            onSpawnNext: (nodeId: string) => nodeActionsRef.current.spawnNext(nodeId),
             // The image-only surface (style preset, five tools, derive-video)
             // stays off the P3-minimal video card.
             ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
@@ -474,7 +494,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               : {}),
           },
     })));
-    setFlowEdges(toFlowEdgeViews(document.edges));
+    setFlowEdges(toFlowEdgeViews(document.edges).map(view => ({
+      ...view,
+      type: INFINITE_CANVAS_EDGE_TYPE,
+      data: {
+        onInsertCard: (edgeId: string) => nodeActionsRef.current.insertOnEdge(edgeId),
+      },
+    })));
   }, [catalog, openStylePicker, resolvePreviewUrl]);
 
   /**
@@ -978,6 +1004,65 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       openParams: nodeId => {
         if (!findMediaNode(nodeId)) return;
         setParamsNodeId(current => (current === nodeId ? null : nodeId));
+      },
+      // §3: "keep going from this card". Nothing new on the command side —
+      // the same blank-card + connect pair the image-to-video entry uses, so
+      // it is one undo entry and one document mutation.
+      spawnNext: nodeId => {
+        const document = documentRef.current;
+        const source = document?.nodes.find(candidate => candidate.nodeId === nodeId);
+        if (!document || !source) return;
+        const nextNodeId = createInfiniteCanvasId('node');
+        const edgeId = createInfiniteCanvasId('edge');
+        void commit(current => {
+          const withCard = addBlankGenerationCardContent(current, nextNodeId, {
+            x: source.position.x + (source.size?.width ?? 0) + 360,
+            y: source.position.y,
+          });
+          return connectNodesContent(
+            { ...current, ...withCard },
+            edgeId,
+            nodeId,
+            nextNodeId,
+          );
+        }, { history: true });
+      },
+      // §3: the midpoint handle inserts a card INTO the connection: the old
+      // edge goes, the new card sits between the two, and both halves are
+      // re-connected. One mutation, so one undo entry.
+      insertOnEdge: edgeId => {
+        const document = documentRef.current;
+        const edge = document?.edges.find(candidate => candidate.edgeId === edgeId);
+        if (!document || !edge) return;
+        const source = document.nodes.find(node => node.nodeId === edge.sourceNodeId);
+        const target = document.nodes.find(node => node.nodeId === edge.targetNodeId);
+        if (!source || !target) return;
+        const insertedNodeId = createInfiniteCanvasId('node');
+        const inEdgeId = createInfiniteCanvasId('edge');
+        const outEdgeId = createInfiniteCanvasId('edge');
+        void commit(current => {
+          const withoutEdge = removeEdgesContent(current, [edgeId]);
+          const withCard = addBlankGenerationCardContent(
+            { ...current, ...withoutEdge },
+            insertedNodeId,
+            {
+              x: (source.position.x + target.position.x) / 2,
+              y: (source.position.y + target.position.y) / 2,
+            },
+          );
+          const withIn = connectNodesContent(
+            { ...current, ...withCard },
+            inEdgeId,
+            edge.sourceNodeId,
+            insertedNodeId,
+          );
+          return connectNodesContent(
+            { ...current, ...withIn },
+            outEdgeId,
+            insertedNodeId,
+            edge.targetNodeId,
+          );
+        }, { history: true });
       },
     };
   }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
@@ -1828,6 +1913,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           nodes={flowNodes}
           edges={flowEdges}
           nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -1856,7 +1942,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           deleteKeyCode={null}
           elevateNodesOnSelect
         >
-          <Background />
+          <Background gap={CANVAS_DOT_GAP} size={CANVAS_DOT_SIZE} />
           <Controls position="bottom-right" showInteractive={false} />
         </ReactFlow>
         <InfiniteCanvasHelperLines

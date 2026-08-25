@@ -206,7 +206,10 @@ describe('media cards render through the resolver', () => {
     const placeholder = container.querySelector('.infinite-canvas-node__image-placeholder');
     expect(placeholder).not.toBeNull();
     expect(placeholder!.getAttribute('data-state')).toBe('unavailable');
-    expect(placeholder!.textContent).toBe('infiniteCanvas.imageNode.previewUnavailable');
+    // The card face carries no words now (visual language §2); the state is
+    // still named for assistive tech on the placeholder itself.
+    expect(placeholder!.getAttribute('aria-label'))
+      .toBe('infiniteCanvas.imageNode.previewUnavailable');
   });
 
   it('falls back to previewUnavailable when the resolved URL fails to load', async () => {

@@ -1093,6 +1093,19 @@
         "confirm": "Retry and charge again",
         "cancel": "Keep waiting"
       }
+    },
+    "cardLabel": {
+      "image": "Image Generation",
+      "video": "Video Generation",
+      "reference": "Reference",
+      "text": "Text"
+    },
+    "status": {
+      "ready": "Ready"
+    },
+    "handles": {
+      "spawnNext": "Continue from this card",
+      "insertOnEdge": "Insert a card on this connection"
     }
   },
   "agentStudio": {

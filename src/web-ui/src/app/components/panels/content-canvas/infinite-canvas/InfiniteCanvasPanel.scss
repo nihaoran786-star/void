@@ -1,18 +1,37 @@
 @use './InfiniteCanvasPanel.minimal' as minimal;
 
-// Infinite Canvas panel — quiet presentation over the reactflow projection.
-// Token-only: every color routes through the local --infinite-canvas-* vars,
-// which map to classic tokens here and to --workspace-* in the minimal
-// overlay. Hairline separators, one small type scale, restrained accent.
+// Infinite Canvas panel — a dark light-table, per
+// docs/design/infinite-canvas-visual-language.md.
+//
+// §1 THEME EXCEPTION: this panel is deliberately dark in BOTH themes. It is a
+// viewing surface for pictures and clips, the same way an image viewer is, so
+// the canvas-owned --canvas-* tokens below resolve to one dark set and the
+// minimal overlay does NOT remap them. Everything else still routes through
+// the local --infinite-canvas-* aliases, so the pickers, dialogs, task queue
+// and viewer follow the canvas without a second colour vocabulary.
 .infinite-canvas-panel {
-  --infinite-canvas-bg: var(--color-bg-primary);
-  --infinite-canvas-text: var(--control-text-hover);
-  --infinite-canvas-muted: var(--control-text-muted);
-  --infinite-canvas-border: var(--control-border);
-  --infinite-canvas-surface: color-mix(in srgb, var(--control-bg) 88%, var(--color-bg-elevated));
-  --infinite-canvas-raised: var(--color-bg-elevated);
-  --infinite-canvas-accent: var(--color-accent-500);
-  --infinite-canvas-error-text: var(--status-error-text);
+  // Canvas-owned tokens (§1). Same values under classic and minimal.
+  --canvas-surface-base: #0b0c0e;
+  --canvas-surface-card: #17191d;
+  --canvas-surface-raised: #1d2025;
+  --canvas-surface-overlay: #24272d;
+  --canvas-surface-dot: #30343b;
+  --canvas-surface-line: #4a505a;
+  --canvas-text-primary: #e9ebee;
+  --canvas-text-muted: #949aa4;
+  --canvas-text-faint: #6b7280;
+  --canvas-accent: #4c8dff;
+  --canvas-danger: #ff6b6b;
+  --canvas-hairline: rgb(255 255 255 / 8%);
+
+  --infinite-canvas-bg: var(--canvas-surface-base);
+  --infinite-canvas-text: var(--canvas-text-primary);
+  --infinite-canvas-muted: var(--canvas-text-muted);
+  --infinite-canvas-border: var(--canvas-surface-line);
+  --infinite-canvas-surface: var(--canvas-surface-overlay);
+  --infinite-canvas-raised: var(--canvas-surface-raised);
+  --infinite-canvas-accent: var(--canvas-accent);
+  --infinite-canvas-error-text: var(--canvas-danger);
   --infinite-canvas-hairline: color-mix(in srgb, var(--infinite-canvas-border) 54%, transparent);
   --infinite-canvas-hover: color-mix(in srgb, var(--infinite-canvas-muted) 12%, transparent);
   --infinite-canvas-accent-soft: color-mix(in srgb, var(--infinite-canvas-accent) 12%, transparent);
@@ -25,6 +44,9 @@
   overflow: hidden;
   background: var(--infinite-canvas-bg);
   color: var(--infinite-canvas-text);
+  // Native widgets (the picker selects, the video transport) must follow the
+  // dark surface even while the app runs the light theme.
+  color-scheme: dark;
 }
 
 .infinite-canvas-panel--loading,
@@ -111,38 +133,95 @@
     background: var(--infinite-canvas-bg);
   }
 
-  // Dotted background stays extremely subtle in both themes.
+  // §1: the point grid is barely there — visible in empty space, invisible
+  // behind anything else. No border, no inner shadow, no gradient.
   .react-flow__background circle {
-    fill: color-mix(in srgb, var(--infinite-canvas-muted) 24%, transparent);
+    fill: var(--canvas-surface-dot);
   }
 
-  // Connections are quiet hairlines; only selection speaks with accent.
-  .react-flow__edge-path {
-    stroke: color-mix(in srgb, var(--infinite-canvas-muted) 55%, transparent);
-    stroke-width: 1.25;
+  // §3: thinner, darker connections than before; accent only when selected.
+  .react-flow__edge-path,
+  .infinite-canvas-edge__path {
+    fill: none;
+    stroke: var(--canvas-surface-line);
+    stroke-width: 1;
+  }
+
+  .infinite-canvas-edge__hit {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 18;
   }
 
   .react-flow__edge.selected .react-flow__edge-path,
   .react-flow__edge:focus .react-flow__edge-path,
   .react-flow__edge:focus-visible .react-flow__edge-path {
-    stroke: var(--infinite-canvas-accent);
-    stroke-width: 1.5;
-  }
-
-  .react-flow__connection-path {
-    stroke: var(--infinite-canvas-accent-line);
+    stroke: var(--canvas-accent);
     stroke-width: 1.25;
   }
 
-  .react-flow__handle {
-    width: 8px;
-    height: 8px;
-    border: 1px solid color-mix(in srgb, var(--infinite-canvas-muted) 70%, transparent);
-    background: var(--infinite-canvas-raised);
+  .react-flow__connection-path {
+    fill: none;
+    stroke: var(--canvas-accent);
+    stroke-width: 1;
+  }
 
-    &:hover {
-      border-color: var(--infinite-canvas-accent);
+  // §3: the midpoint insert handle — a dim circle with a small cross that
+  // only comes forward when the connection is hovered or selected.
+  .infinite-canvas-edge__handle {
+    cursor: pointer;
+    opacity: 0.28;
+
+    circle {
+      fill: var(--canvas-surface-raised);
+      stroke: var(--canvas-surface-line);
+      stroke-width: 1;
     }
+
+    line {
+      stroke: var(--canvas-text-muted);
+      stroke-linecap: round;
+      stroke-width: 1.25;
+    }
+
+    &:hover,
+    &:focus-visible {
+      opacity: 1;
+      outline: none;
+
+      circle {
+        stroke: var(--canvas-accent);
+      }
+
+      line {
+        stroke: var(--canvas-text-primary);
+      }
+    }
+  }
+
+  .infinite-canvas-edge:hover .infinite-canvas-edge__handle,
+  .infinite-canvas-edge[data-selected='true'] .infinite-canvas-edge__handle {
+    opacity: 0.9;
+  }
+
+  // §3: connection handles are dots that only surface on hover.
+  .react-flow__handle {
+    width: 7px;
+    height: 7px;
+    border: 1px solid var(--canvas-surface-line);
+    background: var(--canvas-surface-raised);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .react-flow__node:hover .react-flow__handle,
+  .react-flow__node.selected .react-flow__handle,
+  .react-flow__handle:hover {
+    opacity: 1;
+  }
+
+  .react-flow__handle:hover {
+    border-color: var(--canvas-accent);
   }
 
   // Zoom controls: same quiet icon-button language as sibling panels.
@@ -230,36 +309,80 @@
 
 // ── Node cards ─────────────────────────────────────────────────────────────
 
+// §2: the card IS the media. No padding, no border, no title bar, no file
+// name. The type label floats above it and every control lives in the hover
+// layer below it, so a resting canvas shows pictures and nothing else.
 .infinite-canvas-node {
-  display: flex;
-  min-width: 180px;
-  max-width: 280px;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 8px;
-  background: var(--infinite-canvas-surface);
-  color: var(--infinite-canvas-text);
+  position: relative;
+  width: 280px;
+  color: var(--canvas-text-primary);
   font-size: 12px;
+}
 
-  &[data-selected='true'] {
-    border-color: var(--infinite-canvas-accent);
-  }
+.infinite-canvas-node__frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--canvas-surface-card);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  line-height: 0;
+}
+
+// Selection is one hairline ring — nothing else changes about the card.
+.infinite-canvas-node[data-selected='true'] .infinite-canvas-node__frame {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 72%);
+}
+
+// §2: type label OUTSIDE the card, above it. Small neutral grey, no pill.
+.infinite-canvas-node__label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 2px;
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  color: var(--canvas-text-faint);
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.infinite-canvas-node__label-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.infinite-canvas-node__label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// The small accent dot after the label: this card holds a finished result.
+.infinite-canvas-node__label-done {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--canvas-accent);
 }
 
 .infinite-canvas-node__text-input {
-  min-height: 64px;
+  display: block;
+  width: 100%;
+  min-height: 120px;
   border: none;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.8;
   resize: vertical;
 
   &::placeholder {
-    color: var(--infinite-canvas-muted);
+    color: var(--canvas-text-faint);
   }
 
   &:focus {
@@ -267,164 +390,135 @@
   }
 }
 
-.infinite-canvas-node__image {
-  width: 100%;
-  border-radius: 6px;
-  object-fit: contain;
+// §2 text card: a dark rounded panel with generous padding and nothing else.
+.infinite-canvas-node--text .infinite-canvas-node__frame {
+  padding: 16px 18px;
+  line-height: inherit;
 }
 
-// P3 video card: same footprint as the image, quiet controls; data only
-// streams on play (preload="metadata" is set on the element).
+.infinite-canvas-node__image,
 .infinite-canvas-node__video {
+  display: block;
   width: 100%;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--infinite-canvas-muted) 10%, transparent);
-  object-fit: contain;
+  height: auto;
 }
 
-.infinite-canvas-node__image-placeholder {
-  display: flex;
-  min-height: 88px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--infinite-canvas-muted) 8%, transparent);
-  color: var(--infinite-canvas-muted);
-  font-size: 11px;
+.infinite-canvas-node__video {
+  background: var(--canvas-surface-card);
 }
 
 // The still image doubles as the viewer trigger; the button is a bare frame
 // so the card's visual weight is unchanged until it is hovered or focused.
 .infinite-canvas-node__image-button {
   display: block;
+  width: 100%;
   padding: 0;
   border: 0;
-  border-radius: 6px;
   background: none;
   cursor: zoom-in;
 
   &:focus-visible {
-    outline: 1px solid var(--infinite-canvas-accent-line);
-    outline-offset: 1px;
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: -1px;
   }
-}
-
-.infinite-canvas-node__image-caption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  overflow: hidden;
-  gap: 6px;
-  margin: 0;
-  color: var(--infinite-canvas-muted);
-  font-size: 10px;
-}
-
-.infinite-canvas-node__image-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .infinite-canvas-node__view-button {
   flex: none;
-  padding: 1px 6px;
+  padding: 2px 8px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
-  color: var(--infinite-canvas-muted);
+  color: var(--canvas-text-muted);
   cursor: pointer;
   font-size: 10px;
 
   &:hover {
     background: var(--infinite-canvas-hover);
-    color: var(--infinite-canvas-text);
+    color: var(--canvas-text-primary);
   }
 }
 
-// ── Version and reference chips ────────────────────────────────────────────
-
-.infinite-canvas-node__badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
+// §3: reference order is a grey mark at label level, not a loud capsule.
 .infinite-canvas-node__reference-badges {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex: none;
   gap: 4px;
 }
 
 .infinite-canvas-node__badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 7px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 999px;
-  color: var(--infinite-canvas-muted);
-  font-size: 10px;
-  line-height: 1.6;
+  color: var(--canvas-text-faint);
+  font-size: 11px;
   white-space: nowrap;
-
-  &--derived {
-    border-color: transparent;
-    background: var(--infinite-canvas-accent-soft);
-    color: var(--infinite-canvas-text);
-  }
 }
 
 // ── Generation states ──────────────────────────────────────────────────────
+// §2: empty and generating are the same dark rounded rectangle with a faint
+// border and one static icon; generating only adds a restrained progress bar.
 
-.infinite-canvas-node__generation-placeholder {
+.infinite-canvas-node__generation-placeholder,
+.infinite-canvas-node__image-placeholder {
+  position: relative;
   display: flex;
-  min-height: 88px;
+  aspect-ratio: 4 / 3;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--infinite-canvas-muted) 8%, transparent);
-  color: var(--infinite-canvas-muted);
-  font-size: 11px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 12px;
+  background: var(--canvas-surface-card);
+  color: var(--canvas-text-faint);
 }
 
-.infinite-canvas-node__spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid color-mix(in srgb, var(--infinite-canvas-accent) 30%, transparent);
-  border-top-color: var(--infinite-canvas-accent);
-  border-radius: 50%;
-  animation: infinite-canvas-spin 0.9s linear infinite;
+.infinite-canvas-node__progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  overflow: hidden;
+  background: var(--canvas-hairline);
+
+  &::after {
+    position: absolute;
+    background: var(--canvas-accent);
+    animation: infinite-canvas-progress 1.4s ease-in-out infinite;
+    content: '';
+    inset: 0 60% 0 0;
+  }
 }
 
-@keyframes infinite-canvas-spin {
-  to {
-    transform: rotate(360deg);
+@keyframes infinite-canvas-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(250%);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .infinite-canvas-node__spinner {
+  .infinite-canvas-node__progress::after {
     animation: none;
+    inset: 0;
   }
 }
 
-// Failure is a restrained overlay: icon, one-line reason, two small actions —
-// no large error surface.
+// Failure keeps the placeholder footprint: icon, one line, two small actions.
 .infinite-canvas-node__generation-failed {
   display: flex;
-  min-height: 88px;
+  aspect-ratio: 4 / 3;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
   padding: 10px;
-  border: 1px dashed var(--infinite-canvas-hairline);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--infinite-canvas-muted) 6%, transparent);
-  color: var(--infinite-canvas-muted);
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 12px;
+  background: var(--canvas-surface-card);
+  color: var(--canvas-text-muted);
   font-size: 11px;
+  line-height: 1.5;
   text-align: center;
 
   > svg {
@@ -432,10 +526,67 @@
   }
 
   strong {
-    color: var(--infinite-canvas-text);
+    color: var(--canvas-text-primary);
     font-size: 11px;
     font-weight: 600;
   }
+}
+
+// §3: the right-edge `+` that derives the next card. Dim until hovered.
+.infinite-canvas-node__spawn {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--canvas-surface-line);
+  border-radius: 50%;
+  background: var(--canvas-surface-raised);
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  opacity: 0.28;
+  transform: translateY(-50%);
+  transition: opacity 120ms ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--canvas-accent);
+    color: var(--canvas-text-primary);
+    opacity: 1;
+    outline: none;
+  }
+}
+
+.infinite-canvas-node:hover .infinite-canvas-node__spawn,
+.infinite-canvas-node[data-selected='true'] .infinite-canvas-node__spawn {
+  opacity: 0.85;
+}
+
+// S1 hover layer: the prompt editor and the generation controls, absent until
+// the card is hovered or selected. §6 moves the prompt and the send button to
+// the bottom generator and §4 takes the rest into the pill toolbar.
+.infinite-canvas-node__overlay {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--canvas-surface-overlay);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 45%);
+}
+
+.infinite-canvas-node:hover > .infinite-canvas-node__overlay,
+.infinite-canvas-node[data-selected='true'] > .infinite-canvas-node__overlay,
+.infinite-canvas-node__overlay:focus-within {
+  display: flex;
 }
 
 .infinite-canvas-node__generation-failed-actions {

@@ -5,13 +5,17 @@
  * callbacks carried in the node data, and the panel routes it through the
  * infinite-canvas DocumentService. Nodes never persist anything themselves.
  *
- * K2 (W6) extends the image card with the generation surface: a prompt
- * editor, generate/regenerate dispatch, pending/failed generation states with
- * retry/delete, the derived-version badge, and the ordered reference badges.
+ * Visual language (owner reference boards, `docs/design/
+ * infinite-canvas-visual-language.md`): a card IS its media. The frame has no
+ * padding, no title bar and no file name; the type label sits OUTSIDE the card
+ * above it as small grey text; every control is absent until the card is
+ * hovered or selected. S1 parks the prompt editor and the generate button in
+ * that hover layer so the generation lane keeps working unchanged; S2 hands
+ * them to the bottom floating generator and the card loses them entirely.
  */
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Image as ImageIcon, Play, Plus, Type } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -77,6 +81,8 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   generationParamsSummary?: string;
   /** P4 W3: opens the generation parameter popover for this card. */
   onOpenParams?: (nodeId: string) => void;
+  /** §3: the small `+` off the card's right edge — derive the next card. */
+  onSpawnNext?: (nodeId: string) => void;
 }
 
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
@@ -97,6 +103,72 @@ interface NodeRendererProps<TData> {
   selected?: boolean;
 }
 
+/**
+ * §2: the grey line above the card. `Reference` is a card that carries media
+ * nobody generated here (picked from the library, pasted); everything else on
+ * the generation lane reads as an Image / Video Generation card.
+ */
+function cardLabelKey(
+  mediaKind: 'image' | 'video',
+  data: InfiniteCanvasMediaNodeData,
+): string {
+  // A five-tool derivative names its tool: that is what the old blue
+  // "derived" pill said, said now in the same grey line as everything else.
+  const derivedTool = data.derivedFrom?.toolId;
+  if (derivedTool && derivedTool !== 'generate') return `infiniteCanvas.tools.${derivedTool}`;
+  if (mediaKind === 'video') return 'infiniteCanvas.cardLabel.video';
+  const generated = Boolean(data.generation || data.derivedFrom || data.prompt);
+  return generated
+    ? 'infiniteCanvas.cardLabel.image'
+    : 'infiniteCanvas.cardLabel.reference';
+}
+
+/**
+ * The label strip that floats above the card: icon, one grey line, the
+ * reference-order marks, and a small accent dot once the card holds a
+ * finished result. No background, no pill — §2.
+ */
+const NodeLabel: React.FC<{
+  labelKey: string;
+  icon: React.ReactNode;
+  referenceLabels?: readonly string[];
+  done?: boolean;
+}> = ({ labelKey, icon, referenceLabels, done }) => {
+  const { t } = useI18n('components');
+  return (
+    <div className="infinite-canvas-node__label">
+      <span className="infinite-canvas-node__label-icon" aria-hidden="true">{icon}</span>
+      <span className="infinite-canvas-node__label-text">{t(labelKey)}</span>
+      {(referenceLabels ?? []).length > 0 ? (
+        <span
+          className="infinite-canvas-node__reference-badges"
+          role="group"
+          aria-label={t('infiniteCanvas.generation.referencesLabel')}
+        >
+          {(referenceLabels ?? []).map((label, index) => (
+            <span
+              key={`${index}-${label}`}
+              className="infinite-canvas-node__badge infinite-canvas-node__badge--reference"
+              data-reference-order={index + 1}
+            >
+              {label}
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {done ? (
+        <span
+          className="infinite-canvas-node__label-done"
+          role="img"
+          aria-label={t('infiniteCanvas.status.ready')}
+        />
+      ) : null}
+    </div>
+  );
+};
+
+NodeLabel.displayName = 'InfiniteCanvasNodeLabel';
+
 export const InfiniteCanvasTextNode: React.FC<
   NodeRendererProps<InfiniteCanvasTextNodeData>
 > = ({ id, data, selected }) => {
@@ -113,16 +185,23 @@ export const InfiniteCanvasTextNode: React.FC<
       data-selected={selected ? 'true' : undefined}
     >
       <Handle type="target" position={Position.Left} />
-      <textarea
-        className="infinite-canvas-node__text-input nodrag"
-        aria-label={t('infiniteCanvas.textNode.ariaLabel')}
-        placeholder={t('infiniteCanvas.textNode.placeholder')}
-        value={draft}
-        onChange={event => setDraft(event.target.value)}
-        onBlur={() => {
-          if (draft !== data.text) data.onCommitText(id, draft);
-        }}
+      <NodeLabel
+        labelKey="infiniteCanvas.cardLabel.text"
+        icon={<Type size={12} aria-hidden="true" />}
       />
+      {/* §2 text card: a dark panel holding nothing but the words. */}
+      <div className="infinite-canvas-node__frame">
+        <textarea
+          className="infinite-canvas-node__text-input nodrag"
+          aria-label={t('infiniteCanvas.textNode.ariaLabel')}
+          placeholder={t('infiniteCanvas.textNode.placeholder')}
+          value={draft}
+          onChange={event => setDraft(event.target.value)}
+          onBlur={() => {
+            if (draft !== data.text) data.onCommitText(id, draft);
+          }}
+        />
+      </div>
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -173,6 +252,8 @@ const NodeMedia: React.FC<{
     if (mediaKind === 'video') {
       // preload="metadata" keeps off-screen cards cheap (poster frame +
       // duration only); the video data streams when the user hits play.
+      // S4 replaces the browser chrome with the inline transport bar (§5);
+      // until then the native controls stay so the clip is playable.
       return (
         // Generated clip: no caption track source exists for it.
         <video
@@ -209,18 +290,24 @@ const NodeMedia: React.FC<{
       </button>
     );
   }
+  // §2: no words on the card face — a static icon carries the state, and the
+  // wording stays available to assistive tech through the label.
   return (
     <div
       className="infinite-canvas-node__image-placeholder"
       data-state={failed ? 'unavailable' : 'loading'}
-    >
-      {failed
+      role="img"
+      aria-label={failed
         ? t(mediaKind === 'video'
           ? 'infiniteCanvas.video.previewUnavailable'
           : 'infiniteCanvas.imageNode.previewUnavailable')
         : t(mediaKind === 'video'
           ? 'infiniteCanvas.video.previewLoading'
           : 'infiniteCanvas.imageNode.previewLoading')}
+    >
+      {mediaKind === 'video'
+        ? <Play size={22} aria-hidden="true" />
+        : <ImageIcon size={22} aria-hidden="true" />}
     </div>
   );
 };
@@ -228,17 +315,15 @@ const NodeMedia: React.FC<{
 NodeMedia.displayName = 'InfiniteCanvasNodeMedia';
 
 /**
- * Shared image/video card body: badges, media, prompt editor, generate and
- * pending/failed generation states are one implementation; only the media
- * element and the image-only tool surface differ (K2 image behavior is
- * unchanged, the video card reuses its pending/failed styles).
+ * Shared image/video card body. The frame is the media (or its placeholder);
+ * everything else lives in the label above it or in the hover layer below it.
  */
 const InfiniteCanvasMediaCard: React.FC<
   NodeRendererProps<InfiniteCanvasImageNodeData | InfiniteCanvasVideoNodeData>
   & { mediaKind: 'image' | 'video' }
 > = ({ id, data, selected, mediaKind }) => {
   const { t } = useI18n('components');
-  const { mediaRef, generation, derivedFrom } = data;
+  const { mediaRef, generation } = data;
   const imageData = mediaKind === 'image' ? data as InfiniteCanvasImageNodeData : undefined;
   const [promptDraft, setPromptDraft] = React.useState(data.prompt ?? '');
 
@@ -257,40 +342,16 @@ const InfiniteCanvasMediaCard: React.FC<
       data-generation-status={generation?.status}
     >
       <Handle type="target" position={Position.Left} />
-      {(derivedFrom || referenceLabels.length > 0) ? (
-        <div className="infinite-canvas-node__badges">
-          {derivedFrom ? (
-            <span
-              className="infinite-canvas-node__badge infinite-canvas-node__badge--derived"
-              aria-label={t('infiniteCanvas.generation.derivedBadgeLabel')}
-              data-derived-tool-id={derivedFrom.toolId}
-            >
-              {derivedFrom.toolId === 'generate'
-                ? t('infiniteCanvas.generation.derivedFromGenerate')
-                : t(`infiniteCanvas.tools.${derivedFrom.toolId}`)}
-            </span>
-          ) : null}
-          {referenceLabels.length > 0 ? (
-            <span
-              className="infinite-canvas-node__reference-badges"
-              role="group"
-              aria-label={t('infiniteCanvas.generation.referencesLabel')}
-            >
-              {referenceLabels.map((label, index) => (
-                <span
-                  key={`${index}-${label}`}
-                  className="infinite-canvas-node__badge infinite-canvas-node__badge--reference"
-                  data-reference-order={index + 1}
-                >
-                  {label}
-                </span>
-              ))}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-      {mediaRef ? (
-        <>
+      <NodeLabel
+        labelKey={cardLabelKey(mediaKind, data)}
+        icon={mediaKind === 'video'
+          ? <Play size={12} aria-hidden="true" />
+          : <ImageIcon size={12} aria-hidden="true" />}
+        referenceLabels={referenceLabels}
+        done={Boolean(mediaRef) && !pending && !failed}
+      />
+      <div className="infinite-canvas-node__frame">
+        {mediaRef ? (
           <NodeMedia
             mediaRef={mediaRef}
             mediaKind={mediaKind}
@@ -301,157 +362,178 @@ const InfiniteCanvasMediaCard: React.FC<
                 : undefined
             }
           />
-          <p className="infinite-canvas-node__image-caption">
-            <span className="infinite-canvas-node__image-name">
-              {fileNameOf(mediaRef.relativePath)}
+        ) : failed ? (
+          <div
+            className="infinite-canvas-node__generation-failed nodrag"
+            role="alert"
+            data-error-kind={generation?.errorKind ?? 'backend'}
+          >
+            <AlertTriangle size={18} aria-hidden="true" />
+            <strong>{t('infiniteCanvas.generation.failedTitle')}</strong>
+            <span>
+              {t(`infiniteCanvas.generation.errorKind.${generation?.errorKind ?? 'backend'}`)}
             </span>
-            {data.onOpenViewer ? (
-              // The video element owns its own click surface (controls), so
-              // both kinds share this explicit entry into the viewer.
+            <span className="infinite-canvas-node__generation-failed-actions">
               <button
                 type="button"
-                className="infinite-canvas-node__view-button nodrag"
-                data-node-action="open-viewer-caption"
-                onClick={() => data.onOpenViewer?.(id)}
+                className="infinite-canvas-node__generation-retry"
+                onClick={() => data.onRetryGeneration(id)}
               >
-                {t('infiniteCanvas.viewer.open')}
+                {t('infiniteCanvas.generation.retry')}
               </button>
-            ) : null}
-          </p>
-        </>
-      ) : failed ? (
-        <div
-          className="infinite-canvas-node__generation-failed nodrag"
-          role="alert"
-          data-error-kind={generation?.errorKind ?? 'backend'}
-        >
-          <AlertTriangle size={14} aria-hidden="true" />
-          <strong>{t('infiniteCanvas.generation.failedTitle')}</strong>
-          <span>
-            {t(`infiniteCanvas.generation.errorKind.${generation?.errorKind ?? 'backend'}`)}
-          </span>
-          <span className="infinite-canvas-node__generation-failed-actions">
-            <button
-              type="button"
-              className="infinite-canvas-node__generation-retry"
-              onClick={() => data.onRetryGeneration(id)}
-            >
-              {t('infiniteCanvas.generation.retry')}
-            </button>
-            <button
-              type="button"
-              className="infinite-canvas-node__generation-remove"
-              onClick={() => data.onRemoveFailedGeneration(id)}
-            >
-              {t('infiniteCanvas.generation.remove')}
-            </button>
-          </span>
-        </div>
-      ) : (
-        <div
-          className="infinite-canvas-node__generation-placeholder"
-          data-state={pending ? 'pending' : 'blank'}
-          role={pending ? 'status' : undefined}
-        >
-          {pending ? (
-            <>
-              <span className="infinite-canvas-node__spinner" aria-hidden="true" />
-              {t(mediaKind === 'video'
+              <button
+                type="button"
+                className="infinite-canvas-node__generation-remove"
+                onClick={() => data.onRemoveFailedGeneration(id)}
+              >
+                {t('infiniteCanvas.generation.remove')}
+              </button>
+            </span>
+          </div>
+        ) : (
+          // §2 blank / generating: the same dark rounded rectangle with a
+          // static icon; generating only adds one restrained progress line.
+          <div
+            className="infinite-canvas-node__generation-placeholder"
+            data-state={pending ? 'pending' : 'blank'}
+            role={pending ? 'status' : 'img'}
+            aria-label={pending
+              ? t(mediaKind === 'video'
                 ? 'infiniteCanvas.video.pending'
-                : 'infiniteCanvas.generation.pending')}
-            </>
-          ) : (
-            t(mediaKind === 'video'
-              ? 'infiniteCanvas.video.blankHint'
-              : 'infiniteCanvas.generation.blankHint')
-          )}
-        </div>
-      )}
-      <textarea
-        className="infinite-canvas-node__prompt-input nodrag"
-        aria-label={t(mediaKind === 'video'
-          ? 'infiniteCanvas.video.promptLabel'
-          : 'infiniteCanvas.generation.promptLabel')}
-        placeholder={t(mediaKind === 'video'
-          ? 'infiniteCanvas.video.promptPlaceholder'
-          : 'infiniteCanvas.generation.promptPlaceholder')}
-        value={promptDraft}
-        disabled={pending}
-        onChange={event => setPromptDraft(event.target.value)}
-        onBlur={() => {
-          if (promptDraft !== (data.prompt ?? '')) data.onCommitPrompt(id, promptDraft);
-        }}
-      />
-      <div className="infinite-canvas-node__footer">
+                : 'infiniteCanvas.generation.pending')
+              : t(mediaKind === 'video'
+                ? 'infiniteCanvas.video.blankHint'
+                : 'infiniteCanvas.generation.blankHint')}
+          >
+            {mediaKind === 'video'
+              ? <Play size={22} aria-hidden="true" />
+              : <ImageIcon size={22} aria-hidden="true" />}
+            {pending ? (
+              <span className="infinite-canvas-node__progress" aria-hidden="true" />
+            ) : null}
+          </div>
+        )}
+      </div>
+      {/*
+        §3: the small `+` off the right edge derives the next card. Dim at
+        rest, bright on hover — the card itself stays undecorated.
+      */}
+      {data.onSpawnNext ? (
         <button
           type="button"
-          className="infinite-canvas-node__generate-button nodrag"
-          disabled={pending}
-          onClick={() => data.onGenerate(id)}
+          className="infinite-canvas-node__spawn nodrag"
+          data-node-action="spawn-next"
+          aria-label={t('infiniteCanvas.handles.spawnNext')}
+          title={t('infiniteCanvas.handles.spawnNext')}
+          onClick={() => data.onSpawnNext?.(id)}
         >
-          {mediaKind === 'video'
-            ? (mediaRef
-              ? t('infiniteCanvas.video.regenerate')
-              : t('infiniteCanvas.video.generate'))
-            : (mediaRef
-              ? t('infiniteCanvas.generation.regenerate')
-              : t('infiniteCanvas.generation.generate'))}
+          <Plus size={12} aria-hidden="true" />
         </button>
-        {data.onOpenParams ? (
-          // Collapsed pill: the chosen model / ratio / resolution, or the
-          // plain label while the card still runs on provider defaults.
-          <button
-            type="button"
-            className="infinite-canvas-node__params-button nodrag"
-            data-node-action="open-params"
-            data-has-params={data.generationParamsSummary ? 'true' : undefined}
-            title={data.generationParamsSummary || t('infiniteCanvas.params.button')}
-            onClick={() => data.onOpenParams?.(id)}
-          >
-            {data.generationParamsSummary || t('infiniteCanvas.params.button')}
-          </button>
-        ) : null}
-        {imageData ? (
-          <button
-            type="button"
-            className="infinite-canvas-node__style-button nodrag"
-            data-has-style={imageData.stylePresetName ? 'true' : undefined}
-            onClick={() => imageData.onOpenStylePicker(id)}
-          >
-            {imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
-          </button>
-        ) : null}
-      </div>
-      {imageData && mediaRef ? (
-        <div
-          className="infinite-canvas-node__tools nodrag"
-          role="group"
-          aria-label={t('infiniteCanvas.imageNode.toolsLabel')}
-        >
-          {IMAGE_TOOL_DEFINITIONS.map(definition => (
+      ) : null}
+      {/*
+        S1 hover layer. Temporary home for the prompt editor and the generate
+        button so the creation loop keeps working while §6's bottom generator
+        is built; the parameter, style and tool entries move to §4's pill bar.
+      */}
+      <div className="infinite-canvas-node__overlay nodrag">
+        <textarea
+          className="infinite-canvas-node__prompt-input nodrag"
+          aria-label={t(mediaKind === 'video'
+            ? 'infiniteCanvas.video.promptLabel'
+            : 'infiniteCanvas.generation.promptLabel')}
+          placeholder={t(mediaKind === 'video'
+            ? 'infiniteCanvas.video.promptPlaceholder'
+            : 'infiniteCanvas.generation.promptPlaceholder')}
+          value={promptDraft}
+          disabled={pending}
+          onChange={event => setPromptDraft(event.target.value)}
+          onBlur={() => {
+            if (promptDraft !== (data.prompt ?? '')) data.onCommitPrompt(id, promptDraft);
+          }}
+        />
+        <div className="infinite-canvas-node__footer">
+          {mediaRef && data.onOpenViewer ? (
+            // The video element owns its own click surface, so both kinds
+            // reach the full-screen viewer through this explicit entry.
             <button
-              key={definition.toolId}
               type="button"
-              className="infinite-canvas-node__tool"
-              data-tool-id={definition.toolId}
-              onClick={() => imageData.onRunImageTool(id, definition.toolId)}
+              className="infinite-canvas-node__view-button nodrag"
+              data-node-action="open-viewer-entry"
+              onClick={() => data.onOpenViewer?.(id)}
             >
-              {t(definition.labelKey)}
+              {t('infiniteCanvas.viewer.open')}
             </button>
-          ))}
-          {imageData.onDeriveVideoCard ? (
-            // Not one of the five contract tools: image-to-video derives a
-            // blank video card, so it keeps its own class and no tool id.
+          ) : null}
+          <button
+            type="button"
+            className="infinite-canvas-node__generate-button nodrag"
+            disabled={pending}
+            onClick={() => data.onGenerate(id)}
+          >
+            {mediaKind === 'video'
+              ? (mediaRef
+                ? t('infiniteCanvas.video.regenerate')
+                : t('infiniteCanvas.video.generate'))
+              : (mediaRef
+                ? t('infiniteCanvas.generation.regenerate')
+                : t('infiniteCanvas.generation.generate'))}
+          </button>
+          {data.onOpenParams ? (
+            // Collapsed pill: the chosen model / ratio / resolution, or the
+            // plain label while the card still runs on provider defaults.
             <button
               type="button"
-              className="infinite-canvas-node__derive-video"
-              onClick={() => imageData.onDeriveVideoCard?.(id)}
+              className="infinite-canvas-node__params-button nodrag"
+              data-node-action="open-params"
+              data-has-params={data.generationParamsSummary ? 'true' : undefined}
+              title={data.generationParamsSummary || t('infiniteCanvas.params.button')}
+              onClick={() => data.onOpenParams?.(id)}
             >
-              {t('infiniteCanvas.video.deriveFromImage')}
+              {data.generationParamsSummary || t('infiniteCanvas.params.button')}
+            </button>
+          ) : null}
+          {imageData ? (
+            <button
+              type="button"
+              className="infinite-canvas-node__style-button nodrag"
+              data-has-style={imageData.stylePresetName ? 'true' : undefined}
+              onClick={() => imageData.onOpenStylePicker(id)}
+            >
+              {imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
             </button>
           ) : null}
         </div>
-      ) : null}
+        {imageData && mediaRef ? (
+          <div
+            className="infinite-canvas-node__tools nodrag"
+            role="group"
+            aria-label={t('infiniteCanvas.imageNode.toolsLabel')}
+          >
+            {IMAGE_TOOL_DEFINITIONS.map(definition => (
+              <button
+                key={definition.toolId}
+                type="button"
+                className="infinite-canvas-node__tool"
+                data-tool-id={definition.toolId}
+                onClick={() => imageData.onRunImageTool(id, definition.toolId)}
+              >
+                {t(definition.labelKey)}
+              </button>
+            ))}
+            {imageData.onDeriveVideoCard ? (
+              // Not one of the five contract tools: image-to-video derives a
+              // blank video card, so it keeps its own class and no tool id.
+              <button
+                type="button"
+                className="infinite-canvas-node__derive-video"
+                onClick={() => imageData.onDeriveVideoCard?.(id)}
+              >
+                {t('infiniteCanvas.video.deriveFromImage')}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <Handle type="source" position={Position.Right} />
     </div>
   );
