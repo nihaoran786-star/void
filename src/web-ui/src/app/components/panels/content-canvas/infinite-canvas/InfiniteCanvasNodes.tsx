@@ -68,6 +68,8 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   onGenerate: (nodeId: string) => void;
   onRetryGeneration: (nodeId: string) => void;
   onRemoveFailedGeneration: (nodeId: string) => void;
+  /** P4 W1: opens the full-screen viewer on this card's media. */
+  onOpenViewer?: (nodeId: string) => void;
 }
 
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
@@ -129,7 +131,9 @@ const NodeMedia: React.FC<{
   mediaRef: InfiniteCanvasMediaRef;
   mediaKind: 'image' | 'video';
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
-}> = ({ mediaRef, mediaKind, resolvePreviewUrl }) => {
+  /** When present the still image doubles as the full-screen viewer trigger. */
+  onOpen?: () => void;
+}> = ({ mediaRef, mediaKind, resolvePreviewUrl, onOpen }) => {
   const { t } = useI18n('components');
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const [failed, setFailed] = React.useState(false);
@@ -174,7 +178,7 @@ const NodeMedia: React.FC<{
         />
       );
     }
-    return (
+    const image = (
       <img
         className="infinite-canvas-node__image"
         src={previewUrl}
@@ -182,6 +186,20 @@ const NodeMedia: React.FC<{
         draggable={false}
         onError={onMediaError}
       />
+    );
+    if (!onOpen) return image;
+    // A button wrapper (not a click handler on the img) keeps the viewer
+    // trigger keyboard-reachable; `nodrag` stops reactflow from panning.
+    return (
+      <button
+        type="button"
+        className="infinite-canvas-node__image-button nodrag"
+        data-node-action="open-viewer"
+        aria-label={t('infiniteCanvas.viewer.openImage')}
+        onClick={onOpen}
+      >
+        {image}
+      </button>
     );
   }
   return (
@@ -270,9 +288,28 @@ const InfiniteCanvasMediaCard: React.FC<
             mediaRef={mediaRef}
             mediaKind={mediaKind}
             resolvePreviewUrl={data.resolvePreviewUrl}
+            onOpen={
+              mediaKind === 'image' && data.onOpenViewer
+                ? () => data.onOpenViewer?.(id)
+                : undefined
+            }
           />
           <p className="infinite-canvas-node__image-caption">
-            {fileNameOf(mediaRef.relativePath)}
+            <span className="infinite-canvas-node__image-name">
+              {fileNameOf(mediaRef.relativePath)}
+            </span>
+            {data.onOpenViewer ? (
+              // The video element owns its own click surface (controls), so
+              // both kinds share this explicit entry into the viewer.
+              <button
+                type="button"
+                className="infinite-canvas-node__view-button nodrag"
+                data-node-action="open-viewer-caption"
+                onClick={() => data.onOpenViewer?.(id)}
+              >
+                {t('infiniteCanvas.viewer.open')}
+              </button>
+            ) : null}
           </p>
         </>
       ) : failed ? (

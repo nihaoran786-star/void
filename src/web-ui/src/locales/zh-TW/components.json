@@ -1017,6 +1017,21 @@
       "blankHint": "連上參考圖、寫好提示詞後點擊生成影片。",
       "deriveFromImage": "生成影片",
       "referenceNotSupported": "影片卡不能作為參考，請斷開這條連線。"
+    },
+    "viewer": {
+      "title": "媒體檢視器",
+      "open": "看大圖",
+      "openImage": "全螢幕檢視這張圖",
+      "close": "關閉",
+      "previous": "上一張媒體卡",
+      "next": "下一張媒體卡",
+      "zoomIn": "放大",
+      "zoomOut": "縮小",
+      "resetZoom": "恢復原大小",
+      "saveAs": "另存為…",
+      "saveFailed": "儲存失敗，未寫入任何檔案。",
+      "previewLoading": "正在載入媒體…",
+      "previewUnavailable": "無法顯示這個媒體。"
     }
   },
   "agentStudio": {

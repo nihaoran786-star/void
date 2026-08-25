@@ -31,4 +31,22 @@
     border-color: var(--workspace-border-subtle);
     font-size: var(--workspace-font-size-label);
   }
+
+  // P4 W1 viewer: the overlay lives inside .infinite-canvas-panel, so it
+  // inherits the remapped local vars; only spacing and type need the
+  // workspace scale here.
+  .void-ui--minimal .infinite-canvas-viewer__chrome {
+    padding: var(--workspace-space-1) var(--workspace-space-3);
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
+
+  .void-ui--minimal .infinite-canvas-viewer__button {
+    font-size: var(--workspace-font-size-label);
+  }
+
+  .void-ui--minimal .infinite-canvas-viewer__step {
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
 }

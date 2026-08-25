@@ -1017,6 +1017,21 @@
       "blankHint": "Connect reference images, write a prompt, then generate the video.",
       "deriveFromImage": "Make video",
       "referenceNotSupported": "A video card cannot be used as a reference; remove that connection."
+    },
+    "viewer": {
+      "title": "Media viewer",
+      "open": "View",
+      "openImage": "View this image full screen",
+      "close": "Close",
+      "previous": "Previous media card",
+      "next": "Next media card",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "saveAs": "Save a copy...",
+      "saveFailed": "Saving the file failed. Nothing was written to disk.",
+      "previewLoading": "Loading media...",
+      "previewUnavailable": "This media cannot be displayed."
     }
   },
   "agentStudio": {

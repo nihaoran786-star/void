@@ -17,6 +17,7 @@
   --infinite-canvas-hover: color-mix(in srgb, var(--infinite-canvas-muted) 12%, transparent);
   --infinite-canvas-accent-soft: color-mix(in srgb, var(--infinite-canvas-accent) 12%, transparent);
   --infinite-canvas-accent-line: color-mix(in srgb, var(--infinite-canvas-accent) 55%, transparent);
+  position: relative; // Anchors the P4 full-screen media viewer overlay.
   display: flex;
   flex: 1;
   min-height: 0;
@@ -285,13 +286,53 @@
   font-size: 11px;
 }
 
+// The still image doubles as the viewer trigger; the button is a bare frame
+// so the card's visual weight is unchanged until it is hovered or focused.
+.infinite-canvas-node__image-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: zoom-in;
+
+  &:focus-visible {
+    outline: 1px solid var(--infinite-canvas-accent-line);
+    outline-offset: 1px;
+  }
+}
+
 .infinite-canvas-node__image-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   overflow: hidden;
+  gap: 6px;
   margin: 0;
   color: var(--infinite-canvas-muted);
   font-size: 10px;
+}
+
+.infinite-canvas-node__image-name {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.infinite-canvas-node__view-button {
+  flex: none;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 10px;
+
+  &:hover {
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
 }
 
 // ── Version and reference chips ────────────────────────────────────────────
@@ -827,6 +868,149 @@
 .infinite-canvas-picker__item-meta {
   color: var(--infinite-canvas-muted);
   font-size: 10px;
+}
+
+// ── Full-screen media viewer (P4 W1) ───────────────────────────────────────
+// Scoped inside the panel so the local --infinite-canvas-* vars still apply
+// (both in classic and in the minimal overlay). Quiet chrome: a single dim
+// backdrop, a hairline toolbar, no shadows beyond the one lift on the frame.
+
+.infinite-canvas-viewer {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inset: 0;
+}
+
+.infinite-canvas-viewer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--infinite-canvas-bg) 88%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.infinite-canvas-viewer__chrome {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--infinite-canvas-hairline);
+  background: var(--infinite-canvas-surface);
+}
+
+.infinite-canvas-viewer__name {
+  overflow: hidden;
+  max-width: 40%;
+  color: var(--infinite-canvas-text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infinite-canvas-viewer__counter {
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+}
+
+.infinite-canvas-viewer__spacer {
+  flex: 1;
+}
+
+.infinite-canvas-viewer__button {
+  display: inline-flex;
+  height: 24px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 11px;
+
+  &:hover:not(:disabled) {
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+}
+
+.infinite-canvas-viewer__button--zoom {
+  min-width: 44px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.infinite-canvas-viewer__step {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--infinite-canvas-hairline);
+  border-radius: 50%;
+  background: var(--infinite-canvas-surface);
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+
+  &:hover {
+    color: var(--infinite-canvas-text);
+  }
+}
+
+.infinite-canvas-viewer__step--prev {
+  left: 12px;
+}
+
+.infinite-canvas-viewer__step--next {
+  right: 12px;
+}
+
+.infinite-canvas-viewer__stage {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  inset: 40px 0 0;
+}
+
+.infinite-canvas-viewer__image {
+  max-width: 92%;
+  max-height: 92%;
+  border-radius: 6px;
+  object-fit: contain;
+  transform-origin: center center;
+  user-select: none;
+}
+
+.infinite-canvas-viewer__video {
+  max-width: 92%;
+  max-height: 92%;
+  border-radius: 6px;
+}
+
+.infinite-canvas-viewer__placeholder {
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 12px;
 }
 
 @include minimal.styles;

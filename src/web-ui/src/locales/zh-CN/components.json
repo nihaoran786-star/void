@@ -1017,6 +1017,21 @@
       "blankHint": "连上参考图、写好提示词后点击生成视频。",
       "deriveFromImage": "生成视频",
       "referenceNotSupported": "视频卡不能作为参考，请断开这条连线。"
+    },
+    "viewer": {
+      "title": "媒体查看器",
+      "open": "看大图",
+      "openImage": "全屏查看这张图",
+      "close": "关闭",
+      "previous": "上一张媒体卡",
+      "next": "下一张媒体卡",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "resetZoom": "恢复原大小",
+      "saveAs": "另存为…",
+      "saveFailed": "保存失败，未写入任何文件。",
+      "previewLoading": "正在加载媒体…",
+      "previewUnavailable": "无法显示这个媒体。"
     }
   },
   "agentStudio": {

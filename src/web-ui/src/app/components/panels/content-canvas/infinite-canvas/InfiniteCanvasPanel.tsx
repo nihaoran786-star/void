@@ -59,6 +59,8 @@ import { workspaceMediaLibraryService } from '@/shared/services/workspace-media/
 import {
   getInfiniteCanvasDocumentService,
   getInfiniteCanvasMediaJobReader,
+  getInfiniteCanvasMediaSaver,
+  type InfiniteCanvasMediaSaver,
 } from './infiniteCanvasDocumentGateway';
 import {
   createInfiniteCanvasGenerationRuntime,
@@ -99,7 +101,14 @@ import {
   type InfiniteCanvasImagePreviewResolver,
   type InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
-import { resolveInfiniteCanvasMediaPreviewUrl } from './infiniteCanvasPreviewResolver';
+import {
+  infiniteCanvasMediaFilePath,
+  resolveInfiniteCanvasMediaPreviewUrl,
+} from './infiniteCanvasPreviewResolver';
+import {
+  InfiniteCanvasMediaViewer,
+  type InfiniteCanvasViewerItem,
+} from './InfiniteCanvasMediaViewer';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
@@ -144,6 +153,8 @@ interface NodeActions {
   removeFailed: (nodeId: string) => void;
   /** P3: derives a blank video card wired from an image card (image-to-video). */
   deriveVideoCard: (nodeId: string) => void;
+  /** P4 W1: opens the full-screen viewer on this card's media. */
+  openViewer: (nodeId: string) => void;
 }
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
@@ -177,6 +188,12 @@ export interface InfiniteCanvasPanelProps {
   generationRuntime?: InfiniteCanvasGenerationRuntime;
   mediaEventBus?: InfiniteCanvasMediaBridgeEventBus;
   mediaJobReader?: InfiniteCanvasMediaJobReader;
+  /**
+   * P4 W1 "save a copy" port. Production binds the existing file-panel
+   * download lane in `infiniteCanvasDocumentGateway`; tests inject a stub so
+   * the panel never reaches for a Tauri plugin.
+   */
+  saveMediaAs?: InfiniteCanvasMediaSaver;
 }
 
 export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
@@ -190,6 +207,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   generationRuntime: injectedRuntime,
   mediaEventBus,
   mediaJobReader,
+  saveMediaAs,
 }) => {
   const { t } = useI18n('components');
   const service = React.useMemo(
@@ -229,6 +247,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const [stylePickerNodeId, setStylePickerNodeId] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<GenerationNotice | null>(null);
   const [toolDialog, setToolDialog] = React.useState<ToolDialogRequest | null>(null);
+  /** P4 W1: the card whose media the full-screen viewer is showing. */
+  const [viewerNodeId, setViewerNodeId] = React.useState<string | null>(null);
 
   // Node callbacks flow through this ref so projectDocument stays stable while
   // the handlers depend on it (same seam the M3 commitText path used).
@@ -240,6 +260,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     retry: () => undefined,
     removeFailed: () => undefined,
     deriveVideoCard: () => undefined,
+    openViewer: () => undefined,
   });
 
   const openStylePicker = React.useCallback((nodeId: string) => {
@@ -275,6 +296,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             onRemoveFailedGeneration: (nodeId: string) => (
               nodeActionsRef.current.removeFailed(nodeId)
             ),
+            ...(view.data.mediaRef
+              ? {
+                  onOpenViewer: (nodeId: string) => (
+                    nodeActionsRef.current.openViewer(nodeId)
+                  ),
+                }
+              : {}),
             // The image-only surface (style preset, five tools, derive-video)
             // stays off the P3-minimal video card.
             ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
@@ -584,6 +612,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           );
         });
       },
+      openViewer: nodeId => {
+        const found = findMediaNode(nodeId);
+        if (!found?.node.mediaRef) return;
+        setViewerNodeId(nodeId);
+      },
     };
   }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
 
@@ -787,6 +820,41 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     void commit(document => setNodeStylePresetContent(document, nodeId, presetId));
   }, [commit, stylePickerNodeId]);
 
+  // —— P4 W1: full-screen viewer + save a copy ——————————————————————————————
+
+  /** Every media-bearing card, in document order: the viewer's walk order. */
+  const viewerItems = React.useMemo<InfiniteCanvasViewerItem[]>(() => flowNodes
+    .filter(node => (
+      node.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
+      || node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE
+    ) && Boolean(node.data?.mediaRef))
+    .map(node => ({
+      nodeId: node.id,
+      mediaRef: node.data.mediaRef as InfiniteCanvasMediaRef,
+      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE
+        ? 'video' as const
+        : 'image' as const,
+    })), [flowNodes]);
+
+  // A card can lose its media (deleted card) while the viewer is open; the
+  // overlay closes itself rather than showing a stale frame.
+  React.useEffect(() => {
+    if (!viewerNodeId) return;
+    if (!viewerItems.some(item => item.nodeId === viewerNodeId)) setViewerNodeId(null);
+  }, [viewerItems, viewerNodeId]);
+
+  const onSaveMediaAs = React.useCallback((item: InfiniteCanvasViewerItem) => {
+    // The source is the absolute media path — never a data URL: the file
+    // transfer lane copies bytes on the Rust side, so large videos are safe.
+    const filePath = infiniteCanvasMediaFilePath(item.mediaRef);
+    const port = saveMediaAs ?? getInfiniteCanvasMediaSaver();
+    void Promise.resolve()
+      .then(() => port(filePath))
+      .catch(() => {
+        setNotice({ messageKey: 'infiniteCanvas.viewer.saveFailed' });
+      });
+  }, [saveMediaAs]);
+
   const stylePickerCurrentPresetId = React.useMemo(() => {
     if (!stylePickerNodeId) return undefined;
     return documentRef.current?.nodes
@@ -931,6 +999,16 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           </div>
         ) : null}
       </div>
+      {viewerNodeId ? (
+        <InfiniteCanvasMediaViewer
+          items={viewerItems}
+          activeNodeId={viewerNodeId}
+          resolvePreviewUrl={resolvePreviewUrl}
+          onNavigate={setViewerNodeId}
+          onClose={() => setViewerNodeId(null)}
+          onSaveAs={onSaveMediaAs}
+        />
+      ) : null}
     </div>
   );
 };

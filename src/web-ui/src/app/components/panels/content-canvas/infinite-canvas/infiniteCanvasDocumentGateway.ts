@@ -27,3 +27,24 @@ export function getInfiniteCanvasDocumentService(): InfiniteCanvasDocumentServic
 export function getInfiniteCanvasMediaJobReader(): InfiniteCanvasMediaJobReader {
   return infiniteCanvasDesktopPersistence;
 }
+
+/**
+ * P4 W1 "save a copy" port: hands one absolute workspace file path to the
+ * proven file-panel download lane (system Save-as dialog + the Rust
+ * `export_local_file_to_path` copy). No new command and no new capability —
+ * `dialog:allow-save` is already granted. The panel never imports the Tauri
+ * plugin itself, so tests inject a stub through the `saveMediaAs` prop.
+ */
+export type InfiniteCanvasMediaSaver = (filePath: string) => Promise<void>;
+
+export function getInfiniteCanvasMediaSaver(): InfiniteCanvasMediaSaver {
+  return async filePath => {
+    const { downloadWorkspaceFileToDisk } = await import(
+      '@/tools/file-system/services/workspaceFileTransfer'
+    );
+    // Canvas media is local-only (remote workspaces stay fail-closed), so the
+    // null workspace deliberately selects the local export branch. The canvas
+    // has no transfer-progress surface, so progress reports are dropped.
+    await downloadWorkspaceFileToDisk(filePath, null, () => undefined);
+  };
+}
