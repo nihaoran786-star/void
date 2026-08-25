@@ -870,6 +870,33 @@
   font-size: 10px;
 }
 
+// ── Alignment guides (P4 W9) ───────────────────────────────────────────────
+// One hairline per matched axis, drawn only while a single node is dragging.
+
+.infinite-canvas-helper-lines {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+}
+
+.infinite-canvas-helper-lines__line {
+  position: absolute;
+  background: var(--infinite-canvas-accent-line);
+}
+
+.infinite-canvas-helper-lines__line--v {
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.infinite-canvas-helper-lines__line--h {
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+
 // ── Full-screen media viewer (P4 W1) ───────────────────────────────────────
 // Scoped inside the panel so the local --infinite-canvas-* vars still apply
 // (both in classic and in the minimal overlay). Quiet chrome: a single dim

@@ -101,6 +101,10 @@ import {
   type InfiniteCanvasImagePreviewResolver,
   type InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
+import { computeInfiniteCanvasHelperLines } from './infiniteCanvasHelperLines';
+// The overlay lives in its own file whose name differs from the pure module
+// by more than case: a case-only pair breaks resolution on Windows.
+import { InfiniteCanvasHelperLines } from './InfiniteCanvasHelperLinesOverlay';
 import {
   infiniteCanvasMediaFilePath,
   resolveInfiniteCanvasMediaPreviewUrl,
@@ -237,6 +241,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const documentRef = React.useRef<InfiniteCanvasDocument | undefined>(undefined);
   const [flowNodes, setFlowNodes] = React.useState<Node[]>([]);
   const [flowEdges, setFlowEdges] = React.useState<Edge[]>([]);
+  // P4 W9: the projected nodes as the drag handler sees them, so the snap
+  // maths never re-creates the handler (and never restarts a drag).
+  const flowNodesRef = React.useRef<Node[]>([]);
+  flowNodesRef.current = flowNodes;
+  const [helperLines, setHelperLines] = React.useState<{
+    vertical?: number;
+    horizontal?: number;
+  }>({});
+  // Last known pan/zoom, kept in a ref so panning never re-renders the panel.
+  // The guides only ever draw while a node is dragging, and the viewport does
+  // not move during a node drag, so this is exact when it is read.
+  const viewportRef = React.useRef<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [initialViewport, setInitialViewport] = React.useState<Viewport>({
     x: 0,
     y: 0,
@@ -656,6 +672,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       if (reconciled.document) document = reconciled.document;
       projectDocument(document);
       setInitialViewport(document.viewport);
+      viewportRef.current = document.viewport;
       setState({ phase: 'ready' });
     });
     return () => {
@@ -723,7 +740,52 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     void service.flushPendingWrites();
   }, [service]);
 
-  const onNodesChange = React.useCallback((changes: NodeChange[]) => {
+  const onNodesChange = React.useCallback((rawChanges: NodeChange[]) => {
+    // P4 W9: a single in-flight drag gets nudged onto its neighbours before
+    // reactflow applies it. Multi-node drags (changes.length > 1) are left
+    // alone on purpose — "which node aligns" has no honest answer there.
+    let changes = rawChanges;
+    let lines: { vertical?: number; horizontal?: number } = {};
+    const drag = rawChanges.length === 1 && rawChanges[0].type === 'position'
+      ? rawChanges[0]
+      : undefined;
+    if (drag && drag.dragging === true && drag.position) {
+      const nodes = flowNodesRef.current;
+      const dragged = nodes.find(node => node.id === drag.id);
+      const measured = dragged?.measured;
+      const snapped = computeInfiniteCanvasHelperLines(
+        {
+          id: drag.id,
+          position: drag.position,
+          width: measured?.width,
+          height: measured?.height,
+        },
+        nodes.map(node => ({
+          id: node.id,
+          position: node.position,
+          width: node.measured?.width,
+          height: node.measured?.height,
+        })),
+      );
+      // Convert to panel pixels here so the overlay stays a dumb renderer
+      // and the panel needs no ReactFlowProvider.
+      const { x: panX, y: panY, zoom } = viewportRef.current;
+      lines = {
+        ...(snapped.verticalLine === undefined
+          ? {}
+          : { vertical: snapped.verticalLine * zoom + panX }),
+        ...(snapped.horizontalLine === undefined
+          ? {}
+          : { horizontal: snapped.horizontalLine * zoom + panY }),
+      };
+      changes = [{ ...drag, position: snapped.position }];
+    }
+    setHelperLines(current => (
+      current.vertical === lines.vertical && current.horizontal === lines.horizontal
+        ? current
+        : lines
+    ));
+
     setFlowNodes(nodes => applyNodeChanges(changes, nodes));
     const removedIds = changes
       .filter(change => change.type === 'remove')
@@ -761,7 +823,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     ));
   }, [commit]);
 
+  const onMove = React.useCallback((_event: unknown, viewport: Viewport) => {
+    // Ref only: pan/zoom must not re-render the panel on every frame.
+    viewportRef.current = viewport;
+  }, []);
+
   const onMoveEnd = React.useCallback((_event: unknown, viewport: Viewport) => {
+    viewportRef.current = viewport;
     void commit(document => setViewportContent(document, viewport));
   }, [commit]);
 
@@ -977,6 +1045,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onMove={onMove}
           onMoveEnd={onMoveEnd}
           defaultViewport={initialViewport}
           minZoom={0.1}
@@ -985,6 +1054,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           <Background />
           <Controls position="bottom-right" showInteractive={false} />
         </ReactFlow>
+        <InfiniteCanvasHelperLines
+          vertical={helperLines.vertical}
+          horizontal={helperLines.horizontal}
+        />
         {flowNodes.length === 0 ? (
           <div className="infinite-canvas-panel__empty">
             <Sparkles size={20} aria-hidden="true" />
