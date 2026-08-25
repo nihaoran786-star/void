@@ -15,6 +15,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 
 import {
+  clickCanvasCreateMenuItem,
   generateFromCanvasGenerator,
   selectCanvasCards,
 } from './infiniteCanvasGeneratorDriver.testkit';
@@ -280,13 +281,8 @@ describe('InfiniteCanvasPanel P3 agent-canvas loop (W5)', () => {
     });
     await renderPanel();
 
-    // Create the blank video card from the toolbar.
-    const addVideo = Array.from(container.querySelectorAll('button'))
-      .find(button => button.textContent === 'infiniteCanvas.toolbar.addVideoCard');
-    expect(addVideo).toBeDefined();
-    await act(async () => {
-      addVideo!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    // Create the blank video card from the rail's `+` menu.
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addVideoCard');
     const videoView = flow.props.nodes.find((node: any) => node.id !== 'card-src');
     expect(videoView).toBeDefined();
     const videoNodeId = videoView.id as string;

@@ -2,6 +2,8 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import { clickCanvasCreateMenuItem } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({
@@ -204,13 +206,7 @@ describe('InfiniteCanvasPanel', () => {
   it('adds a text node through the DocumentService command path', async () => {
     await renderPanel();
 
-    const addText = Array.from(container.querySelectorAll('button'))
-      .find(button => button.textContent === 'infiniteCanvas.toolbar.addText');
-    expect(addText).toBeDefined();
-
-    await act(async () => {
-      addText!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
 
     expect(flow.props.nodes).toHaveLength(1);
     await service.flushPendingWrites();
@@ -318,11 +314,7 @@ describe('InfiniteCanvasPanel', () => {
 
   it('keeps canvas content across unmount and remount (collapse does not clear)', async () => {
     await renderPanel();
-    const addText = Array.from(container.querySelectorAll('button'))
-      .find(button => button.textContent === 'infiniteCanvas.toolbar.addText');
-    await act(async () => {
-      addText!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
 
     await act(async () => root.unmount());
     // Unmount flushes coalesced writes through the service.

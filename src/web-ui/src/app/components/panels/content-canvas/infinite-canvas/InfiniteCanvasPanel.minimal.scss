@@ -7,11 +7,9 @@
     font-family: var(--workspace-font-family);
   }
 
-  .void-ui--minimal .infinite-canvas-panel__toolbar {
-    padding: var(--workspace-space-1) var(--workspace-space-3);
-  }
-
-  .void-ui--minimal .infinite-canvas-panel__toolbar-button {
+  // §8 replaced the top toolbar row with the floating rail; only the type
+  // scale is adopted there.
+  .void-ui--minimal .infinite-canvas-rail__menu-item {
     font-size: var(--workspace-font-size-label);
   }
 

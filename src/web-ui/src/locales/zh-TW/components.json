@@ -1073,7 +1073,8 @@
       "paste": "貼上",
       "reveal": "在資料夾中顯示",
       "revealFailed": "打不開這個檔案所在的資料夾。",
-      "selectionToolbar": "所選卡片操作"
+      "selectionToolbar": "所選卡片操作",
+      "more": "更多操作"
     },
     "tasks": {
       "title": "出圖佇列",
@@ -1120,6 +1121,11 @@
       "targetImage": "作用於選取的圖片卡",
       "targetVideo": "作用於選取的影片卡",
       "newCard": "將新增一張卡片"
+    },
+    "rail": {
+      "label": "畫布工具",
+      "create": "新增",
+      "library": "素材庫"
     }
   },
   "agentStudio": {

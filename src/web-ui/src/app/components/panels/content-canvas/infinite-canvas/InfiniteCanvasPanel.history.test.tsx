@@ -14,6 +14,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 
 import {
+  clickCanvasCreateMenuItem,
   generateFromCanvasGenerator,
   selectCanvasCards,
 } from './infiniteCanvasGeneratorDriver.testkit';
@@ -210,10 +211,8 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
   }
 
   async function clickToolbar(label: string): Promise<void> {
-    const button = Array.from(container.querySelectorAll('button'))
-      .find(candidate => candidate.textContent?.includes(label));
-    if (!button) throw new Error(`no toolbar button for ${label}`);
-    await click(button as HTMLButtonElement);
+    // §8: the create entries live in the floating rail's `+` menu now.
+    await clickCanvasCreateMenuItem(container, label);
   }
 
   function nodeIds(): string[] {

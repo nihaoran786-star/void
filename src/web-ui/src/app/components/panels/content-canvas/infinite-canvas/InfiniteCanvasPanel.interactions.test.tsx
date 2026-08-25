@@ -7,6 +7,8 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
+
+import { clickCanvasCreateMenuItem } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
 const flow = vi.hoisted(() => ({
@@ -267,7 +269,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
   it('adds an image node as a mediaRef reference picked from the library', async () => {
     await renderPanel();
 
-    await clickButton(button => button.textContent === 'infiniteCanvas.toolbar.addImage');
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addImage');
 
     // Only image items from the read-only library scan are offered.
     const items = Array.from(container.querySelectorAll('.infinite-canvas-picker__item'));
@@ -292,7 +294,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     await renderPanel();
 
     await clickButton(button => (
-      button.textContent === 'infiniteCanvas.imageNode.styleButton'
+      button.className.includes('infinite-canvas-node__style-button')
     ));
     expect(container.querySelector('.infinite-canvas-picker--style')).not.toBeNull();
 
@@ -300,7 +302,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
 
     expect(container.querySelector('.infinite-canvas-picker--style')).toBeNull();
     const styleButton = container.querySelector('.infinite-canvas-node__style-button');
-    expect(styleButton?.textContent).toBe('Sunset');
+    expect(styleButton?.getAttribute('aria-label')).toBe('Sunset');
     await service.flushPendingWrites();
     expect(readDocument(memory).nodes[0]).toMatchObject({
       stylePresetId: 'cinematic:sunset',
@@ -311,7 +313,7 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
     await clickButton(button => (
-      button.textContent === 'infiniteCanvas.imageNode.styleButton'
+      button.className.includes('infinite-canvas-node__style-button')
     ));
 
     const familySelect = container.querySelectorAll('select')[0];
@@ -329,9 +331,11 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     await renderPanel();
 
     const styleButton = container.querySelector('.infinite-canvas-node__style-button');
-    expect(styleButton?.textContent).toBe('Noir');
+    expect(styleButton?.getAttribute('aria-label')).toBe('Noir');
 
-    await clickButton(button => button.textContent === 'Noir');
+    await clickButton(button => (
+      button.className.includes('infinite-canvas-node__style-button')
+    ));
     await clickButton(button => button.textContent === 'infiniteCanvas.stylePicker.clear');
 
     await service.flushPendingWrites();
@@ -371,9 +375,43 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     expect(container.querySelector('.infinite-canvas-dialog')).toBeNull();
   });
 
+  // —— §4: the card pill toolbar ————————————————————————————————————————————
+
+  it('hides the tools a card cannot run instead of greying them out', async () => {
+    // A blank generation card has nothing to upscale, save or view.
+    seedDocument(memory, {
+      nodes: [{ nodeId: 'n-blank', kind: 'image' as const, position: { x: 0, y: 0 } }],
+    });
+    await renderPanel();
+
+    const card = container.querySelector('[data-node-id="n-blank"]');
+    expect(card).not.toBeNull();
+    expect(card!.querySelectorAll('.infinite-canvas-node__tool')).toHaveLength(0);
+    expect(card!.querySelector('[data-node-action="save-as"]')).toBeNull();
+    expect(card!.querySelector('[data-node-action="open-viewer-entry"]')).toBeNull();
+    // The card-scoped entries that always apply are still there.
+    expect(card!.querySelector('[data-node-action="open-params"]')).not.toBeNull();
+    expect(card!.querySelector('[data-node-action="more"]')).not.toBeNull();
+  });
+
+  it('opens the card menu from the toolbar overflow', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+
+    expect(container.querySelector('.infinite-canvas-menu')).toBeNull();
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
+
+    const menu = container.querySelector('.infinite-canvas-menu');
+    expect(menu).not.toBeNull();
+    // It is the card's own menu: the media entries are offered.
+    const actions = Array.from(menu!.querySelectorAll('button'))
+      .map(button => button.textContent);
+    expect(actions).toContain('infiniteCanvas.menu.reveal');
+  });
+
   it('keeps documents isolated per workspace', async () => {
     await renderPanel();
-    await clickButton(button => button.textContent === 'infiniteCanvas.toolbar.addText');
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
     await service.flushPendingWrites();
 
     await act(async () => root.unmount());

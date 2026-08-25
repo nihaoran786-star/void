@@ -1073,7 +1073,8 @@
       "paste": "Paste",
       "reveal": "Show in folder",
       "revealFailed": "Could not open the folder for this file.",
-      "selectionToolbar": "Selection actions"
+      "selectionToolbar": "Selection actions",
+      "more": "More actions"
     },
     "tasks": {
       "title": "Generation queue",
@@ -1120,6 +1121,11 @@
       "targetImage": "Acting on the selected image card",
       "targetVideo": "Acting on the selected video card",
       "newCard": "A new card will be created"
+    },
+    "rail": {
+      "label": "Canvas tools",
+      "create": "Create",
+      "library": "Media library"
     }
   },
   "agentStudio": {

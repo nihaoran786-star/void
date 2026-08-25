@@ -29,7 +29,7 @@ import {
   type Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Clapperboard, ImagePlus, Redo2, Sparkles, Type, Undo2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -115,6 +115,7 @@ import {
   type InfiniteCanvasGeneratorReference,
 } from './InfiniteCanvasGenerator';
 import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
+import { InfiniteCanvasRail } from './InfiniteCanvasRail';
 import {
   InfiniteCanvasImageNode,
   InfiniteCanvasTextNode,
@@ -229,6 +230,17 @@ interface NodeActions {
   spawnNext: (nodeId: string) => void;
   /** §3: the midpoint handle — insert a generation card on that connection. */
   insertOnEdge: (edgeId: string) => void;
+}
+
+/**
+ * §4's two output-group entries. They live in their own ref because the
+ * handlers behind them (the save port, the context menu placement) are
+ * declared far below the main node-action effect; a second ref keeps both
+ * effects honest instead of forcing one giant declaration order.
+ */
+interface CardToolbarActions {
+  saveMediaAs: (nodeId: string) => void;
+  openMore: (nodeId: string, at: { clientX: number; clientY: number }) => void;
 }
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
@@ -439,6 +451,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     insertOnEdge: () => undefined,
   });
 
+  const cardToolbarActionsRef = React.useRef<CardToolbarActions>({
+    saveMediaAs: () => undefined,
+    openMore: () => undefined,
+  });
+
   const openStylePicker = React.useCallback((nodeId: string) => {
     setStylePickerNodeId(nodeId);
   }, []);
@@ -489,6 +506,16 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             ),
             onOpenParams: (nodeId: string) => nodeActionsRef.current.openParams(nodeId),
             onSpawnNext: (nodeId: string) => nodeActionsRef.current.spawnNext(nodeId),
+            ...(view.data.mediaRef
+              ? {
+                  onSaveMediaAs: (nodeId: string) => (
+                    cardToolbarActionsRef.current.saveMediaAs(nodeId)
+                  ),
+                }
+              : {}),
+            onOpenMore: (nodeId: string, at: { clientX: number; clientY: number }) => (
+              cardToolbarActionsRef.current.openMore(nodeId, at)
+            ),
             // The image-only surface (style preset, five tools, derive-video)
             // stays off the P3-minimal video card.
             ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
@@ -1683,6 +1710,26 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     viewerItems,
   ]);
 
+  // §4: the card pill's output group. Both reuse the ports the right-click
+  // menu already calls — no second save lane, no second menu.
+  React.useEffect(() => {
+    cardToolbarActionsRef.current = {
+      saveMediaAs: nodeId => {
+        const item = viewerItems.find(entry => entry.nodeId === nodeId);
+        if (item) onSaveMediaAs(item);
+      },
+      openMore: (nodeId, at) => {
+        const found = findMediaNode(nodeId);
+        openContextMenu({ ...at, preventDefault: () => undefined }, {
+          kind: 'node',
+          nodeId,
+          hasMedia: Boolean(found?.node.mediaRef),
+          canGenerate: Boolean(found),
+        });
+      },
+    };
+  }, [findMediaNode, onSaveMediaAs, openContextMenu, viewerItems]);
+
   const onSelectionToolbarAction = React.useCallback((
     action: InfiniteCanvasSelectionAction,
   ) => {
@@ -1897,70 +1944,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   return (
     <div className="infinite-canvas-panel" data-canvas-surface-state="ready" ref={panelRef}>
-      <div className="infinite-canvas-panel__toolbar" role="toolbar">
-        <button
-          type="button"
-          className="infinite-canvas-panel__toolbar-button"
-          onClick={onAddText}
-        >
-          <Type size={14} aria-hidden="true" />
-          {t('infiniteCanvas.toolbar.addText')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-panel__toolbar-button"
-          onClick={() => {
-            setImagePickerIntent('card');
-            setImagePickerOpen(open => !open);
-          }}
-        >
-          <ImagePlus size={14} aria-hidden="true" />
-          {t('infiniteCanvas.toolbar.addImage')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-panel__toolbar-button"
-          onClick={onAddGenerationCard}
-        >
-          <Sparkles size={14} aria-hidden="true" />
-          {t('infiniteCanvas.toolbar.addGenerationCard')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-panel__toolbar-button"
-          data-toolbar-action="add-video-card"
-          onClick={onAddVideoCard}
-        >
-          <Clapperboard size={14} aria-hidden="true" />
-          {t('infiniteCanvas.toolbar.addVideoCard')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-panel__toolbar-button"
-          data-toolbar-action="undo"
-          disabled={history.undo.length === 0}
-          title={t('infiniteCanvas.history.undoHint')}
-          onClick={() => {
-            void runHistory('undo');
-          }}
-        >
-          <Undo2 size={14} aria-hidden="true" />
-          {t('infiniteCanvas.history.undo')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-panel__toolbar-button"
-          data-toolbar-action="redo"
-          disabled={history.redo.length === 0}
-          title={t('infiniteCanvas.history.redoHint')}
-          onClick={() => {
-            void runHistory('redo');
-          }}
-        >
-          <Redo2 size={14} aria-hidden="true" />
-          {t('infiniteCanvas.history.redo')}
-        </button>
-      </div>
       {notice ? (
         <div
           className="infinite-canvas-panel__tool-notice"
@@ -2099,6 +2082,30 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         <InfiniteCanvasHelperLines
           vertical={helperLines.vertical}
           horizontal={helperLines.horizontal}
+        />
+        {/* §8: the floating left rail replaces the old top toolbar row. */}
+        <InfiniteCanvasRail
+          onAddText={onAddText}
+          onAddImage={() => {
+            setImagePickerIntent('card');
+            setImagePickerOpen(open => !open);
+          }}
+          onAddGenerationCard={onAddGenerationCard}
+          onAddVideoCard={onAddVideoCard}
+          onOpenLibrary={() => {
+            setImagePickerIntent('card');
+            setImagePickerOpen(open => !open);
+          }}
+          onUndo={() => {
+            void runHistory('undo');
+          }}
+          onRedo={() => {
+            void runHistory('redo');
+          }}
+          canUndo={history.undo.length > 0}
+          canRedo={history.redo.length > 0}
+          undoHint={t('infiniteCanvas.history.undoHint')}
+          redoHint={t('infiniteCanvas.history.redoHint')}
         />
         {selectedNodeIds.length >= 2 ? (
           <InfiniteCanvasSelectionToolbar

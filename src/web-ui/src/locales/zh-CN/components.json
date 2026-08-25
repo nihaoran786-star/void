@@ -1073,7 +1073,8 @@
       "paste": "粘贴",
       "reveal": "在文件夹中显示",
       "revealFailed": "打不开这个文件所在的文件夹。",
-      "selectionToolbar": "所选卡片操作"
+      "selectionToolbar": "所选卡片操作",
+      "more": "更多操作"
     },
     "tasks": {
       "title": "出图队列",
@@ -1120,6 +1121,11 @@
       "targetImage": "作用于选中的图片卡",
       "targetVideo": "作用于选中的视频卡",
       "newCard": "将新建一张卡片"
+    },
+    "rail": {
+      "label": "画布工具",
+      "create": "新建",
+      "library": "素材库"
     }
   },
   "agentStudio": {

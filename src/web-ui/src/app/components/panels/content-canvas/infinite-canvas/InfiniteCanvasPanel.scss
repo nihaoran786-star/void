@@ -75,53 +75,6 @@
   color: var(--infinite-canvas-error-text);
 }
 
-// ── Toolbar ────────────────────────────────────────────────────────────────
-
-.infinite-canvas-panel__toolbar {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--infinite-canvas-hairline);
-}
-
-.infinite-canvas-panel__toolbar-button {
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  font-size: 12px;
-  white-space: nowrap;
-
-  svg {
-    flex: none;
-  }
-
-  &:hover:not(:disabled) {
-    background: var(--infinite-canvas-hover);
-    color: var(--infinite-canvas-text);
-  }
-
-  &:focus-visible {
-    outline: 1px solid var(--infinite-canvas-accent);
-    outline-offset: -1px;
-  }
-
-  // P4 W5: nothing left to undo / redo — dimmed, not hidden, so the entry
-  // point stays discoverable.
-  &:disabled {
-    cursor: default;
-    opacity: 0.4;
-  }
-}
-
 // ── Flow viewport ──────────────────────────────────────────────────────────
 
 .infinite-canvas-panel__flow {
@@ -565,28 +518,177 @@
   opacity: 0.85;
 }
 
-// S1 hover layer: the prompt editor and the generation controls, absent until
-// the card is hovered or selected. §6 moves the prompt and the send button to
-// the bottom generator and §4 takes the rest into the pill toolbar.
-.infinite-canvas-node__overlay {
+// §4: the dark pill toolbar above the card. Icon-only, grouped by hairline
+// dividers, brighter on hover, and it takes no layout space at all.
+.infinite-canvas-node__toolbar {
   position: absolute;
-  z-index: 6;
-  top: calc(100% + 8px);
-  right: 0;
-  left: 0;
+  z-index: 7;
+  bottom: calc(100% + 8px);
+  left: 50%;
   display: none;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border-radius: 12px;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 999px;
   background: var(--canvas-surface-overlay);
-  box-shadow: 0 12px 30px rgb(0 0 0 / 45%);
+  box-shadow: 0 10px 26px rgb(0 0 0 / 45%);
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
-.infinite-canvas-node:hover > .infinite-canvas-node__overlay,
-.infinite-canvas-node[data-selected='true'] > .infinite-canvas-node__overlay,
-.infinite-canvas-node__overlay:focus-within {
+.infinite-canvas-node:hover > .infinite-canvas-node__toolbar,
+.infinite-canvas-node[data-selected='true'] > .infinite-canvas-node__toolbar {
   display: flex;
+}
+
+// The label and the pill share the space above the card; the pill wins.
+.infinite-canvas-node:hover > .infinite-canvas-node__label,
+.infinite-canvas-node[data-selected='true'] > .infinite-canvas-node__label {
+  opacity: 0;
+}
+
+.infinite-canvas-node__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.infinite-canvas-node__toolbar-divider {
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background: var(--canvas-hairline);
+}
+
+.infinite-canvas-node__toolbar button,
+.infinite-canvas-node__toolbar .infinite-canvas-node__tool {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgb(255 255 255 / 8%);
+    color: var(--canvas-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: -1px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
+}
+
+// A card that carries a chosen style or non-default parameters says so with
+// the accent, the way the reference boards mark an active tool.
+.infinite-canvas-node__toolbar .infinite-canvas-node__style-button[data-has-style='true'],
+.infinite-canvas-node__toolbar .infinite-canvas-node__params-button[data-has-params='true'] {
+  color: var(--canvas-accent);
+}
+
+// ── §8: the floating left rail ─────────────────────────────────────────────
+
+.infinite-canvas-rail {
+  position: absolute;
+  z-index: 8;
+  top: 14px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.infinite-canvas-rail__button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgb(255 255 255 / 7%);
+    color: var(--canvas-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: -1px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.3;
+  }
+}
+
+// `+` is the loudest thing on the rail — everything else is a thin line icon.
+.infinite-canvas-rail__button--primary {
+  border: 1px solid var(--canvas-hairline);
+  background: var(--canvas-surface-overlay);
+  color: var(--canvas-text-primary);
+
+  &:hover {
+    border-color: var(--canvas-surface-line);
+    background: var(--canvas-surface-raised);
+  }
+}
+
+.infinite-canvas-rail__menu {
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  left: calc(100% + 8px);
+  display: flex;
+  min-width: 172px;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 12px;
+  background: var(--canvas-surface-overlay);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 46%);
+}
+
+.infinite-canvas-rail__menu-item {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--canvas-text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+
+  svg {
+    flex: none;
+    color: var(--canvas-text-muted);
+  }
+
+  &:hover {
+    background: rgb(255 255 255 / 7%);
+  }
 }
 
 .infinite-canvas-node__generation-failed-actions {
@@ -607,155 +709,6 @@
 
   &:hover {
     border-color: var(--infinite-canvas-accent);
-  }
-}
-
-// ── Prompt editor and actions ──────────────────────────────────────────────
-
-.infinite-canvas-node__prompt-input {
-  min-height: 48px;
-  padding: 6px 8px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 6px;
-  background: var(--infinite-canvas-bg);
-  color: inherit;
-  font: inherit;
-  font-size: 11px;
-  line-height: 1.5;
-  resize: vertical;
-
-  &::placeholder {
-    color: var(--infinite-canvas-muted);
-  }
-
-  &:focus {
-    border-color: var(--infinite-canvas-accent);
-    outline: none;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-  }
-}
-
-.infinite-canvas-node__footer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.infinite-canvas-node__generate-button {
-  display: inline-flex;
-  height: 24px;
-  align-items: center;
-  padding: 0 12px;
-  border: 1px solid var(--infinite-canvas-accent-line);
-  border-radius: 6px;
-  background: var(--infinite-canvas-accent-soft);
-  color: var(--infinite-canvas-text);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-
-  &:hover:not(:disabled) {
-    border-color: var(--infinite-canvas-accent);
-  }
-
-  &:disabled {
-    border-color: var(--infinite-canvas-hairline);
-    background: transparent;
-    color: var(--infinite-canvas-muted);
-    cursor: default;
-  }
-}
-
-.infinite-canvas-node__style-button {
-  display: inline-flex;
-  overflow: hidden;
-  height: 24px;
-  max-width: 100%;
-  align-items: center;
-  padding: 0 10px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--infinite-canvas-border);
-    color: var(--infinite-canvas-text);
-  }
-
-  &[data-has-style='true'] {
-    border-color: transparent;
-    background: var(--infinite-canvas-accent-soft);
-    color: var(--infinite-canvas-text);
-  }
-}
-
-// P4 W3: generation parameter pill — same quiet chip language as the style
-// button, filled once the card carries a non-default choice.
-.infinite-canvas-node__params-button {
-  display: inline-flex;
-  overflow: hidden;
-  height: 24px;
-  max-width: 100%;
-  align-items: center;
-  padding: 0 10px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--infinite-canvas-border);
-    color: var(--infinite-canvas-text);
-  }
-
-  &[data-has-params='true'] {
-    border-color: transparent;
-    background: var(--infinite-canvas-accent-soft);
-    color: var(--infinite-canvas-text);
-  }
-}
-
-// Five-tool surface: shows on hover/selection only, quiet chip buttons.
-.infinite-canvas-node__tools {
-  display: none;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding-top: 6px;
-  border-top: 1px solid var(--infinite-canvas-hairline);
-}
-
-.infinite-canvas-node:hover .infinite-canvas-node__tools,
-.infinite-canvas-node[data-selected='true'] .infinite-canvas-node__tools {
-  display: flex;
-}
-
-.infinite-canvas-node__tool,
-.infinite-canvas-node__derive-video {
-  padding: 3px 8px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  font-size: 10px;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--infinite-canvas-accent);
-    color: var(--infinite-canvas-text);
   }
 }
 

@@ -12,6 +12,34 @@
 import { act } from 'react';
 import { Simulate } from 'react-dom/test-utils';
 
+/**
+ * §8: the four "new card" entries left the top toolbar row for the floating
+ * rail's `+` menu. This opens that menu (if it is closed) and clicks the entry
+ * whose label matches.
+ */
+export async function clickCanvasCreateMenuItem(
+  container: ParentNode,
+  label: string,
+): Promise<void> {
+  if (!container.querySelector('[data-canvas-rail-menu="create"]')) {
+    const plus = container.querySelector<HTMLButtonElement>(
+      '[data-canvas-rail-action="new"]',
+    );
+    if (!plus) throw new Error('no rail create button');
+    await act(async () => {
+      Simulate.click(plus);
+    });
+  }
+  const item = Array.from(
+    container.querySelectorAll<HTMLButtonElement>('.infinite-canvas-rail__menu-item'),
+  ).find(candidate => candidate.textContent?.includes(label));
+  if (!item) throw new Error(`no create menu entry for ${label}`);
+  await act(async () => {
+    Simulate.click(item);
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+}
+
 /** Mirrors reactflow's selection callback into the panel. */
 export async function selectCanvasCards(
   flow: { props: { onSelectionChange?: (selection: { nodes: { id: string }[] }) => void } },

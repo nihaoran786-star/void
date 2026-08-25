@@ -15,7 +15,24 @@
  */
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { AlertTriangle, Image as ImageIcon, Play, Plus, Type } from 'lucide-react';
+import {
+  AlertTriangle,
+  Brush,
+  Download,
+  Eraser,
+  Expand,
+  Image as ImageIcon,
+  Maximize2,
+  MoreHorizontal,
+  Palette,
+  Play,
+  Plus,
+  RefreshCw,
+  Scaling,
+  Scissors,
+  SlidersHorizontal,
+  Type,
+} from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
@@ -89,6 +106,10 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   onOpenParams?: (nodeId: string) => void;
   /** §3: the small `+` off the card's right edge — derive the next card. */
   onSpawnNext?: (nodeId: string) => void;
+  /** §4 output group: save a copy of this card's media. */
+  onSaveMediaAs?: (nodeId: string) => void;
+  /** §4 overflow: opens the card's existing right-click menu at the icon. */
+  onOpenMore?: (nodeId: string, at: { clientX: number; clientY: number }) => void;
 }
 
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
@@ -108,6 +129,15 @@ interface NodeRendererProps<TData> {
   data: TData;
   selected?: boolean;
 }
+
+/** §4: one icon per contract tool; the label stays on title / aria-label. */
+const IMAGE_TOOL_ICONS: Partial<Record<string, React.ReactNode>> = {
+  upscale: <Scaling size={14} aria-hidden="true" />,
+  expand: <Expand size={14} aria-hidden="true" />,
+  inpaint: <Brush size={14} aria-hidden="true" />,
+  erase: <Eraser size={14} aria-hidden="true" />,
+  matting: <Scissors size={14} aria-hidden="true" />,
+};
 
 /**
  * §2: the grey line above the card. `Reference` is a card that carries media
@@ -431,79 +461,130 @@ const InfiniteCanvasMediaCard: React.FC<
         </button>
       ) : null}
       {/*
-        §6: the card face carries NO input controls any more — the prompt and
-        the send button live in the bottom floating generator. What is left
-        here is the hover layer of card-scoped entries; §4 takes them into the
-        pill toolbar above the card.
+        §4: the dark pill toolbar. Icon-only, grouped by hairline dividers
+        (edit / organise / output), absent until the card is hovered or
+        selected, and it takes no layout space. Entries that cannot act on
+        this card are hidden rather than greyed out (§7's rule).
       */}
-      <div className="infinite-canvas-node__overlay nodrag">
-        <div className="infinite-canvas-node__footer">
-          {mediaRef && data.onOpenViewer ? (
-            // The video element owns its own click surface, so both kinds
-            // reach the full-screen viewer through this explicit entry.
-            <button
-              type="button"
-              className="infinite-canvas-node__view-button nodrag"
-              data-node-action="open-viewer-entry"
-              onClick={() => data.onOpenViewer?.(id)}
-            >
-              {t('infiniteCanvas.viewer.open')}
-            </button>
-          ) : null}
-          {data.onOpenParams ? (
-            // Collapsed pill: the chosen model / ratio / resolution, or the
-            // plain label while the card still runs on provider defaults.
-            <button
-              type="button"
-              className="infinite-canvas-node__params-button nodrag"
-              data-node-action="open-params"
-              data-has-params={data.generationParamsSummary ? 'true' : undefined}
-              title={data.generationParamsSummary || t('infiniteCanvas.params.button')}
-              onClick={() => data.onOpenParams?.(id)}
-            >
-              {data.generationParamsSummary || t('infiniteCanvas.params.button')}
-            </button>
-          ) : null}
-          {imageData ? (
-            <button
-              type="button"
-              className="infinite-canvas-node__style-button nodrag"
-              data-has-style={imageData.stylePresetName ? 'true' : undefined}
-              onClick={() => imageData.onOpenStylePicker(id)}
-            >
-              {imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
-            </button>
-          ) : null}
-        </div>
+      <div
+        className="infinite-canvas-node__toolbar nodrag"
+        role="toolbar"
+        aria-label={t('infiniteCanvas.imageNode.toolsLabel')}
+      >
         {imageData && mediaRef ? (
-          <div
-            className="infinite-canvas-node__tools nodrag"
-            role="group"
-            aria-label={t('infiniteCanvas.imageNode.toolsLabel')}
+          <>
+            <span className="infinite-canvas-node__tools">
+              {IMAGE_TOOL_DEFINITIONS.map(definition => (
+                <button
+                  key={definition.toolId}
+                  type="button"
+                  className="infinite-canvas-node__tool"
+                  data-tool-id={definition.toolId}
+                  aria-label={t(definition.labelKey)}
+                  title={t(definition.labelKey)}
+                  onClick={() => imageData.onRunImageTool(id, definition.toolId)}
+                >
+                  {IMAGE_TOOL_ICONS[definition.toolId] ?? <Brush size={14} aria-hidden="true" />}
+                </button>
+              ))}
+            </span>
+            <span className="infinite-canvas-node__toolbar-divider" aria-hidden="true" />
+          </>
+        ) : null}
+        {imageData ? (
+          <button
+            type="button"
+            className="infinite-canvas-node__style-button"
+            data-has-style={imageData.stylePresetName ? 'true' : undefined}
+            aria-label={imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
+            title={imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
+            onClick={() => imageData.onOpenStylePicker(id)}
           >
-            {IMAGE_TOOL_DEFINITIONS.map(definition => (
-              <button
-                key={definition.toolId}
-                type="button"
-                className="infinite-canvas-node__tool"
-                data-tool-id={definition.toolId}
-                onClick={() => imageData.onRunImageTool(id, definition.toolId)}
-              >
-                {t(definition.labelKey)}
-              </button>
-            ))}
-            {imageData.onDeriveVideoCard ? (
-              // Not one of the five contract tools: image-to-video derives a
-              // blank video card, so it keeps its own class and no tool id.
-              <button
-                type="button"
-                className="infinite-canvas-node__derive-video"
-                onClick={() => imageData.onDeriveVideoCard?.(id)}
-              >
-                {t('infiniteCanvas.video.deriveFromImage')}
-              </button>
-            ) : null}
-          </div>
+            <Palette size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        {data.onOpenParams ? (
+          <button
+            type="button"
+            className="infinite-canvas-node__params-button"
+            data-node-action="open-params"
+            data-has-params={data.generationParamsSummary ? 'true' : undefined}
+            aria-label={data.generationParamsSummary || t('infiniteCanvas.params.button')}
+            title={data.generationParamsSummary || t('infiniteCanvas.params.button')}
+            onClick={() => data.onOpenParams?.(id)}
+          >
+            <SlidersHorizontal size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        {imageData?.onDeriveVideoCard && mediaRef ? (
+          // Not one of the five contract tools: image-to-video derives a
+          // blank video card, so it keeps its own class and no tool id.
+          <button
+            type="button"
+            className="infinite-canvas-node__derive-video"
+            aria-label={t('infiniteCanvas.video.deriveFromImage')}
+            title={t('infiniteCanvas.video.deriveFromImage')}
+            onClick={() => imageData.onDeriveVideoCard?.(id)}
+          >
+            <Play size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        <span className="infinite-canvas-node__toolbar-divider" aria-hidden="true" />
+        <button
+          type="button"
+          className="infinite-canvas-node__toolbar-button"
+          data-node-action="regenerate"
+          disabled={pending}
+          aria-label={mediaRef
+            ? t('infiniteCanvas.generation.regenerate')
+            : t('infiniteCanvas.generation.generate')}
+          title={mediaRef
+            ? t('infiniteCanvas.generation.regenerate')
+            : t('infiniteCanvas.generation.generate')}
+          onClick={() => data.onGenerate(id)}
+        >
+          <RefreshCw size={14} aria-hidden="true" />
+        </button>
+        {mediaRef && data.onSaveMediaAs ? (
+          <button
+            type="button"
+            className="infinite-canvas-node__toolbar-button"
+            data-node-action="save-as"
+            aria-label={t('infiniteCanvas.viewer.saveAs')}
+            title={t('infiniteCanvas.viewer.saveAs')}
+            onClick={() => data.onSaveMediaAs?.(id)}
+          >
+            <Download size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        {mediaRef && data.onOpenViewer ? (
+          // The video element owns its own click surface, so both kinds
+          // reach the full-screen viewer through this explicit entry.
+          <button
+            type="button"
+            className="infinite-canvas-node__toolbar-button"
+            data-node-action="open-viewer-entry"
+            aria-label={t('infiniteCanvas.viewer.open')}
+            title={t('infiniteCanvas.viewer.open')}
+            onClick={() => data.onOpenViewer?.(id)}
+          >
+            <Maximize2 size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        {data.onOpenMore ? (
+          <button
+            type="button"
+            className="infinite-canvas-node__toolbar-button"
+            data-node-action="more"
+            aria-label={t('infiniteCanvas.menu.more')}
+            title={t('infiniteCanvas.menu.more')}
+            onClick={event => data.onOpenMore?.(id, {
+              clientX: event.clientX,
+              clientY: event.clientY,
+            })}
+          >
+            <MoreHorizontal size={14} aria-hidden="true" />
+          </button>
         ) : null}
       </div>
       <Handle type="source" position={Position.Right} />
