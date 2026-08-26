@@ -12,10 +12,12 @@
  * - `position: fixed` with viewport maths. The panel is not transformed, and
  *   fixing to the viewport keeps the popover clear of the reactflow pane's own
  *   transforms without the surface having to know where the panel starts.
- * - Placement is measured after the first paint. The popover prefers to sit
- *   above its anchor (the generator's bottom bar is near the foot of the
- *   panel) and flips below only when there is no room, then clamps into the
- *   viewport on both axes.
+ * - Placement is measured after the first paint and delegated wholesale to
+ *   `placeInfiniteCanvasPopover` (§7.3-B): above the anchor with left edges
+ *   aligned, flipping below only when there is no room, and clamped inside the
+ *   PANEL's visible box rather than the viewport. Clamping to the viewport was
+ *   the bug the owner reported — a trigger near the panel's right edge produced
+ *   a surface the panel then clipped.
  *
  * Dismissal is not implemented here twice over: it is
  * `useInfiniteCanvasDismiss`, the same hook the full-screen viewer uses. There
@@ -23,14 +25,18 @@
  */
 import React from 'react';
 
+import {
+  infiniteCanvasPopoverMaxHeight,
+  placeInfiniteCanvasPopover,
+  resolveInfiniteCanvasPopoverBounds,
+  INFINITE_CANVAS_POPOVER_MARGIN,
+} from './infiniteCanvasPopoverPlacement';
 import { useInfiniteCanvasDismiss } from './useInfiniteCanvasDismiss';
 
-/** Gap between the anchor and the popover, in CSS pixels. */
-const ANCHOR_GAP = 8;
-/** Keep-out margin from the viewport edges. */
-const VIEWPORT_MARGIN = 8;
 /** Fallback viewport box under jsdom, where layout reports zeros. */
 const FALLBACK_VIEWPORT = { width: 1024, height: 768 };
+/** The popover clamps inside this element's box, not the viewport's. */
+const PANEL_SELECTOR = '.infinite-canvas-panel';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
@@ -63,36 +69,54 @@ export const InfiniteCanvasPopover: React.FC<InfiniteCanvasPopoverProps> = ({
     onDismiss,
     ignore: anchor ? [anchor] : undefined,
   });
-  const [box, setBox] = React.useState<{ left: number; top: number } | undefined>(undefined);
+  const [box, setBox] = React.useState<
+    { left: number; top: number; maxHeight: number; side: 'above' | 'below' } | undefined
+  >(undefined);
 
   React.useLayoutEffect(() => {
     const surface = surfaceRef.current;
     const view = surface?.ownerDocument?.defaultView;
     if (!surface || !view) return;
-    const viewportWidth = view.innerWidth || FALLBACK_VIEWPORT.width;
-    const viewportHeight = view.innerHeight || FALLBACK_VIEWPORT.height;
-    const height = surface.getBoundingClientRect().height;
-    const maxLeft = viewportWidth - width - VIEWPORT_MARGIN;
-    const maxTop = viewportHeight - height - VIEWPORT_MARGIN;
+    const viewport = {
+      width: view.innerWidth || FALLBACK_VIEWPORT.width,
+      height: view.innerHeight || FALLBACK_VIEWPORT.height,
+    };
+    // The panel the popover belongs to: reached through the anchor, because the
+    // surface itself may be portalled or fixed outside the panel's flow.
+    const panel = anchor?.closest(PANEL_SELECTOR)
+      ?? surface.closest(PANEL_SELECTOR)
+      ?? surface.ownerDocument?.querySelector(PANEL_SELECTOR);
+    const bounds = resolveInfiniteCanvasPopoverBounds(panel, viewport);
+    const maxHeight = infiniteCanvasPopoverMaxHeight(bounds);
+    const height = Math.min(surface.getBoundingClientRect().height, maxHeight);
 
     if (!anchor) {
       setBox({
-        left: clamp((viewportWidth - width) / 2, VIEWPORT_MARGIN, maxLeft),
-        top: clamp(VIEWPORT_MARGIN * 6, VIEWPORT_MARGIN, maxTop),
+        left: clamp(
+          bounds.left + (bounds.width - width) / 2,
+          bounds.left + INFINITE_CANVAS_POPOVER_MARGIN,
+          bounds.right - INFINITE_CANVAS_POPOVER_MARGIN - width,
+        ),
+        top: clamp(
+          bounds.top + INFINITE_CANVAS_POPOVER_MARGIN * 6,
+          bounds.top + INFINITE_CANVAS_POPOVER_MARGIN,
+          bounds.bottom - INFINITE_CANVAS_POPOVER_MARGIN - height,
+        ),
+        maxHeight,
+        side: 'below',
       });
       return;
     }
 
-    const rect = anchor.getBoundingClientRect();
-    const above = rect.top - ANCHOR_GAP - height;
-    setBox({
-      left: clamp(rect.left + rect.width / 2 - width / 2, VIEWPORT_MARGIN, maxLeft),
-      top: above >= VIEWPORT_MARGIN
-        ? above
-        : clamp(rect.bottom + ANCHOR_GAP, VIEWPORT_MARGIN, maxTop),
+    const placement = placeInfiniteCanvasPopover({
+      anchor: anchor.getBoundingClientRect(),
+      bounds,
+      width,
+      height,
     });
+    setBox({ left: placement.left, top: placement.top, maxHeight, side: placement.side });
     // `surfaceRef` is a stable ref object; re-measuring is driven by the anchor.
-  }, [anchor, surfaceRef, width]);
+  }, [anchor, surfaceRef, width, children]);
 
   return (
     <aside
@@ -101,10 +125,17 @@ export const InfiniteCanvasPopover: React.FC<InfiniteCanvasPopoverProps> = ({
       data-canvas-popover={kind}
       data-canvas-popover-anchored={anchor ? 'true' : undefined}
       data-canvas-popover-placed={box ? 'true' : undefined}
+      data-canvas-popover-side={box?.side}
       aria-label={label}
       style={{
         width: `${width}px`,
-        ...(box ? { left: `${box.left}px`, top: `${box.top}px` } : {}),
+        ...(box
+          ? {
+              left: `${box.left}px`,
+              top: `${box.top}px`,
+              maxHeight: `${box.maxHeight}px`,
+            }
+          : {}),
       }}
     >
       {children}
