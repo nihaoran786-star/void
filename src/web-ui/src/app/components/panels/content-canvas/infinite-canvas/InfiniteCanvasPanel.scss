@@ -1436,8 +1436,12 @@
 // §7.3-E: translucent, lightly blurred, 16px corners, no title bar and no
 // close button. The inline `max-height` the component measures wins over the
 // fallback below; both stop the surface growing and let it scroll instead.
+// Positioned against the panel, not the viewport: an ancestor of the canvas
+// carries a transform, so `position: fixed` would resolve against that
+// ancestor anyway. The component converts its viewport maths into this box's
+// coordinates, so absolute is the honest declaration of what actually happens.
 .infinite-canvas-popover {
-  position: fixed;
+  position: absolute;
   z-index: 24;
   top: 16px;
   left: 16px;

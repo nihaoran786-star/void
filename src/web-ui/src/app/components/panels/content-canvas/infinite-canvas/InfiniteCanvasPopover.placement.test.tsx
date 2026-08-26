@@ -103,6 +103,10 @@ describe('InfiniteCanvasPopover placement', () => {
     return container.querySelector<HTMLElement>('[data-canvas-popover="test"]')!;
   }
 
+  // The surface is positioned against the panel, not the viewport (an ancestor
+  // of the canvas is transformed, so even `position: fixed` would resolve
+  // against it). The component therefore emits panel-relative numbers, and
+  // these expectations read them back in the same space.
   function boxOfSurface(surface: HTMLElement): { left: number; top: number; maxHeight: number } {
     return {
       left: Number.parseFloat(surface.style.left),
@@ -116,8 +120,8 @@ describe('InfiniteCanvasPopover placement', () => {
     const box = boxOfSurface(surface);
 
     expect(surface.getAttribute('data-canvas-popover-side')).toBe('above');
-    expect(box.left).toBe(500);
-    expect(box.top).toBe(600 - 8 - SURFACE_HEIGHT);
+    expect(box.left).toBe(500 - PANEL_RECT.left);
+    expect(box.top).toBe(600 - 8 - SURFACE_HEIGHT - PANEL_RECT.top);
     expect(box.maxHeight).toBe(420);
   });
 
@@ -127,14 +131,14 @@ describe('InfiniteCanvasPopover placement', () => {
     const surface = await renderAt(boxOf(1140, 600, 60, 24));
     const box = boxOfSurface(surface);
 
-    expect(box.left + WIDTH).toBeLessThanOrEqual(PANEL_RECT.left + PANEL_RECT.width);
-    expect(box.left).toBe(PANEL_RECT.left + PANEL_RECT.width - 8 - WIDTH);
+    expect(box.left + WIDTH).toBeLessThanOrEqual(PANEL_RECT.width);
+    expect(box.left).toBe(PANEL_RECT.width - 8 - WIDTH);
   });
 
   it('never overflows the panel left edge', async () => {
     const surface = await renderAt(boxOf(302, 600, 60, 24));
 
-    expect(boxOfSurface(surface).left).toBe(PANEL_RECT.left + 8);
+    expect(boxOfSurface(surface).left).toBe(8);
   });
 
   it('flips below when there is no room above, and stays inside the panel', async () => {
@@ -142,7 +146,7 @@ describe('InfiniteCanvasPopover placement', () => {
     const box = boxOfSurface(surface);
 
     expect(surface.getAttribute('data-canvas-popover-side')).toBe('below');
-    expect(box.top).toBe(132);
-    expect(box.top + SURFACE_HEIGHT).toBeLessThanOrEqual(PANEL_RECT.top + PANEL_RECT.height);
+    expect(box.top).toBe(132 - PANEL_RECT.top);
+    expect(box.top + SURFACE_HEIGHT).toBeLessThanOrEqual(PANEL_RECT.height);
   });
 });

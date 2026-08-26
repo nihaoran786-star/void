@@ -89,6 +89,14 @@ export const InfiniteCanvasPopover: React.FC<InfiniteCanvasPopoverProps> = ({
     const bounds = resolveInfiniteCanvasPopoverBounds(panel, viewport);
     const maxHeight = infiniteCanvasPopoverMaxHeight(bounds);
     const height = Math.min(surface.getBoundingClientRect().height, maxHeight);
+    // The placement maths works in viewport space, but the surface is laid out
+    // against the panel: an ancestor of the canvas carries a transform, which
+    // makes even `position: fixed` resolve against it rather than the viewport.
+    // Applying viewport numbers directly shifted every popover right and up by
+    // the panel's own origin — the owner saw them pinned off the right edge.
+    const panelRect = panel?.getBoundingClientRect();
+    const originLeft = panelRect?.left ?? 0;
+    const originTop = panelRect?.top ?? 0;
 
     if (!anchor) {
       setBox({
@@ -96,12 +104,12 @@ export const InfiniteCanvasPopover: React.FC<InfiniteCanvasPopoverProps> = ({
           bounds.left + (bounds.width - width) / 2,
           bounds.left + INFINITE_CANVAS_POPOVER_MARGIN,
           bounds.right - INFINITE_CANVAS_POPOVER_MARGIN - width,
-        ),
+        ) - originLeft,
         top: clamp(
           bounds.top + INFINITE_CANVAS_POPOVER_MARGIN * 6,
           bounds.top + INFINITE_CANVAS_POPOVER_MARGIN,
           bounds.bottom - INFINITE_CANVAS_POPOVER_MARGIN - height,
-        ),
+        ) - originTop,
         maxHeight,
         side: 'below',
       });
@@ -114,7 +122,12 @@ export const InfiniteCanvasPopover: React.FC<InfiniteCanvasPopoverProps> = ({
       width,
       height,
     });
-    setBox({ left: placement.left, top: placement.top, maxHeight, side: placement.side });
+    setBox({
+      left: placement.left - originLeft,
+      top: placement.top - originTop,
+      maxHeight,
+      side: placement.side,
+    });
     // `surfaceRef` is a stable ref object; re-measuring is driven by the anchor.
   }, [anchor, surfaceRef, width, children]);
 
