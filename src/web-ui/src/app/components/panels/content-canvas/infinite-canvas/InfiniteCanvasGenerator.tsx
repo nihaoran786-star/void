@@ -53,6 +53,14 @@ export interface InfiniteCanvasGeneratorPlacement {
   left: number;
   top: number;
   width: number;
+  /**
+   * False until reactflow reports the card's real box. The panel still places
+   * the generator from the stylesheet's card size so it is never missing, but
+   * the surface stays invisible for that frame: revealing the guess and then
+   * snapping to the measured box is the jitter the owner saw when clicking
+   * from card to card.
+   */
+  measured: boolean;
 }
 
 export interface InfiniteCanvasGeneratorProps {
@@ -191,6 +199,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
       // Until the card has been measured the stylesheet's own placement keeps
       // the input on screen; once it is measured, the inline box wins.
       data-canvas-generator-anchored={placement ? 'true' : undefined}
+      data-canvas-generator-measured={placement?.measured ? 'true' : undefined}
       role="group"
       aria-label={t('infiniteCanvas.generator.label')}
       style={placement

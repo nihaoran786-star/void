@@ -2087,6 +2087,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     // jsdom) fall back to the stylesheet's card box rather than to a
     // board-anchored panel: the generator must always read as the card's own
     // input, never as a global composer.
+    const measured = Boolean(node.measured?.width && node.measured?.height);
     const width = node.measured?.width || CARD_FALLBACK_WIDTH;
     const height = node.measured?.height || CARD_FALLBACK_HEIGHT;
     const { x, y, zoom } = viewportTransform;
@@ -2103,6 +2104,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       left: cardLeft + cardWidth / 2 - generatorWidth / 2,
       top: (node.position.y + height) * zoom + y + GENERATOR_CARD_GAP,
       width: generatorWidth,
+      measured,
     };
   }, [flowNodes, generatorTarget, viewportTransform]);
 

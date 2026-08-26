@@ -1064,6 +1064,15 @@
 // never renders before it has one, so there is no board-anchored fallback to
 // fall back to. Height stays content-driven — pinning both top and bottom is
 // what stretched the panel to the board's floor in the first pass.
+//
+// While the card is still unmeasured the surface is placed from the
+// stylesheet's card size and kept invisible: showing the guess and snapping to
+// the measured box one frame later is what read as a flicker when clicking
+// between cards.
+.infinite-canvas-generator:not([data-canvas-generator-measured='true']) {
+  visibility: hidden;
+}
+
 .infinite-canvas-generator {
   position: absolute;
   z-index: 9;
@@ -1446,11 +1455,12 @@
   top: 16px;
   left: 16px;
   max-height: min(420px, 70vh);
-  padding: 12px;
-  border-radius: 16px;
+  padding: 10px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--canvas-surface-overlay) 86%, transparent);
   backdrop-filter: blur(14px);
-  gap: 10px;
+  gap: 8px;
+  font-size: 12px;
   transform: none;
 
   // Unplaced for one frame while the surface is measured; showing it at the
