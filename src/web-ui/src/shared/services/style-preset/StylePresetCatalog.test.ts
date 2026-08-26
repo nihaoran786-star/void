@@ -1,5 +1,13 @@
+import { existsSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { StylePresetCatalog, stylePresetCatalog } from './StylePresetCatalog';
+
+const webUiPublicDirectory = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../../public',
+);
 
 // Conversion conservation counts (K1-a exit gate): the converted data must
 // keep exactly the entry counts of the kunpeng sources. A change here means
@@ -81,6 +89,44 @@ describe('StylePresetCatalog', () => {
       expect(entry.content.length).toBeGreaterThan(0);
       expect(entry.origin.project).toBe('kunpeng');
       expect(entry.origin.license).toBe('MIT');
+    }
+  });
+
+  // P5 W5: the two style-library families ship re-encoded thumbnails under
+  // src/web-ui/public/style-presets/. The other two upstream families never had
+  // sample images, so their thumbnailRef must stay empty and the picker falls
+  // back to the deterministic swatch.
+  it('gives every cinematic and animation-2d preset a thumbnail file that really exists', () => {
+    for (const family of ['cinematic', 'animation-2d'] as const) {
+      const presets = catalog.listByFamily(family);
+      expect(presets.length).toBeGreaterThan(0);
+      for (const preset of presets) {
+        const thumbnailRef = preset.thumbnailRef;
+        expect(thumbnailRef, `${preset.presetId} has no thumbnailRef`).toBeTruthy();
+        expect(thumbnailRef).toMatch(
+          new RegExp(`^style-presets/${family}/[0-9a-f]{16}\\.webp$`),
+        );
+        const absolutePath = path.join(webUiPublicDirectory, thumbnailRef as string);
+        expect(existsSync(absolutePath), `${thumbnailRef} is missing on disk`).toBe(true);
+        expect(statSync(absolutePath).size).toBeLessThanOrEqual(48 * 1024);
+      }
+    }
+  });
+
+  it('maps each thumbnail file to exactly one preset', () => {
+    const refs = catalog
+      .list()
+      .map((preset) => preset.thumbnailRef)
+      .filter((ref): ref is string => Boolean(ref));
+    expect(refs).toHaveLength(EXPECTED_COUNTS.cinematic + EXPECTED_COUNTS['animation-2d']);
+    expect(new Set(refs).size).toBe(refs.length);
+  });
+
+  it('leaves midjourney and mg-motion presets without a thumbnail', () => {
+    for (const family of ['midjourney', 'mg-motion'] as const) {
+      for (const preset of catalog.listByFamily(family)) {
+        expect(preset.thumbnailRef).toBeUndefined();
+      }
     }
   });
 

@@ -40,7 +40,16 @@ export interface StylePreset {
   bestFor?: string;
   /** Engine hint such as 'midjourney'; advisory only, never a binding. */
   engineHint?: string;
-  /** Relative resource reference, loaded on demand. Empty in phase 1 (option A: thumbnails are not shipped). */
+  /**
+   * Relative resource reference under `src/web-ui/public/`, loaded on demand
+   * (`<img loading="lazy">`), never bundled and never resolved through the
+   * workspace media preview resolver.
+   *
+   * Populated for the `cinematic` and `animation-2d` families in P5 slice W5
+   * (`style-presets/<family>/<hash>.webp`, 320px long edge, WebP, <= 48 KiB).
+   * Always absent for `midjourney` and `mg-motion`: upstream ships no sample
+   * images for those, so they render the deterministic swatch fallback.
+   */
   thumbnailRef?: string;
   origin: StylePresetOrigin;
 }

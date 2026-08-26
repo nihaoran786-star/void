@@ -18,10 +18,15 @@ and the 2026-08-22 infinite-canvas phase-1 plan (§3).
   - Style thumbnails (all 161 images) from `aigc-memory/style-library/`
     (`live-action/` 67 + `2d-animation/` 94), re-encoded offline to
     long-edge 320px WebP (quality ~72, EXIF stripped, ≤48 KB each) and stored as
-    `src/web-ui/public/style-presets/<family>/<presetId>.webp`; the
-    corresponding `thumbnailRef` fields in `cinematicStyles.ts` and
-    `animation2dStyles.ts` are populated. Original filenames (CJK / spaces) were
-    not preserved — files are named by our own `presetId`. See the
+    `src/web-ui/public/style-presets/<family>/<hash>.webp`, where `<hash>` is the
+    first 16 hex characters of `sha256(presetId)` — our own `presetId` values
+    still contain the upstream CJK titles, so they cannot be used as filenames
+    directly. The corresponding `thumbnailRef` fields in `cinematicStyles.ts` and
+    `animation2dStyles.ts` are populated (161 of 161). Actual imported size:
+    **161 files, 2,126,328 bytes (2.03 MiB)** — `cinematic/` 67 files,
+    `animation-2d/` 94 files, down from 296 MB of upstream originals. Enforced by
+    `scripts/check-style-thumbnail-budget.mjs` (≤48 KiB per file, ≤6 MiB total).
+    Original filenames (CJK / spaces) were not preserved. See the
     **Style thumbnails: licence status** note below.
   - Midjourney style presets (60 api-tested + 24 director-calibrated = 84) from
     `src/lib/midjourney/testedStyles.json` and `src/lib/midjourney/styles.ts`,
@@ -59,7 +64,7 @@ style thumbnails listed above.
   (Genshin Impact), 千与千寻 (Spirited Away), 双城之战 (Arcane), JOJO的奇妙冒险
   (JoJo's Bizarre Adventure), 名侦探柯南 (Detective Conan), LEGO, Minecraft,
   GTA, 权力的游戏 (Game of Thrones), and named Wes Anderson films; the image
-  content follows those works. Renaming the files to `presetId` on import
+  content follows those works. Renaming the files to a `presetId` hash on import
   changes our file tree, **not** the content of the images.
 - **The MIT licence does not, and cannot, cover the third-party rights in what
   these images depict.** MIT covers kunpeng's own code and data; it conveys no

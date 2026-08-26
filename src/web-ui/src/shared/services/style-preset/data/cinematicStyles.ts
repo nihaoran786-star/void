@@ -12,6 +12,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-wes-anderson-布达佩斯大饭店",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/4e4e3841281ea899.webp",
     family: "cinematic",
     name: "对称粉彩童话",
     category: "live-action",
@@ -24,6 +25,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-权力的游戏史诗",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/27f72f25cb6d953b.webp",
     family: "cinematic",
     name: "中世纪史诗战争",
     category: "live-action",
@@ -36,6 +38,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-贾樟柯纪实主义",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/b4ddb8605d4211d9.webp",
     family: "cinematic",
     name: "县城纪实美学",
     category: "live-action",
@@ -48,6 +51,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-天堂电影院怀旧",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/e096854e39670ef7.webp",
     family: "cinematic",
     name: "胶片怀旧影院",
     category: "live-action",
@@ -60,6 +64,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-小武",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/5beeebc571f5e3d4.webp",
     family: "cinematic",
     name: "市井手持纪实",
     category: "live-action",
@@ -72,6 +77,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-阿黛尔的生活蓝色忧郁",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/5f5ffc9027d3848e.webp",
     family: "cinematic",
     name: "蓝色情绪青春",
     category: "live-action",
@@ -84,6 +90,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-大醉侠胡金铨",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/896e74f20ed74f3c.webp",
     family: "cinematic",
     name: "经典武侠胶片",
     category: "live-action",
@@ -96,6 +103,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-甄嬛传深宫",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/0cf3e7472de30be6.webp",
     family: "cinematic",
     name: "清宫深宅",
     category: "live-action",
@@ -108,6 +116,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-苍兰诀仙恋",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/41bc8e402cdff2e7.webp",
     family: "cinematic",
     name: "东方仙恋",
     category: "live-action",
@@ -120,6 +129,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-卧虎藏龙竹海",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/43784ea2c59ffcd6.webp",
     family: "cinematic",
     name: "竹海武侠",
     category: "live-action",
@@ -132,6 +142,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-山海经异世",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/565cd4379dc065e6.webp",
     family: "cinematic",
     name: "山海经异世",
     category: "live-action",
@@ -144,6 +155,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-路边野餐梦境",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/69d5b72d0b8fd983.webp",
     family: "cinematic",
     name: "诗意长镜头梦境",
     category: "live-action",
@@ -156,6 +168,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-妖猫传大唐夜宴",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/547641249e8db22f.webp",
     family: "cinematic",
     name: "大唐夜宴华彩",
     category: "live-action",
@@ -168,6 +181,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-影水墨宫廷",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/da052c084db3f20c.webp",
     family: "cinematic",
     name: "水墨宫廷",
     category: "live-action",
@@ -180,6 +194,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-重庆森林日夜",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/65fcd15d615fbde6.webp",
     family: "cinematic",
     name: "港式都市日夜",
     category: "live-action",
@@ -192,6 +207,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-堕落天使夜港",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/a47e4d2f9d1f3aa1.webp",
     family: "cinematic",
     name: "夜港霓虹情绪",
     category: "live-action",
@@ -204,6 +220,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-无间道天台",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/307ca5a2f03ae113.webp",
     family: "cinematic",
     name: "警匪天台",
     category: "live-action",
@@ -216,6 +233,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-花样年华暗香",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/dfcca7200c879b59.webp",
     family: "cinematic",
     name: "复古旗袍暗香",
     category: "live-action",
@@ -228,6 +246,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-穆赫兰道梦境",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/20bcd4bd0c92b9b8.webp",
     family: "cinematic",
     name: "超现实梦魇",
     category: "live-action",
@@ -240,6 +259,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-隐秘的角落夏日",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/4a4b96cc666ecbbc.webp",
     family: "cinematic",
     name: "悬疑夏日小镇",
     category: "live-action",
@@ -252,6 +272,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-沉默的真相冷绿",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/8519957afcbb88bc.webp",
     family: "cinematic",
     name: "冷绿悬疑纪实",
     category: "live-action",
@@ -264,6 +285,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-罪恶之城高反差",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/33d8314e0fb97e3c.webp",
     family: "cinematic",
     name: "黑白高反差都市",
     category: "live-action",
@@ -276,6 +298,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-消失的爱人冷调",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/cd3ff70aa03b9cbc.webp",
     family: "cinematic",
     name: "冷调悬疑人像",
     category: "live-action",
@@ -288,6 +311,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-罗马黑白诗",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/79b250c452f55974.webp",
     family: "cinematic",
     name: "黑白欧洲街头",
     category: "live-action",
@@ -300,6 +324,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-真探路易斯安那",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/d6819afc56d903a0.webp",
     family: "cinematic",
     name: "南方哥特刑侦",
     category: "live-action",
@@ -312,6 +337,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-闪灵雪原",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/9c3315164e099d57.webp",
     family: "cinematic",
     name: "雪原孤旅馆",
     category: "live-action",
@@ -324,6 +350,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-昆池岩精神病院",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/148e6162b6a3b6f0.webp",
     family: "cinematic",
     name: "废弃病院恐怖",
     category: "live-action",
@@ -336,6 +363,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-中邪乡村夜",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/77d4043a4e9540be.webp",
     family: "cinematic",
     name: "乡村民俗恐怖夜",
     category: "live-action",
@@ -348,6 +376,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-鬼影实录夜视",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/d5a0e432c3801e85.webp",
     family: "cinematic",
     name: "夜视伪纪录",
     category: "live-action",
@@ -360,6 +389,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-午夜凶铃暗室",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/73bb874bde0d3720.webp",
     family: "cinematic",
     name: "暗室日式恐怖",
     category: "live-action",
@@ -372,6 +402,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-招魂安娜贝尔",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/4114f1b50452bdbd.webp",
     family: "cinematic",
     name: "古宅邪物恐怖",
     category: "live-action",
@@ -384,6 +415,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-灵动监控视角",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/1f0758b6834c050e.webp",
     family: "cinematic",
     name: "监控视角惊悚",
     category: "live-action",
@@ -396,6 +428,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-招魂老宅",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/10dbf8f1d566cfe5.webp",
     family: "cinematic",
     name: "美式老宅恐怖",
     category: "live-action",
@@ -408,6 +441,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-异形工业暗调",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/6b1590baf8cce624.webp",
     family: "cinematic",
     name: "太空工业暗调",
     category: "live-action",
@@ -420,6 +454,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-潘神的迷宫哥特",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/3a1e8dfe28e01066.webp",
     family: "cinematic",
     name: "暗黑童话哥特",
     category: "live-action",
@@ -432,6 +467,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-让子弹飞广角",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/e178c042a35f46e1.webp",
     family: "cinematic",
     name: "荒诞西部广角",
     category: "live-action",
@@ -444,6 +480,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-辐射原子时代",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/21c23cfaefcd6b5c.webp",
     family: "cinematic",
     name: "废土原子朋克",
     category: "live-action",
@@ -456,6 +493,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-天空之城黄铜",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/8a49897e2b38fb51.webp",
     family: "cinematic",
     name: "蒸汽黄铜幻想",
     category: "live-action",
@@ -468,6 +506,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-疯狂的麦克斯荒漠",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/ef4af52aa81f00f4.webp",
     family: "cinematic",
     name: "荒漠狂飙末日",
     category: "live-action",
@@ -480,6 +519,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-银翼杀手2049",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/4437a3b0cc531bee.webp",
     family: "cinematic",
     name: "赛博朋克雨夜",
     category: "live-action",
@@ -492,6 +532,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-狂暴之路末日",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/db84d2b480825610.webp",
     family: "cinematic",
     name: "末日公路追逐",
     category: "live-action",
@@ -504,6 +545,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-星际穿越深空",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/5d2b2e7ad579d30b.webp",
     family: "cinematic",
     name: "深空科幻写实",
     category: "live-action",
@@ -516,6 +558,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-火星救援科研",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/e6c269b090651942.webp",
     family: "cinematic",
     name: "火星科研纪实",
     category: "live-action",
@@ -528,6 +571,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-舌尖上的中国烟火",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/fa494ccba49b2b80.webp",
     family: "cinematic",
     name: "美食烟火纪实",
     category: "live-action",
@@ -540,6 +584,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-马格南新闻摄影",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/5e3d633637f3d555.webp",
     family: "cinematic",
     name: "经典纪实新闻摄影",
     category: "live-action",
@@ -552,6 +597,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-森山大道街头",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/267128252f08cba8.webp",
     family: "cinematic",
     name: "高反差黑白街头",
     category: "live-action",
@@ -564,6 +610,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-kinfolk静物生活",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/efd3ce446919b22b.webp",
     family: "cinematic",
     name: "北欧静物生活",
     category: "live-action",
@@ -576,6 +623,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-vogue时尚封面",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/b5fed1857ea2cc13.webp",
     family: "cinematic",
     name: "高级时装封面",
     category: "live-action",
@@ -588,6 +636,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-鬼怪枫叶柔光",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/2bf1043489ff9268.webp",
     family: "cinematic",
     name: "韩剧枫叶柔光",
     category: "live-action",
@@ -600,6 +649,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-apple极简广告",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/c80420d197825b57.webp",
     family: "cinematic",
     name: "极简科技广告",
     category: "live-action",
@@ -612,6 +662,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-美国往事暖棕",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/dd86320c058be55b.webp",
     family: "cinematic",
     name: "怀旧黑帮暖棕",
     category: "live-action",
@@ -624,6 +675,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-了不起的盖茨比artdeco",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/044c9f639ab746fa.webp",
     family: "cinematic",
     name: "爵士年代装饰艺术",
     category: "live-action",
@@ -636,6 +688,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-海上花暗红",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/3497d08723aa7222.webp",
     family: "cinematic",
     name: "民国暗红室内",
     category: "live-action",
@@ -648,6 +701,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-色戒民国摄影",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/16adbe6e0b5a7997.webp",
     family: "cinematic",
     name: "民国谍战摄影",
     category: "live-action",
@@ -660,6 +714,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-天使爱美丽暖绿",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/b7b6cdc65eae4868.webp",
     family: "cinematic",
     name: "法式暖绿童话",
     category: "live-action",
@@ -672,6 +727,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-处子之山冷调",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/c61b49414b486445.webp",
     family: "cinematic",
     name: "北欧冷调日常",
     category: "live-action",
@@ -684,6 +740,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-水形物语暗绿",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/0c4a4c6c6a90e166.webp",
     family: "cinematic",
     name: "暗绿水下奇幻",
     category: "live-action",
@@ -696,6 +753,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-2001太空漫游光流",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/49ec435dfe34f288.webp",
     family: "cinematic",
     name: "太空光流科幻",
     category: "live-action",
@@ -708,6 +766,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-大鱼",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/71c65751e2020fac.webp",
     family: "cinematic",
     name: "奇幻温情寓言",
     category: "live-action",
@@ -720,6 +779,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-1984",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/4259f3bcb04fad8e.webp",
     family: "cinematic",
     name: "反乌托邦灰调",
     category: "live-action",
@@ -732,6 +792,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-情书雪地",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/a8d5b076c80dfbb8.webp",
     family: "cinematic",
     name: "雪地纯爱日系",
     category: "live-action",
@@ -744,6 +805,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-lemon米津玄师",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/490b217c01dc3d5a.webp",
     family: "cinematic",
     name: "日系清新MV",
     category: "live-action",
@@ -756,6 +818,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-黄金三镖客荒漠",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/30c5d10ee6b82739.webp",
     family: "cinematic",
     name: "西部镖客荒漠",
     category: "live-action",
@@ -768,6 +831,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-拯救大兵瑞恩诺曼底",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/91db836ad6e25617.webp",
     family: "cinematic",
     name: "二战登陆写实",
     category: "live-action",
@@ -780,6 +844,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-天国王朝十字军",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/bbbed1cb932183b3.webp",
     family: "cinematic",
     name: "中世纪远征史诗",
     category: "live-action",
@@ -792,6 +857,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-北欧人冷雪",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/5610b2790977ce97.webp",
     family: "cinematic",
     name: "维京冷雪史诗",
     category: "live-action",
@@ -804,6 +870,7 @@ export const CINEMATIC_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "cinematic:live-action-怪奇物语紫霓虹",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/cinematic/26fde5f2272527a2.webp",
     family: "cinematic",
     name: "复古紫霓虹悬疑",
     category: "live-action",

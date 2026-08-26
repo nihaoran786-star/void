@@ -12,6 +12,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-原神",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/a64e757e04863311.webp",
     family: "animation-2d",
     name: "幻想冒险二次元",
     category: "2d-animation",
@@ -24,6 +25,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-时光代理人",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/430396ef7a07eb49.webp",
     family: "animation-2d",
     name: "都市时光幻想",
     category: "2d-animation",
@@ -36,6 +38,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-大闹天宫",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/c6a33cc623770c3e.webp",
     family: "animation-2d",
     name: "国风神话动画",
     category: "2d-animation",
@@ -48,6 +51,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-探险活宝",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/dcc78e7cf525c417.webp",
     family: "animation-2d",
     name: "美式怪趣冒险",
     category: "2d-animation",
@@ -60,6 +64,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-狐妖小红娘",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/a696738ed5663737.webp",
     family: "animation-2d",
     name: "国风妖恋二次元",
     category: "2d-animation",
@@ -72,6 +77,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-红辣椒",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/b865abd77cb1e4b8.webp",
     family: "animation-2d",
     name: "梦境心理动画",
     category: "2d-animation",
@@ -84,6 +90,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-燕云十六声",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/cbd2dfb4b73de865.webp",
     family: "animation-2d",
     name: "武侠开放世界",
     category: "2d-animation",
@@ -96,6 +103,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-和平精英",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/4b851bb87c1bc73e.webp",
     family: "animation-2d",
     name: "战术竞技游戏风",
     category: "2d-animation",
@@ -108,6 +116,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-光与夜之恋",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/0fefa6bb8cae77b6.webp",
     family: "animation-2d",
     name: "都市恋爱乙女",
     category: "2d-animation",
@@ -120,6 +129,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-k-pop-mv",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/d8a128b9fb2e0e83.webp",
     family: "animation-2d",
     name: "K-pop MV",
     category: "2d-animation",
@@ -132,6 +142,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-stickman",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/162e9fbb6f13b5b4.webp",
     family: "animation-2d",
     name: "火柴人简笔",
     category: "2d-animation",
@@ -144,6 +155,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-崩坏3",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/06bc681d26235f37.webp",
     family: "animation-2d",
     name: "科幻机甲二次元",
     category: "2d-animation",
@@ -156,6 +168,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-low-poly",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/89a6f27792688411.webp",
     family: "animation-2d",
     name: "Low Poly",
     category: "2d-animation",
@@ -168,6 +181,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-blizzard-cg",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/454ebd86af7977d5.webp",
     family: "animation-2d",
     name: "美式史诗游戏CG",
     category: "2d-animation",
@@ -180,6 +194,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-无敌少侠",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1ae476fc1bc9f102.webp",
     family: "animation-2d",
     name: "美式超级英雄动画",
     category: "2d-animation",
@@ -192,6 +207,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-愤怒的小鸟",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1db04e94ccb9c21a.webp",
     family: "animation-2d",
     name: "圆胖卡通小鸟",
     category: "2d-animation",
@@ -204,6 +220,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-双城之战",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/8a94987991a40794.webp",
     family: "animation-2d",
     name: "蒸汽朋克双城",
     category: "2d-animation",
@@ -216,6 +233,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-咱们裸熊",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/d4e80322a9ae7b4e.webp",
     family: "animation-2d",
     name: "萌系熊日常",
     category: "2d-animation",
@@ -228,6 +246,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-gta",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/0de5b0952fe9e3bb.webp",
     family: "animation-2d",
     name: "美式都市犯罪游戏风",
     category: "2d-animation",
@@ -240,6 +259,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-爱死机jibaro",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/90789a33f52928ce.webp",
     family: "animation-2d",
     name: "暗黑写实CG短片",
     category: "2d-animation",
@@ -252,6 +272,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-minecraft",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/46c0aec70cd7c024.webp",
     family: "animation-2d",
     name: "方块沙盒像素",
     category: "2d-animation",
@@ -264,6 +285,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-复古颗粒",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/ffce3b35631f76b0.webp",
     family: "animation-2d",
     name: "复古颗粒",
     category: "2d-animation",
@@ -276,6 +298,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-荒野大镖客",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/3b53f10042d75817.webp",
     family: "animation-2d",
     name: "西部荒野游戏风",
     category: "2d-animation",
@@ -288,6 +311,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-星露谷物语",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/a2d0eac2edb59501.webp",
     family: "animation-2d",
     name: "田园像素农场",
     category: "2d-animation",
@@ -300,6 +324,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-超级无敌掌门狗",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/74aa1bfeab80b21a.webp",
     family: "animation-2d",
     name: "黏土定格动画",
     category: "2d-animation",
@@ -312,6 +337,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-鬼妈妈",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/07e36000757d0270.webp",
     family: "animation-2d",
     name: "哥特定格童话",
     category: "2d-animation",
@@ -324,6 +350,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-美少女战士",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1cb1300707136d7c.webp",
     family: "animation-2d",
     name: "复古魔法少女",
     category: "2d-animation",
@@ -336,6 +363,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-中国剪纸",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/bf372dd6374a87f6.webp",
     family: "animation-2d",
     name: "中国剪纸",
     category: "2d-animation",
@@ -348,6 +376,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-微微一笑很倾城",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/678b39a481d9b01e.webp",
     family: "animation-2d",
     name: "都市甜宠剧风",
     category: "2d-animation",
@@ -360,6 +389,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-皮克斯",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/4fc9617d4ca8ae62.webp",
     family: "animation-2d",
     name: "好莱坞三维动画",
     category: "2d-animation",
@@ -372,6 +402,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-jojo的奇妙冒险",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/cb36603de8268640.webp",
     family: "animation-2d",
     name: "硬派姿势漫画",
     category: "2d-animation",
@@ -384,6 +415,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-动物森友会",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/0dbf1ebdddc87e50.webp",
     family: "animation-2d",
     name: "治愈动物村庄",
     category: "2d-animation",
@@ -396,6 +428,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-电锯人",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/7212defdc4a68ee2.webp",
     family: "animation-2d",
     name: "暗黑动作少年漫",
     category: "2d-animation",
@@ -408,6 +441,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-夏目友人帐",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1e39f7ac5d765dc2.webp",
     family: "animation-2d",
     name: "治愈妖怪日常",
     category: "2d-animation",
@@ -420,6 +454,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-千与千寻",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/8f130d54929eacb7.webp",
     family: "animation-2d",
     name: "日系手绘奇幻",
     category: "2d-animation",
@@ -432,6 +467,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-泰迪熊",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/fb6dc431e9366ffb.webp",
     family: "animation-2d",
     name: "毛绒玩具实拍风",
     category: "2d-animation",
@@ -444,6 +480,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-女神降临",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/96d9399c928c617f.webp",
     family: "animation-2d",
     name: "韩系漫改恋爱",
     category: "2d-animation",
@@ -456,6 +493,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-恶搞之家",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/2b3047298d6875e7.webp",
     family: "animation-2d",
     name: "美式讽刺家庭动画",
     category: "2d-animation",
@@ -468,6 +506,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-怪诞线条",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/931fceb9be1e3fca.webp",
     family: "animation-2d",
     name: "怪诞线条",
     category: "2d-animation",
@@ -480,6 +519,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-lego",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/afec244dd3231f62.webp",
     family: "animation-2d",
     name: "积木定格风",
     category: "2d-animation",
@@ -492,6 +532,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-魔道祖师",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/3589e53373beca6e.webp",
     family: "animation-2d",
     name: "国风仙侠",
     category: "2d-animation",
@@ -504,6 +545,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-辛普森一家",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/3a73e08659f2b536.webp",
     family: "animation-2d",
     name: "美式经典家庭动画",
     category: "2d-animation",
@@ -516,6 +558,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-蜡笔小新",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/4555dd1ec2f3cd6e.webp",
     family: "animation-2d",
     name: "日式童趣简笔",
     category: "2d-animation",
@@ -528,6 +571,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-山水情",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/91456614105f952e.webp",
     family: "animation-2d",
     name: "水墨山水",
     category: "2d-animation",
@@ -540,6 +584,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-怪萌墨线",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/9c355ba404b7ce64.webp",
     family: "animation-2d",
     name: "怪萌墨线",
     category: "2d-animation",
@@ -552,6 +597,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-伊藤润二",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/79428e432b119675.webp",
     family: "animation-2d",
     name: "日式恐怖漫画",
     category: "2d-animation",
@@ -564,6 +610,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-油画",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1f22c463768f49cc.webp",
     family: "animation-2d",
     name: "油画",
     category: "2d-animation",
@@ -576,6 +623,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-火影忍者",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/60cd29100dbb554e.webp",
     family: "animation-2d",
     name: "忍者热血动漫",
     category: "2d-animation",
@@ -588,6 +636,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-海贼王",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/c6347151fb76182b.webp",
     family: "animation-2d",
     name: "航海冒险动漫",
     category: "2d-animation",
@@ -600,6 +649,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-温馨彩绘",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/775622f1f77e4dbf.webp",
     family: "animation-2d",
     name: "温馨彩绘",
     category: "2d-animation",
@@ -612,6 +662,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-潮流插画",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/4b6555082ee90a94.webp",
     family: "animation-2d",
     name: "潮流插画",
     category: "2d-animation",
@@ -624,6 +675,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-rusty-lake",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/cc6654fe5507e032.webp",
     family: "animation-2d",
     name: "暗黑解谜手绘",
     category: "2d-animation",
@@ -636,6 +688,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-低饱和度平涂",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/b809b6d97980b514.webp",
     family: "animation-2d",
     name: "低饱和度平涂",
     category: "2d-animation",
@@ -648,6 +701,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-game-boy",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/b3526d95e62ebaab.webp",
     family: "animation-2d",
     name: "复古掌机像素",
     category: "2d-animation",
@@ -660,6 +714,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-蚀刻版画",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/9419e1e041b3d570.webp",
     family: "animation-2d",
     name: "蚀刻版画",
     category: "2d-animation",
@@ -672,6 +727,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-太空堡垒",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/853829efbcf24eb1.webp",
     family: "animation-2d",
     name: "复古机战动画",
     category: "2d-animation",
@@ -684,6 +740,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-名侦探柯南",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/e3b8269398246174.webp",
     family: "animation-2d",
     name: "侦探悬疑动漫",
     category: "2d-animation",
@@ -696,6 +753,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-马卡龙",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/4e55276be0a371ca.webp",
     family: "animation-2d",
     name: "马卡龙",
     category: "2d-animation",
@@ -708,6 +766,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-q版草图",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/402487080a595bff.webp",
     family: "animation-2d",
     name: "Q版草图",
     category: "2d-animation",
@@ -720,6 +779,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-新海诚",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/ca6c301d6d54c652.webp",
     family: "animation-2d",
     name: "日系唯美光影",
     category: "2d-animation",
@@ -732,6 +792,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-柔光平涂",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/ec666c03d27c9c2c.webp",
     family: "animation-2d",
     name: "柔光平涂",
     category: "2d-animation",
@@ -744,6 +805,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-美式漫画",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/92f8b3fbcade939a.webp",
     family: "animation-2d",
     name: "美式漫画",
     category: "2d-animation",
@@ -756,6 +818,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-琉璃质感",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/40de970c6b5dccde.webp",
     family: "animation-2d",
     name: "琉璃质感",
     category: "2d-animation",
@@ -768,6 +831,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-驯龙高手",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/80dc0c2160b5bd8d.webp",
     family: "animation-2d",
     name: "维京龙族冒险",
     category: "2d-animation",
@@ -780,6 +844,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-像素艺术",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/b3eb2c5246ac2040.webp",
     family: "animation-2d",
     name: "像素艺术",
     category: "2d-animation",
@@ -792,6 +857,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-复古彩光",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/81fde05baba31e02.webp",
     family: "animation-2d",
     name: "复古彩光",
     category: "2d-animation",
@@ -804,6 +870,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-哥特都市",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/dcd08054b977d4de.webp",
     family: "animation-2d",
     name: "哥特都市",
     category: "2d-animation",
@@ -816,6 +883,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-朦胧暖色速写",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/45364f1ffe8018bc.webp",
     family: "animation-2d",
     name: "朦胧暖色速写",
     category: "2d-animation",
@@ -828,6 +896,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-粗边赛璐璐",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/31adf3b47b707351.webp",
     family: "animation-2d",
     name: "粗边赛璐璐",
     category: "2d-animation",
@@ -840,6 +909,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-扁平涂鸦",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/2432b8456ad730dd.webp",
     family: "animation-2d",
     name: "扁平涂鸦",
     category: "2d-animation",
@@ -852,6 +922,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-怀旧胶片",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1e5dca0372030d86.webp",
     family: "animation-2d",
     name: "怀旧胶片",
     category: "2d-animation",
@@ -864,6 +935,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-迷幻复古",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/29f972d2cce2a210.webp",
     family: "animation-2d",
     name: "迷幻复古",
     category: "2d-animation",
@@ -876,6 +948,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-光栅像素",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/3cfe847a3700ffc6.webp",
     family: "animation-2d",
     name: "光栅像素",
     category: "2d-animation",
@@ -888,6 +961,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-冷静线条",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/2750d97e141bf929.webp",
     family: "animation-2d",
     name: "冷静线条",
     category: "2d-animation",
@@ -900,6 +974,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-复杂线条",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/528efe919be7c565.webp",
     family: "animation-2d",
     name: "复杂线条",
     category: "2d-animation",
@@ -912,6 +987,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-通透厚涂",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/f87b7157ddc455da.webp",
     family: "animation-2d",
     name: "通透厚涂",
     category: "2d-animation",
@@ -924,6 +1000,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-哥特怪诞",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/ab11557b8972a2e3.webp",
     family: "animation-2d",
     name: "哥特怪诞",
     category: "2d-animation",
@@ -936,6 +1013,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-童趣蜡笔",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/db4de1f12753e984.webp",
     family: "animation-2d",
     name: "童趣蜡笔",
     category: "2d-animation",
@@ -948,6 +1026,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-可爱抽象",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/0ff0b2ab6617c8ee.webp",
     family: "animation-2d",
     name: "可爱抽象",
     category: "2d-animation",
@@ -960,6 +1039,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-莫兰迪",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/be06be809b1a2a45.webp",
     family: "animation-2d",
     name: "莫兰迪",
     category: "2d-animation",
@@ -972,6 +1052,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-复古赛璐璐",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/fa63e7157743f520.webp",
     family: "animation-2d",
     name: "复古赛璐璐",
     category: "2d-animation",
@@ -984,6 +1065,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-粗犷墨线",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/e07740de74ab3c1b.webp",
     family: "animation-2d",
     name: "粗犷墨线",
     category: "2d-animation",
@@ -996,6 +1078,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-通透光影",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/c189d7ae1018fee6.webp",
     family: "animation-2d",
     name: "通透光影",
     category: "2d-animation",
@@ -1008,6 +1091,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-美式粗线",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/09c5e6a21eed2747.webp",
     family: "animation-2d",
     name: "美式粗线",
     category: "2d-animation",
@@ -1020,6 +1104,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-哥特霓虹",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/20a481c82bbfd387.webp",
     family: "animation-2d",
     name: "哥特霓虹",
     category: "2d-animation",
@@ -1032,6 +1117,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-蒸汽波",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/4a9380839c8c918c.webp",
     family: "animation-2d",
     name: "蒸汽波",
     category: "2d-animation",
@@ -1044,6 +1130,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-nana",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/261b216a8ef6faba.webp",
     family: "animation-2d",
     name: "朋克摇滚少女漫",
     category: "2d-animation",
@@ -1056,6 +1143,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-文艺复兴",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/084aee44b8596315.webp",
     family: "animation-2d",
     name: "文艺复兴",
     category: "2d-animation",
@@ -1068,6 +1156,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-矢量扁平",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1506062bc661c852.webp",
     family: "animation-2d",
     name: "矢量扁平",
     category: "2d-animation",
@@ -1080,6 +1169,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-质朴蜡笔",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/906cf6ae0d331ee8.webp",
     family: "animation-2d",
     name: "质朴蜡笔",
     category: "2d-animation",
@@ -1092,6 +1182,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-安迪沃霍尔",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/7f6135b0f366dc37.webp",
     family: "animation-2d",
     name: "波普丝网印",
     category: "2d-animation",
@@ -1104,6 +1195,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-彩铅素描",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/0053358ce0ee3dc0.webp",
     family: "animation-2d",
     name: "彩铅素描",
     category: "2d-animation",
@@ -1116,6 +1208,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-天书奇谭",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/1d66fc5a7a37863e.webp",
     family: "animation-2d",
     name: "国风志怪动画",
     category: "2d-animation",
@@ -1128,6 +1221,7 @@ export const ANIMATION_2D_STYLE_PRESETS: readonly StylePreset[] = [
   {
     presetId: "animation-2d:2d-animation-经典美式动画",
     schemaVersion: '1',
+    thumbnailRef: "style-presets/animation-2d/532fca444d48dfe6.webp",
     family: "animation-2d",
     name: "经典美式动画",
     category: "2d-animation",
