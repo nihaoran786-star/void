@@ -74,9 +74,36 @@ interface StylePreset {
 
 补充条款：
 
-- **缩略图（业主决定：方案 A）**：kunpeng 的 161 张风格缩略图不搬入仓库、
-  不进 bundle，`thumbnailRef` 本期一律留空；风格选择器用文字卡片。未来若改
-  方案 B（public 目录按需加载）需另行批准，schema 不变。
+- **缩略图（P5 修订；业主 2026-08-26 决定：方案 B'，取代第一期的方案 A）**：
+  第一期"不搬入仓库、`thumbnailRef` 一律留空"的条款自 P5 起废止。
+  `StylePreset` **schema 一字不改**，只填字段。实际做法：
+  - **搬入张数**：kunpeng `aigc-memory/style-library/` 的全部 **161 张**
+    （`cinematic` 67 + `animation-2d` 94）。
+  - **再编码规格（硬性）**：长边 **320px**、**WebP**、质量约 72、去除 EXIF；
+    单张 ≤ **48 KB**，161 张合计 ≤ **6 MB**。再编码脚本在仓库外一次性运行后
+    丢弃（沿用第一期"转换脚本不入库"的做法），data 文件头保留来源注释。
+  - **落点**：`src/web-ui/public/style-presets/<family>/<presetId>.webp`。
+    文件名一律用 `presetId`，不保留来源的 CJK / 空格文件名。`public/` 由 Vite
+    原样拷进 `dist/`，**不参与 JS/CSS 打包**，因此不计入
+    `scripts/web-performance-budget.json` 的 JS / CSS 预算（安装包体积增加约
+    4 MB 是真实代价，另行记在计划风险条目里）。
+  - **`thumbnailRef` 填充规则**：`cinematic` 与 `animation-2d` 每一条都填
+    `style-presets/<family>/<presetId>.webp`（相对引用）；`midjourney` 与
+    `mg-motion` 两个 family 来源本就没有小样图，`thumbnailRef` **恒为空**。
+  - **无缩略图 family 的降级呈现**：由 `presetId` 哈希**确定性**推导出一个柔和
+    色块（同一 presetId 永远同一颜色），色块中央为风格名前两字、下方为完整
+    名称；色值走 `--canvas-*` token，明暗两套主题各自可读。缩略图**加载失败
+    也走同一降级**（`onError` → 色块），不得出现浏览器破图图标。
+    禁止"有图显示图、无图显示空白框"的半残呈现——两种形态高度与圆角一致。
+  - **体积上限护栏**：新增 `scripts/check-style-thumbnail-budget.mjs`
+    并挂进 `check:repo-hygiene`，断言
+    `src/web-ui/public/style-presets/` 总字节 ≤ 6 MB 且单文件 ≤ 48 KB。
+  - **许可与归属**：见仓库根 `THIRD-PARTY-NOTICES.md`。业主在**知情**
+    "这批缩略图的文件名与画面取材于原神 / 千与千寻 / JOJO / 权力的游戏 /
+    LEGO / GTA 等第三方 IP，上游 kunpeng 自身的第三方声明对该资产只字未提，
+    且 MIT 只覆盖代码与数据、覆盖不了图中的第三方权利"之后，于
+    **2026-08-26 明确选择全搬 161 张**。该事实必须在
+    `THIRD-PARTY-NOTICES.md` 如实记录，不得淡化。
 - **MotionRecipe**：kunpeng MG 动画的五维枚举结构照抄进契约，本期无运行时
   消费者，仅作为 `mg-motion` family 的未来扩展锚点：
 
@@ -107,8 +134,9 @@ interface MgMotionRecipe {
 ```ts
 type ImageToolId = 'upscale' | 'expand' | 'inpaint' | 'erase' | 'matting';
 
-/** K2 新增：画布图像操作全集 = 五件套 + 'generate'（第六种操作）。 */
-type CanvasImageOperationKind = ImageToolId | 'generate';
+/** K2 新增：画布图像操作全集 = 五件套 + 'generate'（第六种操作）。
+ *  P5 新增：`'crop'`（本地派生，不提交媒体任务，见 §3.8）。 */
+type CanvasImageOperationKind = ImageToolId | 'generate' | 'crop';
 
 interface ImageToolDefinition {
   toolId: ImageToolId;
@@ -396,6 +424,167 @@ GenerateImage 接受该字段；**自 P3 起 GenerateVideo 同样接受该字段
 - 跨 workspace/文档校验沿用 K2：Rust 侧校验文档文件属于当前会话
   workspace 且内容 workspaceId/documentId 与入参一致；OpsBridge 再做
   workspace/document 不匹配拒收；remote workspace 继续 fail-closed。
+
+### 3.7 第五期加法（P5）：蒙版合成参考（`maskedReference`）
+
+**上游事实（逐文件核实）**：本仓库的出图通道**没有 mask 参数**——
+`GenerateImage` 的 schema 属性里既无 `mask` 也无 `strength`，参考实现
+kunpeng 全仓库同样没有任何 mask 字段。因此"局部重绘 / 擦除"的**唯一合法
+实现**是"把红色标记烧进原图，合成图当参考图提交"，不是蒙版接口。
+
+```ts
+/** P5：蒙版路径的合成参考。红标图是中间产物，不是媒体真相。 */
+interface InfiniteCanvasMaskedReference {
+  /** 工作区相对路径，恒在 .void/infinite-canvas/scratch/ 下 */
+  scratchRelativePath: string;
+  /** 与派生卡共用的幂等键；同 operationId 覆写同一文件 */
+  operationId: string;
+  sourceNodeId: string;
+  toolId: 'inpaint' | 'erase';
+}
+```
+
+条款：
+
+- **落点与命名**：红标合成图恒写入
+  `.void/infinite-canvas/scratch/<operationId>-mark.png`。该目录**不在**
+  `WorkspaceMediaLibrary` 的四个扫描根（`media/generated`、`media/input`、
+  `.void/media/generated`、`.void/media/uploads`）之内，因此素材库发现不了它；
+  这是硬约束，**不得把 scratch 挪进 `media/`**（测试写死断言）。
+  以 `operationId` 命名 ⇒ 同 operationId 重复提交覆写同一文件，幂等、不堆垃圾。
+- **提交方式**：红标合成图**只经 `localReferencePaths` 提交**（K2 起就在跑的
+  既验证车道），**不得**写进任何节点的 `mediaRef`、不得进上述四个扫描根、
+  不得以 data URL 直塞 `imageUrls`。
+- **指令拼装**：蒙版路径的最终指令 = P5 新增的 i18n 模板（语义为"只修改图中
+  **红色半透明标记覆盖**的区域，其余像素保持与原图完全一致"；erase 的后半句
+  为"用与周围环境一致的内容自然填补"）+ 用户补全语句，经与既有路径
+  **同一个** `buildFinalInstruction` 拼装，两条路径不得各拼一套。
+  文案口径一律用"标注区域"，**不得出现"精确蒙版 / 像素级"字样**——
+  通用模型对红标的遵从度是概率性的，不是接口保证。
+- **`resultMode` 恒为 `'derived'`**：源卡已有图，"已有图的卡 `mediaRef` 不可
+  变更"这条不变量不受影响。
+- **后端零改动**：`GenerateImage` 看到的仍是"prompt + 一张参考图"，
+  它不知道有蒙版这回事。
+- **清理**：面板挂载时触发一次异步清理，删除 scratch 下 mtime 超过 7 天的
+  文件（桌面命令 `prune_canvas_scratch`，见 §3.9）；**失败静默**——清理不是
+  关键路径，不得因此弹错或阻塞面板。不做引用计数、不做即时删除（生成失败后
+  用户可能要重试同一张标记图）。
+- **顺序纪律**：严格"先写盘、写盘成功才提交生成"。写盘失败 → typed 失败态，
+  **不提交生成**（不能先扣钱再失败）。
+
+### 3.8 第五期加法（P5）：本地派生（无媒体任务）——裁剪
+
+`'crop'` 是 `CanvasImageOperationKind` 的 P5 新成员，也是**唯一一种
+本地派生**操作。
+
+条款：
+
+- **不提交媒体任务、不消耗额度、不发任何网络请求、不产生 `batchId`、
+  不经 `InfiniteCanvasMediaBridge`**。UI 上要说清楚它是纯本地操作。
+- **它是唯一允许由前端直接写入派生卡 `mediaRef` 的操作**（其余一律由回流
+  写入）。写入必须发生在与 `beginDerivedOperationContent` **同一次**
+  `mutateDefaultDocument` 里，避免出现"永远 pending 的裁剪卡"这种中间态。
+  后人读到这一条即知：这不是不变量被破坏，而是本条明文授权的例外。
+- **落点**：`media/input/canvas-crops/<sourceName>-crop-<ts>.png`。
+  `media/input` 是既有扫描根 ⇒ 下一次扫描即被素材库发现，不需要写任何索引。
+  `source` 归 `input` 而不是 `generated`，这是**诚实的**：没有模型跑过、
+  没有消耗额度、没有 `manifest.json`。
+- **不伪造 `generatedIdentity`**：裁剪产物不匹配 `media/generated/<batch>/…`
+  正则，`generatedIdentity` 为空，图库条目按既有降级规则回退到目录名
+  （`canvas-crops`）+ 文件名。**禁止**塞进 `media/generated/` 以骗取批次身份。
+- **源卡 `mediaRef` 零改动**（不变量不受影响；首要测试护栏）。
+- **`CanvasOp` 的 AI 白名单不放开 `'crop'`**：AI 不能替用户裁图。
+- **顺序纪律**：严格"先写盘、写盘成功才 mutate 文档"，避免出现指向不存在
+  文件的卡。
+
+### 3.9 第五期加法（P5）：两个画布专用桌面命令
+
+两条命令都是**纯加法的新文件**
+（`src/apps/desktop/src/api/infinite_canvas_asset_api.rs`），
+不改 `commands.rs` / `path_target.rs` / `filesystem` /
+`media_tools.rs` / `capabilities.rs` / `jobs.rs` /
+`analyze_image_tool.rs` / `image_analysis/`，不碰短剧任何路径。
+
+#### 3.9.1 `write_canvas_image_bytes` —— 把图片字节写成工作区文件
+
+**为什么需要它**：网页端唯一的写文件通道
+（`workspaceAPI.writeFile` → `write_file_content` → `write_text_file`）
+**只吃 `&str`**，没有 base64 解码，全仓库无 `write_binary` / `write_bytes`。
+裁剪产物与红标合成图都必须落成真实文件，故补此一条命令，两件事共用。
+
+- 输入：`{ workspacePath: string, relativePath: string, base64Png: string }`
+  （`base64Png` 是**裸 base64**，不带 `data:` 前缀）。
+- 输出（typed，永不抛字符串协议）：
+
+```jsonc
+{
+  "status": "written" | "invalid_input" | "path_denied" | "backend",
+  "relativePath": "…",   // 仅 written
+  "bytesWritten": 12345, // 仅 written
+  "message": "…"         // 仅失败
+}
+```
+
+- **安全纪律（本命令不被滥用成通用写盘口的唯一屏障，不得放宽）**：
+  1. `workspacePath` 必须绝对且 `is_dir()`，否则 `invalid_input`。
+  2. `relativePath` 必须工作区相对：不得绝对、不得以 `/` 或 `\` 开头、
+     不得含 `:`、不得含 `..` 分量 —— 否则 `path_denied`。
+  3. **必须以白名单前缀之一开头**：`.void/infinite-canvas/scratch/`
+     或 `media/input/canvas-crops/` —— 否则 `path_denied`。
+  4. 扩展名限 `.png`（大小写不敏感）—— 否则 `path_denied`。
+  5. 解码后字节上限 **32 MB** —— 超出 `invalid_input`。
+     base64 本身不可解码同样 `invalid_input`。
+  6. 父目录 `create_dir_all`；写入失败归 `backend`。
+- **明确不做**：不把二进制写入能力泛化到通用文件面。任何"顺手做成通用
+  `write_binary_file`"的改法一律拒收；**任何放宽白名单的改动等同新开攻击面，
+  必须停手上报业主**。
+
+#### 3.9.2 `prune_canvas_scratch` —— 清理过期红标图
+
+- 输入：`{ workspacePath: string, maxAgeDays?: number }`（缺省 7 天）。
+- 输出：`{ status: "pruned" | "invalid_input" | "backend",
+  removedCount?: number, message? }`。
+- 只在 `<workspace>/.void/infinite-canvas/scratch/` **内**删除 mtime 超期的
+  **文件**，越界一律拒；目录不存在视为成功、`removedCount: 0`。
+- 前端调用失败必须静默（不阻塞面板挂载）。
+
+#### 3.9.3 `analyze_infinite_canvas_image` —— 图生提示词（不经主 AI）
+
+画布按钮**不经主 AI**是已写进 `CONTEXT.md` 的既定纪律（走会话会白烧一轮
+模型上下文，结果还落在会话里）。故本命令直连既有的读图能力：
+复用 `image_analysis` 模块的
+`resolve_vision_model_from_global_config()` +
+`optimize_image_with_size_limit()` + `build_multimodal_message()`，
+以及 `get_global_ai_client_factory()`，
+与 `AnalyzeImage` 工具走的是**同一套底层原语与同一组 typed 状态名**。
+
+- 输入：`{ workspacePath: string, relativePath: string,
+  detail?: "summary" | "detailed" }`（缺省 `detailed`）。
+- 路径纪律：`workspacePath` 绝对且 `is_dir()`；`relativePath` 为**工作区内
+  任意相对路径**（读的是用户自己的媒体，因此无目录白名单），但同样
+  不得绝对 / 以 `/` `\` 开头 / 含 `:` / 含 `..`，且解析后必须仍在工作区内。
+- 输出（typed）：
+
+```jsonc
+{
+  "status": "completed" | "unsupported_model" | "provider_not_configured"
+          | "invalid_image" | "path_denied" | "backend",
+  "prompt": "…",   // 仅 completed：倒推出的提示词
+  "summary": "…",  // 仅 completed：首行摘要
+  "modelId": "…",  // 仅 completed
+  "message": "…"   // 仅失败
+}
+```
+
+- **状态名沿用 `AnalyzeImage` 已有的 typed 集**，不发明新词、不返回字符串
+  协议。用户没配视觉模型 → `unsupported_model` / `provider_not_configured`，
+  **不得静默**；前端落成卡片上的一行可解释提示（指向设置里的视觉模型），
+  不是 toast、不是白屏。
+- **不新建 vision Provider、不改 `resolve_vision_model_from_global_config`
+  的选型逻辑、不改 `analyze_image_tool.rs`、不改 `modes/media.rs`。**
+- 前端行为条款：结果**只填进该卡的依附式输入器**，
+  **不自动触发生成**（写死断言），且**不覆盖用户已输入的内容**——
+  输入器非空时改为浮出一行"替换 / 追加"的紧凑确认。
 
 ## 4. K0-3 媒体 Provider Adapter（已被复用决策取代）
 
