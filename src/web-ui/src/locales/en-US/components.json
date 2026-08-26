@@ -1050,7 +1050,10 @@
       "countBilling": "Each image is billed separately.",
       "countLocked": "This model produces one image per run.",
       "providerDefault": "Provider default",
-      "dropped": "Cancelled settings this model does not support: {{values}}."
+      "dropped": "Cancelled settings this model does not support: {{values}}.",
+      "unsupported": "{{model}} does not support {{value}}.",
+      "resolutionLocked": "{{model}} exposes no resolution choice.",
+      "hasAudio": "Produces sound"
     },
     "history": {
       "undo": "Undo",

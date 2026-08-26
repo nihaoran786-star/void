@@ -52,6 +52,28 @@ export async function selectCanvasCards(
 }
 
 /**
+ * Selects `nodeId` and presses one of the generator bottom bar's popover
+ * triggers. §7.3-A gave the model list and the parameters separate triggers, so
+ * a test that wants the model list has to press the model name.
+ */
+export async function openCanvasGeneratorPopover(
+  container: ParentNode,
+  flow: { props: { onSelectionChange?: (selection: { nodes: { id: string }[] }) => void } },
+  nodeId: string,
+  action: 'model' | 'params',
+): Promise<void> {
+  await selectCanvasCards(flow, [nodeId]);
+  const trigger = container.querySelector<HTMLButtonElement>(
+    `[data-canvas-generator-target="${nodeId}"] [data-canvas-generator-action="${action}"]`,
+  );
+  if (!trigger) throw new Error(`no generator ${action} trigger for ${nodeId}`);
+  await act(async () => {
+    Simulate.click(trigger);
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+}
+
+/**
  * Selects `nodeId` and presses the send button of the generator that floats
  * under it. The generator adopts that card's stored prompt, so a seeded card
  * dispatches exactly what the card carries — the same input the old on-card

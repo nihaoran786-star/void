@@ -1,11 +1,17 @@
 /**
- * P4 W3 behavior closure: the generation parameter popover.
+ * P4 W3 behavior closure: the generation parameter and model popovers.
  *
- * Behavior only — no style or copy assertions. What is pinned here: the
- * popover offers exactly the values the chosen model supports, switching the
- * model clamps whatever the new one cannot do, the choice is written onto the
- * card and survives a remount, and the dispatched request carries it (while a
- * card with no parameters dispatches the pre-P4 request field for field).
+ * Behavior only — no style or copy assertions. What is pinned here: every
+ * value the media kind knows is OFFERED, with the ones the chosen model cannot
+ * produce greyed out rather than hidden (§7.3-D reverses the earlier "hide
+ * them"); switching the model clamps whatever the new one cannot do; the
+ * choice is written onto the card and survives a remount; and the dispatched
+ * request carries it (while a card with no parameters dispatches the pre-P4
+ * request field for field).
+ *
+ * §7.3-A split the two surfaces: the model lives in its own popover, opened
+ * from the generator's model name, so `chooseModel` drives that one and then
+ * re-opens the parameters.
  */
 import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,7 +19,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
-import { generateFromCanvasGenerator } from './infiniteCanvasGeneratorDriver.testkit';
+import {
+  generateFromCanvasGenerator,
+  openCanvasGeneratorPopover,
+} from './infiniteCanvasGeneratorDriver.testkit';
 
 // Captured so a test can mirror a card selection into the panel: the bottom
 // generator acts on the selected card (visual language §6).
@@ -198,6 +207,20 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     });
   }
 
+  /**
+   * §7.3-A: the model list is its own popover, opened from the generator's
+   * model name. Picking closes nothing, so the parameters are re-opened after
+   * (which closes the model list — the two are mutually exclusive).
+   */
+  async function chooseModel(nodeId: string, modelId: string): Promise<void> {
+    await openCanvasGeneratorPopover(container, flow, nodeId, 'model');
+    await choose('model', modelId);
+  }
+
+  async function reopenParams(nodeId: string): Promise<void> {
+    await openParams(nodeId);
+  }
+
   // §7: parameter values are small pill buttons now, not native selects.
   function field(name: string): HTMLElement {
     const element = container.querySelector<HTMLElement>(`[data-params-field="${name}"]`);
@@ -216,6 +239,12 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
 
   function isLocked(name: string): boolean {
     return field(name).getAttribute('data-params-locked') === 'true';
+  }
+
+  /** §7.3-D: shown, greyed, unclickable — not missing. */
+  function unavailableOf(name: string): string[] {
+    return Array.from(field(name).querySelectorAll('[data-params-unavailable="true"]'))
+      .map(option => option.getAttribute('data-params-option') ?? '');
   }
 
   async function choose(name: string, value: string): Promise<void> {
@@ -241,29 +270,37 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     await generateFromCanvasGenerator(container, flow, nodeId);
   }
 
-  it('offers only the values the chosen model supports, and clamps on a switch', async () => {
+  it('shows every value and greys the ones the chosen model cannot produce', async () => {
     seed([BLANK_IMAGE_CARD]);
     await renderPanel();
     await openParams('card-image');
 
-    // Default model: lower-case resolutions and the gpt-image-2 ratio set.
-    expect(optionsOf('resolution')).toEqual(['', '1k', '2k', '4k']);
+    // 7.3-D: the union of what image models can do, in one spelling, with
+    // gpt-image-2's gaps greyed rather than missing.
+    expect(optionsOf('resolution')).toEqual(['', '0.5K', '1K', '2K', '4K']);
+    expect(unavailableOf('resolution')).toEqual(['0.5K']);
     expect(optionsOf('aspectRatio')).toContain('9:21');
-    expect(optionsOf('aspectRatio')).not.toContain('1:4');
+    expect(optionsOf('aspectRatio')).toContain('1:4');
+    expect(unavailableOf('aspectRatio')).toContain('1:4');
+    // `auto` leads the ratio row, right after "let the provider decide".
+    expect(optionsOf('aspectRatio').slice(0, 2)).toEqual(['', 'auto']);
 
-    await choose('resolution', '2k');
+    await choose('resolution', '2K');
     await choose('aspectRatio', '9:21');
+    // The cell carries the shared spelling; the card stores the model's own.
     expect(nodeOf('card-image')?.generationParams)
       .toEqual({ size: '9:21', resolution: '2k' });
 
     // Switching to gemini pro: 9:21 is gone from its ratio list, while `2k`
-    // survives as that model's own `2K` spelling (P4 review C7 — letter case
-    // is not a reason to lose a setting).
-    await choose('model', 'gemini-3-pro-image-preview');
+    // survives as that model's own `2K` spelling (P4 review C7).
+    await chooseModel('card-image', 'gemini-3-pro-image-preview');
     expect(nodeOf('card-image')?.generationParams)
       .toEqual({ model: 'gemini-3-pro-image-preview', resolution: '2K' });
-    expect(optionsOf('resolution')).toEqual(['', '1K', '2K', '4K']);
-    expect(optionsOf('aspectRatio')).not.toContain('9:21');
+
+    await reopenParams('card-image');
+    expect(optionsOf('resolution')).toEqual(['', '0.5K', '1K', '2K', '4K']);
+    expect(unavailableOf('resolution')).toEqual(['0.5K']);
+    expect(unavailableOf('aspectRatio')).toContain('9:21');
   });
 
   // P4 review C7: whatever a model switch really cannot keep is named out loud
@@ -271,13 +308,13 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
   it('says which settings a model switch had to drop', async () => {
     seed([BLANK_IMAGE_CARD]);
     await renderPanel();
-    await openParams('card-image');
-    await choose('model', 'gemini-3.1-flash-image-preview');
+    await chooseModel('card-image', 'gemini-3.1-flash-image-preview');
+    await reopenParams('card-image');
     await choose('aspectRatio', '1:4');
     await choose('resolution', '0.5K');
     expect(container.querySelector('[data-params-dropped]')).toBeNull();
 
-    await choose('model', 'gpt-image-2');
+    await chooseModel('card-image', 'gpt-image-2');
 
     const notice = container.querySelector('[data-params-dropped]');
     expect(notice?.getAttribute('data-params-dropped')).toBe('1:4,0.5K');
@@ -288,8 +325,8 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
   it('keeps the card parameters across a remount and sends them on dispatch', async () => {
     seed([BLANK_IMAGE_CARD]);
     await renderPanel();
-    await openParams('card-image');
-    await choose('model', 'gemini-3.1-flash-image-preview');
+    await chooseModel('card-image', 'gemini-3.1-flash-image-preview');
+    await reopenParams('card-image');
     await choose('aspectRatio', '1:4');
     await choose('resolution', '0.5K');
 
@@ -298,9 +335,10 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     root = createRoot(container);
     await renderPanel();
     await openParams('card-image');
-    expect(valueOf('model')).toBe('gemini-3.1-flash-image-preview');
     expect(valueOf('aspectRatio')).toBe('1:4');
     expect(valueOf('resolution')).toBe('0.5K');
+    await openCanvasGeneratorPopover(container, flow, 'card-image', 'model');
+    expect(valueOf('model')).toBe('gemini-3.1-flash-image-preview');
 
     await generate('card-image');
     expect(invocations).toHaveLength(1);
@@ -327,9 +365,18 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     await renderPanel();
     await openParams('card-video');
 
-    expect(optionsOf('duration')).toEqual(['', '4', '6', '8', '10']);
-    expect(optionsOf('aspectRatio')).toEqual(['', '16:9', '9:16']);
-    expect(optionsOf('resolution')).toEqual(['', '720p', '1080p', '4k']);
+    // Every duration any video model offers; the ones Omni-Flash-Ext cannot
+    // do are greyed, not dropped from the row.
+    expect(optionsOf('duration'))
+      .toEqual(['', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15']);
+    expect(unavailableOf('duration'))
+      .toEqual(['3', '5', '7', '9', '11', '12', '13', '14', '15']);
+    expect(optionsOf('aspectRatio'))
+      .toEqual(['', 'adaptive', '16:9', '9:16', '1:1', '4:3', '3:4', '21:9']);
+    expect(unavailableOf('aspectRatio'))
+      .toEqual(['adaptive', '1:1', '4:3', '3:4', '21:9']);
+    expect(optionsOf('resolution')).toEqual(['', '480P', '720P', '1080P', '4K']);
+    expect(unavailableOf('resolution')).toEqual(['480P']);
 
     await choose('duration', '8');
     await choose('aspectRatio', '9:16');
@@ -340,15 +387,20 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     expect(invocations[0].generationParams).toEqual({ aspectRatio: '9:16', duration: 8 });
   });
 
-  it('hides the resolution field for a model that exposes no resolution choice', async () => {
+  // 7.3-D reversal: a model with no resolution choice keeps the row, greyed,
+  // with the reason underneath. Hiding it read as "this app cannot do that".
+  it('greys the whole resolution row for a model that exposes no choice', async () => {
     seed([BLANK_VIDEO_CARD]);
     await renderPanel();
-    await openParams('card-video');
+    await chooseModel('card-video', 'kling-v3-omni');
+    await reopenParams('card-video');
 
-    await choose('model', 'kling-v3-omni');
-
-    expect(container.querySelector('[data-params-field="resolution"]')).toBeNull();
-    expect(optionsOf('aspectRatio')).toEqual(['', '16:9', '9:16', '1:1']);
+    expect(container.querySelector('[data-params-field="resolution"]')).not.toBeNull();
+    expect(isLocked('resolution')).toBe(true);
+    expect(unavailableOf('resolution')).toEqual(['480P', '720P', '1080P', '4K']);
+    expect(container.querySelector('[data-params-hint="resolution"]')?.textContent)
+      .toBe('infiniteCanvas.params.resolutionLocked');
+    expect(unavailableOf('aspectRatio')).toEqual(['adaptive', '4:3', '3:4', '21:9']);
   });
 
   // —— P4 W4: the batch-size selector ——————————————————————————————————————
@@ -358,9 +410,10 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     await renderPanel();
     await openParams('card-image');
 
-    // gpt-image-2 has n_max = 1 in the Rust capability table.
-    expect(optionsOf('count')).toEqual(['1']);
-    expect(isLocked('count')).toBe(true);
+    // gpt-image-2 has n_max = 1 in the Rust capability table: the larger cells
+    // stay on screen, greyed, so the limit is visible.
+    expect(optionsOf('count')).toEqual(['1', '2', '3', '4']);
+    expect(unavailableOf('count')).toEqual(['2', '3', '4']);
     expect(container.querySelector('[data-params-hint="count"]')?.textContent)
       .toBe('infiniteCanvas.params.countLocked');
   });
@@ -370,9 +423,10 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     await renderPanel();
     await openParams('card-image');
 
-    await choose('model', 'gemini-3-pro-image-preview');
+    await chooseModel('card-image', 'gemini-3-pro-image-preview');
+    await reopenParams('card-image');
     expect(optionsOf('count')).toEqual(['1', '2', '3', '4']);
-    expect(isLocked('count')).toBe(false);
+    expect(unavailableOf('count')).toEqual([]);
     expect(container.querySelector('[data-params-hint="count"]')?.textContent)
       .toBe('infiniteCanvas.params.countBilling');
 
@@ -388,14 +442,15 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
   it('drops a stored batch size when the card switches to a single-image model', async () => {
     seed([BLANK_IMAGE_CARD]);
     await renderPanel();
-    await openParams('card-image');
-    await choose('model', 'gemini-3-pro-image-preview');
+    await chooseModel('card-image', 'gemini-3-pro-image-preview');
+    await reopenParams('card-image');
     await choose('count', '4');
 
-    await choose('model', 'gpt-image-2');
+    await chooseModel('card-image', 'gpt-image-2');
 
     // Nothing worth persisting is left, so the field goes away entirely.
     expect(nodeOf('card-image')).not.toHaveProperty('generationParams');
+    await reopenParams('card-image');
     expect(valueOf('count')).toBe('1');
   });
 
@@ -407,7 +462,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     expect(container.querySelector('[data-params-field="count"]')).toBeNull();
   });
 
-  it('toggles the popover from the card pill and closes it with the close button', async () => {
+  it('toggles the parameter popover from the card pill', async () => {
     seed([BLANK_IMAGE_CARD]);
     await renderPanel();
 

@@ -1050,7 +1050,10 @@
       "countBilling": "每張圖單獨計費。",
       "countLocked": "該模型一次只能出一張。",
       "providerDefault": "模型預設",
-      "dropped": "已取消該模型不支援的設定：{{values}}。"
+      "dropped": "已取消該模型不支援的設定：{{values}}。",
+      "unsupported": "{{model}} 不支援 {{value}}。",
+      "resolutionLocked": "{{model}} 未提供清晰度選項。",
+      "hasAudio": "有聲"
     },
     "history": {
       "undo": "復原",

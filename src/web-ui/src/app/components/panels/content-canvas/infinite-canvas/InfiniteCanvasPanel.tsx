@@ -48,6 +48,7 @@ import type {
 import type { InfiniteCanvasGenerationTask } from './infiniteCanvasPanelModel';
 import {
   summarizeInfiniteCanvasGenerationParams,
+  defaultInfiniteCanvasModelId,
   connectInfiniteCanvasMediaBridgeToEventBus,
   connectInfiniteCanvasOpsBridgeToEventBus,
   createInfiniteCanvasMediaBridge,
@@ -113,6 +114,7 @@ import {
   InfiniteCanvasGenerator,
   type InfiniteCanvasGeneratorReference,
 } from './InfiniteCanvasGenerator';
+import { InfiniteCanvasModelPopover } from './InfiniteCanvasModelPopover';
 import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
 import { InfiniteCanvasRail } from './InfiniteCanvasRail';
 import {
@@ -242,6 +244,8 @@ interface NodeActions {
   openViewer: (nodeId: string) => void;
   /** P4 W3: opens the generation parameter popover for this card. */
   openParams: (nodeId: string, anchor?: HTMLElement) => void;
+  /** §7.3-A: opens the model list popover for this card. */
+  openModel: (nodeId: string, anchor?: HTMLElement) => void;
   /** §3: the card's right-edge `+` — derive the next generation card. */
   spawnNext: (nodeId: string) => void;
   /** §3: the midpoint handle — insert a generation card on that connection. */
@@ -386,6 +390,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   /** P4 W3: the card whose generation parameters are being edited. */
   const [paramsNodeId, setParamsNodeId] = React.useState<string | null>(null);
   /**
+   * §7.3-A: the card whose MODEL LIST is open. Separate from `paramsNodeId`
+   * and mutually exclusive with it — opening one closes the other, so the two
+   * surfaces never stack on top of each other.
+   */
+  const [modelNodeId, setModelNodeId] = React.useState<string | null>(null);
+  const [modelAnchor, setModelAnchor] = React.useState<HTMLElement | null>(null);
+  /**
    * Owner feedback 2026-08-26: every popover is anchored to the control that
    * opened it. These hold that control, not a frozen rectangle, so the surface
    * re-measures instead of drifting when the trigger moves.
@@ -484,6 +495,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     deriveVideoCard: () => undefined,
     openViewer: () => undefined,
     openParams: () => undefined,
+    openModel: () => undefined,
     spawnNext: () => undefined,
     insertOnEdge: () => undefined,
   });
@@ -1098,8 +1110,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       },
       openParams: (nodeId, anchor) => {
         if (!findMediaNode(nodeId)) return;
+        setModelNodeId(null);
         setParamsAnchor(anchor ?? null);
         setParamsNodeId(current => (current === nodeId ? null : nodeId));
+      },
+      openModel: (nodeId, anchor) => {
+        if (!findMediaNode(nodeId)) return;
+        setParamsNodeId(null);
+        setModelAnchor(anchor ?? null);
+        setModelNodeId(current => (current === nodeId ? null : nodeId));
       },
       // §3: "keep going from this card". Nothing new on the command side —
       // the same blank-card + connect pair the image-to-video entry uses, so
@@ -1183,6 +1202,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setDeleteRequest(null);
     setViewerNodeId(null);
     setParamsNodeId(null);
+    setModelNodeId(null);
     setStylePickerNodeId(null);
     setNotice(null);
     setToolDialog(null);
@@ -1744,11 +1764,36 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     if (paramsNodeId && !paramsTarget) setParamsNodeId(null);
   }, [paramsNodeId, paramsTarget]);
 
+  /** §7.3-A: the same projection for the model list, on its own card. */
+  const modelTarget = React.useMemo(() => {
+    if (!modelNodeId) return undefined;
+    const node = flowNodes.find(entry => entry.id === modelNodeId);
+    if (!node
+      || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
+        && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
+      return undefined;
+    }
+    return {
+      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' as const : 'image' as const,
+      params: node.data.generationParams as InfiniteCanvasGenerationParams | undefined,
+    };
+  }, [flowNodes, modelNodeId]);
+
+  React.useEffect(() => {
+    if (modelNodeId && !modelTarget) setModelNodeId(null);
+  }, [modelNodeId, modelTarget]);
+
   const onChangeGenerationParams = React.useCallback((params: InfiniteCanvasGenerationParams) => {
     const nodeId = paramsNodeId;
     if (!nodeId) return;
     void commit(document => setNodeGenerationParamsContent(document, nodeId, params), { history: true });
   }, [commit, paramsNodeId]);
+
+  const onChangeGenerationModel = React.useCallback((params: InfiniteCanvasGenerationParams) => {
+    const nodeId = modelNodeId;
+    if (!nodeId) return;
+    void commit(document => setNodeGenerationParamsContent(document, nodeId, params), { history: true });
+  }, [commit, modelNodeId]);
 
   // —— P4 W7: right-click menu and the selection toolbar ————————————————————
 
@@ -2012,13 +2057,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         ? 'video' as const
         : 'image' as const,
       prompt: (node.data.prompt as string | undefined) ?? '',
-      paramsSummary: node.data.generationParamsSummary as string | undefined,
-      modelLabel: params?.model || t('infiniteCanvas.params.defaultModel'),
+      // §7.3-A: the bar already shows the model on its own control, so the
+      // summary pill next to it carries only the remaining settings.
+      paramsSummary: summarizeInfiniteCanvasGenerationParams(
+        params ? { ...params, model: undefined } : undefined,
+        node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
+      ) || undefined,
+      modelLabel: params?.model
+        || defaultInfiniteCanvasModelId(
+          node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
+        ),
       count: params?.n,
       stylePresetName: node.data.stylePresetName as string | undefined,
       pending: generation?.status === 'pending',
     };
-  }, [flowNodes, selectedNodeIds, t]);
+  }, [flowNodes, selectedNodeIds]);
 
   /**
    * §6: where the generator sits — directly under its card, as wide as the
@@ -2201,6 +2254,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           anchor={paramsAnchor}
           onChange={onChangeGenerationParams}
           onClose={() => setParamsNodeId(null)}
+        />
+      ) : null}
+      {modelTarget ? (
+        <InfiniteCanvasModelPopover
+          mediaKind={modelTarget.mediaKind}
+          params={modelTarget.params}
+          anchor={modelAnchor}
+          onChange={onChangeGenerationModel}
+          onClose={() => setModelNodeId(null)}
         />
       ) : null}
       {deleteRequest ? (
@@ -2413,6 +2475,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             onRemoveReference={onGeneratorRemoveReference}
             onOpenParams={anchor =>
               nodeActionsRef.current.openParams(generatorTarget.nodeId, anchor)}
+            onOpenModel={anchor =>
+              nodeActionsRef.current.openModel(generatorTarget.nodeId, anchor)}
             onOpenStyle={generatorTarget.mediaKind === 'image'
               ? anchor => openStylePicker(generatorTarget.nodeId, anchor)
               : undefined}

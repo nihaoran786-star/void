@@ -93,6 +93,7 @@ vi.mock('./infiniteCanvasGenerationRuntime', () => ({
 import { StylePresetCatalog } from '@/shared/services/style-preset';
 import {
   createInMemoryInfiniteCanvasPersistence,
+  INFINITE_CANVAS_IMAGE_MODELS,
   defaultInfiniteCanvasDocumentId,
   infiniteCanvasDocumentFilePath,
   InfiniteCanvasDocumentService,
@@ -378,6 +379,51 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
 
     await pressKey('Escape');
     expect(popover('library')).toBeNull();
+  });
+
+  // —— 1b. §7.3-A: two popovers, never one crowded panel ————————————————————
+
+  it('opens the model list from the model name and the parameters from the pill', async () => {
+    seed([IMAGE_CARD]);
+    await renderPanel();
+    await select([IMAGE_CARD.nodeId]);
+
+    await click(generatorAction('model'));
+    expect(popover('model')).not.toBeNull();
+    // Mutually exclusive: the parameters are not stacked underneath it.
+    expect(popover('params')).toBeNull();
+
+    await click(generatorAction('params'));
+    expect(popover('params')).not.toBeNull();
+    expect(popover('model')).toBeNull();
+
+    // And back again, without either surface piling up.
+    await click(generatorAction('model'));
+    expect(popover('model')).not.toBeNull();
+    expect(popover('params')).toBeNull();
+    // §7.3-E: no title bar, no close button.
+    expect(popover('model')?.querySelector('.infinite-canvas-picker__close')).toBeNull();
+    await pressKey('Escape');
+    expect(popover('model')).toBeNull();
+  });
+
+  it('lists every model with the capability chips the table knows', async () => {
+    seed([IMAGE_CARD]);
+    await renderPanel();
+    await select([IMAGE_CARD.nodeId]);
+    await click(generatorAction('model'));
+
+    const rows = Array.from(
+      popover('model')!.querySelectorAll<HTMLElement>('[data-params-option]'),
+    );
+    expect(rows.length).toBe(INFINITE_CANVAS_IMAGE_MODELS.length);
+    // The default model is the one highlighted on a card that never chose one.
+    expect(rows[0].getAttribute('data-params-option')).toBe('gpt-image-2');
+    expect(rows[0].getAttribute('data-selected')).toBe('true');
+    // Chips come from the capability table: gpt-image-2 tops out at 4k.
+    expect(rows[0].querySelector('[data-model-chip="resolution"]')?.textContent).toBe('4K');
+    // No model in the table records audio, so no speaker is drawn.
+    expect(popover('model')!.querySelector('[data-model-chip="audio"]')).toBeNull();
   });
 
   // —— 2. the broken-thumbnail bug ————————————————————————————————————————

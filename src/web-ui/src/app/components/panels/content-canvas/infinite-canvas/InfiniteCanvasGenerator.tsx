@@ -78,6 +78,11 @@ export interface InfiniteCanvasGeneratorProps {
   onRemoveReference?: (nodeId: string) => void;
   /** The anchor element is passed so the popover opens next to its trigger. */
   onOpenParams?: (anchor: HTMLElement) => void;
+  /**
+   * §7.3-A: the model name opens the MODEL LIST, a separate popover from the
+   * parameters. The two are mutually exclusive; the panel enforces that.
+   */
+  onOpenModel?: (anchor: HTMLElement) => void;
   onOpenStyle?: (anchor: HTMLElement) => void;
 }
 
@@ -157,6 +162,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   onAddReference,
   onRemoveReference,
   onOpenParams,
+  onOpenModel,
   onOpenStyle,
 }) => {
   const { t } = useI18n('components');
@@ -260,18 +266,22 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         }}
       />
       <div className="infinite-canvas-generator__bar">
+        {/* §7.3-A: model name first, then the parameter summary pill; each
+            opens its own popover. */}
         <button
           type="button"
-          className="infinite-canvas-generator__meta"
+          className="infinite-canvas-generator__meta infinite-canvas-generator__meta--model"
           data-canvas-generator-action="model"
-          onClick={event => onOpenParams?.(event.currentTarget)}
+          aria-label={t('infiniteCanvas.params.model')}
+          title={target.modelLabel}
+          onClick={event => (onOpenModel ?? onOpenParams)?.(event.currentTarget)}
         >
           {target.modelLabel}
         </button>
         <span className="infinite-canvas-generator__dot" aria-hidden="true" />
         <button
           type="button"
-          className="infinite-canvas-generator__meta"
+          className="infinite-canvas-generator__meta infinite-canvas-generator__meta--params"
           data-canvas-generator-action="params"
           data-has-params={target.paramsSummary ? 'true' : undefined}
           title={target.paramsSummary || t('infiniteCanvas.params.button')}

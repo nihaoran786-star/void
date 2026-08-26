@@ -1433,15 +1433,20 @@
 // not near-full-screen slabs. Width comes from the component (260–320px), the
 // position from its anchor; the surface scrolls inside itself instead of
 // growing down the panel.
+// §7.3-E: translucent, lightly blurred, 16px corners, no title bar and no
+// close button. The inline `max-height` the component measures wins over the
+// fallback below; both stop the surface growing and let it scroll instead.
 .infinite-canvas-popover {
   position: fixed;
   z-index: 24;
   top: 16px;
   left: 16px;
-  max-height: min(380px, 70vh);
-  padding: 10px;
-  border-radius: 12px;
-  gap: 8px;
+  max-height: min(420px, 70vh);
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--canvas-surface-overlay) 86%, transparent);
+  backdrop-filter: blur(14px);
+  gap: 10px;
   transform: none;
 
   // Unplaced for one frame while the surface is measured; showing it at the
@@ -1685,20 +1690,34 @@
   font-size: 11px;
 }
 
+// §7.3-D: equal-width segmented cells on a grid, not a flow of pills of
+// different lengths wrapping into each other.
 .infinite-canvas-params__options {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+}
+
+// The ratio group carries a small rectangle above its label, so its cells are
+// taller and a touch wider.
+.infinite-canvas-params__options--ratio {
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
 }
 
 .infinite-canvas-params__option {
-  padding: 3px 10px;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
   border: 1px solid var(--canvas-hairline);
-  border-radius: 999px;
+  border-radius: 8px;
   background: transparent;
   color: var(--canvas-text-muted);
   cursor: pointer;
   font-size: 11px;
+  gap: 3px;
   white-space: nowrap;
 
   &:hover:not(:disabled) {
@@ -1715,12 +1734,118 @@
   &:disabled {
     cursor: default;
   }
+
+  // §7.3-D reversal: a value the model cannot produce stays visible, greyed
+  // out, so nobody reads a missing cell as a missing feature.
+  &[data-params-unavailable='true'] {
+    border-color: color-mix(in srgb, var(--canvas-hairline) 60%, transparent);
+    color: var(--canvas-text-faint);
+    opacity: 0.45;
+  }
+}
+
+.infinite-canvas-params__option-label {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+.infinite-canvas-params__glyph {
+  flex: none;
+  color: currentcolor;
 }
 
 .infinite-canvas-params__hint {
   color: var(--canvas-text-faint);
   font-size: 10px;
   line-height: 1.5;
+}
+
+// ── §7.3-C: the model list ─────────────────────────────────────────────────
+// One model per row: name on top, tiny outlined capability chips underneath.
+
+.infinite-canvas-models {
+  display: flex;
+  overflow-y: auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.infinite-canvas-models__item {
+  display: flex;
+  align-items: flex-start;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--canvas-text-primary);
+  cursor: pointer;
+  gap: 8px;
+  text-align: left;
+
+  &:hover {
+    background: var(--canvas-hover-wash);
+  }
+
+  &[data-selected='true'] {
+    background: var(--canvas-hover-wash);
+    box-shadow: inset 0 0 0 1px var(--canvas-surface-line);
+  }
+}
+
+.infinite-canvas-models__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding-top: 1px;
+  color: var(--canvas-text-muted);
+}
+
+.infinite-canvas-models__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.infinite-canvas-models__name {
+  display: flex;
+  overflow: hidden;
+  align-items: baseline;
+  font-size: 12px;
+  gap: 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infinite-canvas-models__default {
+  color: var(--canvas-text-faint);
+  font-size: 10px;
+}
+
+.infinite-canvas-models__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.infinite-canvas-models__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 4px;
+  color: var(--canvas-text-faint);
+  font-size: 9px;
+  gap: 3px;
+  letter-spacing: 0.02em;
+  line-height: 15px;
+}
+
+.infinite-canvas-models__chip--icon {
+  padding: 0 4px;
 }
 
 // ── Alignment guides (P4 W9) ───────────────────────────────────────────────
