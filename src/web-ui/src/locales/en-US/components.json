@@ -1110,7 +1110,8 @@
     },
     "handles": {
       "spawnNext": "Continue from this card",
-      "insertOnEdge": "Insert a card on this connection"
+      "insertOnEdge": "Insert a card on this connection",
+      "disconnect": "Break this connection"
     },
     "generator": {
       "label": "Canvas generator",
@@ -1118,6 +1119,7 @@
       "send": "Generate",
       "sendHint": "Enter to generate, Shift+Enter for a new line",
       "addReference": "Add a reference image",
+      "removeReference": "Remove this reference",
       "references": "Reference images",
       "referenceThumbnail": "Reference {{order}}",
       "style": "Style",

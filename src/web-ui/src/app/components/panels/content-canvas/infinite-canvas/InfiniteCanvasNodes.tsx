@@ -103,8 +103,12 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   generationParams?: InfiniteCanvasGenerationParams;
   /** P4 W3: collapsed summary of the card's generation parameters. */
   generationParamsSummary?: string;
-  /** P4 W3: opens the generation parameter popover for this card. */
-  onOpenParams?: (nodeId: string) => void;
+  /**
+   * P4 W3: opens the generation parameter popover for this card. The
+   * triggering button is handed over so the popover can anchor to it
+   * (owner feedback 2026-08-26: no more full-page popovers).
+   */
+  onOpenParams?: (nodeId: string, anchor?: HTMLElement) => void;
   /** §3: the small `+` off the card's right edge — derive the next card. */
   onSpawnNext?: (nodeId: string) => void;
   /** §4 output group: save a copy of this card's media. */
@@ -116,7 +120,7 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
   /** Resolved display name of the applied style preset, if any. */
   stylePresetName?: string;
-  onOpenStylePicker: (nodeId: string) => void;
+  onOpenStylePicker: (nodeId: string, anchor?: HTMLElement) => void;
   /** Opens the instruction-completion dialog for one of the five tools. */
   onRunImageTool: (nodeId: string, toolId: ImageToolId) => void;
   /** P3: derives a blank video card wired to this image (image-to-video). */
@@ -484,7 +488,7 @@ const InfiniteCanvasMediaCard: React.FC<
             data-has-style={imageData.stylePresetName ? 'true' : undefined}
             aria-label={imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
             title={imageData.stylePresetName ?? t('infiniteCanvas.imageNode.styleButton')}
-            onClick={() => imageData.onOpenStylePicker(id)}
+            onClick={event => imageData.onOpenStylePicker(id, event.currentTarget)}
           >
             <Palette size={14} aria-hidden="true" />
           </button>
@@ -497,7 +501,7 @@ const InfiniteCanvasMediaCard: React.FC<
             data-has-params={data.generationParamsSummary ? 'true' : undefined}
             aria-label={data.generationParamsSummary || t('infiniteCanvas.params.button')}
             title={data.generationParamsSummary || t('infiniteCanvas.params.button')}
-            onClick={() => data.onOpenParams?.(id)}
+            onClick={event => data.onOpenParams?.(id, event.currentTarget)}
           >
             <SlidersHorizontal size={14} aria-hidden="true" />
           </button>

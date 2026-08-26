@@ -3,12 +3,18 @@
  * StylePresetCatalog, filterable by family and category. Choosing a preset
  * only reports its ID; the node keeps a reference, never a copy (phase 1
  * ships no thumbnails, per the K0-1 option-A decision).
+ *
+ * Owner feedback 2026-08-26: tightened to the same anchored compact popover
+ * the parameter surface uses. The family dropdown and the category row now
+ * share one filter line, the tiles are smaller and denser, and there is no
+ * close button — pressing outside or Escape closes it.
  */
 import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type { StylePresetCatalog, StylePresetFamily } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
+import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
 
 const FAMILIES: readonly { family: StylePresetFamily; labelKey: string }[] = [
   { family: 'cinematic', labelKey: 'infiniteCanvas.stylePicker.families.cinematic' },
@@ -28,9 +34,14 @@ function swatchHue(presetId: string): number {
   return hash;
 }
 
+/** §7 after owner feedback: a compact anchored popover, not a page. */
+const STYLE_POPOVER_WIDTH = 320;
+
 export interface InfiniteCanvasStylePickerProps {
   currentPresetId?: string;
   catalog?: StylePresetCatalog;
+  /** The control that opened it, for anchoring and press-outside handling. */
+  anchor?: HTMLElement | null;
   onPick: (presetId: string | undefined) => void;
   onClose: () => void;
 }
@@ -38,6 +49,7 @@ export interface InfiniteCanvasStylePickerProps {
 export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps> = ({
   currentPresetId,
   catalog = stylePresetCatalog,
+  anchor,
   onPick,
   onClose,
 }) => {
@@ -59,25 +71,27 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
   );
 
   return (
-    <aside
-      className="infinite-canvas-picker infinite-canvas-picker--style"
-      aria-label={t('infiniteCanvas.stylePicker.title')}
+    <InfiniteCanvasPopover
+      kind="style"
+      className="infinite-canvas-picker--style"
+      anchor={anchor}
+      width={STYLE_POPOVER_WIDTH}
+      label={t('infiniteCanvas.stylePicker.title')}
+      onDismiss={onClose}
     >
-      <header className="infinite-canvas-picker__header">
-        <h4>{t('infiniteCanvas.stylePicker.title')}</h4>
-        <button
-          type="button"
-          className="infinite-canvas-picker__close"
-          onClick={onClose}
-        >
-          {t('infiniteCanvas.stylePicker.close')}
-        </button>
-      </header>
-      <div className="infinite-canvas-picker__filters">
+      {/*
+        Owner feedback 2026-08-26: the family dropdown and the category row are
+        one compact filter line now, not two stacked blocks with a title bar
+        between them.
+      */}
+      <div className="infinite-canvas-picker__filter-row">
         <label className="infinite-canvas-picker__filter">
-          <span>{t('infiniteCanvas.stylePicker.familyLabel')}</span>
+          <span className="infinite-canvas-picker__visually-hidden">
+            {t('infiniteCanvas.stylePicker.familyLabel')}
+          </span>
           <select
             value={family}
+            data-canvas-style-filter="family"
             onChange={event => {
               setFamily(event.target.value as StylePresetFamily);
               setCategory(ALL_CATEGORIES);
@@ -90,33 +104,33 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
             ))}
           </select>
         </label>
-      </div>
-      <div
-        className="infinite-canvas-picker__pills"
-        role="group"
-        aria-label={t('infiniteCanvas.stylePicker.categoryLabel')}
-      >
-        <button
-          type="button"
-          className="infinite-canvas-picker__pill"
-          data-active={category === ALL_CATEGORIES ? 'true' : undefined}
-          aria-pressed={category === ALL_CATEGORIES}
-          onClick={() => setCategory(ALL_CATEGORIES)}
+        <div
+          className="infinite-canvas-picker__pills"
+          role="group"
+          aria-label={t('infiniteCanvas.stylePicker.categoryLabel')}
         >
-          {t('infiniteCanvas.stylePicker.allCategories')}
-        </button>
-        {categories.map(entry => (
           <button
-            key={entry}
             type="button"
             className="infinite-canvas-picker__pill"
-            data-active={category === entry ? 'true' : undefined}
-            aria-pressed={category === entry}
-            onClick={() => setCategory(entry)}
+            data-active={category === ALL_CATEGORIES ? 'true' : undefined}
+            aria-pressed={category === ALL_CATEGORIES}
+            onClick={() => setCategory(ALL_CATEGORIES)}
           >
-            {entry}
+            {t('infiniteCanvas.stylePicker.allCategories')}
           </button>
-        ))}
+          {categories.map(entry => (
+            <button
+              key={entry}
+              type="button"
+              className="infinite-canvas-picker__pill"
+              data-active={category === entry ? 'true' : undefined}
+              aria-pressed={category === entry}
+              onClick={() => setCategory(entry)}
+            >
+              {entry}
+            </button>
+          ))}
+        </div>
       </div>
       {currentPresetId ? (
         <button
@@ -132,7 +146,7 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
           {t('infiniteCanvas.stylePicker.empty')}
         </p>
       ) : (
-        <ul className="infinite-canvas-picker__list">
+        <ul className="infinite-canvas-picker__list infinite-canvas-picker__list--dense">
           {presets.map(preset => (
             <li key={preset.presetId}>
               <button
@@ -159,7 +173,7 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
           ))}
         </ul>
       )}
-    </aside>
+    </InfiniteCanvasPopover>
   );
 };
 

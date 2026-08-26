@@ -222,6 +222,17 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
     });
   }
 
+  /**
+   * A real press, not a React synthetic click: the shared dismiss contract
+   * listens for `mousedown` on the document, which is what actually happens
+   * when the owner presses the blurred plate.
+   */
+  async function pressOn(element: Element): Promise<void> {
+    await act(async () => {
+      element.dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
+    });
+  }
+
   async function pressKey(key: string): Promise<void> {
     await act(async () => {
       dom.window.document.dispatchEvent(
@@ -243,14 +254,39 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
     expect(viewer()).toBeNull();
   });
 
-  it('closes when the backdrop is clicked', async () => {
+  // Owner feedback 2026-08-26: the blurred plate is the way out. There is no
+  // close button, pressing the media does not close, and Escape still does.
+  it('closes when the blurred backdrop is pressed', async () => {
     seed([IMAGE_NODE]);
     await renderPanel();
     await openViewer('n-image');
 
-    await act(async () => {
-      Simulate.click(action('backdrop'));
-    });
+    await pressOn(action('backdrop'));
+    expect(viewer()).toBeNull();
+  });
+
+  it('keeps the viewer open when the media itself is pressed', async () => {
+    seed([IMAGE_NODE]);
+    await renderPanel();
+    await openViewer('n-image');
+
+    const media = container.querySelector('[data-viewer-media="image"]');
+    expect(media).not.toBeNull();
+    await pressOn(media!);
+    expect(viewer()).not.toBeNull();
+
+    // The chrome is a control surface, not backdrop either.
+    await pressOn(action('save'));
+    expect(viewer()).not.toBeNull();
+  });
+
+  it('offers no close button — pressing out or Escape is the only way out', async () => {
+    seed([IMAGE_NODE]);
+    await renderPanel();
+    await openViewer('n-image');
+
+    expect(container.querySelector('[data-viewer-action="close"]')).toBeNull();
+    await pressKey('Escape');
     expect(viewer()).toBeNull();
   });
 

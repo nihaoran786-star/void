@@ -271,11 +271,13 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
 
     await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addImage');
 
-    // Only image items from the read-only library scan are offered.
+    // Only image items from the read-only library scan are offered, and each
+    // one is labelled by batch/folder so a library full of `image-001.png`
+    // does not read as one file repeated (owner bug report 2026-08-26).
     const items = Array.from(container.querySelectorAll('.infinite-canvas-picker__item'));
-    expect(items.map(item => item.textContent)).toEqual(['hero.png']);
+    expect(items.map(item => item.textContent)).toEqual(['input / hero.png']);
 
-    await clickButton(button => button.textContent === 'hero.png');
+    await clickButton(button => button.textContent === 'input / hero.png');
 
     expect(container.querySelector('.infinite-canvas-picker')).toBeNull();
     expect(flow.props.nodes).toHaveLength(1);

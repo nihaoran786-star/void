@@ -1110,7 +1110,8 @@
     },
     "handles": {
       "spawnNext": "從這張卡繼續",
-      "insertOnEdge": "在這條連線上插入卡片"
+      "insertOnEdge": "在這條連線上插入卡片",
+      "disconnect": "斷開這條連線"
     },
     "generator": {
       "label": "畫布生成器",
@@ -1118,6 +1119,7 @@
       "send": "生成",
       "sendHint": "Enter 生成，Shift+Enter 換行",
       "addReference": "新增參考圖",
+      "removeReference": "移除這張參考圖",
       "references": "參考圖",
       "referenceThumbnail": "參考圖 {{order}}",
       "style": "風格",

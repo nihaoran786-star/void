@@ -16,6 +16,14 @@ import { useI18n } from '@/infrastructure/i18n';
 export interface InfiniteCanvasEdgeData extends Record<string, unknown> {
   /** Inserts a new generation card in the middle of this connection. */
   onInsertCard?: (edgeId: string) => void;
+  /**
+   * Owner feedback 2026-08-26: connections must be breakable. The midpoint
+   * grows a small `×` beside the insert handle (dim until the edge is hovered
+   * or selected, like the handle itself). The panel routes it through the same
+   * edge-removal mutation the Delete key uses, so it is undoable and neither
+   * card's media is touched.
+   */
+  onDisconnect?: (edgeId: string) => void;
 }
 
 export interface InfiniteCanvasEdgeProps {
@@ -67,6 +75,10 @@ export const InfiniteCanvasEdge: React.FC<InfiniteCanvasEdgeProps> = ({
     targetY,
   );
   const onInsertCard = data?.onInsertCard;
+  const onDisconnect = data?.onDisconnect;
+  // The `×` sits beside the insert handle rather than on top of it, so the two
+  // are never a coin toss under the pointer.
+  const disconnectOffset = onInsertCard ? 20 : 0;
 
   return (
     <g className="infinite-canvas-edge" data-selected={selected ? 'true' : undefined}>
@@ -95,6 +107,30 @@ export const InfiniteCanvasEdge: React.FC<InfiniteCanvasEdgeProps> = ({
           <circle className="infinite-canvas-edge__handle-disc" r={8} />
           <line x1={0} y1={-3.5} x2={0} y2={3.5} />
           <line x1={-3.5} y1={0} x2={3.5} y2={0} />
+        </g>
+      ) : null}
+      {onDisconnect ? (
+        <g
+          className="infinite-canvas-edge__handle infinite-canvas-edge__handle--disconnect nodrag nopan"
+          data-canvas-edge-action="disconnect"
+          data-edge-id={id}
+          role="button"
+          tabIndex={0}
+          aria-label={t('infiniteCanvas.handles.disconnect')}
+          transform={`translate(${midX + disconnectOffset} ${midY})`}
+          onClick={event => {
+            event.stopPropagation();
+            onDisconnect(id);
+          }}
+          onKeyDown={event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            onDisconnect(id);
+          }}
+        >
+          <circle className="infinite-canvas-edge__handle-disc" r={8} />
+          <line x1={-3} y1={-3} x2={3} y2={3} />
+          <line x1={3} y1={-3} x2={-3} y2={3} />
         </g>
       ) : null}
     </g>

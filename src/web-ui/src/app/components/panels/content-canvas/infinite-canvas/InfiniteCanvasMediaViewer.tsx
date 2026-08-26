@@ -10,15 +10,22 @@
  * (`resolveInfiniteCanvasMediaPreviewUrl`, data-URL lane) — this app does not
  * enable Tauri's asset protocol, so streaming URLs would be refused by the
  * webview. Videos load with `preload="metadata"` and never autoplay.
+ *
+ * Owner feedback 2026-08-26: the enlarged media floats over a BLURRED canvas,
+ * and pressing anywhere on that blurred area closes it. Pressing the media
+ * itself (or the chrome, or the step arrows) does not. There is no close
+ * button — dismissal is the shared `useInfiniteCanvasDismiss` contract, the
+ * same one the pickers use, so Escape closes here too.
  */
 import React from 'react';
-import { ChevronLeft, ChevronRight, Download, Minus, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Minus, Plus } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type {
   InfiniteCanvasImagePreviewResolver,
   InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
+import { useInfiniteCanvasDismiss } from './useInfiniteCanvasDismiss';
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
@@ -66,6 +73,18 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
   const dragOrigin = React.useRef<{ x: number; y: number } | null>(null);
 
+  /**
+   * The media frame is the one region that does NOT close the viewer. The
+   * chrome and the step arrows are declared "inside" too: they are controls,
+   * not backdrop, and pressing a control must not dismiss what it acts on.
+   */
+  const chromeRef = React.useRef<HTMLDivElement | null>(null);
+  const stepsRef = React.useRef<HTMLDivElement | null>(null);
+  const frameRef = useInfiniteCanvasDismiss<HTMLDivElement>({
+    onDismiss: onClose,
+    inside: [chromeRef, stepsRef],
+  });
+
   const mediaRef = item?.mediaRef;
   const mediaKind = item?.mediaKind;
 
@@ -104,16 +123,12 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
     onNavigate(items[next].nodeId);
   }, [index, items, onNavigate]);
 
-  // Esc closes, arrows walk the canvas's other media cards. The listener sits
-  // on the document because the overlay may not hold focus (the user can open
-  // it by clicking the card image).
+  // Arrows walk the canvas's other media cards. The listener sits on the
+  // document because the overlay may not hold focus (the user can open it by
+  // clicking the card image). Escape is not handled here — that belongs to the
+  // shared dismiss contract above, so there is one Escape path, not two.
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
         goRelative(-1);
@@ -126,7 +141,7 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [goRelative, onClose]);
+  }, [goRelative]);
 
   if (!item) return null;
 
@@ -142,13 +157,17 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
       aria-modal="true"
       aria-label={t('infiniteCanvas.viewer.title')}
     >
+      {/*
+        The blurred plate the media floats on. It carries no click handler of
+        its own: pressing it is "outside the media", which the shared dismiss
+        contract already means as close.
+      */}
       <div
         className="infinite-canvas-viewer__backdrop"
         data-viewer-action="backdrop"
         role="presentation"
-        onClick={onClose}
       />
-      <div className="infinite-canvas-viewer__chrome">
+      <div className="infinite-canvas-viewer__chrome" ref={chromeRef}>
         <span className="infinite-canvas-viewer__name" title={fileName}>{fileName}</span>
         <span className="infinite-canvas-viewer__counter" data-viewer-counter>
           {`${index + 1} / ${items.length}`}
@@ -196,18 +215,13 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
           <Download size={13} aria-hidden="true" />
           {t('infiniteCanvas.viewer.saveAs')}
         </button>
-        <button
-          type="button"
-          className="infinite-canvas-viewer__button"
-          data-viewer-action="close"
-          aria-label={t('infiniteCanvas.viewer.close')}
-          onClick={onClose}
-        >
-          <X size={13} aria-hidden="true" />
-        </button>
+        {/*
+          Owner feedback 2026-08-26: no close button. Press the blurred area
+          or Escape.
+        */}
       </div>
       {items.length > 1 ? (
-        <>
+        <div className="infinite-canvas-viewer__steps" ref={stepsRef}>
           <button
             type="button"
             className="infinite-canvas-viewer__step infinite-canvas-viewer__step--prev"
@@ -226,7 +240,7 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
           >
             <ChevronRight size={16} aria-hidden="true" />
           </button>
-        </>
+        </div>
       ) : null}
       <div
         className="infinite-canvas-viewer__stage"
@@ -255,41 +269,51 @@ export const InfiniteCanvasMediaViewer: React.FC<InfiniteCanvasMediaViewerProps>
           dragOrigin.current = null;
         }}
       >
-        {previewUrl ? (
-          item.mediaKind === 'video' ? (
-            // Generated clip: no caption track exists for it, and it never
-            // autoplays — the user presses play.
-            <video
-              className="infinite-canvas-viewer__video"
-              data-viewer-media="video"
-              src={previewUrl}
-              controls
-              preload="metadata"
-              aria-label={fileName}
-            />
+        {/*
+          The one region a press does NOT close from. Everything else in the
+          overlay is backdrop.
+        */}
+        <div
+          className="infinite-canvas-viewer__frame"
+          data-viewer-frame="media"
+          ref={frameRef}
+        >
+          {previewUrl ? (
+            item.mediaKind === 'video' ? (
+              // Generated clip: no caption track exists for it, and it never
+              // autoplays — the user presses play.
+              <video
+                className="infinite-canvas-viewer__video"
+                data-viewer-media="video"
+                src={previewUrl}
+                controls
+                preload="metadata"
+                aria-label={fileName}
+              />
+            ) : (
+              <img
+                className="infinite-canvas-viewer__image"
+                data-viewer-media="image"
+                src={previewUrl}
+                alt={fileName}
+                draggable={false}
+                style={{
+                  transform:
+                    `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+                }}
+              />
+            )
           ) : (
-            <img
-              className="infinite-canvas-viewer__image"
-              data-viewer-media="image"
-              src={previewUrl}
-              alt={fileName}
-              draggable={false}
-              style={{
-                transform:
-                  `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
-              }}
-            />
-          )
-        ) : (
-          <p
-            className="infinite-canvas-viewer__placeholder"
-            data-state={failed ? 'unavailable' : 'loading'}
-          >
-            {failed
-              ? t('infiniteCanvas.viewer.previewUnavailable')
-              : t('infiniteCanvas.viewer.previewLoading')}
-          </p>
-        )}
+            <p
+              className="infinite-canvas-viewer__placeholder"
+              data-state={failed ? 'unavailable' : 'loading'}
+            >
+              {failed
+                ? t('infiniteCanvas.viewer.previewUnavailable')
+                : t('infiniteCanvas.viewer.previewLoading')}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

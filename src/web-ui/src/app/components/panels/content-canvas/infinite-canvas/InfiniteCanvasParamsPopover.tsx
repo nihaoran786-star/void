@@ -4,6 +4,11 @@
  * values as small pill buttons. Values a model cannot produce are not offered
  * at all rather than stacked up greyed out.
  *
+ * Owner feedback 2026-08-26: this used to open as a near-full-screen slab. It
+ * is now a ~280px surface anchored to the control that opened it (usually the
+ * "parameters" text in the generator's bottom bar), scrolling inside itself,
+ * and it closes by pressing outside or Escape — there is no close button.
+ *
  * Every choice offered here comes from the front-end capability table, which
  * mirrors `agentic/media/capabilities.rs`: the popover never invents a value
  * the backend would reject. Switching the model re-clamps the whole set, so
@@ -28,6 +33,7 @@ import {
   normalizeInfiniteCanvasGenerationParamsWithReport,
   resolveInfiniteCanvasModelCapability,
 } from '@/shared/services/infinite-canvas';
+import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
 
 /** Sentinel for "send nothing, let the provider decide". */
 const PROVIDER_DEFAULT = '';
@@ -81,9 +87,14 @@ const ParamGroup: React.FC<{
 
 ParamGroup.displayName = 'InfiniteCanvasParamGroup';
 
+/** §7 after owner feedback: a compact anchored popover, not a page. */
+const PARAMS_POPOVER_WIDTH = 280;
+
 export interface InfiniteCanvasParamsPopoverProps {
   mediaKind: InfiniteCanvasGenerationMediaKind;
   params?: InfiniteCanvasGenerationParams;
+  /** The control that opened it: the generator's "parameters" text, usually. */
+  anchor?: HTMLElement | null;
   onChange: (params: InfiniteCanvasGenerationParams) => void;
   onClose: () => void;
 }
@@ -91,6 +102,7 @@ export interface InfiniteCanvasParamsPopoverProps {
 export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverProps> = ({
   mediaKind,
   params,
+  anchor,
   onChange,
   onClose,
 }) => {
@@ -135,21 +147,17 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
     : 1;
 
   return (
-    <aside
-      className="infinite-canvas-picker infinite-canvas-picker--params"
-      aria-label={t('infiniteCanvas.params.title')}
-      data-media-kind={mediaKind}
+    <InfiniteCanvasPopover
+      kind="params"
+      className="infinite-canvas-picker--params"
+      anchor={anchor}
+      width={PARAMS_POPOVER_WIDTH}
+      label={t('infiniteCanvas.params.title')}
+      onDismiss={onClose}
     >
-      <header className="infinite-canvas-picker__header">
+      <div className="infinite-canvas-picker__header" data-media-kind={mediaKind}>
         <h4>{t('infiniteCanvas.params.title')}</h4>
-        <button
-          type="button"
-          className="infinite-canvas-picker__close"
-          onClick={onClose}
-        >
-          {t('infiniteCanvas.params.close')}
-        </button>
-      </header>
+      </div>
       {dropped.length > 0 ? (
         <p
           className="infinite-canvas-picker__notice"
@@ -236,7 +244,7 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
           />
         ) : null}
       </div>
-    </aside>
+    </InfiniteCanvasPopover>
   );
 };
 

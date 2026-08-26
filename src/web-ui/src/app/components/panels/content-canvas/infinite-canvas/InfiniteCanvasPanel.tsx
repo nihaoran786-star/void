@@ -195,6 +195,12 @@ const defaultPreviewResolver: InfiniteCanvasImagePreviewResolver =
 
 /** §6: the gap between a card's lower edge and its generator, in panel px. */
 const GENERATOR_CARD_GAP = 12;
+/**
+ * §6, owner feedback 2026-08-26: the generator is NOT card-width and
+ * left-aligned. It overhangs the card by this much on EACH side and is centred
+ * on the card's midline, so it reads as a symmetric shelf under the picture.
+ */
+const GENERATOR_SIDE_OVERHANG = 20;
 /** A very small card must not squeeze the prompt row into unusability. */
 const GENERATOR_MIN_WIDTH = 320;
 /** The stylesheet's card box, used until reactflow reports a measured one. */
@@ -235,7 +241,7 @@ interface NodeActions {
   /** P4 W1: opens the full-screen viewer on this card's media. */
   openViewer: (nodeId: string) => void;
   /** P4 W3: opens the generation parameter popover for this card. */
-  openParams: (nodeId: string) => void;
+  openParams: (nodeId: string, anchor?: HTMLElement) => void;
   /** §3: the card's right-edge `+` — derive the next generation card. */
   spawnNext: (nodeId: string) => void;
   /** §3: the midpoint handle — insert a generation card on that connection. */
@@ -380,6 +386,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   /** P4 W3: the card whose generation parameters are being edited. */
   const [paramsNodeId, setParamsNodeId] = React.useState<string | null>(null);
   /**
+   * Owner feedback 2026-08-26: every popover is anchored to the control that
+   * opened it. These hold that control, not a frozen rectangle, so the surface
+   * re-measures instead of drifting when the trigger moves.
+   */
+  const [paramsAnchor, setParamsAnchor] = React.useState<HTMLElement | null>(null);
+  const [stylePickerAnchor, setStylePickerAnchor] = React.useState<HTMLElement | null>(null);
+  const [imagePickerAnchor, setImagePickerAnchor] = React.useState<HTMLElement | null>(null);
+  /**
    * P4 W5: undo / redo stack. In panel memory only — closing the canvas
    * clears it, and nothing about it reaches the document or the disk.
    */
@@ -410,6 +424,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const [selectedNodeIds, setSelectedNodeIds] = React.useState<string[]>([]);
   const selectedNodeIdsRef = React.useRef<string[]>([]);
   selectedNodeIdsRef.current = selectedNodeIds;
+  /**
+   * Selected connections. Edges are not mirrored into React state the way
+   * nodes are — nothing renders off them but the Delete key — so a ref is the
+   * whole story and no extra re-render is provoked by clicking a wire.
+   */
+  const selectedEdgeIdsRef = React.useRef<string[]>([]);
   /**
    * P4 review C3: the card whose retry is waiting for the "yes, charge me
    * again" confirmation. Only ever set for a card the user stopped waiting on.
@@ -468,13 +488,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     insertOnEdge: () => undefined,
   });
 
+  /**
+   * The same seam for the edge handles. Kept apart from `nodeActionsRef` so
+   * the edge projection does not have to re-run when a node action changes.
+   */
+  const edgeActionsRef = React.useRef<{ disconnect: (edgeId: string) => void }>({
+    disconnect: () => undefined,
+  });
+
   const cardToolbarActionsRef = React.useRef<CardToolbarActions>({
     saveMediaAs: () => undefined,
     openMore: () => undefined,
   });
 
-  const openStylePicker = React.useCallback((nodeId: string) => {
-    setStylePickerNodeId(nodeId);
+  const openStylePicker = React.useCallback((nodeId: string, anchor?: HTMLElement) => {
+    setStylePickerAnchor(anchor ?? null);
+    setStylePickerNodeId(current => (current === nodeId ? null : nodeId));
   }, []);
 
   const projectDocument = React.useCallback((document: InfiniteCanvasDocument) => {
@@ -527,7 +556,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               view.data.generationParams,
               view.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
             ),
-            onOpenParams: (nodeId: string) => nodeActionsRef.current.openParams(nodeId),
+            onOpenParams: (nodeId: string, anchor?: HTMLElement) =>
+              nodeActionsRef.current.openParams(nodeId, anchor),
             onSpawnNext: (nodeId: string) => nodeActionsRef.current.spawnNext(nodeId),
             ...(view.data.mediaRef
               ? {
@@ -563,6 +593,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       type: INFINITE_CANVAS_EDGE_TYPE,
       data: {
         onInsertCard: (edgeId: string) => nodeActionsRef.current.insertOnEdge(edgeId),
+        onDisconnect: (edgeId: string) => edgeActionsRef.current.disconnect(edgeId),
       },
     })));
   }, [catalog, openStylePicker, resolvePreviewUrl]);
@@ -1065,8 +1096,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         if (!found?.node.mediaRef) return;
         setViewerNodeId(nodeId);
       },
-      openParams: nodeId => {
+      openParams: (nodeId, anchor) => {
         if (!findMediaNode(nodeId)) return;
+        setParamsAnchor(anchor ?? null);
         setParamsNodeId(current => (current === nodeId ? null : nodeId));
       },
       // §3: "keep going from this card". Nothing new on the command side —
@@ -1261,6 +1293,28 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     void service.flushPendingWrites();
   }, [service]);
 
+  /**
+   * Owner feedback 2026-08-26: breaking a connection.
+   *
+   * One implementation behind three entry points — the `×` on the edge's
+   * midpoint handle, the Delete/Backspace key on a selected edge, and the
+   * `×` on a reference thumbnail in the generator. It is the same
+   * `removeEdgesContent` mutation reactflow's own edge removal already used,
+   * so it is one undo entry, and it deliberately does NOT go through the card
+   * deletion gate: no card and no media file is affected by cutting a wire,
+   * so there is nothing to confirm.
+   */
+  const disconnectEdges = React.useCallback((edgeIds: readonly string[]) => {
+    if (edgeIds.length === 0) return;
+    const removed = new Set(edgeIds);
+    setFlowEdges(edges => edges.filter(edge => !removed.has(edge.id)));
+    void commit(document => removeEdgesContent(document, [...edgeIds]), { history: true });
+  }, [commit]);
+
+  edgeActionsRef.current = {
+    disconnect: (edgeId: string) => disconnectEdges([edgeId]),
+  };
+
   // P4 W5: Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y. The listener sits on the
   // window (reactflow's pane is not always the focused element) but only acts
   // when focus is inside this panel or nowhere in particular, so a canvas in a
@@ -1290,6 +1344,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       if (event.key === 'Delete' || event.key === 'Backspace') {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         const selected = selectedNodeIdsRef.current;
+        const selectedEdges = selectedEdgeIdsRef.current;
+        // A selected connection deletes straight away: no card and no file is
+        // touched, so the confirmation gate the cards need does not apply.
+        if (selected.length === 0 && selectedEdges.length > 0) {
+          event.preventDefault();
+          selectedEdgeIdsRef.current = [];
+          disconnectEdges(selectedEdges);
+          return;
+        }
         if (selected.length === 0) return;
         event.preventDefault();
         requestDeleteNodes(selected);
@@ -1323,6 +1386,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     copyNodes,
+    disconnectEdges,
     duplicateNodes,
     pasteClipboard,
     requestDeleteNodes,
@@ -1331,9 +1395,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   ]);
 
   /** P4 W6: reactflow's selection, mirrored into panel state. */
-  const onSelectionChange = React.useCallback((selection: { nodes?: { id: string }[] }) => {
+  const onSelectionChange = React.useCallback((selection: {
+    nodes?: { id: string }[];
+    edges?: { id: string }[];
+  }) => {
     const ids = (selection.nodes ?? []).map(node => node.id);
     selectedNodeIdsRef.current = ids;
+    // Owner feedback 2026-08-26: a selected connection is a Delete target too.
+    selectedEdgeIdsRef.current = (selection.edges ?? []).map(edge => edge.id);
     // The transform mirror is only maintained while something is anchored, so
     // it can be stale from a pan made with nothing selected. Re-sync here, or
     // the generator would appear at the card's old screen position.
@@ -1968,10 +2037,19 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     const width = node.measured?.width || CARD_FALLBACK_WIDTH;
     const height = node.measured?.height || CARD_FALLBACK_HEIGHT;
     const { x, y, zoom } = viewportTransform;
+    // Owner feedback 2026-08-26: symmetric about the card and a little wider
+    // on both sides. Centring on the card's midline keeps that true even when
+    // the minimum width takes over on a small or zoomed-out card.
+    const cardLeft = node.position.x * zoom + x;
+    const cardWidth = width * zoom;
+    const generatorWidth = Math.max(
+      cardWidth + GENERATOR_SIDE_OVERHANG * 2,
+      GENERATOR_MIN_WIDTH,
+    );
     return {
-      left: node.position.x * zoom + x,
+      left: cardLeft + cardWidth / 2 - generatorWidth / 2,
       top: (node.position.y + height) * zoom + y + GENERATOR_CARD_GAP,
-      width: Math.max(width * zoom, GENERATOR_MIN_WIDTH),
+      width: generatorWidth,
     };
   }, [flowNodes, generatorTarget, viewportTransform]);
 
@@ -2020,10 +2098,28 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     await generateForNode(target.nodeId);
   }, [commit, generateForNode, generatorTarget]);
 
-  const onGeneratorAddReference = React.useCallback(() => {
+  const onGeneratorAddReference = React.useCallback((anchor?: HTMLElement) => {
+    setImagePickerAnchor(anchor ?? null);
     setImagePickerIntent('reference');
     setImagePickerOpen(true);
   }, []);
+
+  /**
+   * Owner feedback 2026-08-26: the `×` on a reference thumbnail.
+   *
+   * It breaks the connection from that reference card into the selected card —
+   * every edge between the two, so a duplicated wire cannot survive the click.
+   * The reference card itself and both cards' media stay exactly as they were;
+   * only the wire goes, through the same undoable mutation.
+   */
+  const onGeneratorRemoveReference = React.useCallback((sourceNodeId: string) => {
+    const targetNodeId = generatorTarget?.nodeId;
+    if (!targetNodeId) return;
+    const edgeIds = flowEdges
+      .filter(edge => edge.source === sourceNodeId && edge.target === targetNodeId)
+      .map(edge => edge.id);
+    disconnectEdges(edgeIds);
+  }, [disconnectEdges, flowEdges, generatorTarget]);
 
   const stylePickerCurrentPresetId = React.useMemo(() => {
     if (!stylePickerNodeId) return undefined;
@@ -2080,6 +2176,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         <InfiniteCanvasImagePicker
           workspacePath={workspacePath}
           mediaLibrary={mediaLibrary}
+          // The bug the owner hit: the picker used the library's
+          // convertFileSrc thumbnails, which this app's webview refuses. It
+          // now shares the cards' forceDataUrl resolver.
+          resolvePreviewUrl={resolvePreviewUrl}
+          anchor={imagePickerAnchor}
           onPick={onPickImage}
           onClose={() => setImagePickerOpen(false)}
         />
@@ -2088,6 +2189,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         <InfiniteCanvasStylePicker
           currentPresetId={stylePickerCurrentPresetId}
           catalog={catalog}
+          anchor={stylePickerAnchor}
           onPick={onPickStyle}
           onClose={() => setStylePickerNodeId(null)}
         />
@@ -2096,6 +2198,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         <InfiniteCanvasParamsPopover
           mediaKind={paramsTarget.mediaKind}
           params={paramsTarget.params}
+          anchor={paramsAnchor}
           onChange={onChangeGenerationParams}
           onClose={() => setParamsNodeId(null)}
         />
@@ -2246,13 +2349,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         {/* §8: the floating left rail replaces the old top toolbar row. */}
         <InfiniteCanvasRail
           onAddText={onAddText}
-          onAddImage={() => {
+          onAddImage={anchor => {
+            setImagePickerAnchor(anchor ?? null);
             setImagePickerIntent('card');
             setImagePickerOpen(open => !open);
           }}
           onAddGenerationCard={onAddGenerationCard}
           onAddVideoCard={onAddVideoCard}
-          onOpenLibrary={() => {
+          onOpenLibrary={anchor => {
+            setImagePickerAnchor(anchor ?? null);
             setImagePickerIntent('card');
             setImagePickerOpen(open => !open);
           }}
@@ -2305,9 +2410,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               );
             }}
             onAddReference={onGeneratorAddReference}
-            onOpenParams={() => nodeActionsRef.current.openParams(generatorTarget.nodeId)}
+            onRemoveReference={onGeneratorRemoveReference}
+            onOpenParams={anchor =>
+              nodeActionsRef.current.openParams(generatorTarget.nodeId, anchor)}
             onOpenStyle={generatorTarget.mediaKind === 'image'
-              ? () => openStylePicker(generatorTarget.nodeId)
+              ? anchor => openStylePicker(generatorTarget.nodeId, anchor)
               : undefined}
           />
         ) : null}

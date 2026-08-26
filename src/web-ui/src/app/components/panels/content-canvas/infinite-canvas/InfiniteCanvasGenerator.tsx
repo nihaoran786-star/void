@@ -44,7 +44,9 @@ export interface InfiniteCanvasGeneratorTarget {
 
 /**
  * Where the generator sits, in panel pixels: directly under the card it
- * belongs to, as wide as that card. The panel recomputes it whenever the card
+ * belongs to. Owner feedback 2026-08-26 — it must be symmetric about the card
+ * and a touch wider on BOTH sides, not card-width and left-aligned; the panel
+ * therefore centres it on the card's midline. Recomputed whenever the card
  * moves or the viewport pans / zooms, so the input tracks its card.
  */
 export interface InfiniteCanvasGeneratorPlacement {
@@ -66,16 +68,25 @@ export interface InfiniteCanvasGeneratorProps {
    * on-card prompt box made on blur.
    */
   onCommitPrompt?: (prompt: string) => void;
-  onAddReference: () => void;
-  onOpenParams?: () => void;
-  onOpenStyle?: () => void;
+  onAddReference: (anchor: HTMLElement) => void;
+  /**
+   * Owner feedback 2026-08-26: each reference thumbnail carries a small `×`
+   * that breaks that reference connection. The panel routes it through the
+   * existing edge-removal mutation, so it is one undoable step and neither
+   * card's media is touched.
+   */
+  onRemoveReference?: (nodeId: string) => void;
+  /** The anchor element is passed so the popover opens next to its trigger. */
+  onOpenParams?: (anchor: HTMLElement) => void;
+  onOpenStyle?: (anchor: HTMLElement) => void;
 }
 
 /** One small square in the reference queue; resolves its own preview. */
 const GeneratorThumbnail: React.FC<{
   reference: InfiniteCanvasGeneratorReference;
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
-}> = ({ reference, resolvePreviewUrl }) => {
+  onRemove?: (nodeId: string) => void;
+}> = ({ reference, resolvePreviewUrl, onRemove }) => {
   const { t } = useI18n('components');
   const [url, setUrl] = React.useState<string | undefined>(undefined);
   const { mediaRef } = reference;
@@ -106,6 +117,30 @@ const GeneratorThumbnail: React.FC<{
       title={label}
     >
       {url ? <img src={url} alt="" draggable={false} /> : null}
+      {onRemove ? (
+        <button
+          type="button"
+          className="infinite-canvas-generator__thumb-remove"
+          data-canvas-generator-action="remove-reference"
+          data-reference-node={reference.nodeId}
+          aria-label={t('infiniteCanvas.generator.removeReference')}
+          title={t('infiniteCanvas.generator.removeReference')}
+          onClick={event => {
+            event.stopPropagation();
+            onRemove(reference.nodeId);
+          }}
+        >
+          <svg viewBox="0 0 12 12" width="8" height="8" aria-hidden="true">
+            <path
+              d="M3 3l6 6M9 3l-6 6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      ) : null}
     </span>
   );
 };
@@ -120,6 +155,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   onSubmit,
   onCommitPrompt,
   onAddReference,
+  onRemoveReference,
   onOpenParams,
   onOpenStyle,
 }) => {
@@ -170,7 +206,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
             data-has-style={target.stylePresetName ? 'true' : undefined}
             aria-label={t('infiniteCanvas.generator.style')}
             title={target.stylePresetName ?? t('infiniteCanvas.generator.style')}
-            onClick={onOpenStyle}
+            onClick={event => onOpenStyle(event.currentTarget)}
           >
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
               <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
@@ -188,6 +224,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
               key={reference.nodeId}
               reference={reference}
               resolvePreviewUrl={resolvePreviewUrl}
+              onRemove={onRemoveReference}
             />
           ))}
         </span>
@@ -197,7 +234,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           data-canvas-generator-action="add-reference"
           aria-label={t('infiniteCanvas.generator.addReference')}
           title={t('infiniteCanvas.generator.addReference')}
-          onClick={onAddReference}
+          onClick={event => onAddReference(event.currentTarget)}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
@@ -227,7 +264,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           type="button"
           className="infinite-canvas-generator__meta"
           data-canvas-generator-action="model"
-          onClick={onOpenParams}
+          onClick={event => onOpenParams?.(event.currentTarget)}
         >
           {target.modelLabel}
         </button>
@@ -238,7 +275,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           data-canvas-generator-action="params"
           data-has-params={target.paramsSummary ? 'true' : undefined}
           title={target.paramsSummary || t('infiniteCanvas.params.button')}
-          onClick={onOpenParams}
+          onClick={event => onOpenParams?.(event.currentTarget)}
         >
           {target.paramsSummary || t('infiniteCanvas.params.button')}
         </button>
@@ -247,7 +284,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           type="button"
           className="infinite-canvas-generator__meta"
           data-canvas-generator-action="count"
-          onClick={onOpenParams}
+          onClick={event => onOpenParams?.(event.currentTarget)}
         >
           {/* `n`, not `count`: i18next reserves `count` for plurals. */}
           {t('infiniteCanvas.generator.count', { n: target.count ?? 1 })}

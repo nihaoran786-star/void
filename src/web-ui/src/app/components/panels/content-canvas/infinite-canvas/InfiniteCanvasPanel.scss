@@ -195,6 +195,28 @@
     opacity: 0.9;
   }
 
+  // Owner feedback 2026-08-26: connections can be broken. The `×` beside the
+  // midpoint handle stays out of the picture until the edge is hovered or
+  // selected, and it goes red-free — the accent is enough of a warning at
+  // this size, and a red dot on a resting board would be noise.
+  .infinite-canvas-edge__handle--disconnect {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .infinite-canvas-edge:hover .infinite-canvas-edge__handle--disconnect,
+  .infinite-canvas-edge[data-selected='true'] .infinite-canvas-edge__handle--disconnect {
+    opacity: 0.9;
+    pointer-events: auto;
+  }
+
+  // A selected connection is unmistakable: §3 keeps the accent for exactly
+  // this, so Delete never lands on a wire the user did not mean.
+  .infinite-canvas-edge[data-selected='true'] .infinite-canvas-edge__path {
+    stroke: var(--canvas-accent);
+    stroke-width: 1.6;
+  }
+
   // §3: connection handles are dots that only surface on hover.
   .react-flow__handle {
     width: 7px;
@@ -1071,8 +1093,8 @@
 }
 
 .infinite-canvas-generator__thumb {
+  position: relative;
   display: inline-block;
-  overflow: hidden;
   width: 34px;
   height: 34px;
   border: 1px solid var(--canvas-hairline);
@@ -1083,7 +1105,42 @@
     display: block;
     width: 100%;
     height: 100%;
+    border-radius: 7px;
     object-fit: cover;
+  }
+
+  // Owner feedback 2026-08-26: the reference can be dropped from here. The
+  // `×` only surfaces on hover or keyboard focus, so a resting queue is just
+  // thumbnails.
+  &:hover .infinite-canvas-generator__thumb-remove,
+  .infinite-canvas-generator__thumb-remove:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.infinite-canvas-generator__thumb-remove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 50%;
+  background: var(--canvas-surface-raised);
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+
+  &:hover {
+    border-color: var(--canvas-accent);
+    color: var(--canvas-text-primary);
   }
 }
 
@@ -1372,6 +1429,28 @@
   transform: translateX(-50%);
 }
 
+// §7, owner feedback 2026-08-26: the pickers are compact anchored popovers,
+// not near-full-screen slabs. Width comes from the component (260–320px), the
+// position from its anchor; the surface scrolls inside itself instead of
+// growing down the panel.
+.infinite-canvas-popover {
+  position: fixed;
+  z-index: 24;
+  top: 16px;
+  left: 16px;
+  max-height: min(380px, 70vh);
+  padding: 10px;
+  border-radius: 12px;
+  gap: 8px;
+  transform: none;
+
+  // Unplaced for one frame while the surface is measured; showing it at the
+  // fallback corner first would read as a jump.
+  &:not([data-canvas-popover-placed='true']) {
+    opacity: 0;
+  }
+}
+
 .infinite-canvas-picker__header {
   display: flex;
   align-items: center;
@@ -1418,6 +1497,24 @@
   gap: 12px;
 }
 
+// Owner feedback 2026-08-26: the style family dropdown and the category row
+// share one line now instead of stacking into two blocks.
+.infinite-canvas-picker__filter-row {
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  gap: 10px;
+}
+
+.infinite-canvas-picker__visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 // P4 review C7: the one line that names the settings a model switch dropped.
 .infinite-canvas-picker__notice {
   margin: 0 0 8px;
@@ -1450,11 +1547,21 @@
   }
 }
 
-// §7: the category row is plain text, never coloured capsules.
+// §7: the category row is plain text, never coloured capsules. Inside the
+// compact filter line it scrolls sideways rather than wrapping the popover
+// open.
 .infinite-canvas-picker__pills {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.infinite-canvas-picker__filter-row .infinite-canvas-picker__pills {
+  overflow-x: auto;
+  flex: 1;
+  flex-wrap: nowrap;
+  gap: 10px;
+  scrollbar-width: none;
 }
 
 .infinite-canvas-picker__pill {
@@ -1511,6 +1618,22 @@
   &[data-selected='true'] .infinite-canvas-picker__thumbnail,
   &[data-selected='true'] .infinite-canvas-picker__swatch {
     outline: 2px solid var(--canvas-accent);
+  }
+}
+
+// Owner feedback 2026-08-26: denser grid, smaller tiles, inside a popover.
+.infinite-canvas-picker__list--dense {
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+
+  .infinite-canvas-picker__thumbnail,
+  .infinite-canvas-picker__swatch {
+    height: 56px;
+    border-radius: 8px;
+  }
+
+  .infinite-canvas-picker__item-name {
+    font-size: 10px;
   }
 }
 
@@ -1641,11 +1764,16 @@
   inset: 0;
 }
 
+// Owner feedback 2026-08-26: the enlarged media floats over a genuinely
+// BLURRED board, not a flat dim sheet. The tint is the panel's own background
+// token, so the plate is dark in the dark theme and light in the light one and
+// the media reads correctly against both. Pressing here closes — handled by
+// the shared dismiss contract, not by a click handler on this element.
 .infinite-canvas-viewer__backdrop {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--infinite-canvas-bg) 88%, transparent);
-  backdrop-filter: blur(2px);
+  background: color-mix(in srgb, var(--infinite-canvas-bg) 62%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
 }
 
 .infinite-canvas-viewer__chrome {
@@ -1731,6 +1859,12 @@
   }
 }
 
+// The step arrows are absolutely placed; this wrapper only exists so the
+// dismiss contract can call both of them "not backdrop".
+.infinite-canvas-viewer__steps {
+  display: contents;
+}
+
 .infinite-canvas-viewer__step--prev {
   left: 12px;
 }
@@ -1749,9 +1883,21 @@
   inset: 40px 0 0;
 }
 
+// Wraps the media only — it must shrink to the picture, because everything
+// outside it counts as backdrop and closes the viewer when pressed.
+.infinite-canvas-viewer__frame {
+  display: flex;
+  max-width: 100%;
+  max-height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
 .infinite-canvas-viewer__image {
-  max-width: 92%;
-  max-height: 92%;
+  // Sized against the window rather than the frame: the frame shrinks to the
+  // picture, so a percentage here would chase its own tail.
+  max-width: 88vw;
+  max-height: 78vh;
   border-radius: 6px;
   object-fit: contain;
   transform-origin: center center;
@@ -1759,8 +1905,8 @@
 }
 
 .infinite-canvas-viewer__video {
-  max-width: 92%;
-  max-height: 92%;
+  max-width: 88vw;
+  max-height: 78vh;
   border-radius: 6px;
 }
 

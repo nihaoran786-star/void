@@ -28,10 +28,11 @@ import { useI18n } from '@/infrastructure/i18n';
 
 export interface InfiniteCanvasRailProps {
   onAddText: () => void;
-  onAddImage: () => void;
+  onAddImage: (anchor?: HTMLElement) => void;
   onAddGenerationCard: () => void;
   onAddVideoCard: () => void;
-  onOpenLibrary: () => void;
+  /** The button is handed over so the library popover anchors to the rail. */
+  onOpenLibrary: (anchor?: HTMLElement) => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -56,12 +57,15 @@ export const InfiniteCanvasRail: React.FC<InfiniteCanvasRailProps> = ({
   const { t } = useI18n('components');
   const [menuOpen, setMenuOpen] = React.useState(false);
 
-  const runAndClose = React.useCallback((action: () => void) => {
+  const runAndClose = React.useCallback((
+    action: (anchor?: HTMLElement) => void,
+    anchor?: HTMLElement,
+  ) => {
     setMenuOpen(false);
-    action();
+    action(anchor);
   }, []);
 
-  const CREATE_ITEMS: { action: () => void; labelKey: string; icon: React.ReactNode; testId?: string }[] = [
+  const CREATE_ITEMS: { action: (anchor?: HTMLElement) => void; labelKey: string; icon: React.ReactNode; testId?: string }[] = [
     {
       action: onAddGenerationCard,
       labelKey: 'infiniteCanvas.toolbar.addGenerationCard',
@@ -111,6 +115,9 @@ export const InfiniteCanvasRail: React.FC<InfiniteCanvasRailProps> = ({
               type="button"
               className="infinite-canvas-rail__menu-item"
               {...(item.testId ? { 'data-toolbar-action': item.testId } : {})}
+              // No anchor from the create menu: the menu closes with the
+              // click, so its button would be detached before a popover
+              // could measure it. Those surfaces float centred instead.
               onClick={() => runAndClose(item.action)}
             >
               {item.icon}
@@ -125,7 +132,7 @@ export const InfiniteCanvasRail: React.FC<InfiniteCanvasRailProps> = ({
         data-canvas-rail-action="library"
         aria-label={t('infiniteCanvas.rail.library')}
         title={t('infiniteCanvas.rail.library')}
-        onClick={onOpenLibrary}
+        onClick={event => onOpenLibrary(event.currentTarget)}
       >
         <Images size={15} aria-hidden="true" />
       </button>

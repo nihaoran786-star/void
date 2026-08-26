@@ -1110,7 +1110,8 @@
     },
     "handles": {
       "spawnNext": "从这张卡继续",
-      "insertOnEdge": "在这条连接上插入卡片"
+      "insertOnEdge": "在这条连接上插入卡片",
+      "disconnect": "断开这条连线"
     },
     "generator": {
       "label": "画布生成器",
@@ -1118,6 +1119,7 @@
       "send": "生成",
       "sendHint": "回车生成，Shift+回车换行",
       "addReference": "添加参考图",
+      "removeReference": "移除这张参考图",
       "references": "参考图",
       "referenceThumbnail": "参考图 {{order}}",
       "style": "风格",
