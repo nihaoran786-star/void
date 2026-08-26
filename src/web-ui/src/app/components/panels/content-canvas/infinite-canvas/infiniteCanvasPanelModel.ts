@@ -48,6 +48,9 @@ export interface InfiniteCanvasFlowEdgeView {
 // re-exports keep every existing panel-side import working unchanged.
 export type { InfiniteCanvasDocumentContent } from '@/shared/services/infinite-canvas';
 export { beginDerivedOperationContent } from '@/shared/services/infinite-canvas';
+// P5 W2: the local-derivation finisher (crop) sits beside it for the same
+// reason — it is a document-content rule, not a panel rule.
+export { applyLocalDerivedMedia } from '@/shared/services/infinite-canvas';
 // P4 W4: the batch (n > 1) landing rules live in shared for the same reason —
 // the media bridge and the pending reconciliation both apply them, and a
 // second copy in the app layer would be a second set of card ids.

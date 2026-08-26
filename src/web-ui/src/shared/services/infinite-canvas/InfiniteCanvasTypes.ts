@@ -14,8 +14,15 @@ export const INFINITE_CANVAS_SCHEMA_VERSION = '1';
 /**
  * K2: the full set of canvas image operations = the five image tools plus
  * `'generate'` (text-to-image / regenerate), the sixth operation kind.
+ *
+ * P5 (PRD §3.8) adds `'crop'`, and it is unlike every other kind: it is a
+ * LOCAL derivation. No media task is submitted, no quota is spent, no batch id
+ * exists, and the media bridge never sees it — the front end writes the cut
+ * PNG and the derived card's `mediaRef` in one mutation. It is therefore also
+ * the one kind the AI-facing `CanvasOp` white list deliberately does NOT
+ * accept (see `InfiniteCanvasAgentOps.ts`): the AI may not crop for the user.
  */
-export type CanvasImageOperationKind = ImageToolId | 'generate';
+export type CanvasImageOperationKind = ImageToolId | 'generate' | 'crop';
 
 export interface InfiniteCanvasViewport {
   x: number;

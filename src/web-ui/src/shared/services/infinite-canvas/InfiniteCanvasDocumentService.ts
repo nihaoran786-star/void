@@ -67,8 +67,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+// 'crop' (P5, PRD §3.8) is persisted on a derived card's `derivedFrom.toolId`,
+// so the parser has to accept it or a cropped card would fail to load.
 const CANVAS_IMAGE_OPERATION_KINDS: readonly CanvasImageOperationKind[] = [
-  'upscale', 'expand', 'inpaint', 'erase', 'matting', 'generate',
+  'upscale', 'expand', 'inpaint', 'erase', 'matting', 'generate', 'crop',
 ];
 
 const IMAGE_TOOL_ERROR_KINDS: readonly ImageToolErrorKind[] = [

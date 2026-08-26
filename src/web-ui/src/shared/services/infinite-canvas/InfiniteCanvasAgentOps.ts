@@ -118,6 +118,14 @@ function parseSize(value: unknown): { width: number; height: number } | undefine
   return { width: value.width, height: value.height };
 }
 
+/**
+ * The kinds the AI may name in a CanvasOp batch.
+ *
+ * P5, deliberately: `'crop'` is NOT here. Cropping is a local, user-only
+ * derivation (PRD §3.8 / plan §6) — the AI does not get to cut the owner's
+ * pictures — so an op that names it parses as malformed, exactly as an unknown
+ * kind always has.
+ */
 const OPERATION_KINDS: readonly CanvasImageOperationKind[] = [
   'upscale', 'expand', 'inpaint', 'erase', 'matting', 'generate',
 ];

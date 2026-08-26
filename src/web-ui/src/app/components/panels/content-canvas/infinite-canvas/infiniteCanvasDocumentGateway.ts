@@ -50,6 +50,77 @@ export function getInfiniteCanvasMediaSaver(): InfiniteCanvasMediaSaver {
 }
 
 /**
+ * P5 W1 asset-writer port: the ONE way the web layer puts image bytes on disk.
+ *
+ * Behind it sits the R1 desktop command `write_canvas_image_bytes`, whose
+ * two-prefix allowlist (`.void/infinite-canvas/scratch/`,
+ * `media/input/canvas-crops/`) is the only barrier that keeps this from being
+ * a general write-anywhere hole. The port never throws: a transport failure is
+ * folded into the same typed `backend` status the command itself returns, so
+ * the caller has exactly one shape to render.
+ */
+export interface InfiniteCanvasAssetWriteRequest {
+  workspacePath: string;
+  /** Workspace-relative destination; must match the command's allowlist. */
+  relativePath: string;
+  /** Bare base64 (no `data:` prefix) PNG bytes. */
+  base64Png: string;
+}
+
+export type InfiniteCanvasAssetWriteResult =
+  | { status: 'written'; relativePath: string; bytesWritten?: number }
+  | {
+    status: 'invalid_input' | 'path_denied' | 'backend';
+    relativePath?: string;
+    message?: string;
+  };
+
+export type InfiniteCanvasAssetWriter = (
+  request: InfiniteCanvasAssetWriteRequest,
+) => Promise<InfiniteCanvasAssetWriteResult>;
+
+export const WRITE_CANVAS_IMAGE_BYTES_COMMAND = 'write_canvas_image_bytes';
+export const PRUNE_CANVAS_SCRATCH_COMMAND = 'prune_canvas_scratch';
+
+export function getInfiniteCanvasAssetWriter(): InfiniteCanvasAssetWriter {
+  return async request => {
+    try {
+      const { api } = await import('@/infrastructure/api/service-api/ApiClient');
+      const response = await api.invoke<InfiniteCanvasAssetWriteResult>(
+        WRITE_CANVAS_IMAGE_BYTES_COMMAND,
+        { request },
+      );
+      return response ?? { status: 'backend', message: 'Empty response.' };
+    } catch (error) {
+      return {
+        status: 'backend',
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+}
+
+/**
+ * P5 W1 scratch cleanup port. Fired once when the panel mounts and deliberately
+ * best-effort: red-mark composites are intermediates, and a failed sweep must
+ * never surface as an error or delay the board.
+ */
+export type InfiniteCanvasScratchPruner = (
+  request: { workspacePath: string; maxAgeDays?: number },
+) => Promise<void>;
+
+export function getInfiniteCanvasScratchPruner(): InfiniteCanvasScratchPruner {
+  return async request => {
+    try {
+      const { api } = await import('@/infrastructure/api/service-api/ApiClient');
+      await api.invoke(PRUNE_CANVAS_SCRATCH_COMMAND, { request });
+    } catch {
+      // Housekeeping only — see the doc comment.
+    }
+  };
+}
+
+/**
  * P4 W7 "show in folder" port: the existing workspace `reveal_in_explorer`
  * command, reached through a dynamic import so the panel chunk stays free of
  * the API module. Read-only — it opens the OS file browser and nothing else.

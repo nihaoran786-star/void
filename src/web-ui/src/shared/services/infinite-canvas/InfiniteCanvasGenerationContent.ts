@@ -159,6 +159,46 @@ export function beginDerivedOperationContent(
   };
 }
 
+/**
+ * P5 W2 (PRD §3.8): finishes a LOCAL derivation in the same mutation that
+ * registered it.
+ *
+ * Cropping produces its file on disk with no media task behind it — no batch,
+ * no polling, no `InfiniteCanvasMediaBridge`. It is therefore the single
+ * operation whose derived card gets its `mediaRef` written by the front end,
+ * and that write has to happen inside the very same
+ * `mutateDefaultDocument` call as `beginDerivedOperationContent`, or a
+ * forever-pending crop card becomes observable.
+ *
+ * The never-overwrite invariant is enforced here too: a node that already
+ * carries media is left untouched, and so is a node that does not exist. On
+ * success the `generation` record is removed, exactly as a landed media result
+ * removes it.
+ */
+export function applyLocalDerivedMedia(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  mediaRef: { workspacePath: string; relativePath: string },
+): InfiniteCanvasDocumentContent {
+  const target = document.nodes.find(node => node.nodeId === nodeId);
+  if (!target || target.mediaRef !== undefined) return content(document);
+  if (!mediaRef.relativePath.trim()) return content(document);
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      if (node.nodeId !== nodeId) return node;
+      const { generation: _settled, ...keep } = node;
+      return {
+        ...keep,
+        mediaRef: {
+          workspacePath: mediaRef.workspacePath,
+          relativePath: mediaRef.relativePath,
+        },
+      };
+    }),
+  };
+}
+
 // —— P4 W4: batch (n > 1) landing ————————————————————————————————————————
 //
 // One submitted operation can come back with several produced media items

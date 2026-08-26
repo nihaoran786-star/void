@@ -1,0 +1,224 @@
+/**
+ * P5 W1: the rasterisation base.
+ *
+ * These are the numbers everything else in P5 rests on — the natural-pixel
+ * conversion, the crop clamp, the bare-base64 export shape the R1 command
+ * expects, and the two destination paths its allowlist accepts. Pixels are
+ * never compared; the 2d context is a recording stub, so what is asserted is
+ * geometry and call shape.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { JSDOM } from 'jsdom';
+
+import {
+  CANVAS_CROP_MIN_SIZE,
+  CANVAS_CROP_PREFIX,
+  CANVAS_SCRATCH_PREFIX,
+  canvasCropRelativePath,
+  canvasScratchRelativePath,
+  clampCropRect,
+  compositeMarkLayer,
+  createCanvasSurface,
+  cropBitmap,
+  dataUrlToBlob,
+  exportCanvasPngBase64,
+  isCropRectUsable,
+  rectFromCorners,
+  toNaturalLength,
+  toNaturalPoint,
+} from './infiniteCanvasImageRaster';
+
+interface DrawCall {
+  args: unknown[];
+}
+
+function stubCanvas(dom: JSDOM): { draws: DrawCall[] } {
+  const draws: DrawCall[] = [];
+  const context = {
+    drawImage: (...args: unknown[]) => draws.push({ args }),
+    clearRect: () => undefined,
+    save: () => undefined,
+    restore: () => undefined,
+  };
+  dom.window.HTMLCanvasElement.prototype.getContext = (() => context) as never;
+  dom.window.HTMLCanvasElement.prototype.toDataURL = (() => (
+    'data:image/png;base64,QUJD'
+  )) as never;
+  return { draws };
+}
+
+describe('infiniteCanvasImageRaster', () => {
+  let dom: JSDOM;
+
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    vi.stubGlobal('window', dom.window);
+    vi.stubGlobal('document', dom.window.document);
+    vi.stubGlobal('Blob', dom.window.Blob);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('screen → natural conversion', () => {
+    it('scales a pointer position by the displayed-to-natural ratio', () => {
+      const point = toNaturalPoint(
+        { clientX: 150, clientY: 100 },
+        { left: 50, top: 20, width: 200, height: 100 },
+        { width: 1000, height: 500 },
+      );
+      // (150-50)/200 = half the width; (100-20)/100 = 80% of the height.
+      expect(point).toEqual({ x: 500, y: 400 });
+    });
+
+    it('falls back to a 1:1 mapping when the displayed box has no size', () => {
+      const point = toNaturalPoint(
+        { clientX: 12, clientY: 34 },
+        { left: 0, top: 0, width: 0, height: 0 },
+        { width: 800, height: 600 },
+      );
+      expect(point).toEqual({ x: 12, y: 34 });
+    });
+
+    it('scales the brush diameter by the same ratio', () => {
+      expect(toNaturalLength(36, 400, 1600)).toBe(144);
+      expect(toNaturalLength(36, 0, 1600)).toBe(36);
+    });
+  });
+
+  describe('rectangles', () => {
+    it('normalises a rectangle dragged up and to the left', () => {
+      expect(rectFromCorners({ x: 90, y: 80 }, { x: 20, y: 10 })).toEqual({
+        x: 20,
+        y: 10,
+        width: 70,
+        height: 70,
+      });
+    });
+
+    it('clamps a crop rectangle inside the picture', () => {
+      const clamped = clampCropRect(
+        { x: -40, y: -10, width: 500, height: 500 },
+        { width: 200, height: 300 },
+      );
+      expect(clamped).toEqual({ x: 0, y: 0, width: 200, height: 300 });
+    });
+
+    it('grows a too-small rectangle to the minimum without leaving the picture', () => {
+      const clamped = clampCropRect(
+        { x: 198, y: 298, width: 2, height: 2 },
+        { width: 200, height: 300 },
+      );
+      expect(clamped.width).toBe(CANVAS_CROP_MIN_SIZE);
+      expect(clamped.height).toBe(CANVAS_CROP_MIN_SIZE);
+      expect(clamped.x + clamped.width).toBeLessThanOrEqual(200);
+      expect(clamped.y + clamped.height).toBeLessThanOrEqual(300);
+    });
+
+    it('never demands more than a tiny picture can give', () => {
+      const clamped = clampCropRect({ x: 0, y: 0, width: 5, height: 5 }, {
+        width: 10,
+        height: 10,
+      });
+      expect(clamped).toEqual({ x: 0, y: 0, width: 10, height: 10 });
+    });
+
+    it('refuses a selection below the minimum size', () => {
+      expect(isCropRectUsable({ x: 0, y: 0, width: 10, height: 400 })).toBe(false);
+      expect(isCropRectUsable({ x: 0, y: 0, width: 40, height: 400 })).toBe(true);
+      expect(isCropRectUsable(undefined)).toBe(false);
+    });
+  });
+
+  describe('surfaces', () => {
+    it('composites the mark layer at the source image natural size', () => {
+      const { draws } = stubCanvas(dom);
+      const source = { width: 1024, height: 768 } as never;
+      const marks = { width: 1024, height: 768 } as never;
+
+      const output = compositeMarkLayer(source, marks);
+
+      expect(output.width).toBe(1024);
+      expect(output.height).toBe(768);
+      // Original first, marks on top — the source pixels are never modified.
+      expect(draws).toHaveLength(2);
+      expect(draws[0].args[0]).toBe(source);
+      expect(draws[1].args[0]).toBe(marks);
+    });
+
+    it('cuts the clamped rectangle out of the source at natural scale', () => {
+      const { draws } = stubCanvas(dom);
+      const source = { width: 400, height: 400 } as never;
+
+      const output = cropBitmap(source, { x: 380, y: 10, width: 100, height: 100 });
+
+      // x is pulled back so the 100-wide cut fits inside a 400-wide picture.
+      expect(output.width).toBe(100);
+      expect(output.height).toBe(100);
+      expect(draws[0].args.slice(1)).toEqual([300, 10, 100, 100, 0, 0, 100, 100]);
+    });
+
+    it('exports BARE base64, the shape write_canvas_image_bytes expects', () => {
+      stubCanvas(dom);
+      const canvas = createCanvasSurface({ width: 8, height: 8 });
+      const exported = exportCanvasPngBase64(canvas);
+      expect(exported).toBe('QUJD');
+      expect(exported.startsWith('data:')).toBe(false);
+    });
+
+    it('never produces a zero-sized surface', () => {
+      stubCanvas(dom);
+      const canvas = createCanvasSurface({ width: 0, height: -4 });
+      expect(canvas.width).toBe(1);
+      expect(canvas.height).toBe(1);
+    });
+  });
+
+  describe('decoding', () => {
+    it('turns a base64 data URL into a blob of the declared type', () => {
+      const blob = dataUrlToBlob('data:image/png;base64,QUJD');
+      expect(blob.type).toBe('image/png');
+      expect(blob.size).toBe(3);
+    });
+
+    it('rejects anything that is not a data URL', () => {
+      // The guard that keeps a future convertFileSrc URL from silently
+      // tainting the export canvas.
+      expect(() => dataUrlToBlob('asset://localhost/x.png')).toThrow();
+    });
+  });
+
+  describe('destination paths', () => {
+    it('keys the scratch composite on the operation id', () => {
+      const path = canvasScratchRelativePath('op-42');
+      expect(path).toBe(`${CANVAS_SCRATCH_PREFIX}op-42-mark.png`);
+      // The whole point of the scratch directory: it is outside every one of
+      // the four MANAGED_MEDIA_SOURCES scan roots, so the media library can
+      // never surface an intermediate. Pinned literally on purpose.
+      expect(path.startsWith('.void/infinite-canvas/scratch/')).toBe(true);
+      expect(path.startsWith('media/generated/')).toBe(false);
+      expect(path.startsWith('media/input/')).toBe(false);
+      expect(path.startsWith('.void/media/')).toBe(false);
+    });
+
+    it('puts crops where the media library will find them', () => {
+      const path = canvasCropRelativePath('media/generated/batch-1/image-001.png', 1730000000000);
+      expect(path).toBe(`${CANVAS_CROP_PREFIX}image-001-crop-1730000000000.png`);
+    });
+
+    it('sanitises names the allowlist would reject', () => {
+      const path = canvasCropRelativePath('C:/weird/../名前 一.PNG', 7);
+      expect(path.startsWith(CANVAS_CROP_PREFIX)).toBe(true);
+      expect(path.endsWith('.png')).toBe(true);
+      const stem = path.slice(CANVAS_CROP_PREFIX.length);
+      expect(stem).not.toContain('..');
+      expect(stem).not.toContain(':');
+      expect(stem).not.toContain('/');
+    });
+
+    it('never produces an empty stem', () => {
+      expect(canvasScratchRelativePath('///')).toBe(`${CANVAS_SCRATCH_PREFIX}image-mark.png`);
+    });
+  });
+});

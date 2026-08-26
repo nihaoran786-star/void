@@ -9,15 +9,16 @@ import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type { ImageToolId } from '@/shared/services/infinite-canvas';
-import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
+import {
+  hasUnfilledInstructionPlaceholder,
+  IMAGE_TOOL_DEFINITIONS,
+} from '@/shared/services/infinite-canvas';
 
 export interface InfiniteCanvasToolInstructionDialogProps {
   toolId: ImageToolId;
   onConfirm: (instruction: string) => void;
   onClose: () => void;
 }
-
-const PLACEHOLDER_PATTERN = /[【】]/;
 
 export const InfiniteCanvasToolInstructionDialog: React.FC<
   InfiniteCanvasToolInstructionDialogProps
@@ -26,7 +27,7 @@ export const InfiniteCanvasToolInstructionDialog: React.FC<
   const definition = IMAGE_TOOL_DEFINITIONS.find(entry => entry.toolId === toolId);
   const [draft, setDraft] = React.useState(definition?.instructionTemplate ?? '');
 
-  const incomplete = PLACEHOLDER_PATTERN.test(draft) || draft.trim().length === 0;
+  const incomplete = hasUnfilledInstructionPlaceholder(draft) || draft.trim().length === 0;
 
   return (
     <div
