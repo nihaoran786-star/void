@@ -386,6 +386,343 @@ pub(crate) async fn prune_scratch_dir(
     Ok(removed)
 }
 
+// ---------------------------------------------------------------------------
+// P5-R2: reverse-prompt (image → prompt) for the infinite canvas.
+//
+// Canvas buttons do not go through the session AI — that discipline is already
+// recorded in CONTEXT.md, because routing a button click through the chat burns
+// a model round trip and leaves the result in the conversation instead of on
+// the card. So the reverse-prompt button gets its own command, built on the
+// very same primitives the AnalyzeImage tool uses
+// (`resolve_vision_model_from_global_config` + `optimize_image_with_size_limit`
+// + `build_multimodal_message` + the global AI client factory) and reporting
+// the very same typed status names. Nothing under `image_analysis/`,
+// `analyze_image_tool.rs` or `modes/media.rs` is modified.
+// ---------------------------------------------------------------------------
+
+use async_trait::async_trait;
+use std::sync::Arc;
+use void_core::agentic::image_analysis::{
+    build_multimodal_message, detect_mime_type_from_bytes, optimize_image_with_size_limit,
+    resolve_vision_model_from_global_config,
+};
+use void_core::infrastructure::ai::get_global_ai_client_factory;
+use void_core::util::errors::VoidError;
+
+/// Matches `AnalyzeImage`'s ceiling so both paths hand the provider the same
+/// class of payload.
+const ANALYSIS_MAX_BYTES: usize = 1024 * 1024;
+
+/// The instruction sent to the vision model. Deliberately asks for a
+/// ready-to-use generation prompt rather than a description, because the
+/// result is dropped straight into the card's prompt box.
+const SUMMARY_REVERSE_PROMPT_INSTRUCTION: &str = "Look at this image and write a single image-generation prompt that would recreate it. Cover subject, composition, lighting, colour palette, art style and mood. Reply with the prompt text only — no preamble, no numbering, no explanation. Keep it under 80 words.";
+const DETAILED_REVERSE_PROMPT_INSTRUCTION: &str = "Look at this image and write a single, richly detailed image-generation prompt that would recreate it. Cover subject and pose, composition and camera framing, lens and depth of field, lighting direction and quality, colour palette, materials and textures, art style, rendering technique and overall mood. Reply with the prompt text only — no preamble, no numbering, no explanation.";
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeInfiniteCanvasImageRequest {
+    /// Absolute local workspace root.
+    pub workspace_path: String,
+    /// Workspace-relative path of the image to read. No directory allowlist
+    /// here — unlike the write command this reads the owner's own media —
+    /// but it must still stay inside the workspace.
+    pub relative_path: String,
+    /// "summary" | "detailed". Defaults to "detailed".
+    #[serde(default)]
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeInfiniteCanvasImageResponse {
+    /// 'completed' | 'unsupported_model' | 'provider_not_configured'
+    /// | 'invalid_image' | 'path_denied' | 'backend'.
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+impl AnalyzeInfiniteCanvasImageResponse {
+    fn failure(status: &str, message: impl Into<String>) -> Self {
+        Self {
+            status: status.to_string(),
+            prompt: None,
+            summary: None,
+            model_id: None,
+            message: Some(message.into()),
+        }
+    }
+}
+
+/// The typed status set, mirrored from `ANALYZE_IMAGE_OUTPUT_STATUSES`. No new
+/// vocabulary is invented here, and no status is ever a bare string protocol.
+pub const CANVAS_IMAGE_ANALYSIS_STATUSES: &[&str] = &[
+    "completed",
+    "unsupported_model",
+    "provider_not_configured",
+    "invalid_image",
+    "path_denied",
+    "backend",
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CanvasImageAnalysisFailure {
+    pub status: &'static str,
+    pub message: String,
+}
+
+impl CanvasImageAnalysisFailure {
+    fn new(status: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CanvasImageAnalysisSuccess {
+    pub prompt: String,
+    pub summary: String,
+    pub model_id: String,
+}
+
+/// Seam for tests: the real implementation talks to the owner-configured
+/// vision model, which no unit test may do.
+#[async_trait]
+pub(crate) trait CanvasImageAnalysisRuntime: Send + Sync {
+    async fn analyze(
+        &self,
+        bytes: Vec<u8>,
+        mime_type: String,
+        instruction: String,
+    ) -> Result<CanvasImageAnalysisSuccess, CanvasImageAnalysisFailure>;
+}
+
+struct DefaultCanvasImageAnalysisRuntime;
+
+#[async_trait]
+impl CanvasImageAnalysisRuntime for DefaultCanvasImageAnalysisRuntime {
+    async fn analyze(
+        &self,
+        bytes: Vec<u8>,
+        mime_type: String,
+        instruction: String,
+    ) -> Result<CanvasImageAnalysisSuccess, CanvasImageAnalysisFailure> {
+        let vision_model = resolve_vision_model_from_global_config()
+            .await
+            .map_err(classify_vision_model_error)?;
+
+        let processed = optimize_image_with_size_limit(
+            bytes,
+            &vision_model.provider,
+            Some(&mime_type),
+            Some(ANALYSIS_MAX_BYTES),
+        )
+        .map_err(|error| {
+            CanvasImageAnalysisFailure::new(
+                "invalid_image",
+                format!("unable to prepare image: {error}"),
+            )
+        })?;
+
+        let messages = build_multimodal_message(
+            &instruction,
+            &processed.data,
+            &processed.mime_type,
+            &vision_model.provider,
+        )
+        .map_err(|error| {
+            CanvasImageAnalysisFailure::new(
+                "backend",
+                format!("unable to build image request: {error}"),
+            )
+        })?;
+
+        let client = get_global_ai_client_factory()
+            .await
+            .map_err(|error| {
+                CanvasImageAnalysisFailure::new(
+                    "provider_not_configured",
+                    format!("AI client factory unavailable: {error}"),
+                )
+            })?
+            .get_client_by_id(&vision_model.id)
+            .await
+            .map_err(|error| {
+                CanvasImageAnalysisFailure::new(
+                    "provider_not_configured",
+                    format!("failed to create image understanding client: {error}"),
+                )
+            })?;
+
+        let response = client.send_message(messages, None).await.map_err(|error| {
+            CanvasImageAnalysisFailure::new("backend", format!("image analysis failed: {error}"))
+        })?;
+
+        let prompt = response.text.trim().to_string();
+        if prompt.is_empty() {
+            return Err(CanvasImageAnalysisFailure::new(
+                "backend",
+                "the image understanding model returned an empty prompt",
+            ));
+        }
+        let summary = first_non_empty_line(&prompt, 180);
+
+        Ok(CanvasImageAnalysisSuccess {
+            prompt,
+            summary,
+            model_id: vision_model.id,
+        })
+    }
+}
+
+/// Same classification the AnalyzeImage tool applies, so "no vision model
+/// configured" surfaces as an explainable line on the card rather than a
+/// silent no-op or a generic backend error.
+pub(crate) fn classify_vision_model_error(error: VoidError) -> CanvasImageAnalysisFailure {
+    let message = error.to_string();
+    if message.contains("does not support image understanding") {
+        return CanvasImageAnalysisFailure::new("unsupported_model", message);
+    }
+    if message.contains("not configured")
+        || message.contains("Model not found")
+        || message.contains("disabled")
+        || message.contains("Failed to get AI config")
+    {
+        return CanvasImageAnalysisFailure::new("provider_not_configured", message);
+    }
+    CanvasImageAnalysisFailure::new("backend", message)
+}
+
+fn first_non_empty_line(text: &str, max_chars: usize) -> String {
+    text.lines()
+        .find(|line| !line.trim().is_empty())
+        .map(str::trim)
+        .unwrap_or_default()
+        .chars()
+        .take(max_chars)
+        .collect()
+}
+
+pub(crate) fn instruction_for_detail(detail: Option<&str>) -> String {
+    match detail.map(str::trim) {
+        Some("summary") => SUMMARY_REVERSE_PROMPT_INSTRUCTION.to_string(),
+        _ => DETAILED_REVERSE_PROMPT_INSTRUCTION.to_string(),
+    }
+}
+
+/// Pure path validation for the read command: workspace-relative, no escapes,
+/// and — after joining — still genuinely inside the workspace.
+pub(crate) fn validate_analysis_request(
+    request: &AnalyzeInfiniteCanvasImageRequest,
+) -> Result<String, AnalyzeInfiniteCanvasImageResponse> {
+    if !Path::new(&request.workspace_path).is_absolute() {
+        return Err(AnalyzeInfiniteCanvasImageResponse::failure(
+            "path_denied",
+            "workspacePath must be an absolute local path",
+        ));
+    }
+    if let Some(detail) = request.detail.as_deref().map(str::trim) {
+        if !detail.is_empty() && !matches!(detail, "summary" | "detailed") {
+            return Err(AnalyzeInfiniteCanvasImageResponse::failure(
+                "invalid_image",
+                "detail must be one of: \"summary\", \"detailed\"",
+            ));
+        }
+    }
+    let normalized = normalize_relative_path(&request.relative_path);
+    validate_relative_path_shape(&normalized)
+        .map_err(|message| AnalyzeInfiniteCanvasImageResponse::failure("path_denied", message))?;
+    Ok(normalized)
+}
+
+/// Reverse-prompt a canvas image with the owner-configured vision model.
+#[tauri::command]
+pub async fn analyze_infinite_canvas_image(
+    request: AnalyzeInfiniteCanvasImageRequest,
+) -> Result<AnalyzeInfiniteCanvasImageResponse, String> {
+    analyze_infinite_canvas_image_with_runtime(
+        request,
+        Arc::new(DefaultCanvasImageAnalysisRuntime),
+    )
+    .await
+}
+
+pub(crate) async fn analyze_infinite_canvas_image_with_runtime(
+    request: AnalyzeInfiniteCanvasImageRequest,
+    runtime: Arc<dyn CanvasImageAnalysisRuntime>,
+) -> Result<AnalyzeInfiniteCanvasImageResponse, String> {
+    let normalized = match validate_analysis_request(&request) {
+        Ok(normalized) => normalized,
+        Err(response) => return Ok(response),
+    };
+
+    let workspace_root = PathBuf::from(&request.workspace_path);
+    if !workspace_root.is_dir() {
+        return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
+            "path_denied",
+            "workspacePath does not exist on this machine",
+        ));
+    }
+    let target = workspace_root.join(&normalized);
+    // Existence first: a path that simply is not there is a missing image, not
+    // a denial — and `resolved_stays_inside` can only canonicalise something
+    // that exists.
+    if !target.is_file() {
+        return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
+            "invalid_image",
+            format!("no file at '{normalized}'"),
+        ));
+    }
+    if !resolved_stays_inside(&workspace_root, &target) {
+        return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
+            "path_denied",
+            format!("relativePath resolves outside the workspace: {normalized}"),
+        ));
+    }
+
+    let bytes = match tokio::fs::read(&target).await {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
+                "invalid_image",
+                format!("failed to read '{normalized}': {error}"),
+            ))
+        }
+    };
+    let mime_type = match detect_mime_type_from_bytes(&bytes, None) {
+        Ok(mime_type) => mime_type,
+        Err(error) => {
+            return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
+                "invalid_image",
+                error.to_string(),
+            ))
+        }
+    };
+
+    let instruction = instruction_for_detail(request.detail.as_deref());
+    Ok(match runtime.analyze(bytes, mime_type, instruction).await {
+        Ok(success) => AnalyzeInfiniteCanvasImageResponse {
+            status: "completed".to_string(),
+            prompt: Some(success.prompt),
+            summary: Some(success.summary),
+            model_id: Some(success.model_id),
+            message: None,
+        },
+        Err(failure) => {
+            AnalyzeInfiniteCanvasImageResponse::failure(failure.status, failure.message)
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -641,5 +978,255 @@ mod tests {
         .await
         .expect("command must not error out");
         assert_eq!(response.status, "invalid_input");
+    }
+
+    // —— P5-R2: reverse-prompt ——
+
+    use super::{
+        analyze_infinite_canvas_image_with_runtime, classify_vision_model_error,
+        instruction_for_detail, validate_analysis_request, AnalyzeInfiniteCanvasImageRequest,
+        CanvasImageAnalysisFailure, CanvasImageAnalysisRuntime, CanvasImageAnalysisSuccess,
+        CANVAS_IMAGE_ANALYSIS_STATUSES,
+    };
+    use std::sync::Arc;
+    use void_core::util::errors::VoidError;
+
+    /// A real 1×1 PNG, so MIME detection runs for real rather than against a
+    /// stub that only happens to carry the right magic bytes.
+    fn real_png_bytes() -> Vec<u8> {
+        BASE64
+            .decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=")
+            .expect("decode fixture png")
+    }
+
+    struct FakeAnalysisRuntime {
+        outcome: Result<CanvasImageAnalysisSuccess, CanvasImageAnalysisFailure>,
+    }
+
+    #[async_trait::async_trait]
+    impl CanvasImageAnalysisRuntime for FakeAnalysisRuntime {
+        async fn analyze(
+            &self,
+            bytes: Vec<u8>,
+            mime_type: String,
+            instruction: String,
+        ) -> Result<CanvasImageAnalysisSuccess, CanvasImageAnalysisFailure> {
+            assert!(!bytes.is_empty(), "runtime must receive the file bytes");
+            assert_eq!(mime_type, "image/png");
+            assert!(!instruction.trim().is_empty());
+            self.outcome.clone()
+        }
+    }
+
+    struct PanicAnalysisRuntime;
+
+    #[async_trait::async_trait]
+    impl CanvasImageAnalysisRuntime for PanicAnalysisRuntime {
+        async fn analyze(
+            &self,
+            _bytes: Vec<u8>,
+            _mime_type: String,
+            _instruction: String,
+        ) -> Result<CanvasImageAnalysisSuccess, CanvasImageAnalysisFailure> {
+            panic!("the vision model must never be reached for a rejected request");
+        }
+    }
+
+    fn analysis_request(workspace: &std::path::Path, relative: &str) -> AnalyzeInfiniteCanvasImageRequest {
+        AnalyzeInfiniteCanvasImageRequest {
+            workspace_path: workspace.to_string_lossy().to_string(),
+            relative_path: relative.to_string(),
+            detail: None,
+        }
+    }
+
+    #[test]
+    fn analysis_accepts_any_in_workspace_relative_path() {
+        // Unlike the write command, reading has no directory allowlist: the
+        // owner's own media lives all over the workspace.
+        for path in [
+            "media/generated/batch-1/image-001.png",
+            "media/input/canvas-crops/a.png",
+            "assets/reference.jpg",
+        ] {
+            let request = AnalyzeInfiniteCanvasImageRequest {
+                workspace_path: if cfg!(windows) {
+                    "C:\\workspace".to_string()
+                } else {
+                    "/workspace".to_string()
+                },
+                relative_path: path.to_string(),
+                detail: None,
+            };
+            assert!(
+                validate_analysis_request(&request).is_ok(),
+                "path must be accepted: {path}"
+            );
+        }
+    }
+
+    #[test]
+    fn analysis_rejects_paths_escaping_the_workspace() {
+        for path in ["../secret.png", "/etc/passwd", "C:\\outside\\a.png", ""] {
+            let request = AnalyzeInfiniteCanvasImageRequest {
+                workspace_path: if cfg!(windows) {
+                    "C:\\workspace".to_string()
+                } else {
+                    "/workspace".to_string()
+                },
+                relative_path: path.to_string(),
+                detail: None,
+            };
+            let response =
+                validate_analysis_request(&request).expect_err("path must be rejected");
+            assert_eq!(response.status, "path_denied", "path was accepted: {path}");
+        }
+    }
+
+    #[test]
+    fn analysis_detail_selects_the_instruction_and_rejects_unknown_values() {
+        assert_ne!(
+            instruction_for_detail(Some("summary")),
+            instruction_for_detail(Some("detailed"))
+        );
+        // Absent detail behaves as "detailed".
+        assert_eq!(
+            instruction_for_detail(None),
+            instruction_for_detail(Some("detailed"))
+        );
+
+        let mut request = AnalyzeInfiniteCanvasImageRequest {
+            workspace_path: if cfg!(windows) {
+                "C:\\workspace".to_string()
+            } else {
+                "/workspace".to_string()
+            },
+            relative_path: "a.png".to_string(),
+            detail: Some("verbose".to_string()),
+        };
+        assert_eq!(
+            validate_analysis_request(&request)
+                .expect_err("unknown detail must be rejected")
+                .status,
+            "invalid_image"
+        );
+        request.detail = Some("summary".to_string());
+        assert!(validate_analysis_request(&request).is_ok());
+    }
+
+    #[test]
+    fn analysis_classifies_vision_model_configuration_errors_typed() {
+        // An unconfigured vision model must never surface as silence.
+        assert_eq!(
+            classify_vision_model_error(VoidError::service(
+                "Image understanding model is not configured."
+            ))
+            .status,
+            "provider_not_configured"
+        );
+        assert_eq!(
+            classify_vision_model_error(VoidError::service(
+                "Model does not support image understanding: text-only"
+            ))
+            .status,
+            "unsupported_model"
+        );
+        for status in [
+            "completed",
+            "unsupported_model",
+            "provider_not_configured",
+            "invalid_image",
+            "path_denied",
+            "backend",
+        ] {
+            assert!(CANVAS_IMAGE_ANALYSIS_STATUSES.contains(&status));
+        }
+    }
+
+    #[tokio::test]
+    async fn analysis_returns_completed_with_a_non_empty_prompt() {
+        let workspace = temp_workspace();
+        std::fs::create_dir_all(workspace.join("media/generated/batch-1")).expect("mkdir");
+        std::fs::write(
+            workspace.join("media/generated/batch-1/image-001.png"),
+            real_png_bytes(),
+        )
+        .expect("write fixture png");
+
+        let response = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&workspace, "media/generated/batch-1/image-001.png"),
+            Arc::new(FakeAnalysisRuntime {
+                outcome: Ok(CanvasImageAnalysisSuccess {
+                    prompt: "a lone red fox in snow, cinematic rim light".to_string(),
+                    summary: "a lone red fox in snow".to_string(),
+                    model_id: "vision-model-1".to_string(),
+                }),
+            }),
+        )
+        .await
+        .expect("command must not error out");
+
+        assert_eq!(response.status, "completed");
+        assert!(!response.prompt.unwrap_or_default().trim().is_empty());
+        assert_eq!(response.model_id.as_deref(), Some("vision-model-1"));
+        assert!(response.message.is_none());
+
+        let _ = std::fs::remove_dir_all(workspace);
+    }
+
+    #[tokio::test]
+    async fn analysis_surfaces_an_unconfigured_vision_model_typed() {
+        let workspace = temp_workspace();
+        std::fs::write(workspace.join("a.png"), real_png_bytes()).expect("write fixture png");
+
+        let response = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&workspace, "a.png"),
+            Arc::new(FakeAnalysisRuntime {
+                outcome: Err(classify_vision_model_error(VoidError::service(
+                    "Image understanding model is not configured.",
+                ))),
+            }),
+        )
+        .await
+        .expect("an unconfigured model is a typed result, never a panic or an Err");
+
+        assert_eq!(response.status, "provider_not_configured");
+        assert!(response.prompt.is_none());
+        assert!(!response.message.unwrap_or_default().is_empty());
+
+        let _ = std::fs::remove_dir_all(workspace);
+    }
+
+    #[tokio::test]
+    async fn analysis_never_reaches_the_model_for_denied_or_missing_paths() {
+        let workspace = temp_workspace();
+
+        let denied = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&workspace, "../escape.png"),
+            Arc::new(PanicAnalysisRuntime),
+        )
+        .await
+        .expect("command must not error out");
+        assert_eq!(denied.status, "path_denied");
+
+        let missing = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&workspace, "not-there.png"),
+            Arc::new(PanicAnalysisRuntime),
+        )
+        .await
+        .expect("command must not error out");
+        assert_eq!(missing.status, "invalid_image");
+
+        std::fs::write(workspace.join("notes.txt"), b"plain text, not an image")
+            .expect("write non-image");
+        let not_an_image = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&workspace, "notes.txt"),
+            Arc::new(PanicAnalysisRuntime),
+        )
+        .await
+        .expect("command must not error out");
+        assert_eq!(not_an_image.status, "invalid_image");
+
+        let _ = std::fs::remove_dir_all(workspace);
     }
 }
