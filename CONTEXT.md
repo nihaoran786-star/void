@@ -129,6 +129,47 @@ through its own Module Interface. Active contract:
   coordinates from the panel's own viewport ref rather than a
   `ReactFlowProvider`; W6/W7 reuse that trick, so the panel still has no
   provider.
+- **Infinite Canvas P5 "creation" (landed 2026-08-27, awaiting owner
+  acceptance).** Four creation abilities per
+  [the P5 plan](docs/plans/2026-08-26-infinite-canvas-p5-creation.md): paint a
+  red mark and regenerate just that area, erase, crop, pick a style from
+  pictures instead of a list, and reverse-prompt an image. Five things future
+  work must not undo:
+  - **There is no mask parameter and there never was.** The reference product
+    was read file by file: it burns the red mark into a copy of the picture and
+    submits that as an ordinary reference image. Nothing in our backend accepts
+    a mask either. So inpaint and erase composite a red-marked PNG and submit it
+    through the existing `localReferencePaths` lane — `GenerateImage` still just
+    sees "a prompt and one reference picture". Red-mark accuracy is therefore
+    probabilistic; the copy says "mark the area", never "precise mask".
+  - **Scratch discipline.** Composites live in
+    `.void/infinite-canvas/scratch/`, deliberately outside the four
+    `MANAGED_MEDIA_SOURCES` scan roots, so the media library never shows them.
+    They are named by `operationId` (idempotent on retry) and swept on mount
+    after seven days, silently. Do not move this under `media/`.
+  - **Crop is the one place the front end writes a derived card's `mediaRef`
+    itself.** Everywhere else the media bridge does it on the way back. Crop has
+    no job and no batch, so the write happens in the same mutation that
+    registers the operation — no permanently pending crop card. Output goes to
+    `media/input/canvas-crops/` and is honestly `input`: no model ran, no
+    manifest, no faked `generatedIdentity`. `CanvasOp` does not let the AI crop.
+  - **Style thumbnails ship from `public/`, not from a bundle.** All 161
+    upstream sample images, re-encoded to 320px WebP (2.03 MiB total), sit in
+    `src/web-ui/public/style-presets/` and are lazy-loaded by plain relative
+    URL. Vite copies `public/` verbatim, so they are invisible to the JS/CSS
+    performance budget — proven with a real `build:web`, not assumed — and
+    guarded by `scripts/check-style-thumbnail-budget.mjs`. The owner accepted a
+    recorded third-party IP risk here; see `THIRD-PARTY-NOTICES.md` and do not
+    soften that note. The 156 presets with no upstream image render a
+    deterministic swatch tile, which is a finished state, not a placeholder.
+  - **Reverse-prompt has its own command and does not touch the session AI.**
+    `analyze_infinite_canvas_image` runs the owner-configured vision model
+    directly and returns the same typed statuses `AnalyzeImage` uses. The result
+    fills the card's prompt box and never dispatches a generation; an unset
+    vision model reads as exactly that. Image bytes reach disk through exactly
+    one door, the R1 `write_canvas_image_bytes` command, whose two-prefix
+    allowlist is the only thing keeping it from being a write-anywhere hole —
+    widening it is a new attack surface, not a convenience.
 - **Infinite Canvas visual language (reworked 2026-08-26, owner-driven).** The
   canvas was rebuilt against the owner's reference product, and the contract
   for how it looks and behaves is

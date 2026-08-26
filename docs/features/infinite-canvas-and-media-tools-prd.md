@@ -8,14 +8,19 @@ CanvasRead/CanvasOp、ops 操作日志与 `agentOps.appliedSeq` 水位、视频�
 schema、GenerateVideo 绑定与 kind 交叉校验、防失控约束）；
 2026-08-25 按业主批准的 P4 计划修订 §3/§5/§6（直连命令生成参数入参、
 完成回执的 `outputMediaItems` 多结果数组与批量落位不变量、节点
-`generationParams` 加法字段、撤销作用域与"停止等待"取舍）
+`generationParams` 加法字段、撤销作用域与"停止等待"取舍）；
+2026-08-26 按业主批准的 P5 计划修订 §2/§3（风格缩略图方案 B'、蒙版合成参考、
+本地派生 `'crop'`、两个画布专用桌面命令）；
+**2026-08-27：P5 全部切片已实施合入，§2 与 §3.7–§3.9 自纸面契约转为已落地实现，
+待业主实机验收**（见 §6 阶段边界）
 建立：2026-08-22
 上游规范：[Canvas 插件平台产品与架构规范](canvas-plugin-platform-prd.md)（最高规范，
 见其 §2.2 画布定位与 §2.3 贡献点类型）
 实施计划：[2026-08-22 无限画布第一期实施计划](../plans/2026-08-22-infinite-canvas-plugin-phase1.md)、
 [2026-08-23 第二期实施计划（K2 图像创作闭环）](../plans/2026-08-23-infinite-canvas-k2-image-tools.md)、
 [2026-08-24 第三期实施计划（P3 AI 指挥画布 + 视频卡）](../plans/2026-08-24-infinite-canvas-p3-agent-canvas.md)、
-[2026-08-25 第四期实施计划（P4 工作台）](../plans/2026-08-25-infinite-canvas-p4-workbench.md)
+[2026-08-25 第四期实施计划（P4 工作台）](../plans/2026-08-25-infinite-canvas-p4-workbench.md)、
+[2026-08-26 第五期实施计划（P5 创作能力增强）](../plans/2026-08-26-infinite-canvas-p5-creation.md)
 外部来源：kunpeng 项目（MIT 许可，归属见仓库根 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)）
 
 > 本文固化第一期（K0+K1+M1-M4）的四套接口契约，并在第二期（K2，业主已批准）
@@ -82,13 +87,16 @@ interface StylePreset {
   - **再编码规格（硬性）**：长边 **320px**、**WebP**、质量约 72、去除 EXIF；
     单张 ≤ **48 KB**，161 张合计 ≤ **6 MB**。再编码脚本在仓库外一次性运行后
     丢弃（沿用第一期"转换脚本不入库"的做法），data 文件头保留来源注释。
-  - **落点**：`src/web-ui/public/style-presets/<family>/<presetId>.webp`。
-    文件名一律用 `presetId`，不保留来源的 CJK / 空格文件名。`public/` 由 Vite
+  - **落点**：`src/web-ui/public/style-presets/<family>/<hash>.webp`。
+    **实施修订（2026-08-27）**：`presetId` 本身含来源的 CJK 作品名，不能直接
+    做文件名，故 `<hash>` = `sha256(presetId)` 的前 16 位十六进制字符。目的不变
+    ——确定的 id↔文件映射，且第三方作品名不出现在我们的文件树里。
+    不保留来源的 CJK / 空格文件名。`public/` 由 Vite
     原样拷进 `dist/`，**不参与 JS/CSS 打包**，因此不计入
     `scripts/web-performance-budget.json` 的 JS / CSS 预算（安装包体积增加约
     4 MB 是真实代价，另行记在计划风险条目里）。
   - **`thumbnailRef` 填充规则**：`cinematic` 与 `animation-2d` 每一条都填
-    `style-presets/<family>/<presetId>.webp`（相对引用）；`midjourney` 与
+    `style-presets/<family>/<hash>.webp`（相对引用）；`midjourney` 与
     `mg-motion` 两个 family 来源本就没有小样图，`thumbnailRef` **恒为空**。
   - **无缩略图 family 的降级呈现**：由 `presetId` 哈希**确定性**推导出一个柔和
     色块（同一 presetId 永远同一颜色），色块中央为风格名前两字、下方为完整
@@ -791,6 +799,23 @@ Provider、渠道或密钥。
 对齐辅助线与吸附。**不新增任何生成能力**，仍不引入新 Provider、渠道或
 密钥；后端只有两处可选字段加法（§3.1 的生成参数入参、§3.2 的
 `outputMediaItems`），短剧路径零触碰。
+
+**P5（业主已批准，见 [P5 实施计划](../plans/2026-08-26-infinite-canvas-p5-creation.md)；
+2026-08-27 全部切片已合入，待业主实机验收）覆盖**：蒙版画笔（局部重绘 / 擦除，
+走红标合成图 + `localReferencePaths`，§3.7）、裁剪（本地派生 `'crop'`，§3.8）、
+风格缩略图（方案 B'，全 161 张进 `public/`，§2）、图生提示词
+（`analyze_infinite_canvas_image` 专用命令，不经主 AI，§3.9）。
+**仍不引入新 Provider、渠道或密钥**；后端只新增两个画布专用命令
+（`write_canvas_image_bytes` 与 `analyze_infinite_canvas_image`，均在新文件
+`infinite_canvas_asset_api.rs` 内），`media_tools.rs` / `capabilities.rs` /
+`jobs.rs` / `analyze_image_tool.rs` / `image_analysis/` / `modes/media.rs`
+与短剧任何路径零改动。
+
+**P5 实测数字（2026-08-27 一次真实 `build:web`）**：缩略图 161 张、
+2,126,328 字节（2.03 MiB），位于 `dist/style-presets/`；JS 原始
+2,308,380 / 2,399,568 字节，CSS 原始 563,309 / 650,806 字节，预算 PASS。
+任何 JS/CSS 产物内均**不含**缩略图字节，只有 161 条路径字符串随懒加载的
+`InfiniteCanvasPanel` chunk 一起走。
 
 **P4 撤销作用域与不可撤销清单**（契约条款，测试断言）：
 
