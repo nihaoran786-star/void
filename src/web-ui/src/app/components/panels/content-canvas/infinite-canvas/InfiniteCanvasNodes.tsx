@@ -18,6 +18,7 @@ import { Handle, Position } from '@xyflow/react';
 import {
   AlertTriangle,
   Brush,
+  Crop,
   Download,
   Eraser,
   Expand,
@@ -121,8 +122,18 @@ export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData
   /** Resolved display name of the applied style preset, if any. */
   stylePresetName?: string;
   onOpenStylePicker: (nodeId: string, anchor?: HTMLElement) => void;
-  /** Opens the instruction-completion dialog for one of the five tools. */
+  /**
+   * Opens the surface for one of the five tools. Which surface is the panel's
+   * call: `inpaint` and `erase` open the P5 mask editor, the other three keep
+   * the placeholder-completion instruction dialog.
+   */
   onRunImageTool: (nodeId: string, toolId: ImageToolId) => void;
+  /**
+   * P5 W2: opens the crop editor. Visual language §4 puts crop FIRST in the
+   * toolbar; it was missing until P5 only because nothing could write image
+   * bytes to disk. Absent on cards without a picture.
+   */
+  onCropImage?: (nodeId: string) => void;
   /** P3: derives a blank video card wired to this image (image-to-video). */
   onDeriveVideoCard?: (nodeId: string) => void;
 }
@@ -461,6 +472,26 @@ const InfiniteCanvasMediaCard: React.FC<
         role="toolbar"
         aria-label={t('infiniteCanvas.imageNode.toolsLabel')}
       >
+        {imageData?.onCropImage && mediaRef ? (
+          <>
+            {/*
+              §4 puts crop first: it is the only entry that costs nothing and
+              runs entirely on this machine. Its own class keeps it out of the
+              five-contract-tool group behind it.
+            */}
+            <button
+              type="button"
+              className="infinite-canvas-node__crop-button"
+              data-node-action="crop"
+              aria-label={t('infiniteCanvas.crop.button')}
+              title={t('infiniteCanvas.crop.button')}
+              onClick={() => imageData.onCropImage?.(id)}
+            >
+              <Crop size={14} aria-hidden="true" />
+            </button>
+            <span className="infinite-canvas-node__toolbar-divider" aria-hidden="true" />
+          </>
+        ) : null}
         {imageData && mediaRef ? (
           <>
             <span className="infinite-canvas-node__tools">

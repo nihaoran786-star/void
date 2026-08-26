@@ -976,7 +976,8 @@
       "instructionLabel": "Tool instruction",
       "confirm": "Confirm and generate",
       "cancel": "Cancel",
-      "dismiss": "Got it"
+      "dismiss": "Got it",
+      "crop": "Crop"
     },
     "generation": {
       "promptLabel": "Generation prompt",
@@ -1140,6 +1141,48 @@
       "in": "Zoom in",
       "label": "Zoom controls",
       "out": "Zoom out"
+    },
+    "crop": {
+      "button": "Crop",
+      "title": "Crop this picture",
+      "hint": "Drag a frame over the part you want to keep. This runs on your machine: nothing is sent anywhere and nothing is charged.",
+      "confirm": "Crop into a new card",
+      "unavailable": "This picture could not be opened for cropping.",
+      "writeFailed": "The cropped file could not be saved. Nothing was changed.",
+      "discardTitle": "Discard this crop?",
+      "discardBody": "The frame you drew will be lost. The original picture is untouched either way.",
+      "discardConfirm": "Discard",
+      "discardCancel": "Keep editing"
+    },
+    "mask": {
+      "title": "Mark the area to change",
+      "toolsLabel": "Marking tools",
+      "tool": {
+        "brush": "Brush",
+        "rect": "Rectangle",
+        "eraser": "Eraser"
+      },
+      "brushSize": "Brush size",
+      "undo": "Undo mark",
+      "redo": "Redo mark",
+      "clear": "Clear all marks",
+      "hint": "Paint over the area you want changed, then say what should happen there. The marked area guides the model; it is not a pixel-exact selection.",
+      "instructionLabel": "What should change",
+      "confirm": "Mark and generate",
+      "unavailable": "This picture could not be opened for marking.",
+      "writeFailed": "The marked picture could not be saved, so nothing was generated and nothing was charged.",
+      "discardTitle": "Discard these marks?",
+      "discardBody": "What you painted will be lost. The original picture is untouched either way.",
+      "discardConfirm": "Discard",
+      "discardCancel": "Keep editing",
+      "directive": {
+        "inpaint": "Change only the area covered by the semi-transparent red marking in this image. Every other pixel must stay exactly as in the original. Do not reproduce the red marking itself in the result.",
+        "erase": "Remove what sits under the semi-transparent red marking in this image and fill that area naturally with content that matches its surroundings. Every other pixel must stay exactly as in the original. Do not reproduce the red marking itself in the result."
+      },
+      "prefill": {
+        "inpaint": "Turn the marked area into 【what should be there instead】.",
+        "erase": "Remove 【what should go】 from the marked area."
+      }
     }
   },
   "agentStudio": {

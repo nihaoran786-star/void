@@ -2055,4 +2055,273 @@
   font-size: 12px;
 }
 
+// ── P5 editing states: mask brush and crop ─────────────────────────────────
+// Both are full-panel EDITING STATES rather than pop-ups: they sit inside
+// .infinite-canvas-panel, so the --canvas-* vocabulary (and therefore the
+// light/dark switch) reaches them with no remapping. The one thing that never
+// follows the theme is the red of the marks — that is a functional constant
+// living in infiniteCanvasImageRaster.ts, painted onto a canvas, not styled
+// here.
+
+.infinite-canvas-mask,
+.infinite-canvas-crop {
+  position: absolute;
+  z-index: 24;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+
+  // Measure-before-show (CONTEXT.md lesson): the surface stays invisible until
+  // its geometry is known, so it can never flash a guessed layout first. Still
+  // laid out, so the first paint after decoding is already correct.
+  &[data-ready='false'] {
+    visibility: hidden;
+  }
+}
+
+.infinite-canvas-mask__backdrop,
+.infinite-canvas-crop__backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: color-mix(in srgb, var(--infinite-canvas-bg) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(120%);
+}
+
+.infinite-canvas-mask__bar,
+.infinite-canvas-crop__bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--infinite-canvas-hairline);
+  background: var(--infinite-canvas-surface);
+}
+
+.infinite-canvas-mask__divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--infinite-canvas-hairline);
+}
+
+.infinite-canvas-mask__tool {
+  display: inline-flex;
+  width: 26px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--infinite-canvas-hover);
+    color: var(--infinite-canvas-text);
+  }
+
+  &[data-active='true'] {
+    background: var(--infinite-canvas-accent-soft);
+    color: var(--infinite-canvas-accent);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
+.infinite-canvas-mask__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+
+  input[type='range'] {
+    width: 96px;
+    accent-color: var(--infinite-canvas-accent);
+  }
+}
+
+.infinite-canvas-mask__size-value {
+  min-width: 22px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.infinite-canvas-mask__stage,
+.infinite-canvas-crop__stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+// Shrink-wraps the picture: the mark layer and the crop frame are placed in
+// percentages of THIS box, so no measurement enters the render path and pan,
+// zoom or a window resize can never desynchronise them from the image.
+.infinite-canvas-mask__frame,
+.infinite-canvas-crop__frame {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.infinite-canvas-mask__image,
+.infinite-canvas-crop__image {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+  object-fit: contain;
+  user-select: none;
+}
+
+.infinite-canvas-mask__layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  cursor: crosshair;
+  inset: 0;
+  touch-action: none;
+}
+
+.infinite-canvas-mask__placeholder,
+.infinite-canvas-crop__placeholder {
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 12px;
+}
+
+.infinite-canvas-mask__prompt {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--infinite-canvas-hairline);
+  background: var(--infinite-canvas-surface);
+}
+
+.infinite-canvas-mask__hint,
+.infinite-canvas-crop__hint {
+  max-width: 34%;
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.infinite-canvas-mask__input {
+  flex: 1;
+  min-height: 46px;
+  padding: 6px 8px;
+  border: 1px solid var(--infinite-canvas-hairline);
+  border-radius: 6px;
+  background: var(--infinite-canvas-raised);
+  color: var(--infinite-canvas-text);
+  font-family: inherit;
+  font-size: 12px;
+  resize: none;
+
+  &:focus {
+    border-color: var(--infinite-canvas-accent-line);
+    outline: none;
+  }
+}
+
+.infinite-canvas-mask__confirm,
+.infinite-canvas-crop__confirm {
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--infinite-canvas-accent-line);
+  border-radius: 6px;
+  background: var(--infinite-canvas-accent-soft);
+  color: var(--infinite-canvas-accent);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+
+  &:disabled {
+    border-color: var(--infinite-canvas-hairline);
+    color: var(--infinite-canvas-muted);
+    cursor: default;
+    opacity: 0.55;
+  }
+}
+
+.infinite-canvas-crop__spacer {
+  flex: 1;
+}
+
+.infinite-canvas-crop__size {
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.infinite-canvas-crop__rect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--canvas-select-ring);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--infinite-canvas-bg) 55%, transparent);
+  cursor: move;
+}
+
+// Rule-of-thirds guides, drawn as two crossing gradients so the frame needs no
+// extra elements to hit-test around.
+.infinite-canvas-crop__thirds {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, transparent 33.33%, var(--infinite-canvas-hairline) 33.33%, var(--infinite-canvas-hairline) calc(33.33% + 1px), transparent calc(33.33% + 1px), transparent 66.66%, var(--infinite-canvas-hairline) 66.66%, var(--infinite-canvas-hairline) calc(66.66% + 1px), transparent calc(66.66% + 1px)),
+    linear-gradient(to bottom, transparent 33.33%, var(--infinite-canvas-hairline) 33.33%, var(--infinite-canvas-hairline) calc(33.33% + 1px), transparent calc(33.33% + 1px), transparent 66.66%, var(--infinite-canvas-hairline) 66.66%, var(--infinite-canvas-hairline) calc(66.66% + 1px), transparent calc(66.66% + 1px));
+  pointer-events: none;
+}
+
+.infinite-canvas-crop__handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--canvas-select-ring);
+  border-radius: 2px;
+  background: var(--infinite-canvas-surface);
+
+  &[data-crop-handle='nw'] {
+    top: -5px;
+    left: -5px;
+    cursor: nwse-resize;
+  }
+
+  &[data-crop-handle='ne'] {
+    top: -5px;
+    right: -5px;
+    cursor: nesw-resize;
+  }
+
+  &[data-crop-handle='sw'] {
+    bottom: -5px;
+    left: -5px;
+    cursor: nesw-resize;
+  }
+
+  &[data-crop-handle='se'] {
+    right: -5px;
+    bottom: -5px;
+    cursor: nwse-resize;
+  }
+}
+
 @include minimal.styles;

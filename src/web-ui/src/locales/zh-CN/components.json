@@ -976,7 +976,8 @@
       "instructionLabel": "工具指令",
       "confirm": "确认生成",
       "cancel": "取消",
-      "dismiss": "知道了"
+      "dismiss": "知道了",
+      "crop": "裁剪"
     },
     "generation": {
       "promptLabel": "生成提示词",
@@ -1140,6 +1141,48 @@
       "in": "放大",
       "label": "缩放控件",
       "out": "缩小"
+    },
+    "crop": {
+      "button": "裁剪",
+      "title": "裁剪这张图",
+      "hint": "拉一个框，圈出要保留的部分。这一步在本机完成：不发送任何数据，也不消耗额度。",
+      "confirm": "裁成一张新卡",
+      "unavailable": "这张图无法打开进行裁剪。",
+      "writeFailed": "裁剪结果没能保存，画布未做任何改动。",
+      "discardTitle": "放弃这次裁剪？",
+      "discardBody": "你拉的框会丢失。无论如何，原图都不会被改动。",
+      "discardConfirm": "放弃",
+      "discardCancel": "继续编辑"
+    },
+    "mask": {
+      "title": "标出要修改的位置",
+      "toolsLabel": "标注工具",
+      "tool": {
+        "brush": "画笔",
+        "rect": "矩形",
+        "eraser": "橡皮"
+      },
+      "brushSize": "笔刷粗细",
+      "undo": "撤销涂抹",
+      "redo": "重做涂抹",
+      "clear": "清空涂抹",
+      "hint": "把要改的地方涂上，再写一句要改成什么。标注区域用来给模型指位置，不是像素级的精确选区。",
+      "instructionLabel": "要改成什么",
+      "confirm": "标注并生成",
+      "unavailable": "这张图无法打开进行标注。",
+      "writeFailed": "标注后的图没能保存，因此没有发起生成，也没有产生任何花费。",
+      "discardTitle": "放弃这些涂抹？",
+      "discardBody": "你涂的内容会丢失。无论如何，原图都不会被改动。",
+      "discardConfirm": "放弃",
+      "discardCancel": "继续编辑",
+      "directive": {
+        "inpaint": "只修改这张图中被半透明红色标记覆盖的区域，其余像素必须与原图完全一致。结果中不要出现红色标记本身。",
+        "erase": "去掉这张图中被半透明红色标记覆盖的内容，并用与周围环境一致的内容自然填补该区域，其余像素必须与原图完全一致。结果中不要出现红色标记本身。"
+      },
+      "prefill": {
+        "inpaint": "把标记区域换成【要改成的内容】。",
+        "erase": "从标记区域中去掉【要去掉的东西】。"
+      }
     }
   },
   "agentStudio": {

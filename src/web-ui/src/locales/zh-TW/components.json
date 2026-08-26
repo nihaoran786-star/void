@@ -976,7 +976,8 @@
       "instructionLabel": "工具指令",
       "confirm": "確認生成",
       "cancel": "取消",
-      "dismiss": "知道了"
+      "dismiss": "知道了",
+      "crop": "裁切"
     },
     "generation": {
       "promptLabel": "生成提示詞",
@@ -1140,6 +1141,48 @@
       "in": "放大",
       "label": "縮放控件",
       "out": "縮小"
+    },
+    "crop": {
+      "button": "裁切",
+      "title": "裁切這張圖",
+      "hint": "拉一個框，圈出要保留的部分。這一步在本機完成：不會送出任何資料，也不會消耗額度。",
+      "confirm": "裁成一張新卡",
+      "unavailable": "這張圖無法開啟進行裁切。",
+      "writeFailed": "裁切結果沒能儲存，畫布未做任何變更。",
+      "discardTitle": "放棄這次裁切？",
+      "discardBody": "你拉的框會遺失。無論如何，原圖都不會被更動。",
+      "discardConfirm": "放棄",
+      "discardCancel": "繼續編輯"
+    },
+    "mask": {
+      "title": "標出要修改的位置",
+      "toolsLabel": "標註工具",
+      "tool": {
+        "brush": "筆刷",
+        "rect": "矩形",
+        "eraser": "橡皮擦"
+      },
+      "brushSize": "筆刷粗細",
+      "undo": "復原塗抹",
+      "redo": "重做塗抹",
+      "clear": "清除塗抹",
+      "hint": "把要改的地方塗上，再寫一句要改成什麼。標註區域用來給模型指位置，不是像素級的精確選區。",
+      "instructionLabel": "要改成什麼",
+      "confirm": "標註並生成",
+      "unavailable": "這張圖無法開啟進行標註。",
+      "writeFailed": "標註後的圖沒能儲存，因此沒有發起生成，也沒有產生任何花費。",
+      "discardTitle": "放棄這些塗抹？",
+      "discardBody": "你塗的內容會遺失。無論如何，原圖都不會被更動。",
+      "discardConfirm": "放棄",
+      "discardCancel": "繼續編輯",
+      "directive": {
+        "inpaint": "只修改這張圖中被半透明紅色標記覆蓋的區域，其餘像素必須與原圖完全一致。結果中不要出現紅色標記本身。",
+        "erase": "去掉這張圖中被半透明紅色標記覆蓋的內容，並用與周圍環境一致的內容自然填補該區域，其餘像素必須與原圖完全一致。結果中不要出現紅色標記本身。"
+      },
+      "prefill": {
+        "inpaint": "把標記區域換成【要改成的內容】。",
+        "erase": "從標記區域中去掉【要去掉的東西】。"
+      }
     }
   },
   "agentStudio": {
