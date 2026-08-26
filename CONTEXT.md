@@ -129,6 +129,26 @@ through its own Module Interface. Active contract:
   coordinates from the panel's own viewport ref rather than a
   `ReactFlowProvider`; W6/W7 reuse that trick, so the panel still has no
   provider.
+- **Infinite Canvas visual language (reworked 2026-08-26, owner-driven).** The
+  canvas was rebuilt against the owner's reference product, and the contract
+  for how it looks and behaves is
+  [docs/design/infinite-canvas-visual-language.md](docs/design/infinite-canvas-visual-language.md)
+  — read it before touching this panel's presentation. The shape: cards are the
+  media itself (no file name, no on-card controls, type label outside above);
+  the prompt lives in a generator **anchored under the selected card**, never a
+  global composer; a click selects (full screen is a double click or the pill
+  toolbar); popovers are compact and anchored, dismissed by clicking outside or
+  Esc through one shared `useInfiniteCanvasDismiss`; the model list and the
+  parameter groups are separate popovers; the board follows the app theme in
+  both directions. Two coordinate-space lessons are worth keeping, because both
+  shipped as visible bugs: an ancestor of the canvas is transformed, so
+  `position: fixed` resolves against the panel — popover maths must be
+  converted into panel coordinates; and any surface placed from a measured card
+  box must stay invisible until the measurement arrives, or it flickers from
+  guess to truth. `WorkspaceMediaLibrary.thumbnailUrl` is `convertFileSrc`
+  output and must never be used inside the canvas (see the assetProtocol note
+  above). Owner acceptance of P4's manual checklist — including a real n>1
+  spend — is still outstanding.
 
 ### AGENT hub and catalogs
 
