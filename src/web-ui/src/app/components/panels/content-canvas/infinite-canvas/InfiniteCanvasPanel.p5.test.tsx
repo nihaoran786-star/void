@@ -351,6 +351,8 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
   it('keeps the three non-mask tools on the instruction dialog', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
+    // §4: expand now sits in the "more (...)" drawer, so the drawer opens first.
+    await openEditor('[data-node-action="more"]');
     await openEditor('[data-tool-id="expand"]');
 
     expect(container.querySelector('[data-canvas-editor="mask"]')).toBeNull();

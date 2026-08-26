@@ -1712,6 +1712,69 @@
   font-size: 10px;
 }
 
+// ── §4: the card pill's "more (…)" drawer ──────────────────────────────────
+// A list inside the shared popover, so it inherits the surface, the placement
+// and the dismissal. Only the rows are new. Colours come from the canvas
+// tokens, which carry a light and a dark value each — no hard-coded greys.
+
+.infinite-canvas-picker--overflow {
+  padding: 6px;
+  gap: 0;
+}
+
+.infinite-canvas-overflow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.infinite-canvas-overflow__divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--canvas-hairline);
+}
+
+.infinite-canvas-overflow__item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--canvas-text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  gap: 8px;
+  text-align: left;
+
+  &:hover:not(:disabled) {
+    background: var(--canvas-hover-wash);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: -1px;
+  }
+
+  &:disabled {
+    cursor: progress;
+    opacity: 0.5;
+  }
+}
+
+.infinite-canvas-overflow__icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--canvas-text-muted);
+}
+
+.infinite-canvas-overflow__label {
+  overflow: hidden;
+  flex: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // ── P5 W7: the reverse-prompt "replace or add" choice ──────────────────────
 // A preview of what came back plus two words. Deliberately small: the real
 // editing happens in the card's own prompt box, not here.
@@ -1740,13 +1803,6 @@
   .infinite-canvas-picker__pill {
     color: var(--canvas-text-primary);
   }
-}
-
-// The button spends nothing, so its pending state is a quiet dim rather than
-// the card-wide progress treatment a generation gets.
-.infinite-canvas-node__toolbar-button[data-node-action='reverse-prompt'][data-pending='true'] {
-  opacity: 0.5;
-  cursor: progress;
 }
 
 // ── §7: parameter popover — compact groups, values as small pills ──────────

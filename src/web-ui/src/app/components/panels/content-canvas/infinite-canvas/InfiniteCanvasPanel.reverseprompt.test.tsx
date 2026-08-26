@@ -211,11 +211,26 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     });
   }
 
+  /**
+   * §4 convergence: reverse-prompt is no longer one of the pill's resident
+   * icons — it lives in the "more (...)" drawer. The entry is the same entry,
+   * so the tests still find it by its action name; they just have to open the
+   * drawer the way the owner does.
+   */
+  async function openOverflow(nodeId = 'n-image') {
+    const card = container.querySelector(`[data-node-id="${nodeId}"]`)!;
+    const more = card.querySelector('[data-node-action="more"]') as HTMLButtonElement;
+    await act(async () => {
+      more.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+  }
+
   const button = () => (
     container.querySelector('[data-node-action="reverse-prompt"]') as HTMLButtonElement | null
   );
 
   async function press() {
+    await openOverflow();
     await act(async () => {
       button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
@@ -229,11 +244,13 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     });
     await renderPanel();
 
-    const cards = Array.from(container.querySelectorAll('[data-node-id]'));
-    const withMedia = cards.find(card => card.getAttribute('data-node-id') === 'n-image')!;
-    const blank = cards.find(card => card.getAttribute('data-node-id') === 'n-blank')!;
-    expect(withMedia.querySelector('[data-node-action="reverse-prompt"]')).not.toBeNull();
-    expect(blank.querySelector('[data-node-action="reverse-prompt"]')).toBeNull();
+    // The drawer is a panel-level surface, so the entry is looked for while
+    // the drawer belonging to each card is open.
+    await openOverflow('n-image');
+    expect(button()).not.toBeNull();
+
+    await openOverflow('n-blank');
+    expect(button()).toBeNull();
   });
 
   it('reads the card picture by workspace-relative path and fills an empty prompt box', async () => {
@@ -357,9 +374,15 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
+    await openOverflow();
     await act(async () => {
       button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
+
+    // Choosing the entry closes the drawer, so re-opening it is how the
+    // in-flight state is seen at all: the entry is there, marked pending and
+    // refusing a second press.
+    await openOverflow();
     expect(button()!.getAttribute('data-pending')).toBe('true');
     expect(button()!.disabled).toBe(true);
 
@@ -374,6 +397,8 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     });
     await service.flushPendingWrites();
     expect(readDocument(memory).nodes[0].prompt).toBe(REVERSED);
+    // The drawer never closed — the refused press did nothing — so the entry
+    // is still on screen, and it has dropped the pending mark.
     expect(button()!.getAttribute('data-pending')).toBeNull();
   });
 });

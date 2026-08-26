@@ -182,6 +182,10 @@ import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
 import { InfiniteCanvasCropEditor } from './InfiniteCanvasCropEditor';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import {
+  InfiniteCanvasOverflowMenu,
+  type InfiniteCanvasOverflowAction,
+} from './InfiniteCanvasOverflowMenu';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
 import {
   canvasCropRelativePath,
@@ -329,7 +333,7 @@ interface NodeActions {
  */
 interface CardToolbarActions {
   saveMediaAs: (nodeId: string) => void;
-  openMore: (nodeId: string, at: { clientX: number; clientY: number }) => void;
+  overflow: (nodeId: string, action: InfiniteCanvasOverflowAction) => void;
 }
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
@@ -620,8 +624,31 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   const cardToolbarActionsRef = React.useRef<CardToolbarActions>({
     saveMediaAs: () => undefined,
-    openMore: () => undefined,
+    overflow: () => undefined,
   });
+
+  /**
+   * §4's overflow drawer. The panel owns it, not the card: the surface is
+   * placed in panel coordinates and a card lives inside reactflow's
+   * transformed pane, where those numbers would come out wrong.
+   */
+  const [overflow, setOverflow] = React.useState<
+    { nodeId: string; anchor: HTMLElement | null } | null
+  >(null);
+
+  /**
+   * The trigger, kept where the action dispatcher can reach it: reverse-prompt
+   * anchors its own follow-up popover to whatever opened it, and by the time
+   * that runs the drawer has closed.
+   */
+  const overflowAnchorRef = React.useRef<HTMLElement | null>(null);
+
+  const openOverflow = React.useCallback((nodeId: string, anchor: HTMLElement) => {
+    overflowAnchorRef.current = anchor;
+    // Pressing the same card's "more" again closes it, the way every other
+    // canvas popover trigger behaves.
+    setOverflow(current => (current?.nodeId === nodeId ? null : { nodeId, anchor }));
+  }, []);
 
   const openStylePicker = React.useCallback((nodeId: string, anchor?: HTMLElement) => {
     setStylePickerAnchor(anchor ?? null);
@@ -688,9 +715,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
                   ),
                 }
               : {}),
-            onOpenMore: (nodeId: string, at: { clientX: number; clientY: number }) => (
-              cardToolbarActionsRef.current.openMore(nodeId, at)
-            ),
+            onOpenOverflow: openOverflow,
             // The image-only surface (style preset, five tools, derive-video)
             // stays off the P3-minimal video card.
             ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
@@ -710,14 +735,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
                         onCropImage: (nodeId: string) => (
                           nodeActionsRef.current.cropImage(nodeId)
                         ),
-                        onReversePrompt: (nodeId: string, anchor?: HTMLElement) => (
-                          nodeActionsRef.current.reversePrompt(nodeId, anchor)
-                        ),
                       }
                     : {}),
-                  onDeriveVideoCard: (nodeId: string) => (
-                    nodeActionsRef.current.deriveVideoCard(nodeId)
-                  ),
                 }
               : {}),
           },
@@ -730,7 +749,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         onDisconnect: (edgeId: string) => edgeActionsRef.current.disconnect(edgeId),
       },
     })));
-  }, [catalog, openStylePicker, resolvePreviewUrl]);
+  }, [catalog, openOverflow, openStylePicker, resolvePreviewUrl]);
 
   /**
    * P4 W5: `history: true` marks a commit as the user's own edit, and only
@@ -2318,25 +2337,50 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     viewerItems,
   ]);
 
-  // §4: the card pill's output group. Both reuse the ports the right-click
-  // menu already calls — no second save lane, no second menu.
+  // §4: the card pill's output group and its overflow drawer. Every branch
+  // reuses the port the right-click menu or the shortcut already calls — no
+  // second save lane, no second delete, no second reveal.
   React.useEffect(() => {
     cardToolbarActionsRef.current = {
       saveMediaAs: nodeId => {
         const item = viewerItems.find(entry => entry.nodeId === nodeId);
         if (item) onSaveMediaAs(item);
       },
-      openMore: (nodeId, at) => {
-        const found = findMediaNode(nodeId);
-        openContextMenu({ ...at, preventDefault: () => undefined }, {
-          kind: 'node',
-          nodeId,
-          hasMedia: Boolean(found?.node.mediaRef),
-          canGenerate: Boolean(found),
-        });
+      overflow: (nodeId, action) => {
+        switch (action) {
+          case 'expand':
+            nodeActionsRef.current.openTool(nodeId, 'expand');
+            return;
+          case 'reverse-prompt':
+            // Anchored to the "more" button, which is still on screen: the
+            // drawer that carried the entry has just closed.
+            nodeActionsRef.current.reversePrompt(nodeId, overflowAnchorRef.current ?? undefined);
+            return;
+          case 'derive-video':
+            nodeActionsRef.current.deriveVideoCard(nodeId);
+            return;
+          case 'reveal':
+            onRevealMedia(nodeId);
+            return;
+          case 'copy':
+            copyNodes([nodeId]);
+            return;
+          case 'duplicate':
+            duplicateNodes([nodeId]);
+            return;
+          case 'delete':
+            requestDeleteNodes([nodeId]);
+        }
       },
     };
-  }, [findMediaNode, onSaveMediaAs, openContextMenu, viewerItems]);
+  }, [
+    copyNodes,
+    duplicateNodes,
+    onRevealMedia,
+    onSaveMediaAs,
+    requestDeleteNodes,
+    viewerItems,
+  ]);
 
   const onSelectionToolbarAction = React.useCallback((
     action: InfiniteCanvasSelectionAction,
@@ -2410,20 +2454,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       { zoom: viewportRef.current.zoom, duration: 200 },
     );
   }, []);
-
-  /**
-   * P5 W7: the in-flight marker for the reverse-prompt button.
-   *
-   * Kept out of the document projection on purpose — it is transient panel
-   * state, not canvas truth. Returns the SAME array when nothing is pending,
-   * so the common case costs reactflow nothing.
-   */
-  const renderedFlowNodes = React.useMemo(() => {
-    if (!reversePromptPendingNodeId) return flowNodes;
-    return flowNodes.map(node => (node.id === reversePromptPendingNodeId
-      ? { ...node, data: { ...node.data, reversePromptPending: true } }
-      : node));
-  }, [flowNodes, reversePromptPendingNodeId]);
 
   // —— §6: the generator that floats under the selected card ————————————————
 
@@ -2719,7 +2749,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         ref={flowRef}
       >
         <ReactFlow
-          nodes={renderedFlowNodes}
+          nodes={flowNodes}
           edges={flowEdges}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
@@ -2908,6 +2938,33 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onClose={() => setMaskRequest(null)}
         />
       ) : null}
+      {/*
+        §4: the "more (…)" drawer. Same compact anchored surface and same
+        dismissal contract as every other canvas popover; it just happens to
+        hold menu items.
+      */}
+      {overflow ? (() => {
+        const found = findMediaNode(overflow.nodeId);
+        const hasMedia = Boolean(found?.node.mediaRef);
+        const isImage = found?.node.kind === 'image';
+        return (
+          <InfiniteCanvasOverflowMenu
+            anchor={overflow.anchor}
+            available={{
+              expand: isImage && hasMedia,
+              reversePrompt: isImage && hasMedia,
+              deriveVideo: isImage && hasMedia,
+              reveal: hasMedia,
+            }}
+            reversePromptPending={reversePromptPendingNodeId === overflow.nodeId}
+            onDismiss={() => setOverflow(null)}
+            onAction={(action: InfiniteCanvasOverflowAction) => {
+              setOverflow(null);
+              cardToolbarActionsRef.current.overflow(overflow.nodeId, action);
+            }}
+          />
+        );
+      })() : null}
       {/*
         P5 W7: the prompt box was not empty, so the reversed prompt waits for
         one word from the owner. Anchored to the button that produced it and

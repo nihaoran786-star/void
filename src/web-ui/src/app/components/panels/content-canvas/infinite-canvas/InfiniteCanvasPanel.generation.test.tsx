@@ -383,6 +383,9 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
     await renderPanel();
 
+    // §4: outpainting moved off the resident pill into the "more (...)"
+    // drawer; the entry and everything behind it are unchanged.
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
     await clickButton(button => button.getAttribute('data-tool-id') === 'expand');
     const input = container.querySelector('.infinite-canvas-dialog textarea');
     expect(input).not.toBeNull();

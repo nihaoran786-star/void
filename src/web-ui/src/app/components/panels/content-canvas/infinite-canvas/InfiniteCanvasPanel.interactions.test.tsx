@@ -349,14 +349,18 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     expect(readDocument(memory).nodes[0]).not.toHaveProperty('stylePresetId');
   });
 
-  it('renders the five contract tools and opens the instruction dialog on click', async () => {
+  it('keeps four contract tools on the pill and outpainting in the drawer', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
+    // §4 caps the pill at about ten icons. Four of the five contract tools
+    // stay resident; `expand` is the low-traffic one and moved behind "more".
     const toolIds = Array.from(container.querySelectorAll('.infinite-canvas-node__tool'))
       .map(button => button.getAttribute('data-tool-id'));
-    expect(toolIds).toEqual(['upscale', 'expand', 'inpaint', 'erase', 'matting']);
+    expect(toolIds).toEqual(['upscale', 'inpaint', 'erase', 'matting']);
+    expect(container.querySelector('[data-tool-id="expand"]')).toBeNull();
 
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
     await clickButton(button => button.getAttribute('data-tool-id') === 'expand');
 
     // The click only opens the 【】 completion dialog: nothing is dispatched,
@@ -401,19 +405,77 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     expect(card!.querySelector('[data-node-action="more"]')).not.toBeNull();
   });
 
-  it('opens the card menu from the toolbar overflow', async () => {
+  it('caps the pill at ten resident icons in three groups', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
-    expect(container.querySelector('.infinite-canvas-menu')).toBeNull();
+    const pill = container.querySelector('.infinite-canvas-node__toolbar')!;
+    const icons = Array.from(pill.querySelectorAll('button'));
+    // Ten residents plus the overflow entry itself, per visual language §4.
+    expect(icons).toHaveLength(11);
+    expect(icons.filter(button => button.getAttribute('data-node-action') === 'more'))
+      .toHaveLength(1);
+    // Edit / organise / output / overflow: four hairline-separated blocks.
+    expect(pill.getAttribute('data-canvas-toolbar-groups')).toBe('4');
+    // Every resident says what it is, for the tooltip and for assistive tech.
+    for (const button of icons) {
+      expect(button.getAttribute('aria-label')).toBeTruthy();
+      expect(button.getAttribute('title')).toBeTruthy();
+    }
+  });
+
+  it('opens and closes the "more" drawer, and its entries act', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+
+    expect(container.querySelector('[data-canvas-popover="card-overflow"]')).toBeNull();
     await clickButton(button => button.getAttribute('data-node-action') === 'more');
 
-    const menu = container.querySelector('.infinite-canvas-menu');
-    expect(menu).not.toBeNull();
-    // It is the card's own menu: the media entries are offered.
-    const actions = Array.from(menu!.querySelectorAll('button'))
-      .map(button => button.textContent);
-    expect(actions).toContain('infiniteCanvas.menu.reveal');
+    const drawer = container.querySelector('[data-canvas-popover="card-overflow"]');
+    expect(drawer).not.toBeNull();
+    const actions = Array.from(drawer!.querySelectorAll('button'))
+      .map(button => button.getAttribute('data-canvas-overflow-action'));
+    expect(actions).toEqual([
+      'expand',
+      'reverse-prompt',
+      'derive-video',
+      'reveal',
+      'copy',
+      'duplicate',
+      'delete',
+    ]);
+
+    // Escape closes it, the way every canvas surface closes.
+    await act(async () => {
+      dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+      }));
+    });
+    expect(container.querySelector('[data-canvas-popover="card-overflow"]')).toBeNull();
+
+    // An entry inside it really acts: image-to-video derives a video card.
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
+    await clickButton(
+      button => button.getAttribute('data-canvas-overflow-action') === 'derive-video',
+    );
+    expect(container.querySelector('[data-canvas-popover="card-overflow"]')).toBeNull();
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes.some(node => node.kind === 'video')).toBe(true);
+  });
+
+  it('offers only what a blank card can run in the drawer', async () => {
+    seedDocument(memory, {
+      nodes: [{ nodeId: 'n-blank', kind: 'image' as const, position: { x: 0, y: 0 } }],
+    });
+    await renderPanel();
+
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
+    const drawer = container.querySelector('[data-canvas-popover="card-overflow"]')!;
+    const actions = Array.from(drawer.querySelectorAll('button'))
+      .map(button => button.getAttribute('data-canvas-overflow-action'));
+    // Nothing to outpaint, reverse-prompt, animate or show in a folder.
+    expect(actions).toEqual(['copy', 'duplicate', 'delete']);
   });
 
   it('keeps documents isolated per workspace', async () => {
