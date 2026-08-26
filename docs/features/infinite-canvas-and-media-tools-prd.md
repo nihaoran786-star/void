@@ -533,8 +533,12 @@ interface InfiniteCanvasMaskedReference {
      或 `media/input/canvas-crops/` —— 否则 `path_denied`。
   4. 扩展名限 `.png`（大小写不敏感）—— 否则 `path_denied`。
   5. 解码后字节上限 **32 MB** —— 超出 `invalid_input`。
-     base64 本身不可解码同样 `invalid_input`。
-  6. 父目录 `create_dir_all`；写入失败归 `backend`。
+     base64 本身不可解码、或带了 `data:` 前缀，同样 `invalid_input`。
+  6. **解码后的字节必须以 PNG magic 开头** —— 否则 `invalid_input`。
+     第 4 条只约束文件**名**，这一条约束文件**内容**，两条缺一不可，
+     否则这条命令能被用来以 `.png` 之名投放任意载荷。
+  7. 父目录 `create_dir_all`；随后对父目录做一次 `canonicalize` 包含性复核
+     （防软链落到工作区外），越界 `path_denied`；写入失败归 `backend`。
 - **明确不做**：不把二进制写入能力泛化到通用文件面。任何"顺手做成通用
   `write_binary_file`"的改法一律拒收；**任何放宽白名单的改动等同新开攻击面，
   必须停手上报业主**。

@@ -596,6 +596,8 @@ pub async fn run() {
         .invoke_handler(tauri::generate_handler![
             theme::show_main_window,
             hide_main_window_after_close_request,
+            api::infinite_canvas_asset_api::write_canvas_image_bytes,
+            api::infinite_canvas_asset_api::prune_canvas_scratch,
             api::infinite_canvas_media_api::submit_infinite_canvas_media_job,
             api::agentic_api::create_session,
             api::agentic_api::update_session_model,
