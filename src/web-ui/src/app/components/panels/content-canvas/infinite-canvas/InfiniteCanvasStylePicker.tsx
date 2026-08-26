@@ -1,20 +1,37 @@
 /**
- * Style preset picker (M4): text-card list over the read-only
- * StylePresetCatalog, filterable by family and category. Choosing a preset
- * only reports its ID; the node keeps a reference, never a copy (phase 1
- * ships no thumbnails, per the K0-1 option-A decision).
+ * Style preset picker (M4): a tile grid over the read-only StylePresetCatalog,
+ * filterable by family and category. Choosing a preset only reports its ID;
+ * the node keeps a reference, never a copy.
  *
  * Owner feedback 2026-08-26: tightened to the same anchored compact popover
  * the parameter surface uses. The family dropdown and the category row now
  * share one filter line, the tiles are smaller and denser, and there is no
  * close button — pressing outside or Escape closes it.
+ *
+ * P5 slice W6: the 161 cinematic / animation-2d presets now carry a real
+ * thumbnail. Two rules hold the surface together:
+ *
+ * 1. The popover does not grow. Adding pictures must not turn a compact
+ *    anchored surface into a page (visual language §7.1: width 320, capped
+ *    height, internal scroll).
+ * 2. There is no half-finished tile. The 156 midjourney / mg-motion presets
+ *    have no upstream image and never will, and a thumbnail can also fail to
+ *    load; both cases render the same finished swatch tile, never an empty
+ *    frame and never the browser's broken-image glyph.
+ *
+ * Thumbnails are static assets under `public/`, referenced by plain relative
+ * URL. They are deliberately NOT routed through the workspace media preview
+ * resolver or `convertFileSrc`: those exist for workspace files, and mixing
+ * the two resolution schemes is exactly the mistake this project has already
+ * paid for twice.
  */
 import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
-import type { StylePresetCatalog, StylePresetFamily } from '@/shared/services/style-preset';
+import type { StylePreset, StylePresetCatalog, StylePresetFamily } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import { infiniteCanvasStyleSwatch } from './infiniteCanvasStyleSwatch';
 
 const FAMILIES: readonly { family: StylePresetFamily; labelKey: string }[] = [
   { family: 'cinematic', labelKey: 'infiniteCanvas.stylePicker.families.cinematic' },
@@ -25,17 +42,66 @@ const FAMILIES: readonly { family: StylePresetFamily; labelKey: string }[] = [
 
 const ALL_CATEGORIES = '';
 
-/** Stable pseudo-random hue per preset id; presentation only. */
-function swatchHue(presetId: string): number {
-  let hash = 0;
-  for (let index = 0; index < presetId.length; index += 1) {
-    hash = (hash * 31 + presetId.charCodeAt(index)) % 360;
-  }
-  return hash;
-}
-
 /** §7 after owner feedback: a compact anchored popover, not a page. */
 const STYLE_POPOVER_WIDTH = 320;
+
+interface StyleTileProps {
+  preset: StylePreset;
+  selected: boolean;
+  onPick: (presetId: string) => void;
+}
+
+/**
+ * One grid tile.
+ *
+ * `failed` is local to the tile so a single 404 degrades that tile alone;
+ * remounting the grid (a filter change) legitimately retries, because a
+ * missing file and a transient decode failure are indistinguishable here.
+ */
+const StyleTile: React.FC<StyleTileProps> = ({ preset, selected, onPick }) => {
+  const [failed, setFailed] = React.useState(false);
+  const swatch = React.useMemo(
+    () => infiniteCanvasStyleSwatch(preset.presetId, preset.name),
+    [preset.presetId, preset.name],
+  );
+  const showThumbnail = Boolean(preset.thumbnailRef) && !failed;
+
+  return (
+    <button
+      type="button"
+      className="infinite-canvas-picker__item"
+      data-canvas-style-preset={preset.presetId}
+      data-selected={selected ? 'true' : undefined}
+      onClick={() => onPick(preset.presetId)}
+    >
+      {showThumbnail ? (
+        <img
+          className="infinite-canvas-picker__thumbnail"
+          src={preset.thumbnailRef}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span
+          className="infinite-canvas-picker__swatch"
+          style={{ '--swatch-hue': swatch.hue } as React.CSSProperties}
+          data-canvas-style-swatch="true"
+          aria-hidden="true"
+        >
+          {swatch.label}
+        </span>
+      )}
+      <span className="infinite-canvas-picker__item-name">{preset.name}</span>
+      <span className="infinite-canvas-picker__item-meta">{preset.category}</span>
+    </button>
+  );
+};
+
+StyleTile.displayName = 'InfiniteCanvasStyleTile';
 
 export interface InfiniteCanvasStylePickerProps {
   currentPresetId?: string;
@@ -149,26 +215,11 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
         <ul className="infinite-canvas-picker__list infinite-canvas-picker__list--dense">
           {presets.map(preset => (
             <li key={preset.presetId}>
-              <button
-                type="button"
-                className="infinite-canvas-picker__item"
-                data-selected={preset.presetId === currentPresetId ? 'true' : undefined}
-                onClick={() => onPick(preset.presetId)}
-              >
-                {/*
-                  §7: the grid wants a tile. There are no preset thumbnails
-                  (K0-1 option A), so the tile is a flat colour block keyed off
-                  the preset id — stable per preset, and never mistaken for a
-                  real picture.
-                */}
-                <span
-                  className="infinite-canvas-picker__swatch"
-                  style={{ '--swatch-hue': swatchHue(preset.presetId) } as React.CSSProperties}
-                  aria-hidden="true"
-                />
-                <span className="infinite-canvas-picker__item-name">{preset.name}</span>
-                <span className="infinite-canvas-picker__item-meta">{preset.category}</span>
-              </button>
+              <StyleTile
+                preset={preset}
+                selected={preset.presetId === currentPresetId}
+                onPick={onPick}
+              />
             </li>
           ))}
         </ul>

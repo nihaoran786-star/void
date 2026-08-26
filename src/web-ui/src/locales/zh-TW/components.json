@@ -1136,6 +1136,20 @@
       "create": "新增",
       "library": "素材庫"
     },
+    "reversePrompt": {
+      "button": "從這張圖倒推提示詞",
+      "choiceTitle": "使用倒推出的提示詞",
+      "choiceHint": "這張卡已經有提示詞了。要替換掉，還是接在下面？",
+      "replace": "替換",
+      "append": "接在下面",
+      "failed": {
+        "unsupported_model": "還沒有設定視覺模型。請先到設定裡選一個，再試一次。",
+        "provider_not_configured": "視覺模型所屬的服務商還沒設定完。請到設定裡補齊後再試。",
+        "invalid_image": "這張圖讀不出來，沒有拿到提示詞。",
+        "path_denied": "這張圖不在工作區裡，無法讀取。",
+        "backend": "讀取這張圖失敗了。卡片上的內容沒有任何改動。"
+      }
+    },
     "zoom": {
       "fit": "適應畫布",
       "in": "放大",

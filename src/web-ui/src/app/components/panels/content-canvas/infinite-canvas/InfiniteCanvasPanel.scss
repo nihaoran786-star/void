@@ -36,6 +36,12 @@
   --canvas-select-ring: rgb(255 255 255 / 72%);
   --canvas-shadow-soft: rgb(0 0 0 / 22%);
   --canvas-shadow-heavy: rgb(0 0 0 / 46%);
+  // P5 §W6: the style tile that has no picture. Hue comes from the preset id;
+  // saturation, lightness, and label colour are the theme's job, so the block
+  // stays a quiet neutral-leaning wash that reads under either board.
+  --canvas-swatch-saturation: 22%;
+  --canvas-swatch-lightness: 26%;
+  --canvas-swatch-label: var(--canvas-text-muted);
   --canvas-scheme: dark;
 
   --infinite-canvas-bg: var(--canvas-surface-base);
@@ -84,6 +90,9 @@
   --canvas-select-ring: var(--canvas-accent);
   --canvas-shadow-soft: rgb(16 20 28 / 10%);
   --canvas-shadow-heavy: rgb(16 20 28 / 18%);
+  --canvas-swatch-saturation: 34%;
+  --canvas-swatch-lightness: 86%;
+  --canvas-swatch-label: var(--canvas-text-muted);
   --canvas-scheme: light;
 }
 
@@ -1641,13 +1650,19 @@
 }
 
 // Owner feedback 2026-08-26: denser grid, smaller tiles, inside a popover.
+// P5 §W6: exactly three columns. `auto-fill` would let the tile count drift
+// with the popover width, and the popover width is fixed by the visual
+// language — three square tiles is the layout, not an emergent one.
 .infinite-canvas-picker__list--dense {
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 
   .infinite-canvas-picker__thumbnail,
   .infinite-canvas-picker__swatch {
-    height: 56px;
+    // Square, so a picture tile and a swatch tile are the same shape. The
+    // grid must not visibly reflow as thumbnails stream in.
+    height: auto;
+    aspect-ratio: 1 / 1;
     border-radius: 8px;
   }
 
@@ -1667,8 +1682,20 @@
   outline-offset: -1px;
 }
 
+// The finished tile for presets that have no picture, and the landing place
+// for a thumbnail that fails to load. Never an empty frame.
 .infinite-canvas-picker__swatch {
-  background: hsl(var(--swatch-hue, 220) 24% 26%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(
+    var(--swatch-hue, 220) var(--canvas-swatch-saturation) var(--canvas-swatch-lightness)
+  );
+  color: var(--canvas-swatch-label);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  user-select: none;
 }
 
 .infinite-canvas-picker__item-name {
@@ -1683,6 +1710,43 @@
   padding: 0 2px;
   color: var(--canvas-text-faint);
   font-size: 10px;
+}
+
+// ── P5 W7: the reverse-prompt "replace or add" choice ──────────────────────
+// A preview of what came back plus two words. Deliberately small: the real
+// editing happens in the card's own prompt box, not here.
+
+.infinite-canvas-reverse-prompt__preview {
+  display: -webkit-box;
+  overflow: hidden;
+  max-height: 96px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 8px;
+  background: var(--canvas-surface-card);
+  color: var(--canvas-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.infinite-canvas-reverse-prompt__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+
+  .infinite-canvas-picker__pill {
+    color: var(--canvas-text-primary);
+  }
+}
+
+// The button spends nothing, so its pending state is a quiet dim rather than
+// the card-wide progress treatment a generation gets.
+.infinite-canvas-node__toolbar-button[data-node-action='reverse-prompt'][data-pending='true'] {
+  opacity: 0.5;
+  cursor: progress;
 }
 
 // ── §7: parameter popover — compact groups, values as small pills ──────────

@@ -121,6 +121,72 @@ export function getInfiniteCanvasScratchPruner(): InfiniteCanvasScratchPruner {
 }
 
 /**
+ * P5 W7 reverse-prompt port: read a picture the owner already has and get a
+ * generation prompt back.
+ *
+ * Behind it sits the R2 desktop command `analyze_infinite_canvas_image`, which
+ * runs the owner-configured vision model directly. It deliberately does NOT go
+ * through the session AI: a canvas button that burns a conversation round to
+ * describe a picture, and drops the answer in the transcript rather than on
+ * the card, is the thing CONTEXT.md already rules out.
+ *
+ * Every outcome is one of `CANVAS_IMAGE_ANALYSIS_STATUSES`; the port folds a
+ * transport failure into `backend` so the card renders one shape, never a
+ * thrown error and never silence.
+ */
+export interface InfiniteCanvasImageAnalysisRequest {
+  workspacePath: string;
+  /** Workspace-relative path of the picture to read. */
+  relativePath: string;
+  detail?: 'summary' | 'detailed';
+}
+
+/** Mirrors the Rust `CANVAS_IMAGE_ANALYSIS_STATUSES` set, in the same order. */
+export const CANVAS_IMAGE_ANALYSIS_STATUSES = [
+  'completed',
+  'unsupported_model',
+  'provider_not_configured',
+  'invalid_image',
+  'path_denied',
+  'backend',
+] as const;
+
+export type InfiniteCanvasImageAnalysisStatus =
+  (typeof CANVAS_IMAGE_ANALYSIS_STATUSES)[number];
+
+export interface InfiniteCanvasImageAnalysisResult {
+  status: InfiniteCanvasImageAnalysisStatus;
+  prompt?: string;
+  summary?: string;
+  modelId?: string;
+  message?: string;
+}
+
+export type InfiniteCanvasImageAnalyzer = (
+  request: InfiniteCanvasImageAnalysisRequest,
+) => Promise<InfiniteCanvasImageAnalysisResult>;
+
+export const ANALYZE_CANVAS_IMAGE_COMMAND = 'analyze_infinite_canvas_image';
+
+export function getInfiniteCanvasImageAnalyzer(): InfiniteCanvasImageAnalyzer {
+  return async request => {
+    try {
+      const { api } = await import('@/infrastructure/api/service-api/ApiClient');
+      const response = await api.invoke<InfiniteCanvasImageAnalysisResult>(
+        ANALYZE_CANVAS_IMAGE_COMMAND,
+        { request },
+      );
+      return response ?? { status: 'backend', message: 'Empty response.' };
+    } catch (error) {
+      return {
+        status: 'backend',
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+}
+
+/**
  * P4 W7 "show in folder" port: the existing workspace `reveal_in_explorer`
  * command, reached through a dynamic import so the panel chunk stays free of
  * the API module. Read-only — it opens the OS file browser and nothing else.

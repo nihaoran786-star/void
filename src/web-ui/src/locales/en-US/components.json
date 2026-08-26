@@ -1136,6 +1136,20 @@
       "create": "Create",
       "library": "Media library"
     },
+    "reversePrompt": {
+      "button": "Reverse-prompt this picture",
+      "choiceTitle": "Use the reverse-engineered prompt",
+      "choiceHint": "This card already has a prompt. Replace it, or add this underneath?",
+      "replace": "Replace",
+      "append": "Add underneath",
+      "failed": {
+        "unsupported_model": "No vision model is set up yet. Choose one in Settings, then try again.",
+        "provider_not_configured": "The vision model's provider is not configured. Finish setting it up in Settings, then try again.",
+        "invalid_image": "This picture could not be read, so no prompt came back.",
+        "path_denied": "This picture is outside the workspace, so it cannot be read.",
+        "backend": "Reading the picture failed. Nothing on the card was changed."
+      }
+    },
     "zoom": {
       "fit": "Fit the board to the view",
       "in": "Zoom in",

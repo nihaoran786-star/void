@@ -1136,6 +1136,20 @@
       "create": "新建",
       "library": "素材库"
     },
+    "reversePrompt": {
+      "button": "从这张图倒推提示词",
+      "choiceTitle": "使用倒推出的提示词",
+      "choiceHint": "这张卡已经有提示词了。是替换掉，还是接在下面？",
+      "replace": "替换",
+      "append": "接在下面",
+      "failed": {
+        "unsupported_model": "还没有设置视觉模型。请先到设置里选一个，再试一次。",
+        "provider_not_configured": "视觉模型所属的服务商还没配置完。请到设置里补齐后再试。",
+        "invalid_image": "这张图读不出来，没有拿到提示词。",
+        "path_denied": "这张图不在工作区里，无法读取。",
+        "backend": "读取这张图失败了。卡片上的内容没有任何改动。"
+      }
+    },
     "zoom": {
       "fit": "适应画布",
       "in": "放大",

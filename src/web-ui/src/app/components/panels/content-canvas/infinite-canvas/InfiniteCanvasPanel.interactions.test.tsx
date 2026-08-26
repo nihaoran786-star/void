@@ -300,7 +300,12 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     ));
     expect(container.querySelector('.infinite-canvas-picker--style')).not.toBeNull();
 
-    await clickButton(button => button.textContent?.startsWith('Sunset') ?? false);
+    // P5 W6: a tile is picked by its preset id, not by its text. The tile now
+    // also carries a thumbnail or a two-character swatch label, so matching on
+    // leading text no longer identifies it.
+    await clickButton(button => (
+      button.getAttribute('data-canvas-style-preset') === 'cinematic:sunset'
+    ));
 
     expect(container.querySelector('.infinite-canvas-picker--style')).toBeNull();
     const styleButton = container.querySelector('.infinite-canvas-node__style-button');

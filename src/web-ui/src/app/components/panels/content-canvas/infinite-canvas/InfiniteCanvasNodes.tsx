@@ -30,6 +30,7 @@ import {
   Plus,
   RefreshCw,
   Scaling,
+  ScanText,
   Scissors,
   SlidersHorizontal,
   Type,
@@ -134,6 +135,14 @@ export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData
    * bytes to disk. Absent on cards without a picture.
    */
   onCropImage?: (nodeId: string) => void;
+  /**
+   * P5 W7: reverse-prompt this picture. The result is written into this card's
+   * prompt box for the owner to edit; it never dispatches a generation on its
+   * own. Absent on cards without a picture.
+   */
+  onReversePrompt?: (nodeId: string, anchor?: HTMLElement) => void;
+  /** True while the reverse-prompt call for this card is in flight. */
+  reversePromptPending?: boolean;
   /** P3: derives a blank video card wired to this image (image-to-video). */
   onDeriveVideoCard?: (nodeId: string) => void;
 }
@@ -522,6 +531,26 @@ const InfiniteCanvasMediaCard: React.FC<
             onClick={event => imageData.onOpenStylePicker(id, event.currentTarget)}
           >
             <Palette size={14} aria-hidden="true" />
+          </button>
+        ) : null}
+        {/*
+          §4 groups reverse-prompt with style: both answer "what should this
+          picture be", neither spends a generation. The pending state stays on
+          the button — a whole-card mask for a read-only call would be theatre.
+        */}
+        {imageData?.onReversePrompt && mediaRef ? (
+          <button
+            type="button"
+            className="infinite-canvas-node__toolbar-button"
+            data-node-action="reverse-prompt"
+            data-pending={imageData.reversePromptPending ? 'true' : undefined}
+            disabled={imageData.reversePromptPending}
+            aria-busy={imageData.reversePromptPending || undefined}
+            aria-label={t('infiniteCanvas.reversePrompt.button')}
+            title={t('infiniteCanvas.reversePrompt.button')}
+            onClick={event => imageData.onReversePrompt?.(id, event.currentTarget)}
+          >
+            <ScanText size={14} aria-hidden="true" />
           </button>
         ) : null}
         {data.onOpenParams ? (

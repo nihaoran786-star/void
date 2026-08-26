@@ -69,11 +69,14 @@ import { workspaceMediaLibraryService } from '@/shared/services/workspace-media/
 import {
   getInfiniteCanvasAssetWriter,
   getInfiniteCanvasDocumentService,
+  getInfiniteCanvasImageAnalyzer,
   getInfiniteCanvasMediaJobReader,
   getInfiniteCanvasMediaRevealer,
   getInfiniteCanvasMediaSaver,
   getInfiniteCanvasScratchPruner,
   type InfiniteCanvasAssetWriter,
+  type InfiniteCanvasImageAnalysisResult,
+  type InfiniteCanvasImageAnalyzer,
   type InfiniteCanvasMediaRevealer,
   type InfiniteCanvasMediaSaver,
   type InfiniteCanvasScratchPruner,
@@ -178,6 +181,7 @@ import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
 import { InfiniteCanvasCropEditor } from './InfiniteCanvasCropEditor';
+import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
 import {
   canvasCropRelativePath,
@@ -253,6 +257,19 @@ interface MaskEditorRequest {
   mediaRef: InfiniteCanvasMediaRef;
 }
 
+/** §7.1's compact band; the reverse-prompt choice is the narrow end of it. */
+const REVERSE_PROMPT_POPOVER_WIDTH = 280;
+
+/**
+ * P5 W7: a reverse-prompt result waiting on the owner's call, because the
+ * card's prompt box already had something in it.
+ */
+interface ReversePromptChoice {
+  nodeId: string;
+  anchor: HTMLElement | null;
+  prompt: string;
+}
+
 /** P5 W2: the card whose picture is open in the crop editor. */
 interface CropEditorRequest {
   nodeId: string;
@@ -286,6 +303,8 @@ interface NodeActions {
   openTool: (nodeId: string, toolId: ImageToolId) => void;
   /** P5 W2: opens the crop editor on a card that carries a picture. */
   cropImage: (nodeId: string) => void;
+  /** P5 W7: reverse-prompts the card's picture into its own prompt box. */
+  reversePrompt: (nodeId: string, anchor?: HTMLElement) => void;
   retry: (nodeId: string) => void;
   removeFailed: (nodeId: string) => void;
   /** P3: derives a blank video card wired from an image card (image-to-video). */
@@ -363,6 +382,12 @@ export interface InfiniteCanvasPanelProps {
   writeCanvasImage?: InfiniteCanvasAssetWriter;
   /** P5 W1 scratch cleanup, fired once on mount and deliberately silent. */
   pruneCanvasScratch?: InfiniteCanvasScratchPruner;
+  /**
+   * P5 W7 reverse-prompt port. Production binds the R2
+   * `analyze_infinite_canvas_image` command; tests inject a stub. Never the
+   * session AI — see the port's own note.
+   */
+  analyzeCanvasImage?: InfiniteCanvasImageAnalyzer;
 }
 
 export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
@@ -380,6 +405,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   revealMediaIn,
   writeCanvasImage,
   pruneCanvasScratch,
+  analyzeCanvasImage,
 }) => {
   const { t } = useI18n('components');
   const service = React.useMemo(
@@ -455,6 +481,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    */
   const editorOpenRef = React.useRef(false);
   editorOpenRef.current = Boolean(maskRequest || cropRequest);
+  /**
+   * P5 W7: the card whose reverse-prompt call is in flight, and the pending
+   * "replace or append" choice when the prompt box was not empty.
+   *
+   * The ref is the actual guard against a double call — state lands a render
+   * too late to stop the second click.
+   */
+  const [reversePromptPendingNodeId, setReversePromptPendingNodeId] =
+    React.useState<string | null>(null);
+  const reversePromptNodeIdRef = React.useRef<string | null>(null);
+  const [reversePromptChoice, setReversePromptChoice] =
+    React.useState<ReversePromptChoice | null>(null);
   /** P4 W1: the card whose media the full-screen viewer is showing. */
   const [viewerNodeId, setViewerNodeId] = React.useState<string | null>(null);
   /** P4 W3: the card whose generation parameters are being edited. */
@@ -561,6 +599,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     generate: () => undefined,
     openTool: () => undefined,
     cropImage: () => undefined,
+    reversePrompt: () => undefined,
     retry: () => undefined,
     removeFailed: () => undefined,
     deriveVideoCard: () => undefined,
@@ -670,6 +709,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
                     ? {
                         onCropImage: (nodeId: string) => (
                           nodeActionsRef.current.cropImage(nodeId)
+                        ),
+                        onReversePrompt: (nodeId: string, anchor?: HTMLElement) => (
+                          nodeActionsRef.current.reversePrompt(nodeId, anchor)
                         ),
                       }
                     : {}),
@@ -1214,6 +1256,92 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     workspacePath,
   ]);
 
+  // —— P5 W7: reverse-prompt ————————————————————————————————————————————————
+
+  const imageAnalyzer = React.useMemo(
+    () => resolvePort(analyzeCanvasImage, () => getInfiniteCanvasImageAnalyzer()),
+    [analyzeCanvasImage],
+  );
+
+  /**
+   * Look at the picture, write the prompt into the card's own input.
+   *
+   * Three rules, each of them a written assertion in the tests:
+   *
+   * - It NEVER dispatches a generation. The owner reads what came back, edits
+   *   it, and presses send themselves. A button that quietly starts spending
+   *   money is not a button anyone can trust.
+   * - It never silently overwrites. An empty prompt box is filled straight
+   *   away; a box with something in it gets a compact "replace or append"
+   *   choice anchored to the button.
+   * - Every failure is a named state on screen. In particular, "no vision
+   *   model configured" reads as exactly that and points at settings, rather
+   *   than as a spinner that stops.
+   */
+  const runReversePrompt = React.useCallback(async (nodeId: string, anchor?: HTMLElement) => {
+    if (reversePromptNodeIdRef.current) return;
+    const found = findImageNode(nodeId);
+    const mediaRef = found?.node.mediaRef;
+    if (!mediaRef) return;
+    if (!imageAnalyzer) {
+      setNotice({
+        messageKey: 'infiniteCanvas.reversePrompt.failed.backend',
+        errorKind: 'unavailable',
+      });
+      return;
+    }
+    setReversePromptChoice(null);
+    setNotice(null);
+    reversePromptNodeIdRef.current = nodeId;
+    setReversePromptPendingNodeId(nodeId);
+    let result: InfiniteCanvasImageAnalysisResult;
+    try {
+      result = await imageAnalyzer({
+        workspacePath: mediaRef.workspacePath,
+        relativePath: mediaRef.relativePath.replace(/\\/g, '/'),
+        detail: 'detailed',
+      });
+    } finally {
+      reversePromptNodeIdRef.current = null;
+      setReversePromptPendingNodeId(null);
+    }
+
+    const prompt = result.status === 'completed' ? (result.prompt ?? '').trim() : '';
+    if (result.status !== 'completed' || !prompt) {
+      // An empty prompt on a "completed" call is a useless answer, so it is
+      // reported as an unusable image rather than as a success with nothing.
+      const status = result.status === 'completed' ? 'invalid_image' : result.status;
+      setNotice({
+        messageKey: `infiniteCanvas.reversePrompt.failed.${status}`,
+        errorKind: status === 'backend' ? 'backend' : 'invalid-input',
+      });
+      return;
+    }
+
+    // Re-read: the analysis is a network round trip, and the owner may have
+    // typed into the box while it was in flight.
+    const current = (findImageNode(nodeId)?.node.prompt ?? '').trim();
+    if (!current) {
+      await commit(document => setNodePromptContent(document, nodeId, prompt), { history: true });
+      return;
+    }
+    setReversePromptChoice({ nodeId, anchor: anchor ?? null, prompt });
+  }, [commit, findImageNode, imageAnalyzer]);
+
+  const applyReversePrompt = React.useCallback(async (mode: 'replace' | 'append') => {
+    const choice = reversePromptChoice;
+    setReversePromptChoice(null);
+    if (!choice) return;
+    const existing = (findImageNode(choice.nodeId)?.node.prompt ?? '').trim();
+    const next = mode === 'replace' || !existing
+      ? choice.prompt
+      : `${existing}\n\n${choice.prompt}`;
+    await commit(
+      document => setNodePromptContent(document, choice.nodeId, next),
+      { history: true },
+    );
+  }, [commit, findImageNode, reversePromptChoice]);
+
   const retryGeneration = React.useCallback(async (
     nodeId: string,
     options: { confirmedRespend?: boolean } = {},
@@ -1305,6 +1433,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           return;
         }
         setToolDialog({ nodeId, toolId });
+      },
+      reversePrompt: (nodeId, anchor) => {
+        void runReversePrompt(nodeId, anchor);
       },
       cropImage: nodeId => {
         const found = findImageNode(nodeId);
@@ -1421,7 +1552,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         }, { history: true });
       },
     };
-  }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
+  }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration, runReversePrompt]);
 
   /**
    * P4 review C5 (plan §265): every piece of panel memory is scoped to ONE
@@ -2280,6 +2411,20 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     );
   }, []);
 
+  /**
+   * P5 W7: the in-flight marker for the reverse-prompt button.
+   *
+   * Kept out of the document projection on purpose — it is transient panel
+   * state, not canvas truth. Returns the SAME array when nothing is pending,
+   * so the common case costs reactflow nothing.
+   */
+  const renderedFlowNodes = React.useMemo(() => {
+    if (!reversePromptPendingNodeId) return flowNodes;
+    return flowNodes.map(node => (node.id === reversePromptPendingNodeId
+      ? { ...node, data: { ...node.data, reversePromptPending: true } }
+      : node));
+  }, [flowNodes, reversePromptPendingNodeId]);
+
   // —— §6: the generator that floats under the selected card ————————————————
 
   /**
@@ -2574,7 +2719,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         ref={flowRef}
       >
         <ReactFlow
-          nodes={flowNodes}
+          nodes={renderedFlowNodes}
           edges={flowEdges}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
@@ -2762,6 +2907,51 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           }}
           onClose={() => setMaskRequest(null)}
         />
+      ) : null}
+      {/*
+        P5 W7: the prompt box was not empty, so the reversed prompt waits for
+        one word from the owner. Anchored to the button that produced it and
+        dismissed like every other canvas surface (outside press / Escape),
+        which is also how "neither, forget it" is expressed — there is no
+        cancel button, per the visual language.
+      */}
+      {reversePromptChoice ? (
+        <InfiniteCanvasPopover
+          kind="reverse-prompt"
+          className="infinite-canvas-picker--reverse-prompt"
+          anchor={reversePromptChoice.anchor}
+          width={REVERSE_PROMPT_POPOVER_WIDTH}
+          label={t('infiniteCanvas.reversePrompt.choiceTitle')}
+          onDismiss={() => setReversePromptChoice(null)}
+        >
+          <p className="infinite-canvas-picker__state">
+            {t('infiniteCanvas.reversePrompt.choiceHint')}
+          </p>
+          <p
+            className="infinite-canvas-reverse-prompt__preview"
+            data-canvas-reverse-prompt="preview"
+          >
+            {reversePromptChoice.prompt}
+          </p>
+          <div className="infinite-canvas-reverse-prompt__actions">
+            <button
+              type="button"
+              className="infinite-canvas-picker__pill"
+              data-canvas-reverse-prompt-action="replace"
+              onClick={() => { void applyReversePrompt('replace'); }}
+            >
+              {t('infiniteCanvas.reversePrompt.replace')}
+            </button>
+            <button
+              type="button"
+              className="infinite-canvas-picker__pill"
+              data-canvas-reverse-prompt-action="append"
+              onClick={() => { void applyReversePrompt('append'); }}
+            >
+              {t('infiniteCanvas.reversePrompt.append')}
+            </button>
+          </div>
+        </InfiniteCanvasPopover>
       ) : null}
       {cropRequest ? (
         <InfiniteCanvasCropEditor
