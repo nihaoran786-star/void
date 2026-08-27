@@ -108,6 +108,7 @@ import {
   removeFailedOperationContent,
   removeNodesContent,
   retryOperationContent,
+  setNodeActiveVariantContent,
   setNodeStylePresetContent,
   setNodeTextContent,
   setViewportContent,
@@ -412,6 +413,8 @@ interface NodeActions {
   spawnNext: (nodeId: string) => void;
   /** §3: the midpoint handle — insert a generation card on that connection. */
   insertOnEdge: (edgeId: string) => void;
+  /** §7.6: picks which of the card's pictures the card face shows. */
+  selectVariant: (nodeId: string, index: number) => void;
 }
 
 /**
@@ -713,6 +716,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     openModel: () => undefined,
     spawnNext: () => undefined,
     insertOnEdge: () => undefined,
+    selectVariant: () => undefined,
   });
 
   /**
@@ -796,6 +800,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               ? {
                   onOpenViewer: (nodeId: string) => (
                     nodeActionsRef.current.openViewer(nodeId)
+                  ),
+                }
+              : {}),
+            // §7.6: the card's own pictures and the entry that switches
+            // between them. Both are absent on a card that has none.
+            ...(view.data.mediaVariants
+              ? {
+                  mediaVariants: view.data.mediaVariants,
+                  activeVariantIndex: view.data.activeVariantIndex,
+                  onSelectVariant: (nodeId: string, index: number) => (
+                    nodeActionsRef.current.selectVariant(nodeId, index)
                   ),
                 }
               : {}),
@@ -1626,6 +1641,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       },
       generate: nodeId => {
         void generateForNode(nodeId);
+      },
+      // §7.6: switching the current picture is the one card-level change a
+      // landed result allows, so it goes on the undo stack like any edit.
+      selectVariant: (nodeId, index) => {
+        void commit(
+          document => setNodeActiveVariantContent(document, nodeId, index),
+          { history: true },
+        );
       },
       openTool: (nodeId, toolId) => {
         const found = findImageNode(nodeId);

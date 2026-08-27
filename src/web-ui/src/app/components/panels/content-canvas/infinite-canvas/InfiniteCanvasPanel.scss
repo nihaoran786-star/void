@@ -591,6 +591,148 @@
   }
 }
 
+// §7.6: the count badge in the card's top-right corner. Same restraint as the
+// §2 type label — a small grey number that says how many pictures this card
+// holds. It brightens on hover and while the gallery is open, never otherwise.
+.infinite-canvas-node__variant-badge {
+  position: absolute;
+  z-index: 6;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--canvas-surface-overlay) 82%, transparent);
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.55;
+  transition: opacity 120ms ease, color 120ms ease;
+
+  &:hover,
+  &:focus-visible,
+  &[aria-expanded='true'] {
+    border-color: var(--canvas-accent);
+    color: var(--canvas-text-primary);
+    opacity: 1;
+  }
+}
+
+.infinite-canvas-node:hover .infinite-canvas-node__variant-badge {
+  opacity: 0.85;
+}
+
+// §7.6 / §7.1: the gallery is a compact surface anchored right under the card
+// it belongs to. It lives inside the card so it stays put at any zoom without
+// a coordinate conversion; §7.4's language (overlay tint, hairline, 12px
+// radius) is what makes it read as one family with the other popovers.
+.infinite-canvas-node__gallery {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  width: 168px;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--canvas-surface-overlay) 88%, transparent);
+  box-shadow: 0 10px 26px var(--canvas-shadow-soft);
+  backdrop-filter: blur(14px);
+  gap: 6px;
+}
+
+// Four up, two by two — §7.6's own words.
+.infinite-canvas-node__gallery-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.infinite-canvas-node__gallery-tile {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 68px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--canvas-surface-card);
+  color: var(--canvas-text-faint);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--canvas-surface-line);
+  }
+
+  // The one on the card face: a thin accent ring, nothing louder.
+  &[data-current='true'] {
+    border-color: var(--canvas-accent);
+  }
+}
+
+.infinite-canvas-node__gallery-media {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.infinite-canvas-node__gallery-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.infinite-canvas-node__gallery-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--canvas-text-muted);
+  font-size: 11px;
+  gap: 6px;
+}
+
+.infinite-canvas-node__gallery-page {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled),
+  &:focus-visible:not(:disabled) {
+    background: var(--canvas-surface-raised);
+    color: var(--canvas-text-primary);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
+}
+
+.infinite-canvas-node__gallery-page-status {
+  font-variant-numeric: tabular-nums;
+}
+
 // §3: the right-edge `+` that derives the next card. Dim until hovered.
 .infinite-canvas-node__spawn {
   position: absolute;

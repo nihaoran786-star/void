@@ -1042,6 +1042,16 @@
       "previewLoading": "Loading media...",
       "previewUnavailable": "This media cannot be displayed."
     },
+    "variants": {
+      "badge": "Pictures on this card ({{count}})",
+      "galleryLabel": "Pictures on this card",
+      "select": "Show this picture",
+      "current": "Currently shown",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "pageStatus": "{{page}} / {{total}}",
+      "thumbnail": "Picture {{index}}"
+    },
     "params": {
       "title": "Generation parameters",
       "close": "Close",

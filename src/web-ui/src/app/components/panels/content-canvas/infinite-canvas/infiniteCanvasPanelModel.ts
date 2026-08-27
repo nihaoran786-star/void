@@ -14,7 +14,12 @@ import type {
   InfiniteCanvasNode,
   InfiniteCanvasViewport,
 } from '@/shared/services/infinite-canvas';
-import { infiniteCanvasGenerationAppendsToCard } from '@/shared/services/infinite-canvas';
+import {
+  infiniteCanvasActiveVariantIndex,
+  infiniteCanvasGenerationAppendsToCard,
+  infiniteCanvasNodeVariants,
+  setInfiniteCanvasActiveVariant,
+} from '@/shared/services/infinite-canvas';
 
 export const INFINITE_CANVAS_TEXT_NODE_TYPE = 'infinite-canvas-text';
 export const INFINITE_CANVAS_IMAGE_NODE_TYPE = 'infinite-canvas-image';
@@ -30,6 +35,10 @@ export interface InfiniteCanvasFlowNodeView {
   data: {
     text?: string;
     mediaRef?: { workspacePath: string; relativePath: string };
+    /** §7.6: every picture the card carries; length 1 on a plain card. */
+    mediaVariants?: readonly { workspacePath: string; relativePath: string }[];
+    /** §7.6: which of them the card face shows. */
+    activeVariantIndex?: number;
     stylePresetId?: string;
     prompt?: string;
     generationParams?: InfiniteCanvasGenerationParams;
@@ -95,6 +104,14 @@ export function toFlowNodeViews(
       data: {
         ...(node.text === undefined ? {} : { text: node.text }),
         ...(node.mediaRef === undefined ? {} : { mediaRef: { ...node.mediaRef } }),
+        // §7.6: the gallery reads one list whatever the document shape is —
+        // a pre-§7.6 card simply projects a list of one.
+        ...(node.mediaRef === undefined
+          ? {}
+          : {
+            mediaVariants: infiniteCanvasNodeVariants(node).map(variant => ({ ...variant })),
+            activeVariantIndex: infiniteCanvasActiveVariantIndex(node),
+          }),
         ...(node.stylePresetId === undefined ? {} : { stylePresetId: node.stylePresetId }),
         ...(node.prompt === undefined ? {} : { prompt: node.prompt }),
         ...(node.generationParams === undefined
@@ -173,6 +190,29 @@ export function setNodeStylePresetContent(
       }
       return { ...node, stylePresetId };
     }),
+  };
+}
+
+/**
+ * §7.6: picks which of the card's pictures the card face shows.
+ *
+ * The list itself is never touched — this is the one thing about a landed
+ * picture the user is allowed to change, which is exactly why it is safe to
+ * put on the undo stack. An out-of-range index, or the one already current,
+ * returns the document's own nodes so nothing is recorded.
+ */
+export function setNodeActiveVariantContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  index: number,
+): InfiniteCanvasDocumentContent {
+  const target = document.nodes.find(node => node.nodeId === nodeId);
+  if (!target) return content(document);
+  const next = setInfiniteCanvasActiveVariant(target, index);
+  if (next === target) return content(document);
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => (node.nodeId === nodeId ? next : node)),
   };
 }
 

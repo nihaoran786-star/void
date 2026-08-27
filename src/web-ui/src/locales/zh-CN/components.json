@@ -1042,6 +1042,16 @@
       "previewLoading": "正在加载媒体…",
       "previewUnavailable": "无法显示这个媒体。"
     },
+    "variants": {
+      "badge": "这张卡上的图（{{count}}）",
+      "galleryLabel": "这张卡上的图",
+      "select": "显示这张图",
+      "current": "当前显示",
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "pageStatus": "{{page}} / {{total}}",
+      "thumbnail": "第 {{index}} 张图"
+    },
     "params": {
       "title": "生成参数",
       "close": "关闭",

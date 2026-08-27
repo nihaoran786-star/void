@@ -18,6 +18,8 @@ import { Handle, Position } from '@xyflow/react';
 import {
   AlertTriangle,
   Brush,
+  ChevronLeft,
+  ChevronRight,
   Crop,
   Download,
   Eraser,
@@ -81,6 +83,16 @@ export interface InfiniteCanvasImageNodeDerivation {
 export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
   /** Absent on blank generation cards and derived placeholders. */
   mediaRef?: InfiniteCanvasMediaRef;
+  /**
+   * §7.6: every picture this card carries, oldest first. A card that only ever
+   * produced one picture projects a list of one, and the count badge and the
+   * gallery both stay away.
+   */
+  mediaVariants?: readonly InfiniteCanvasMediaRef[];
+  /** §7.6: index into {@link mediaVariants} of the picture on the card face. */
+  activeVariantIndex?: number;
+  /** §7.6: makes one of the card's pictures the current one (undoable). */
+  onSelectVariant?: (nodeId: string, index: number) => void;
   prompt?: string;
   generation?: InfiniteCanvasImageNodeGeneration;
   derivedFrom?: InfiniteCanvasImageNodeDerivation;
@@ -371,6 +383,160 @@ const NodeMedia: React.FC<{
 
 NodeMedia.displayName = 'InfiniteCanvasNodeMedia';
 
+/** §7.6: the gallery is a four-up grid; anything beyond that pages. */
+const VARIANT_PAGE_SIZE = 4;
+
+/**
+ * One tile of the §7.6 gallery. Deliberately thinner than {@link NodeMedia}:
+ * a thumbnail is a still picture even for a video card, with no transport bar
+ * and no click surface of its own — the tile itself is the button.
+ */
+const VariantThumb: React.FC<{
+  mediaRef: InfiniteCanvasMediaRef;
+  mediaKind: 'image' | 'video';
+  resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
+}> = ({ mediaRef, mediaKind, resolvePreviewUrl }) => {
+  const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setPreviewUrl(undefined);
+    void resolvePreviewUrl(mediaRef, mediaKind).then(url => {
+      if (!cancelled && url) setPreviewUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mediaKind, mediaRef, resolvePreviewUrl]);
+
+  if (!previewUrl) {
+    return (
+      <span className="infinite-canvas-node__gallery-placeholder" aria-hidden="true">
+        {mediaKind === 'video'
+          ? <Play size={16} aria-hidden="true" />
+          : <ImageIcon size={16} aria-hidden="true" />}
+      </span>
+    );
+  }
+  if (mediaKind === 'video') {
+    return (
+      <video
+        className="infinite-canvas-node__gallery-media"
+        src={previewUrl}
+        muted
+        playsInline
+        preload="metadata"
+      />
+    );
+  }
+  return (
+    <img
+      className="infinite-canvas-node__gallery-media"
+      src={previewUrl}
+      alt=""
+      draggable={false}
+    />
+  );
+};
+
+VariantThumb.displayName = 'InfiniteCanvasVariantThumb';
+
+/**
+ * §7.6's gallery: the card's pictures, four to a page, the current one marked.
+ *
+ * It is rendered inside the card rather than as a panel-level popover on
+ * purpose. Everything it points at lives in the card's own box, so anchoring
+ * it here keeps it correct at every zoom level without a single coordinate
+ * conversion — the class of bug §7.1's panel-owned surfaces have to fight.
+ */
+const NodeVariantGallery: React.FC<{
+  variants: readonly InfiniteCanvasMediaRef[];
+  activeIndex: number;
+  mediaKind: 'image' | 'video';
+  resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
+  onSelect: (index: number) => void;
+}> = ({ variants, activeIndex, mediaKind, resolvePreviewUrl, onSelect }) => {
+  const { t } = useI18n('components');
+  const pageCount = Math.max(1, Math.ceil(variants.length / VARIANT_PAGE_SIZE));
+  // Opening the gallery should show the picture the card face shows.
+  const [page, setPage] = React.useState(() => Math.floor(activeIndex / VARIANT_PAGE_SIZE));
+  // A shrinking list (undo of a landing) must not strand the pager past its end.
+  const safePage = Math.min(page, pageCount - 1);
+  const start = safePage * VARIANT_PAGE_SIZE;
+  const shown = variants.slice(start, start + VARIANT_PAGE_SIZE);
+
+  return (
+    <div
+      className="infinite-canvas-node__gallery nodrag"
+      role="group"
+      data-canvas-variant-gallery=""
+      aria-label={t('infiniteCanvas.variants.galleryLabel')}
+    >
+      <div className="infinite-canvas-node__gallery-grid">
+        {shown.map((variant, offset) => {
+          const index = start + offset;
+          const current = index === activeIndex;
+          return (
+            <button
+              key={`${variant.workspacePath}/${variant.relativePath}`}
+              type="button"
+              className="infinite-canvas-node__gallery-tile"
+              data-canvas-variant-index={index}
+              data-current={current ? 'true' : undefined}
+              aria-current={current ? 'true' : undefined}
+              aria-label={current
+                ? t('infiniteCanvas.variants.current')
+                : t('infiniteCanvas.variants.select')}
+              title={t('infiniteCanvas.variants.thumbnail', { index: index + 1 })}
+              onClick={() => onSelect(index)}
+            >
+              <VariantThumb
+                mediaRef={variant}
+                mediaKind={mediaKind}
+                resolvePreviewUrl={resolvePreviewUrl}
+              />
+            </button>
+          );
+        })}
+      </div>
+      {pageCount > 1 ? (
+        <div className="infinite-canvas-node__gallery-pager">
+          <button
+            type="button"
+            className="infinite-canvas-node__gallery-page"
+            data-canvas-variant-page="previous"
+            disabled={safePage === 0}
+            aria-label={t('infiniteCanvas.variants.previousPage')}
+            title={t('infiniteCanvas.variants.previousPage')}
+            onClick={() => setPage(Math.max(0, safePage - 1))}
+          >
+            <ChevronLeft size={12} aria-hidden="true" />
+          </button>
+          <span className="infinite-canvas-node__gallery-page-status">
+            {t('infiniteCanvas.variants.pageStatus', {
+              page: safePage + 1,
+              total: pageCount,
+            })}
+          </span>
+          <button
+            type="button"
+            className="infinite-canvas-node__gallery-page"
+            data-canvas-variant-page="next"
+            disabled={safePage >= pageCount - 1}
+            aria-label={t('infiniteCanvas.variants.nextPage')}
+            title={t('infiniteCanvas.variants.nextPage')}
+            onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+          >
+            <ChevronRight size={12} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+NodeVariantGallery.displayName = 'InfiniteCanvasNodeVariantGallery';
+
 /**
  * §4's pill, as a shape rather than a flat list: groups in, hairlines between
  * whichever groups survived.
@@ -424,6 +590,15 @@ const InfiniteCanvasMediaCard: React.FC<
   const pending = generation?.status === 'pending';
   const failed = generation?.status === 'failed';
   const referenceLabels = data.referenceLabels ?? [];
+  // §7.6: the card's own pictures. A card that only ever produced one shows
+  // neither badge nor gallery, so nothing changes for the common case.
+  const variants = data.mediaVariants ?? (mediaRef ? [mediaRef] : []);
+  const activeVariantIndex = data.activeVariantIndex ?? 0;
+  const [galleryOpen, setGalleryOpen] = React.useState(false);
+  const hasGallery = variants.length > 1 && Boolean(data.onSelectVariant);
+  React.useEffect(() => {
+    if (!hasGallery) setGalleryOpen(false);
+  }, [hasGallery]);
 
   return (
     <div
@@ -447,11 +622,21 @@ const InfiniteCanvasMediaCard: React.FC<
       />
       <div className="infinite-canvas-node__frame">
         {mediaRef ? (
-          <NodeMedia
-            mediaRef={mediaRef}
-            mediaKind={mediaKind}
-            resolvePreviewUrl={data.resolvePreviewUrl}
-          />
+          <>
+            <NodeMedia
+              mediaRef={mediaRef}
+              mediaKind={mediaKind}
+              resolvePreviewUrl={data.resolvePreviewUrl}
+            />
+            {/*
+              §7.6: a regenerate now runs ON this card, so the card face has to
+              say so. Same restrained line the blank placeholder uses — no
+              overlay, no words over the picture.
+            */}
+            {pending ? (
+              <span className="infinite-canvas-node__progress" aria-hidden="true" />
+            ) : null}
+          </>
         ) : failed ? (
           <div
             className="infinite-canvas-node__generation-failed nodrag"
@@ -504,6 +689,34 @@ const InfiniteCanvasMediaCard: React.FC<
           </div>
         )}
       </div>
+      {/*
+        §7.6: the count badge. One small number in the corner, in the same
+        restrained grey the §2 type label uses — it says how many pictures this
+        card holds and opens the gallery; it never competes with the picture.
+      */}
+      {hasGallery ? (
+        <button
+          type="button"
+          className="infinite-canvas-node__variant-badge nodrag"
+          data-node-action="variants"
+          data-canvas-variant-count={variants.length}
+          aria-expanded={galleryOpen}
+          aria-label={t('infiniteCanvas.variants.badge', { count: variants.length })}
+          title={t('infiniteCanvas.variants.badge', { count: variants.length })}
+          onClick={() => setGalleryOpen(open => !open)}
+        >
+          {variants.length}
+        </button>
+      ) : null}
+      {hasGallery && galleryOpen ? (
+        <NodeVariantGallery
+          variants={variants}
+          activeIndex={activeVariantIndex}
+          mediaKind={mediaKind}
+          resolvePreviewUrl={data.resolvePreviewUrl}
+          onSelect={index => data.onSelectVariant?.(id, index)}
+        />
+      ) : null}
       {/*
         §3: the small `+` off the right edge derives the next card. Dim at
         rest, bright on hover — the card itself stays undecorated. §6 adds the

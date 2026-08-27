@@ -1042,6 +1042,16 @@
       "previewLoading": "正在載入媒體…",
       "previewUnavailable": "無法顯示這個媒體。"
     },
+    "variants": {
+      "badge": "這張卡上的圖（{{count}}）",
+      "galleryLabel": "這張卡上的圖",
+      "select": "顯示這張圖",
+      "current": "目前顯示",
+      "previousPage": "上一頁",
+      "nextPage": "下一頁",
+      "pageStatus": "{{page}} / {{total}}",
+      "thumbnail": "第 {{index}} 張圖"
+    },
     "params": {
       "title": "生成參數",
       "close": "關閉",
