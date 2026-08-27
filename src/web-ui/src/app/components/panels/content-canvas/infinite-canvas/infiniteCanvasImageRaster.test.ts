@@ -13,6 +13,7 @@ import { JSDOM } from 'jsdom';
 import {
   CANVAS_CROP_MIN_SIZE,
   CANVAS_CROP_PREFIX,
+  CANVAS_EXPAND_MAX_RATIO,
   CANVAS_MARK_UNDO_BUDGET_BYTES,
   CANVAS_MARK_UNDO_LIMIT,
   CANVAS_MARK_UNDO_MIN,
@@ -24,8 +25,13 @@ import {
   clampCropRect,
   compositeMarkLayer,
   createCanvasSurface,
+  clampExpandInsets,
   cropBitmap,
   dataUrlToBlob,
+  expandBitmap,
+  expandedCanvasSize,
+  formatCanvasAspectRatio,
+  isCanvasExpanded,
   exportCanvasPngBase64,
   isCropRectUsable,
   rectFromCorners,
@@ -278,5 +284,92 @@ describe('infiniteCanvasImageRaster', () => {
     it('never produces an empty stem', () => {
       expect(canvasScratchRelativePath('///')).toBe(`${CANVAS_SCRATCH_PREFIX}image-mark.png`);
     });
+  });
+});
+
+/**
+ * P6: the outpainting geometry.
+ *
+ * Two rules carry the whole feature — the frame may only grow outwards, and it
+ * may only grow so far — and one draw call carries the composite.
+ */
+describe('outpainting geometry', () => {
+  const NATURAL = { width: 400, height: 200 };
+  let dom: JSDOM;
+  let draws: DrawCall[];
+
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    vi.stubGlobal('window', dom.window);
+    vi.stubGlobal('document', dom.window.document);
+    ({ draws } = stubCanvas(dom));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('refuses an inset that would make the canvas smaller than the picture', () => {
+    expect(clampExpandInsets({ left: -50, top: -1, right: -999, bottom: -0.4 }, NATURAL))
+      .toEqual({ left: 0, top: 0, right: 0, bottom: 0 });
+    expect(expandedCanvasSize(NATURAL, { left: 0, top: 0, right: 0, bottom: 0 }))
+      .toEqual(NATURAL);
+  });
+
+  it('caps each side at its own axis, not at the larger one', () => {
+    const clamped = clampExpandInsets(
+      { left: 10_000, top: 10_000, right: 10_000, bottom: 10_000 },
+      NATURAL,
+    );
+    expect(clamped).toEqual({
+      left: NATURAL.width * CANVAS_EXPAND_MAX_RATIO,
+      right: NATURAL.width * CANVAS_EXPAND_MAX_RATIO,
+      top: NATURAL.height * CANVAS_EXPAND_MAX_RATIO,
+      bottom: NATURAL.height * CANVAS_EXPAND_MAX_RATIO,
+    });
+    // At the cap the canvas is 3x on each axis, which is what the 32 MB write
+    // ceiling was sized against.
+    expect(expandedCanvasSize(NATURAL, clamped)).toEqual({ width: 1200, height: 600 });
+  });
+
+  it('rounds to whole pixels and keeps sub-pixel drags honest', () => {
+    expect(clampExpandInsets({ left: 12.4, top: 0.6, right: 0, bottom: 0 }, NATURAL))
+      .toEqual({ left: 12, top: 1, right: 0, bottom: 0 });
+    expect(clampExpandInsets(
+      { left: Number.NaN, top: 0, right: 0, bottom: 0 },
+      NATURAL,
+    ).left).toBe(0);
+  });
+
+  it('knows whether anything was asked for at all', () => {
+    expect(isCanvasExpanded({ left: 0, top: 0, right: 0, bottom: 0 })).toBe(false);
+    expect(isCanvasExpanded({ left: 0, top: 0, right: 1, bottom: 0 })).toBe(true);
+  });
+
+  it('draws the source once, at the inset offset, on the expanded surface', () => {
+    const source = { width: 400, height: 200 } as unknown as CanvasImageSource & {
+      width: number;
+      height: number;
+    };
+    const output = expandBitmap(source, { left: 60, top: 30, right: 20, bottom: 10 });
+    expect(output.width).toBe(480);
+    expect(output.height).toBe(240);
+    // One call, two coordinates: the source travels at natural scale and the
+    // margin is left at the canvas's own transparent default.
+    expect(draws).toHaveLength(1);
+    expect(draws[0].args.slice(1)).toEqual([60, 30]);
+  });
+
+  it('reports a tidy ratio when there is one and a decimal when there is not', () => {
+    expect(formatCanvasAspectRatio({ width: 1000, height: 500 })).toBe('2 : 1');
+    expect(formatCanvasAspectRatio({ width: 1920, height: 1080 })).toBe('16 : 9');
+    expect(formatCanvasAspectRatio({ width: 1001, height: 500 })).toBe('2.00 : 1');
+  });
+
+  it('names the outpainting scratch file after its own lane', () => {
+    expect(canvasScratchRelativePath('op-42', 'expand'))
+      .toBe(`${CANVAS_SCRATCH_PREFIX}op-42-expand.png`);
+    // The default is unchanged, so the mask lane's path is byte-identical.
+    expect(canvasScratchRelativePath('op-42')).toBe(`${CANVAS_SCRATCH_PREFIX}op-42-mark.png`);
   });
 });

@@ -185,3 +185,80 @@ export const IMAGE_TOOL_DEFINITIONS: readonly ImageToolDefinition[] = [
     autoRun: false,
   },
 ];
+
+// —— P6: the outpainting (expand) lane ———————————————————————————————————————
+//
+// Expand is the third board-filling editor. Like the mask lane it changes only
+// WHICH picture travels with the request — the front end composites the
+// original onto a larger, otherwise transparent canvas and submits THAT as the
+// edit target. `GenerateImage` still sees "a prompt and one reference image".
+//
+// The prompt is not written by the user: an outpainting frame already says
+// everything the request needs, so the editor collapses the prompt area and
+// this module fills the existing `expand` template's bracket placeholders from
+// the frame instead. No second prompt assembler, no new instruction template.
+
+/** How far the frame was dragged past each edge, in the picture's own pixels. */
+export interface CanvasExpandInsets {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** i18n key of the directive that explains the transparent margin to the model. */
+export const EXPAND_DIRECTIVE_KEY = 'infiniteCanvas.expand.directive';
+
+/**
+ * What fills the template's "scene description" placeholder.
+ *
+ * The user never types here (see above), so the instruction asks for the one
+ * thing outpainting always wants: more of the picture that is already there.
+ */
+const EXPAND_SCENE_DESCRIPTION = 'content that continues the existing scene naturally';
+
+/** English side names, in reading order; these travel to the model, not to the UI. */
+const EXPAND_SIDE_NAMES = ['top', 'right', 'bottom', 'left'] as const;
+
+/**
+ * What fills the template's "direction" placeholder: the sides the frame was
+ * actually dragged out on, in reading order.
+ */
+export function expandInstructionDirection(insets: CanvasExpandInsets): string {
+  const sides = [
+    insets.top > 0 ? EXPAND_SIDE_NAMES[0] : undefined,
+    insets.right > 0 ? EXPAND_SIDE_NAMES[1] : undefined,
+    insets.bottom > 0 ? EXPAND_SIDE_NAMES[2] : undefined,
+    insets.left > 0 ? EXPAND_SIDE_NAMES[3] : undefined,
+  ].filter((side): side is typeof EXPAND_SIDE_NAMES[number] => side !== undefined);
+  if (sides.length === EXPAND_SIDE_NAMES.length) return 'all four sides';
+  if (sides.length === 0) return 'no side';
+  if (sides.length === 1) return `the ${sides[0]}`;
+  return `the ${sides.slice(0, -1).join(', ')} and ${sides[sides.length - 1]}`;
+}
+
+/**
+ * The prompt the expand lane submits: the directive that explains the
+ * transparent margin, then the existing `expand` template with both of its
+ * placeholders filled from the frame.
+ *
+ * The placeholder tokens are read OUT of the template rather than written here,
+ * so this file stays free of bracket literals and a template edit cannot
+ * silently leave a placeholder unfilled.
+ */
+export function buildExpandInstruction(
+  directive: string,
+  insets: CanvasExpandInsets,
+): string {
+  const definition = IMAGE_TOOL_DEFINITIONS.find(entry => entry.toolId === 'expand');
+  const template = definition?.instructionTemplate ?? '';
+  const [directionToken, sceneToken] = instructionPlaceholders(template);
+  let filled = template;
+  if (directionToken) {
+    filled = filled.replace(directionToken, expandInstructionDirection(insets));
+  }
+  if (sceneToken) filled = filled.replace(sceneToken, EXPAND_SCENE_DESCRIPTION);
+  // The same joiner the mask lane uses — one "directive then instruction"
+  // shape for every lane that prepends a machine-facing sentence.
+  return buildMaskInstruction(directive, filled);
+}

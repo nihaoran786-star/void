@@ -84,6 +84,7 @@ import { StylePresetCatalog } from '@/shared/services/style-preset';
 import {
   createInMemoryInfiniteCanvasPersistence,
   defaultInfiniteCanvasDocumentId,
+  hasUnfilledInstructionPlaceholder,
   infiniteCanvasDocumentFilePath,
   InfiniteCanvasDocumentService,
   type InfiniteCanvasDocument,
@@ -423,16 +424,157 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     expect(container.querySelector('.infinite-canvas-dialog[data-tool-id]')).toBeNull();
   });
 
-  it('keeps the three non-mask tools on the instruction dialog', async () => {
+  it('keeps the two remaining tools on the instruction dialog', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
-    // §4: expand now sits in the "more (...)" drawer, so the drawer opens first.
+    // P6: expand left the dialog for its own editor, so upscale and matting are
+    // the two tools the placeholder-completion dialog is still for.
+    await openEditor('[data-tool-id="upscale"]');
+
+    expect(container.querySelector('[data-canvas-editor="mask"]')).toBeNull();
+    expect(container.querySelector('[data-canvas-editor="expand"]')).toBeNull();
+    expect(container.querySelector('.infinite-canvas-dialog[data-tool-id="upscale"]'))
+      .not.toBeNull();
+  });
+
+  /**
+   * P6: the "more" drawer's outpainting entry is still there, and it now opens
+   * the third board-filling editor rather than a sentence about a direction.
+   */
+  it('opens the expand editor from the "more" drawer', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
     await openEditor('[data-node-action="more"]');
     await openEditor('[data-tool-id="expand"]');
 
-    expect(container.querySelector('[data-canvas-editor="mask"]')).toBeNull();
-    expect(container.querySelector('.infinite-canvas-dialog[data-tool-id="expand"]'))
-      .not.toBeNull();
+    expect(container.querySelector('[data-canvas-editor="expand"]')).not.toBeNull();
+    expect(container.querySelector('.infinite-canvas-dialog[data-tool-id]')).toBeNull();
+    // Nothing is dispatched by opening it, and the source card is untouched.
+    expect(readDocument(memory).nodes).toHaveLength(1);
+  });
+
+  /**
+   * P6: the outpainting flow, end to end through the panel.
+   *
+   * Same shape as `runMaskFlow` on purpose — that is the point of the lane:
+   * open the editor, change the picture that will travel, press the SHARED
+   * generator's round send button.
+   */
+  async function runExpandFlow(dx = 200, dy = 0) {
+    await openEditor('[data-node-action="more"]');
+    await openEditor('[data-tool-id="expand"]');
+    const grip = container.querySelector('[data-expand-handle="e"]')!;
+    act(() => {
+      Simulate.mouseDown(grip, { clientX: 0, clientY: 0 } as never);
+    });
+    act(() => {
+      // getBoundingClientRect is all zeros under JSDOM, so client pixels map
+      // 1:1 onto natural ones.
+      Simulate.mouseMove(
+        container.querySelector('[data-expand-stage="true"]')!,
+        { clientX: dx, clientY: dy } as never,
+      );
+    });
+    await act(async () => {
+      Simulate.click(container.querySelector('[data-canvas-generator-action="send"]')!);
+    });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+  }
+
+  /**
+   * §6.4's last line, made real: outpainting needs no sentence, so the shared
+   * generator mounts with its writing area collapsed. The bottom row — model,
+   * parameters, count, round send — is untouched, and the send button is the
+   * confirm.
+   */
+  it('mounts the shared generator with no prompt area and a parked send', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-action="more"]');
+    await openEditor('[data-tool-id="expand"]');
+
+    const generator = container.querySelector('[data-canvas-generator="root"]')!;
+    expect(generator.getAttribute('data-canvas-generator-surface')).toBe('editor');
+    expect(generator.getAttribute('data-canvas-generator-prompt')).toBe('collapsed');
+    expect(generator.querySelector('[data-canvas-generator-field="prompt"]')).toBeNull();
+    // The bottom row is the board's own, unchanged.
+    expect(generator.querySelector('[data-canvas-generator-action="model"]')).not.toBeNull();
+    expect(generator.querySelector('[data-canvas-generator-action="params"]')).not.toBeNull();
+    expect(generator.querySelector('[data-canvas-generator-action="count"]')).not.toBeNull();
+
+    // Nothing has been dragged yet, so there is nothing to expand into and the
+    // send button says so rather than sending an unchanged picture.
+    const send = generator
+      .querySelector('[data-canvas-generator-action="send"]') as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    expect(container.querySelector('[data-canvas-generator-note="true"]')
+      ?.getAttribute('data-blocked-reason')).toBe('frame');
+  });
+
+  it('writes the outpainting composite to scratch and submits it once', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await runExpandFlow();
+
+    // 1. The bytes land first, in the scratch directory — outside every
+    //    media-library scan root — and under this lane's own file name.
+    expect(writeCanvasImage).toHaveBeenCalledTimes(1);
+    const write = writeCanvasImage.mock.calls[0][0];
+    expect(write.relativePath.startsWith(CANVAS_SCRATCH_PREFIX)).toBe(true);
+    expect(write.relativePath.endsWith('-expand.png')).toBe(true);
+    expect(write.base64Png).toBe('UEFZTE9BRA==');
+    expect(write.base64Png.startsWith('data:')).toBe(false);
+
+    // 2. Exactly one submission, through the same gateway every other lane
+    //    uses, with the composite as the edit target and no other references.
+    expect(stubRuntime.gateway.invoke).toHaveBeenCalledTimes(1);
+    const invocation = stubRuntime.gateway.invoke.mock.calls[0][0] as any;
+    expect(invocation).toMatchObject({
+      kind: 'expand',
+      resultMode: 'derived',
+      sourceNodeId: 'n-image',
+      references: [],
+      editTargetMediaRef: {
+        workspacePath: WORKSPACE.workspacePath,
+        relativePath: write.relativePath,
+      },
+    });
+    // The instruction is the existing template with its placeholders filled
+    // from the frame, behind the directive explaining the transparent margin.
+    expect(invocation.prompt).toContain('infiniteCanvas.expand.directive');
+    expect(invocation.prompt).toContain('the right');
+    expect(hasUnfilledInstructionPlaceholder(invocation.prompt)).toBe(false);
+
+    await service.flushPendingWrites();
+    const persisted = readDocument(memory);
+    // 3. The source card is untouched, field for field — mediaRef included.
+    expect(persisted.nodes.find(node => node.nodeId === 'n-image')).toEqual(IMAGE_NODE);
+    // 4. A new derived card, pending, pointing back at the source.
+    const derived = persisted.nodes.find(node => node.nodeId !== 'n-image')!;
+    expect(derived.derivedFrom).toMatchObject({ sourceNodeId: 'n-image', toolId: 'expand' });
+    expect(derived.mediaRef).toBeUndefined();
+    expect(derived.generation).toMatchObject({ status: 'pending', toolId: 'expand' });
+  });
+
+  it('submits nothing when the outpainting composite cannot be written', async () => {
+    writeCanvasImage.mockResolvedValue({ status: 'invalid_input', message: 'too big' });
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await runExpandFlow();
+
+    // A failed write must never reach a paid submission (the money rule).
+    expect(writeCanvasImage).toHaveBeenCalledTimes(1);
+    expect(stubRuntime.gateway.invoke).not.toHaveBeenCalled();
+    // The 32 MB ceiling arrives as a typed `invalid_input`, and it says so in
+    // words rather than blaming the backend.
+    expect(container.querySelector('.infinite-canvas-panel__tool-notice')!.textContent)
+      .toContain('infiniteCanvas.expand.writeTooLarge');
+
+    await service.flushPendingWrites();
+    const persisted = readDocument(memory);
+    expect(persisted.nodes).toHaveLength(1);
+    expect(persisted.nodes[0]).toEqual(IMAGE_NODE);
   });
 
   async function runMaskFlow() {

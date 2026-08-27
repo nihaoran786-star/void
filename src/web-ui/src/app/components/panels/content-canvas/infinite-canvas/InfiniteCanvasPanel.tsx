@@ -43,6 +43,7 @@ import type {
   SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import type {
+  CanvasExpandInsets,
   InfiniteCanvasGenerationParams,
   InfiniteCanvasMediaJobReader,
 } from '@/shared/services/infinite-canvas';
@@ -58,7 +59,9 @@ import {
   reconcileInfiniteCanvasAgentOps,
   reconcilePendingInfiniteCanvasGenerations,
   referenceImageLabel,
+  buildExpandInstruction,
   buildMaskInstruction,
+  EXPAND_DIRECTIVE_KEY,
   isMaskImageTool,
   maskDirectiveKey,
 } from '@/shared/services/infinite-canvas';
@@ -188,6 +191,7 @@ import {
   type InfiniteCanvasOverflowAction,
 } from './InfiniteCanvasOverflowMenu';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
+import { InfiniteCanvasExpandEditor } from './InfiniteCanvasExpandEditor';
 import {
   canvasCropRelativePath,
   canvasScratchRelativePath,
@@ -266,7 +270,7 @@ interface GenerationNotice {
  * is worse than telling them nothing.
  */
 function assetWriteNotice(
-  lane: 'mask' | 'crop',
+  lane: 'mask' | 'crop' | 'expand',
   status: 'invalid_input' | 'path_denied' | 'backend',
 ): GenerationNotice {
   if (status === 'invalid_input') {
@@ -317,6 +321,12 @@ interface ReversePromptSpendRequest {
 
 /** P5 W2: the card whose picture is open in the crop editor. */
 interface CropEditorRequest {
+  nodeId: string;
+  mediaRef: InfiniteCanvasMediaRef;
+}
+
+/** P6: the card whose picture is open in the outpainting editor. */
+interface ExpandEditorRequest {
   nodeId: string;
   mediaRef: InfiniteCanvasMediaRef;
 }
@@ -555,13 +565,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   /** P5: the two full-panel editing states. Mutually exclusive by construction. */
   const [maskRequest, setMaskRequest] = React.useState<MaskEditorRequest | null>(null);
   const [cropRequest, setCropRequest] = React.useState<CropEditorRequest | null>(null);
+  const [expandRequest, setExpandRequest] = React.useState<ExpandEditorRequest | null>(null);
   /**
    * Read by the board's keyboard listener. While an editor is open, Ctrl+Z
    * belongs to that editor's own stroke stack and must not reach the document
    * history — the two stacks are completely isolated (plan §9).
    */
   const editorOpenRef = React.useRef(false);
-  editorOpenRef.current = Boolean(maskRequest || cropRequest);
+  editorOpenRef.current = Boolean(maskRequest || cropRequest || expandRequest);
   /**
    * P5 W7: the card whose reverse-prompt call is in flight, and the pending
    * "replace or append" choice when the prompt box was not empty.
@@ -1375,6 +1386,86 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     workspacePath,
   ]);
 
+  /**
+   * P6 expand lane: the outpainting composite becomes the edit target of an
+   * ordinary derived generation.
+   *
+   * Exactly the mask lane's chain, and deliberately so — write the composite
+   * first, submit only if it landed, derive a new card, never touch the source.
+   * The only differences are WHAT the composite is (the picture on a larger
+   * transparent canvas instead of the picture with red marks burnt in) and
+   * where the prompt comes from (the frame, through the existing `expand`
+   * instruction template, instead of the user's sentence).
+   */
+  const confirmExpand = React.useCallback(async (
+    base64Png: string,
+    insets: CanvasExpandInsets,
+  ) => {
+    const request = expandRequest;
+    setExpandRequest(null);
+    if (!request) return;
+    const found = findImageNode(request.nodeId);
+    if (!found?.node.mediaRef) return;
+    const { document, node } = found;
+
+    const finalPrompt = buildExpandInstruction(t(EXPAND_DIRECTIVE_KEY), insets);
+    // Same gate as every other dispatch: a prompt, a reachable target session.
+    if (!prepareDispatch(document, request.nodeId, finalPrompt)) return;
+    if (!assetWriter) {
+      setNotice({ messageKey: 'infiniteCanvas.expand.writeFailed', errorKind: 'unavailable' });
+      return;
+    }
+
+    const operationId = createInfiniteCanvasId('op');
+    const scratchRelativePath = canvasScratchRelativePath(operationId, 'expand');
+    const written = await assetWriter({
+      workspacePath,
+      relativePath: scratchRelativePath,
+      base64Png,
+    });
+    if (written.status !== 'written') {
+      // The 32 MB ceiling lands here as a typed `invalid_input`, which the
+      // shared notice turns into "the expanded picture is too large to save.
+      // Nothing was generated and nothing was charged."
+      setNotice(assetWriteNotice('expand', written.status));
+      return;
+    }
+
+    const derivedNodeId = `node-${operationId}`;
+    const edgeId = `edge-${operationId}`;
+    await commit(current => {
+      const begun = beginDerivedOperationContent(
+        current,
+        request.nodeId,
+        'expand',
+        operationId,
+        derivedNodeId,
+        edgeId,
+      );
+      return setNodePromptContent({ ...current, ...begun }, derivedNodeId, finalPrompt);
+    });
+    await submitOperation({
+      operationId,
+      kind: 'expand',
+      resultMode: 'derived',
+      nodeId: derivedNodeId,
+      sourceNodeId: request.nodeId,
+      prompt: finalPrompt,
+      stylePresetId: node.stylePresetId,
+      references: [],
+      editTargetMediaRef: { workspacePath, relativePath: written.relativePath },
+    });
+  }, [
+    assetWriter,
+    commit,
+    expandRequest,
+    findImageNode,
+    prepareDispatch,
+    submitOperation,
+    t,
+    workspacePath,
+  ]);
+
   // —— P5 W7: reverse-prompt ————————————————————————————————————————————————
 
   const imageAnalyzer = React.useMemo(
@@ -1575,7 +1666,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         if (isMaskImageTool(toolId)) {
           setToolDialog(null);
           setCropRequest(null);
+          setExpandRequest(null);
           setMaskRequest({ nodeId, toolId, mediaRef: found.node.mediaRef });
+          return;
+        }
+        // P6: outpainting is a frame you drag, not a direction you describe.
+        // The "more" drawer entry is unchanged; what it opens is.
+        if (toolId === 'expand') {
+          setToolDialog(null);
+          setCropRequest(null);
+          setMaskRequest(null);
+          setExpandRequest({ nodeId, mediaRef: found.node.mediaRef });
           return;
         }
         setToolDialog({ nodeId, toolId });
@@ -1592,6 +1693,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         if (!found?.node.mediaRef) return;
         setToolDialog(null);
         setMaskRequest(null);
+        setExpandRequest(null);
         setCropRequest({ nodeId, mediaRef: found.node.mediaRef });
       },
       retry: nodeId => {
@@ -2623,6 +2725,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     return target ? { target } : undefined;
   }, [flowNodes, maskRequest]);
 
+  /** The same projection for the outpainting editor's card. */
+  const expandGeneratorProps = React.useMemo(() => {
+    if (!expandRequest) return undefined;
+    const target = projectGeneratorTarget(
+      flowNodes.find(entry => entry.id === expandRequest.nodeId),
+    );
+    return target ? { target } : undefined;
+  }, [expandRequest, flowNodes]);
+
   /**
    * §6: where the generator sits — directly under its card, as wide as the
    * card, in panel pixels. Falls back to `undefined` (the stylesheet's own
@@ -3018,7 +3129,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           two prompt boxes for one card is exactly the confusion the shared
           input was meant to remove.
         */}
-        {generatorTarget && generatorPlacement && !maskRequest && !cropRequest ? (
+        {generatorTarget && generatorPlacement && !maskRequest && !cropRequest
+          && !expandRequest ? (
           <InfiniteCanvasGenerator
             target={generatorTarget}
             placement={generatorPlacement}
@@ -3199,6 +3311,28 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             </button>
           </div>
         </InfiniteCanvasPopover>
+      ) : null}
+      {/*
+        P6: the third editing state. Same three-part stack as the other two —
+        pill, media, shared generator — with the generator's writing area
+        collapsed, because the frame is the request (§6.4).
+      */}
+      {expandRequest && expandGeneratorProps ? (
+        <InfiniteCanvasExpandEditor
+          mediaRef={expandRequest.mediaRef}
+          resolvePreviewUrl={resolvePreviewUrl}
+          generator={{
+            target: expandGeneratorProps.target,
+            onOpenParams: anchor =>
+              nodeActionsRef.current.openParams(expandRequest.nodeId, anchor),
+            onOpenModel: anchor =>
+              nodeActionsRef.current.openModel(expandRequest.nodeId, anchor),
+          }}
+          onConfirm={payload => {
+            void confirmExpand(payload.base64Png, payload.insets);
+          }}
+          onClose={() => setExpandRequest(null)}
+        />
       ) : null}
       {cropRequest ? (
         <InfiniteCanvasCropEditor

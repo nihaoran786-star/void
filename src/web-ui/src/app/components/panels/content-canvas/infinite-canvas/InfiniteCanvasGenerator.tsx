@@ -96,6 +96,16 @@ export interface InfiniteCanvasGeneratorProps {
    * outstanding, and `note` is where it says what.
    */
   canSubmit?: boolean;
+  /**
+   * Hides the prompt field, leaving only the bottom row (§6.4's last line).
+   *
+   * The outpainting editor asks for no sentence at all — the frame the user
+   * dragged already carries the whole request — and the owner's reference shot
+   * shows exactly that: no writing area, just the pills and the round send
+   * button. This is that switch, and it is the ONLY difference; the surface
+   * still mounts this component rather than a second, smaller input bar.
+   */
+  collapsePrompt?: boolean;
   placement?: InfiniteCanvasGeneratorPlacement;
   references: readonly InfiniteCanvasGeneratorReference[];
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
@@ -135,6 +145,32 @@ export interface InfiniteCanvasGeneratorProps {
   onOpenModel?: (anchor: HTMLElement) => void;
   onOpenStyle?: (anchor: HTMLElement) => void;
 }
+
+/**
+ * What a board-filling editor is handed, and nothing more.
+ *
+ * The panel supplies the card projection and the popover routes; the editor
+ * owns the placeholder, the status line, the submit gate and the submit itself,
+ * because only it knows whether its frame or its marks are ready. Naming the
+ * split once here keeps the three editors from drifting apart.
+ */
+export type InfiniteCanvasEditorGeneratorProps = Omit<
+  InfiniteCanvasGeneratorProps,
+  | 'canSubmit'
+  | 'collapsePrompt'
+  | 'note'
+  | 'noteReason'
+  | 'onAddReference'
+  | 'onCommitPrompt'
+  | 'onDraftChange'
+  | 'onRemoveReference'
+  | 'onSubmit'
+  | 'placeholder'
+  | 'placement'
+  | 'references'
+  | 'resolvePreviewUrl'
+  | 'surface'
+>;
 
 /** One small square in the reference queue; resolves its own preview. */
 const GeneratorThumbnail: React.FC<{
@@ -209,6 +245,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   note,
   noteReason,
   canSubmit = true,
+  collapsePrompt = false,
   placement,
   references,
   resolvePreviewUrl,
@@ -253,6 +290,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
       }`}
       data-canvas-generator="root"
       data-canvas-generator-surface={surface}
+      data-canvas-generator-prompt={collapsePrompt ? 'collapsed' : 'open'}
       data-canvas-generator-target={targetNodeId}
       // Until the card has been measured the stylesheet's own placement keeps
       // the input on screen; once it is measured, the inline box wins.
@@ -333,6 +371,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           {note}
         </p>
       ) : null}
+      {collapsePrompt ? null : (
       <textarea
         className="infinite-canvas-generator__prompt nodrag"
         data-canvas-generator-field="prompt"
@@ -354,6 +393,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           submit();
         }}
       />
+      )}
       <div className="infinite-canvas-generator__bar">
         {/* §7.3-A: model name first, then the parameter summary pill; each
             opens its own popover. Owner feedback 2026-08-27: these are small

@@ -383,15 +383,15 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
     await renderPanel();
 
-    // §4: outpainting moved off the resident pill into the "more (...)"
-    // drawer; the entry and everything behind it are unchanged.
-    await clickButton(button => button.getAttribute('data-node-action') === 'more');
-    await clickButton(button => button.getAttribute('data-tool-id') === 'expand');
+    // P6: outpainting now opens the expand EDITOR, so the placeholder
+    // completion dialog is exercised through a tool that still uses it. The
+    // lane behind the dialog is unchanged.
+    await clickButton(button => button.getAttribute('data-tool-id') === 'upscale');
     const input = container.querySelector('.infinite-canvas-dialog textarea');
     expect(input).not.toBeNull();
     await act(async () => {
       Simulate.change(input!, {
-        target: { value: 'Expand the canvas towards the left and fill it with sky.' },
+        target: { value: 'Upscale this image to 4K while preserving detail.' },
       } as never);
     });
     await clickButton(button => (
@@ -401,7 +401,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     expect(recording.invocations).toHaveLength(1);
     const invocation = recording.invocations[0];
     expect(invocation).toMatchObject({
-      kind: 'expand',
+      kind: 'upscale',
       resultMode: 'derived',
       sourceNodeId: 'card-src',
       editTargetMediaRef: sourceMediaRef,
@@ -416,11 +416,11 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
       kind: 'image',
       derivedFrom: {
         sourceNodeId: 'card-src',
-        toolId: 'expand',
+        toolId: 'upscale',
         operationId: invocation.operationId,
       },
-      generation: { status: 'pending', resultMode: 'derived', toolId: 'expand' },
-      prompt: 'Expand the canvas towards the left and fill it with sky.',
+      generation: { status: 'pending', resultMode: 'derived', toolId: 'upscale' },
+      prompt: 'Upscale this image to 4K while preserving detail.',
     });
     expect(derived.mediaRef).toBeUndefined();
     // The source card is untouched and connected to the derived card.

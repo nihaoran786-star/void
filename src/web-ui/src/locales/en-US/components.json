@@ -1230,6 +1230,28 @@
       },
       "writeTooLarge": "The marked picture is too large to save. Nothing was generated and nothing was charged.",
       "writeDenied": "The marked picture could not be saved to that location. Nothing was generated and nothing was charged."
+    },
+    "expand": {
+      "title": "Expand this picture",
+      "back": "Back",
+      "hint": "Drag the outer frame to expand",
+      "loading": "Opening the picture…",
+      "unavailable": "This picture could not be opened for expanding.",
+      "blocked": {
+        "frame": "Drag the outer frame outwards to choose how much to add."
+      },
+      "directive": "This image is the original picture placed on a larger canvas whose margin is fully transparent. Keep every existing pixel exactly as it is and paint only the transparent margin, continuing the scene outwards so the join is invisible.",
+      "export": {
+        "too-large": "The expanded picture is too large for the browser to process. Drag the frame back in, then try again. Nothing was generated and nothing was charged.",
+        "failed": "The expanded picture could not be prepared, so nothing was generated and nothing was charged."
+      },
+      "writeFailed": "The expanded picture could not be saved, so nothing was generated and nothing was charged.",
+      "writeTooLarge": "The expanded picture is too large to save. Drag the frame back in, then try again. Nothing was generated and nothing was charged.",
+      "writeDenied": "The expanded picture could not be saved to that location. Nothing was generated and nothing was charged.",
+      "discardTitle": "Discard this frame?",
+      "discardBody": "The frame you dragged will be lost. The original picture is untouched either way.",
+      "discardConfirm": "Discard",
+      "discardCancel": "Keep editing"
     }
   },
   "agentStudio": {

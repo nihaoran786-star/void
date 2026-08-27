@@ -11,6 +11,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildExpandInstruction,
+  expandInstructionDirection,
   hasUnfilledInstructionPlaceholder,
   IMAGE_TOOL_DEFINITIONS,
   instructionBlockReason,
@@ -73,5 +75,44 @@ describe('instructionBlockReason', () => {
       .toBe('placeholder');
     expect(instructionBlockReason('Erase the lamp post.', ERASE.instructionTemplate))
       .toBeUndefined();
+  });
+});
+
+/**
+ * P6: outpainting fills the EXISTING `expand` template from the frame the user
+ * dragged, rather than shipping a second instruction template or asking the
+ * owner to describe a direction in words.
+ */
+describe('buildExpandInstruction', () => {
+  const EXPAND = IMAGE_TOOL_DEFINITIONS.find(entry => entry.toolId === 'expand')!;
+
+  it('names only the sides the frame was actually dragged out on', () => {
+    expect(expandInstructionDirection({ left: 0, top: 0, right: 40, bottom: 0 }))
+      .toBe('the right');
+    expect(expandInstructionDirection({ left: 12, top: 0, right: 40, bottom: 0 }))
+      .toBe('the right and left');
+    expect(expandInstructionDirection({ left: 1, top: 1, right: 1, bottom: 1 }))
+      .toBe('all four sides');
+    expect(expandInstructionDirection({ left: 0, top: 0, right: 0, bottom: 0 }))
+      .toBe('no side');
+  });
+
+  it('leaves no placeholder behind for the submit gate to trip on', () => {
+    const instruction = buildExpandInstruction(
+      'Keep every existing pixel.',
+      { left: 0, top: 30, right: 0, bottom: 0 },
+    );
+    expect(instruction).toContain('Keep every existing pixel.');
+    expect(instruction).toContain('the top');
+    expect(hasUnfilledInstructionPlaceholder(instruction, EXPAND.instructionTemplate))
+      .toBe(false);
+    expect(instructionBlockReason(instruction, EXPAND.instructionTemplate)).toBeUndefined();
+  });
+
+  it('keeps the directive first, the way the mask lane does', () => {
+    const instruction = buildExpandInstruction('DIRECTIVE', {
+      left: 5, top: 0, right: 0, bottom: 0,
+    });
+    expect(instruction.startsWith('DIRECTIVE')).toBe(true);
   });
 });

@@ -64,7 +64,7 @@ import {
 } from './useInfiniteCanvasDismiss';
 import {
   InfiniteCanvasGenerator,
-  type InfiniteCanvasGeneratorProps,
+  type InfiniteCanvasEditorGeneratorProps,
 } from './InfiniteCanvasGenerator';
 import type {
   InfiniteCanvasImagePreviewResolver,
@@ -83,22 +83,7 @@ export type InfiniteCanvasMaskTool = 'brush' | 'rect' | 'eraser';
  * panel supplies the card projection and the popover routes, exactly as it
  * does for the board.
  */
-export type InfiniteCanvasMaskGeneratorProps = Omit<
-  InfiniteCanvasGeneratorProps,
-  | 'canSubmit'
-  | 'note'
-  | 'noteReason'
-  | 'onAddReference'
-  | 'onCommitPrompt'
-  | 'onDraftChange'
-  | 'onRemoveReference'
-  | 'onSubmit'
-  | 'placeholder'
-  | 'placement'
-  | 'references'
-  | 'resolvePreviewUrl'
-  | 'surface'
->;
+export type InfiniteCanvasMaskGeneratorProps = InfiniteCanvasEditorGeneratorProps;
 
 /**
  * One step of the editor's own history: the pixels of the mark layer, plus

@@ -2249,7 +2249,8 @@
 // bottom strip, no titles, no explanatory paragraphs.
 
 .infinite-canvas-mask,
-.infinite-canvas-crop {
+.infinite-canvas-crop,
+.infinite-canvas-expand {
   position: absolute;
   // Below .infinite-canvas-popover (24) on purpose: the shared generator in
   // here opens the ordinary parameter and model popovers, and they mount as
@@ -2272,7 +2273,8 @@
 // with something to say, was hidden precisely when it was needed. The loading
 // and failure texts are siblings of the frame and therefore always visible.
 .infinite-canvas-mask[data-ready='false'] .infinite-canvas-mask__frame,
-.infinite-canvas-crop[data-ready='false'] .infinite-canvas-crop__frame {
+.infinite-canvas-crop[data-ready='false'] .infinite-canvas-crop__frame,
+.infinite-canvas-expand[data-ready='false'] .infinite-canvas-expand__stage {
   visibility: hidden;
 }
 
@@ -2455,7 +2457,8 @@
 }
 
 .infinite-canvas-mask__placeholder,
-.infinite-canvas-crop__placeholder {
+.infinite-canvas-crop__placeholder,
+.infinite-canvas-expand__placeholder {
   position: absolute;
   z-index: 1;
   max-width: 60%;
@@ -2512,7 +2515,8 @@
   top: auto;
 }
 
-.infinite-canvas-crop__size {
+.infinite-canvas-crop__size,
+.infinite-canvas-expand__ratio {
   padding: 0 8px;
   color: var(--canvas-text-muted);
   font-size: 11px;
@@ -2569,6 +2573,140 @@
     bottom: -5px;
     cursor: nwse-resize;
   }
+}
+
+// ── P6: the expand (outpainting) stage ──────────────────────────────────────
+// The stage IS the target canvas. It is sized from its OWN aspect ratio against
+// the viewport caps — never from a measurement — so the picture inside it and
+// the eight grips on its edges can be placed in pure percentages and can never
+// drift out of step with the image (P4's coordinate lesson).
+
+.infinite-canvas-expand__stage {
+  --expand-max-width: 84vw;
+  --expand-max-height: 52vh;
+
+  position: relative;
+  width: min(var(--expand-max-width), calc(var(--expand-max-height) * var(--expand-ratio)));
+  max-width: var(--expand-max-width);
+  flex: 0 0 auto;
+  aspect-ratio: var(--expand-ratio);
+  // The room being asked for reads as "not picture yet": the canvas tint at low
+  // opacity plus one hairline, in both themes via the tokens.
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--infinite-canvas-bg) 55%, transparent);
+}
+
+.infinite-canvas-expand__image {
+  position: absolute;
+  border-radius: 4px;
+  box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
+  // The frame is what changes shape; the picture inside it never distorts.
+  object-fit: fill;
+  user-select: none;
+}
+
+// Short white angle marks at the four corners and the four edge midpoints —
+// the owner's reference shot, and deliberately NOT a solid rectangle drawn over
+// the work. White is functional here in the same sense the mask red is: it has
+// to read against an arbitrary photograph, so it does not follow the theme; the
+// plate it sits on does.
+.infinite-canvas-expand__handle {
+  position: absolute;
+  box-sizing: border-box;
+  border: 0 solid #fff;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 45%));
+
+  &[data-expand-handle='nw'],
+  &[data-expand-handle='ne'],
+  &[data-expand-handle='sw'],
+  &[data-expand-handle='se'] {
+    width: 18px;
+    height: 18px;
+  }
+
+  &[data-expand-handle='nw'] {
+    top: -2px;
+    left: -2px;
+    border-top-width: 3px;
+    border-top-left-radius: 8px;
+    border-left-width: 3px;
+    cursor: nwse-resize;
+  }
+
+  &[data-expand-handle='ne'] {
+    top: -2px;
+    right: -2px;
+    border-top-width: 3px;
+    border-top-right-radius: 8px;
+    border-right-width: 3px;
+    cursor: nesw-resize;
+  }
+
+  &[data-expand-handle='sw'] {
+    bottom: -2px;
+    left: -2px;
+    border-bottom-width: 3px;
+    border-bottom-left-radius: 8px;
+    border-left-width: 3px;
+    cursor: nesw-resize;
+  }
+
+  &[data-expand-handle='se'] {
+    right: -2px;
+    bottom: -2px;
+    border-bottom-width: 3px;
+    border-bottom-right-radius: 8px;
+    border-right-width: 3px;
+    cursor: nwse-resize;
+  }
+
+  // Edge midpoints: one short bar each, centred on its side.
+  &[data-expand-handle='n'],
+  &[data-expand-handle='s'] {
+    left: 50%;
+    width: 28px;
+    height: 3px;
+    border-radius: 3px;
+    margin-left: -14px;
+    background: #fff;
+    cursor: ns-resize;
+  }
+
+  &[data-expand-handle='e'],
+  &[data-expand-handle='w'] {
+    top: 50%;
+    width: 3px;
+    height: 28px;
+    border-radius: 3px;
+    margin-top: -14px;
+    background: #fff;
+    cursor: ew-resize;
+  }
+
+  &[data-expand-handle='n'] {
+    top: -2px;
+  }
+
+  &[data-expand-handle='s'] {
+    bottom: -2px;
+  }
+
+  &[data-expand-handle='w'] {
+    left: -2px;
+  }
+
+  &[data-expand-handle='e'] {
+    right: -2px;
+  }
+}
+
+// The pill's read-out and its one line of instruction. Both are grey text, not
+// controls: there is no aspect-ratio preset on this surface to offer.
+.infinite-canvas-expand__hint {
+  padding: 0 8px;
+  color: var(--canvas-text-muted);
+  font-size: 11px;
 }
 
 @include minimal.styles;

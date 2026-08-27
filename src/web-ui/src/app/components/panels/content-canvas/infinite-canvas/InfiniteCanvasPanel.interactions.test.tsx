@@ -363,17 +363,11 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     await clickButton(button => button.getAttribute('data-node-action') === 'more');
     await clickButton(button => button.getAttribute('data-tool-id') === 'expand');
 
-    // The click only opens the 【】 completion dialog: nothing is dispatched,
-    // derived, or overwritten until the instruction is confirmed.
-    const dialog = container.querySelector('.infinite-canvas-dialog');
-    expect(dialog).not.toBeNull();
-    expect(dialog!.getAttribute('data-tool-id')).toBe('expand');
-    const input = dialog!.querySelector('textarea');
-    expect(input!.value).toContain('【');
-
-    // Confirm stays disabled while 【】 placeholders remain.
-    const confirm = dialog!.querySelector('.infinite-canvas-dialog__confirm');
-    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    // P6: the drawer entry stays, but it now opens the outpainting EDITOR
+    // rather than dispatching a sentence about a direction. Nothing is
+    // dispatched, derived or overwritten until the frame is confirmed.
+    expect(container.querySelector('[data-canvas-editor="expand"]')).not.toBeNull();
+    expect(container.querySelector('.infinite-canvas-dialog')).toBeNull();
 
     expect(stubRuntime.gateway.invoke).not.toHaveBeenCalled();
     await service.flushPendingWrites();
@@ -381,9 +375,6 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     expect(persisted.nodes).toHaveLength(1);
     expect(persisted.nodes[0]).toMatchObject({ mediaRef: IMAGE_NODE.mediaRef });
     expect(fetchSpy).not.toHaveBeenCalled();
-
-    await clickButton(button => button.textContent === 'infiniteCanvas.tools.cancel');
-    expect(container.querySelector('.infinite-canvas-dialog')).toBeNull();
   });
 
   // —— §4: the card pill toolbar ————————————————————————————————————————————

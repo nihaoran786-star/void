@@ -25,6 +25,8 @@
  * `--canvas-*` token set and never changes with the light/dark theme.
  */
 
+import type { CanvasExpandInsets } from '@/shared/services/infinite-canvas';
+
 /** Mark fill — semi-transparent so the content underneath stays legible. */
 export const CANVAS_MARK_FILL = 'rgba(255, 46, 46, 0.55)';
 /** Mark outline, used for the rectangle tool. */
@@ -84,6 +86,18 @@ export function canvasMarkUndoLimit(size: CanvasSize): number {
 
 /** Smallest crop the editor will accept, in natural pixels. */
 export const CANVAS_CROP_MIN_SIZE = 30;
+
+/**
+ * Outpainting: how far past the original each side may be dragged, as a
+ * multiple of that axis of the picture. `1` means "each side may add at most
+ * one full width (or height)", i.e. at most 3× on each axis in total.
+ *
+ * A limit is not decoration. The composite is rasterised in the browser and
+ * then base64-encoded through the 32 MB write ceiling; an unbounded frame turns
+ * a two-second drag into a typed `invalid_input` the user cannot connect to
+ * anything they did.
+ */
+export const CANVAS_EXPAND_MAX_RATIO = 1;
 
 /** The scratch directory. Outside all four media-library scan roots. */
 export const CANVAS_SCRATCH_PREFIX = '.void/infinite-canvas/scratch/';
@@ -200,6 +214,28 @@ export function cropBitmap(
 }
 
 /**
+ * Places the source picture on a LARGER, otherwise transparent canvas — the
+ * outpainting composite of the expand editor.
+ *
+ * Deliberately the same shape as `cropBitmap`: one `drawImage` at natural size
+ * onto a surface this module created, source untouched. The margin is left at
+ * the canvas's own initial value (fully transparent) rather than painted, so
+ * the model receives "here is the picture, here is empty room around it" with
+ * no invented grey or white to explain away.
+ */
+export function expandBitmap(
+  source: CanvasImageSource & CanvasDrawableImage,
+  insets: CanvasExpandInsets,
+): HTMLCanvasElement {
+  const natural = { width: source.width, height: source.height };
+  const clamped = clampExpandInsets(insets, natural);
+  const output = createCanvasSurface(expandedCanvasSize(natural, clamped));
+  const context = context2d(output);
+  context.drawImage(source, clamped.left, clamped.top);
+  return output;
+}
+
+/**
  * The picture is larger than this browser can rasterise. Distinct from a write
  * failure: nothing reached the disk and nothing was charged, and the wording
  * the user sees has to say "too big", not "saving failed".
@@ -303,6 +339,97 @@ export function clampCropRect(
   return { x, y, width, height };
 }
 
+// —— Outpainting geometry ————————————————————————————————————————————————————
+
+/** No expansion at all — what the expand editor opens with. */
+export const CANVAS_EXPAND_NO_INSETS: CanvasExpandInsets = {
+  left: 0,
+  top: 0,
+  right: 0,
+  bottom: 0,
+};
+
+/** The furthest each side may be dragged, in natural pixels. */
+export function canvasExpandMaxInsets(
+  natural: CanvasSize,
+  ratio: number = CANVAS_EXPAND_MAX_RATIO,
+): CanvasExpandInsets {
+  const horizontal = Math.max(0, Math.round(Math.max(0, natural.width) * ratio));
+  const vertical = Math.max(0, Math.round(Math.max(0, natural.height) * ratio));
+  return { left: horizontal, right: horizontal, top: vertical, bottom: vertical };
+}
+
+/**
+ * The one rule of the outer frame: it may only grow OUTWARDS, and only so far.
+ *
+ * Negative insets are what "dragged inwards" would mean, and outpainting has no
+ * such thing — the original picture must survive the operation untouched, so a
+ * frame smaller than it is clamped away rather than reinterpreted as a crop.
+ */
+export function clampExpandInsets(
+  insets: CanvasExpandInsets,
+  natural: CanvasSize,
+  ratio: number = CANVAS_EXPAND_MAX_RATIO,
+): CanvasExpandInsets {
+  const max = canvasExpandMaxInsets(natural, ratio);
+  const clamp = (value: number, limit: number) => (
+    Math.round(Math.min(Math.max(Number.isFinite(value) ? value : 0, 0), limit))
+  );
+  return {
+    left: clamp(insets.left, max.left),
+    top: clamp(insets.top, max.top),
+    right: clamp(insets.right, max.right),
+    bottom: clamp(insets.bottom, max.bottom),
+  };
+}
+
+/** Size of the canvas the composite will be written at. */
+export function expandedCanvasSize(
+  natural: CanvasSize,
+  insets: CanvasExpandInsets,
+): CanvasSize {
+  return {
+    width: Math.max(1, Math.round(natural.width + insets.left + insets.right)),
+    height: Math.max(1, Math.round(natural.height + insets.top + insets.bottom)),
+  };
+}
+
+/** Whether the frame has been dragged out at all — the confirm gate. */
+export function isCanvasExpanded(insets: CanvasExpandInsets): boolean {
+  return insets.left > 0 || insets.top > 0 || insets.right > 0 || insets.bottom > 0;
+}
+
+function greatestCommonDivisor(a: number, b: number): number {
+  let left = Math.abs(a);
+  let right = Math.abs(b);
+  while (right > 0) {
+    const next = left % right;
+    left = right;
+    right = next;
+  }
+  return left || 1;
+}
+
+/**
+ * The frame's aspect ratio, as the pill shows it.
+ *
+ * There is no aspect-ratio PRESET on this surface — the ratio is whatever the
+ * frame the user dragged happens to be — so the pill only reports it. A tidy
+ * ratio reads as `3 : 2`; anything that does not reduce is reported as a
+ * decimal rather than as an unreadable pair of four-digit numbers.
+ */
+export function formatCanvasAspectRatio(size: CanvasSize): string {
+  const width = Math.max(1, Math.round(size.width));
+  const height = Math.max(1, Math.round(size.height));
+  const divisor = greatestCommonDivisor(width, height);
+  const reducedWidth = width / divisor;
+  const reducedHeight = height / divisor;
+  if (reducedWidth <= 50 && reducedHeight <= 50) {
+    return `${reducedWidth} : ${reducedHeight}`;
+  }
+  return `${(width / height).toFixed(2)} : 1`;
+}
+
 /** Whether a drawn selection is large enough to be confirmed. */
 export function isCropRectUsable(
   rect: CanvasRect | undefined,
@@ -313,13 +440,20 @@ export function isCropRectUsable(
 
 // —— Destination paths ————————————————————————————————————————————————————————
 
+/** Which composite a scratch file holds. Only the file name differs. */
+export type CanvasScratchKind = 'mark' | 'expand';
+
 /**
- * Scratch path of a red-mark composite. Keyed on the operation id, so
- * re-submitting the same operation overwrites one file instead of piling up
- * (the idempotency story of PRD §3.7).
+ * Scratch path of a submitted composite — the red-mark one, or the
+ * outpainting one. Keyed on the operation id, so re-submitting the same
+ * operation overwrites one file instead of piling up (the idempotency story of
+ * PRD §3.7), and named after the lane so a scratch sweep is readable.
  */
-export function canvasScratchRelativePath(operationId: string): string {
-  return `${CANVAS_SCRATCH_PREFIX}${sanitizeFileStem(operationId)}-mark.png`;
+export function canvasScratchRelativePath(
+  operationId: string,
+  kind: CanvasScratchKind = 'mark',
+): string {
+  return `${CANVAS_SCRATCH_PREFIX}${sanitizeFileStem(operationId)}-${kind}.png`;
 }
 
 /**
