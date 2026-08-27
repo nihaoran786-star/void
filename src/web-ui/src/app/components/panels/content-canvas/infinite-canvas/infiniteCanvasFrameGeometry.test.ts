@@ -141,8 +141,8 @@ describe('infiniteCanvasFrameGeometry', () => {
 
   /**
    * Both directions render as "a stage, a picture on it, a box over it", which
-   * is what lets one set of grips serve both. The stage is whichever of the two
-   * is larger.
+   * is what lets one set of grips serve both. Inward the stage IS the picture;
+   * outward it is the picture plus room to drag in (§7.4.4).
    */
   describe('the shared layout', () => {
     it('puts the picture over the whole inward stage and the box inside it', () => {
@@ -156,11 +156,50 @@ describe('infiniteCanvasFrameGeometry', () => {
       expect(layout.frame).toEqual({ left: 10, top: 10, width: 80, height: 80 });
     });
 
-    it('puts the box around the whole outward stage and the picture inside it', () => {
-      const layout = canvasFrameLayout('outward', { ...FLUSH, left: 1000 }, NATURAL);
-      expect(layout.stage).toEqual({ width: 2000, height: 500 });
-      expect(layout.image).toEqual({ left: 50, top: 0, width: 50, height: 100 });
-      expect(layout.frame).toEqual({ left: 0, top: 0, width: 100, height: 100 });
+    /**
+     * §7.4.4, and the reason the owner could not adjust the old one: the
+     * outward box is NOT the stage. The stage keeps a margin of empty room
+     * around the picture, so there is visibly somewhere to drag to, and a
+     * flush frame sits exactly on top of the picture rather than filling the
+     * surface.
+     */
+    it('keeps room around the picture on the outward stage', () => {
+      const layout = canvasFrameLayout('outward', FLUSH, NATURAL);
+      // 25% of each axis on each side: 1000 × 500 becomes a 1500 × 750 stage.
+      expect(layout.stage).toEqual({ width: 1500, height: 750 });
+      // Nothing dragged yet, so the box lies exactly over the picture.
+      expect(layout.frame).toEqual(layout.image);
+      expect(layout.image.left).toBeCloseTo(100 / 6, 6);
+      expect(layout.image.width).toBeCloseTo(200 / 3, 6);
+    });
+
+    /**
+     * The load-bearing property of §7.4.4: the picture does not move. Expand
+     * hard to the left and the box grows leftwards around a picture that stays
+     * exactly where it was — the stage grows symmetrically to keep it centred.
+     */
+    it('grows the box off-centre without moving the picture', () => {
+      const flush = canvasFrameLayout('outward', FLUSH, NATURAL);
+      const left = canvasFrameLayout('outward', { ...FLUSH, left: 1000 }, NATURAL);
+      const right = canvasFrameLayout('outward', { ...FLUSH, right: 1000 }, NATURAL);
+
+      // Same stage either way, and the picture centred on it in both.
+      expect(left.stage).toEqual({ width: 3000, height: 750 });
+      expect(left.image).toEqual(right.image);
+      expect(left.image.left).toBeCloseTo(100 / 3, 6);
+      expect(left.image.left + left.image.width).toBeCloseTo(200 / 3, 6);
+
+      // The box is the thing that moved, and it moved only on the dragged side.
+      expect(left.frame.left).toBeCloseTo(0, 6);
+      expect(left.frame.left + left.frame.width).toBeCloseTo(left.image.left + left.image.width, 6);
+      expect(right.frame.left).toBeCloseTo(right.image.left, 6);
+      expect(right.frame.left + right.frame.width).toBeCloseTo(100, 6);
+
+      // A flush frame is inside the stage on every side: room to drag both ways.
+      expect(flush.frame.left).toBeGreaterThan(0);
+      expect(flush.frame.left + flush.frame.width).toBeLessThan(100);
+      expect(flush.frame.top).toBeGreaterThan(0);
+      expect(flush.frame.top + flush.frame.height).toBeLessThan(100);
     });
   });
 });

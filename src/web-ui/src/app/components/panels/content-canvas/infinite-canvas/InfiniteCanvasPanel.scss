@@ -2657,18 +2657,19 @@
   border-radius: 8px;
 }
 
+// §7.4.4: the outward stage is NO LONGER the frame. It is the picture plus a
+// margin of empty room, so the box has somewhere to be dragged to in both
+// directions and the picture underneath it never moves. The stage itself is
+// therefore blank — the box draws the frame, and the veil shades what is inside
+// it but outside the picture.
 .infinite-canvas-frame[data-canvas-frame-direction='outward'] .infinite-canvas-frame__stage {
-  --frame-max-height: 52vh;
-
-  // Expanding: the stage is the room being asked for, and it has to read as
-  // "not picture yet" — the canvas tint at low opacity plus one hairline, in
-  // both themes via the tokens.
-  border: 1px solid var(--canvas-hairline);
-  background: color-mix(in srgb, var(--infinite-canvas-bg) 55%, transparent);
+  // The writing area is back underneath (§7.4.4), so the stage takes less.
+  --frame-max-height: 46vh;
 }
 
 .infinite-canvas-frame__image {
   position: absolute;
+  z-index: 1;
   border-radius: 4px;
   box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
   // The frame is what changes shape; the picture inside it never distorts.
@@ -2676,9 +2677,29 @@
   user-select: none;
 }
 
+// The room the model is being asked to paint: under the picture, so it shows
+// only where the box reaches past it. Theme tokens on both sides.
+.infinite-canvas-frame__veil {
+  position: absolute;
+  z-index: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--infinite-canvas-bg) 62%, transparent);
+  pointer-events: none;
+}
+
 .infinite-canvas-frame__box {
   position: absolute;
+  // Above the picture: the grips have to stay grabbable when the frame sits
+  // flush against it, which is where every outward gesture starts.
+  z-index: 2;
   box-sizing: border-box;
+}
+
+// Expanding: a thin line around the box, and eight white grips on it. No fill —
+// the veil behind the picture already says which part is empty.
+.infinite-canvas-frame[data-canvas-frame-direction='outward'] .infinite-canvas-frame__box {
+  border: 1px solid var(--canvas-select-ring);
+  border-radius: 4px;
 }
 
 // Cropping: what falls outside the box is dimmed, and the box can be panned.

@@ -22,8 +22,8 @@
  * west grip always reads `left - dx`, the east grip always reads `right + dx` —
  * so `dragCanvasFrameEdges` has no direction parameter at all. Only the CLAMP
  * differs, because the two directions guard different things: crop may not
- * leave the picture and may not go below a usable size, expand may not go
- * inwards at all and may not exceed the composite's write ceiling.
+ * leave the picture and may not go below a usable size, expand must always
+ * still CONTAIN the picture and may not exceed the composite's write ceiling.
  *
  * Nothing here rasterises, submits or touches a document: the two lanes keep
  * their own submit paths (`media/input/canvas-crops/` for crop, scratch plus
@@ -170,11 +170,15 @@ export function moveCanvasFrameEdges(
  * - **inward**: a grip dragged past the opposite edge mirrors the rectangle
  *   rather than collapsing it (what every crop tool does), then `clampCropRect`
  *   pulls it inside the picture and up to `CANVAS_CROP_MIN_SIZE`.
- * - **outward**: `clampExpandInsets` refuses anything below zero — an outward
- *   frame dragged inwards would silently become a crop, and the original pixels
- *   must survive outpainting untouched — and caps each axis at
- *   `CANVAS_EXPAND_MAX_RATIO`, because the composite has to pass a 32 MB write
- *   ceiling.
+ * - **outward** (§7.4.4, owner 2026-08-28): every grip may be dragged EITHER
+ *   way. The one rule is that the box must still contain the whole picture, so
+ *   each side is clamped **independently** into `[0, cap]`: pulling a side back
+ *   in walks that side's offset down to the picture's edge and stops there,
+ *   rather than the drag being refused. Because the four sides are clamped
+ *   separately, the box may sit off-centre on the picture — a lot added on the
+ *   left and none on the right is a legal frame, and the picture itself never
+ *   moves. The cap is `CANVAS_EXPAND_MAX_RATIO` per axis, because the composite
+ *   has to pass a 32 MB write ceiling; past it the box is held, not rejected.
  */
 export function clampCanvasFrameEdges(
   direction: CanvasFrameDirection,
@@ -238,12 +242,31 @@ export function canvasFrameReadout(
 }
 
 /**
+ * Room kept around the picture on the OUTWARD stage, per axis, as a fraction of
+ * that axis.
+ *
+ * §7.4.4: the outward box used to BE the stage, which meant its grips sat on
+ * the very edge of the surface with nothing beyond them — there was visibly
+ * nowhere to drag to, and the picture rescaled under the box on every move.
+ * The stage now always keeps a margin of empty room around the picture, so the
+ * box reads as what the owner asked for: a frame wrapped around a picture that
+ * stays exactly where it is, with somewhere to be dragged in both directions.
+ */
+const OUTWARD_STAGE_HEADROOM = 0.25;
+
+/**
  * Percentages of the STAGE for the frame box and for the picture inside it.
  *
- * The stage is whichever of the two is larger — the picture for a crop, the
- * expanded canvas for an outpaint — so both directions render as "a stage with
- * a picture in it and a box on it", and neither reads a layout measurement:
- * pan, zoom and window resizes cannot desynchronise a percentage.
+ * Inward: the stage is the picture and the box is a rectangle inside it.
+ * Outward: the stage is the picture plus a symmetric margin — big enough for
+ * whatever has been dragged so far, never smaller than the headroom — with the
+ * picture centred on it and the box drawn over it. Keeping that margin
+ * symmetric is what pins the picture down: expanding to the left alone grows
+ * the box leftwards while the picture stays put, which is exactly the owner's
+ * reference shot.
+ *
+ * Neither direction reads a layout measurement: pan, zoom and window resizes
+ * cannot desynchronise a percentage.
  */
 export interface CanvasFrameLayout {
   /** The stage's own size in natural pixels; drives its `aspect-ratio`. */
@@ -263,17 +286,39 @@ export function canvasFrameLayout(
 ): CanvasFrameLayout {
   const percent = (value: number, total: number) => (total > 0 ? (value / total) * 100 : 0);
   if (direction === 'outward') {
-    const stage = expandedCanvasSize(natural, edges);
+    const marginX = Math.max(
+      Math.round(Math.max(0, natural.width) * OUTWARD_STAGE_HEADROOM),
+      edges.left,
+      edges.right,
+      1,
+    );
+    const marginY = Math.max(
+      Math.round(Math.max(0, natural.height) * OUTWARD_STAGE_HEADROOM),
+      edges.top,
+      edges.bottom,
+      1,
+    );
+    const stage = {
+      width: Math.max(1, natural.width + marginX * 2),
+      height: Math.max(1, natural.height + marginY * 2),
+    };
+    const box = expandedCanvasSize(natural, edges);
     return {
       stage,
+      // Centred, and centred whatever the frame is doing: the picture does not
+      // move while you drag the box around it.
       image: {
-        left: percent(edges.left, stage.width),
-        top: percent(edges.top, stage.height),
+        left: percent(marginX, stage.width),
+        top: percent(marginY, stage.height),
         width: percent(natural.width, stage.width),
         height: percent(natural.height, stage.height),
       },
-      // The outward box IS the stage: dragging its grips is what grew it.
-      frame: FULL_STAGE,
+      frame: {
+        left: percent(marginX - edges.left, stage.width),
+        top: percent(marginY - edges.top, stage.height),
+        width: percent(box.width, stage.width),
+        height: percent(box.height, stage.height),
+      },
     };
   }
   const rect = canvasFrameToRect(edges, natural);
