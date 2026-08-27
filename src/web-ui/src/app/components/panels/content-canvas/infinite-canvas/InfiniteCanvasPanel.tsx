@@ -302,6 +302,18 @@ interface ReversePromptChoice {
   prompt: string;
 }
 
+/**
+ * Owner approval 2026-08-27: reverse-prompt spends money, so it asks first.
+ *
+ * A compact anchored confirmation, not a modal slab — the same popover surface
+ * §7.1 gives every other canvas choice. Nothing is called until it is
+ * confirmed; dismissing it (press outside, Escape, "not now") calls nothing.
+ */
+interface ReversePromptSpendRequest {
+  nodeId: string;
+  anchor: HTMLElement | null;
+}
+
 /** P5 W2: the card whose picture is open in the crop editor. */
 interface CropEditorRequest {
   nodeId: string;
@@ -525,6 +537,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const reversePromptNodeIdRef = React.useRef<string | null>(null);
   const [reversePromptChoice, setReversePromptChoice] =
     React.useState<ReversePromptChoice | null>(null);
+  /** The card waiting on the owner's "yes, spend it" before any call is made. */
+  const [reversePromptSpend, setReversePromptSpend] =
+    React.useState<ReversePromptSpendRequest | null>(null);
   /**
    * P5 review C7: the generator's prompt box only commits on blur, so
    * `node.prompt` is stale for as long as the box has focus. Anything that has
@@ -1411,6 +1426,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setReversePromptChoice({ nodeId, anchor: anchor ?? null, prompt });
   }, [commit, findImageNode, imageAnalyzer, liveNodePrompt]);
 
+  /** "Yes, spend it": the one place the billed vision call is started from. */
+  const confirmReversePromptSpend = React.useCallback(() => {
+    const request = reversePromptSpend;
+    setReversePromptSpend(null);
+    if (!request) return;
+    void runReversePrompt(request.nodeId, request.anchor ?? undefined);
+  }, [reversePromptSpend, runReversePrompt]);
+
   const applyReversePrompt = React.useCallback(async (mode: 'replace' | 'append') => {
     const choice = reversePromptChoice;
     setReversePromptChoice(null);
@@ -1521,7 +1544,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         setToolDialog({ nodeId, toolId });
       },
       reversePrompt: (nodeId, anchor) => {
-        void runReversePrompt(nodeId, anchor);
+        // Owner approval 2026-08-27: the vision call is billed, so the press
+        // only opens the confirmation. `runReversePrompt` is reached from the
+        // confirm button and nowhere else.
+        setReversePromptChoice(null);
+        setReversePromptSpend({ nodeId, anchor: anchor ?? null });
       },
       cropImage: nodeId => {
         const found = findImageNode(nodeId);
@@ -1638,7 +1665,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         }, { history: true });
       },
     };
-  }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration, runReversePrompt]);
+  }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
 
   /**
    * P4 review C5 (plan §265): every piece of panel memory is scoped to ONE
@@ -1673,6 +1700,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setOverflow(null);
     overflowAnchorRef.current = null;
     setReversePromptChoice(null);
+    setReversePromptSpend(null);
     setReversePromptPendingNodeId(null);
     reversePromptNodeIdRef.current = null;
   }, [documentId, workspaceId]);
@@ -3058,6 +3086,45 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         which is also how "neither, forget it" is expressed — there is no
         cancel button, per the visual language.
       */}
+      {/*
+        Owner approval 2026-08-27: reverse-prompt is billed, so the press opens
+        this compact confirmation instead of calling anything. §7.1's anchored
+        surface, two words of copy, one confirm and one way out — dismissing it
+        by any route (outside press, Escape, "not now") calls nothing at all.
+      */}
+      {reversePromptSpend ? (
+        <InfiniteCanvasPopover
+          kind="reverse-prompt-spend"
+          className="infinite-canvas-picker--reverse-prompt"
+          anchor={reversePromptSpend.anchor}
+          width={REVERSE_PROMPT_POPOVER_WIDTH}
+          label={t('infiniteCanvas.reversePrompt.spend.title')}
+          onDismiss={() => setReversePromptSpend(null)}
+        >
+          <p className="infinite-canvas-picker__state">
+            {t('infiniteCanvas.reversePrompt.spend.body')}
+          </p>
+          <div className="infinite-canvas-reverse-prompt__actions">
+            <button
+              type="button"
+              className="infinite-canvas-picker__pill"
+              data-canvas-reverse-prompt-action="spend-cancel"
+              onClick={() => setReversePromptSpend(null)}
+            >
+              {t('infiniteCanvas.reversePrompt.spend.cancel')}
+            </button>
+            <button
+              type="button"
+              className="infinite-canvas-picker__pill"
+              data-canvas-reverse-prompt-action="spend-confirm"
+              data-canvas-reverse-prompt-node={reversePromptSpend.nodeId}
+              onClick={confirmReversePromptSpend}
+            >
+              {t('infiniteCanvas.reversePrompt.spend.confirm')}
+            </button>
+          </div>
+        </InfiniteCanvasPopover>
+      ) : null}
       {reversePromptChoice ? (
         <InfiniteCanvasPopover
           kind="reverse-prompt"

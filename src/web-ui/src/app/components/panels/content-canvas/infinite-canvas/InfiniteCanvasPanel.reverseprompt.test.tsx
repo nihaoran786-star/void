@@ -230,11 +230,32 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     container.querySelector('[data-node-action="reverse-prompt"]') as HTMLButtonElement | null
   );
 
-  async function press() {
+  /**
+   * Owner approval 2026-08-27: the entry no longer calls anything on its own —
+   * it opens a compact "this is billed" confirmation, and only the confirm
+   * button starts the call. Every test that wants the call therefore answers
+   * it, exactly as the owner does.
+   */
+  const spendConfirm = () => container.querySelector(
+    '[data-canvas-reverse-prompt-action="spend-confirm"]',
+  ) as HTMLButtonElement | null;
+
+  async function confirmSpend() {
+    await act(async () => {
+      spendConfirm()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+  }
+
+  async function pressEntry() {
     await openOverflow();
     await act(async () => {
       button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
+  }
+
+  async function press() {
+    await pressEntry();
+    await confirmSpend();
     await act(async () => { await Promise.resolve(); });
     await service.flushPendingWrites();
   }
@@ -252,6 +273,44 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
 
     await openOverflow('n-blank');
     expect(button()).toBeNull();
+  });
+
+  /**
+   * Owner approval 2026-08-27: the vision call is billed, so pressing the entry
+   * asks before anything is spent.
+   */
+  it('asks before spending, and calls nothing until that is confirmed', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await pressEntry();
+
+    expect(spendConfirm()).not.toBeNull();
+    expect(analyzeCanvasImage).not.toHaveBeenCalled();
+
+    await confirmSpend();
+    await act(async () => { await Promise.resolve(); });
+    await service.flushPendingWrites();
+    expect(analyzeCanvasImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('spends nothing when the confirmation is declined', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await pressEntry();
+
+    await act(async () => {
+      (container.querySelector(
+        '[data-canvas-reverse-prompt-action="spend-cancel"]',
+      ) as HTMLButtonElement).dispatchEvent(
+        new dom.window.MouseEvent('click', { bubbles: true }),
+      );
+    });
+    await act(async () => { await Promise.resolve(); });
+    await service.flushPendingWrites();
+
+    expect(spendConfirm()).toBeNull();
+    expect(analyzeCanvasImage).not.toHaveBeenCalled();
+    expect(readDocument(memory).nodes[0].prompt).toBeUndefined();
   });
 
   it('reads the card picture by workspace-relative path and fills an empty prompt box', async () => {
@@ -375,10 +434,8 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
-    await openOverflow();
-    await act(async () => {
-      button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await pressEntry();
+    await confirmSpend();
 
     // Choosing the entry closes the drawer, so re-opening it is how the
     // in-flight state is seen at all: the entry is there, marked pending and
@@ -416,10 +473,8 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
-    await openOverflow();
-    await act(async () => {
-      button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await pressEntry();
+    await confirmSpend();
 
     // The drawer is gone…
     expect(container.querySelector('[data-canvas-overflow-action]')).toBeNull();
@@ -454,10 +509,8 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
 
-    await openOverflow();
-    await act(async () => {
-      button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
+    await pressEntry();
+    await confirmSpend();
 
     // Select the card so its generator is on screen, then type WITHOUT
     // blurring: nothing is committed to the document.

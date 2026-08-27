@@ -1153,6 +1153,12 @@
         "path_denied": "This picture is outside the workspace, so it cannot be read.",
         "backend": "Reading the picture failed. Nothing on the card was changed."
       },
+      "spend": {
+        "title": "Read this picture?",
+        "body": "This makes one call to your configured vision model, and that model bills for it.",
+        "confirm": "Read it",
+        "cancel": "Not now"
+      },
       "pending": "Reading the picture and writing a prompt…"
     },
     "zoom": {
