@@ -533,31 +533,64 @@ interface InfiniteCanvasMaskedReference {
 }
 ```
 
-- **安全纪律（本命令不被滥用成通用写盘口的唯一屏障，不得放宽）**：
+- **安全纪律（本命令不被滥用成通用写盘口的屏障，不得放宽）**：
   1. `workspacePath` 必须绝对且 `is_dir()`，否则 `invalid_input`。
-  2. `relativePath` 必须工作区相对：不得绝对、不得以 `/` 或 `\` 开头、
+  2. **`workspacePath` 必须就是桌面端当前激活的工作区根**（服务端从
+     `AppState::workspace_path` 取真值，两侧各做一次 `canonicalize` 后比对；
+     解析不了的一侧退化为原样字符串比对），否则 `path_denied`。
+     调用方**不能**自己指定要写进哪个目录树；没有打开任何工作区时，一律
+     `path_denied`。**边界（如实记录）**：这条只证明"写进了业主此刻打开的
+     那个工作区"，它**不**为工作区内部再做沙箱，也**不**支持远程（SSH）
+     工作区（其根目录在本机不存在，因而恒被拒）。
+  3. `relativePath` 必须工作区相对：不得绝对、不得以 `/` 或 `\` 开头、
      不得含 `:`、不得含 `..` 分量 —— 否则 `path_denied`。
-  3. **必须以白名单前缀之一开头**：`.void/infinite-canvas/scratch/`
+  4. **不得命中 Windows 保留设备名**（`CON`/`PRN`/`AUX`/`NUL`/`COM1..9`/
+     `LPT1..9`/`CONIN$`/`CONOUT$`，按每段首个 `.` 之前的名字判定、大小写
+     不敏感）—— 否则 `path_denied`。`NUL.png` 在 Windows 上写的是设备而非
+     文件，会返回"成功"却查无此文件。**所有平台一致拒绝**，让契约只有一份。
+  5. **必须以白名单前缀之一开头**：`.void/infinite-canvas/scratch/`
      或 `media/input/canvas-crops/` —— 否则 `path_denied`。
-  4. 扩展名限 `.png`（大小写不敏感）—— 否则 `path_denied`。
-  5. 解码后字节上限 **32 MB** —— 超出 `invalid_input`。
+  6. 扩展名限 `.png`（大小写不敏感）—— 否则 `path_denied`。
+  7. 解码后字节上限 **32 MB** —— 超出 `invalid_input`。
      base64 本身不可解码、或带了 `data:` 前缀，同样 `invalid_input`。
-  6. **解码后的字节必须以 PNG magic 开头** —— 否则 `invalid_input`。
-     第 4 条只约束文件**名**，这一条约束文件**内容**，两条缺一不可，
-     否则这条命令能被用来以 `.png` 之名投放任意载荷。
-  7. 父目录 `create_dir_all`；随后对父目录做一次 `canonicalize` 包含性复核
-     （防软链落到工作区外），越界 `path_denied`；写入失败归 `backend`。
+  8. **解码后的字节必须是合法的 PNG 头**：8 字节签名 + 一个结构合法的
+     IHDR 块（长度 13、类型 `IHDR`、宽高非零、位深 ∈ {1,2,4,8,16}、
+     颜色类型 ∈ {0,2,3,4,6}）—— 否则 `invalid_input`。
+     **这一条的边界要如实说清**：第 6 条只约束文件**名**，这一条约束文件
+     **头部的前 33 字节**；它**不**保证整个载荷无害——合法 PNG 头后面接任意
+     字节同样能过（真实 PNG 带尾部垃圾也是这样）。把它当作"挡住裸的非图片
+     blob 顶着 `.png` 名字进来"的良构性检查，**不要**再声称"因此无法投放任意
+     载荷"。真正限定破坏面的是**文件能落到哪里**（第 2、5 条），不是里面装了什么。
+  9. 父目录 `create_dir_all`；随后对父目录做一次 `canonicalize` 包含性复核
+     （防软链父目录落到工作区外），越界 `path_denied`。
+  10. **叶子节点防软链**：若目标路径已存在且是符号链接（或存在但不是普通
+      文件），一律 `path_denied` —— 决不跟随。父目录的 `canonicalize` 看不见
+      叶子上的链接，而克隆仓库 / 恢复备份 / Unix 工作区 / Windows 开发者模式
+      都可能在那里留下一条指向工作区外的链接。
+  11. **落盘走"临时文件 + rename"**：先用 `create_new(true)`（即 `O_EXCL`，
+      不跟随软链）在同目录写一个 `*.tmp`，再 `rename` 覆盖目标。`rename`
+      替换的是**目录项**而不是穿透写入，因此即便在第 10 条检查之后被塞进一条
+      软链，字节仍落在工作区内。失败时清掉临时文件，并归 `backend`。
 - **明确不做**：不把二进制写入能力泛化到通用文件面。任何"顺手做成通用
-  `write_binary_file`"的改法一律拒收；**任何放宽白名单的改动等同新开攻击面，
-  必须停手上报业主**。
+  `write_binary_file`"的改法一律拒收；**任何放宽白名单或放宽工作区绑定的改动
+  等同新开攻击面，必须停手上报业主**。
 
 #### 3.9.2 `prune_canvas_scratch` —— 清理过期红标图
 
 - 输入：`{ workspacePath: string, maxAgeDays?: number }`（缺省 7 天）。
 - 输出：`{ status: "pruned" | "invalid_input" | "backend",
   removedCount?: number, message? }`。
+- **`workspacePath` 同样必须是当前激活的工作区根**（与 §3.9.1 第 2 条同一套
+  校验、同一边界）。否则这条命令能删掉调用方随便指定的任意目录下的
+  scratch。因本命令的状态集没有 `path_denied`、且前端本来就忽略结果，
+  拒绝时归 `invalid_input` 并带上说明。
 - 只在 `<workspace>/.void/infinite-canvas/scratch/` **内**删除 mtime 超期的
-  **文件**，越界一律拒；目录不存在视为成功、`removedCount: 0`。
+  **文件**，不递归、不碰目录，越界一律拒；目录不存在视为成功、
+  `removedCount: 0`。
+- **`removedCount` 的含义要如实理解**：它是"**实际删掉**的文件数"，不是
+  "过期文件数"。只读属性、被占用、权限不足导致 `remove_file` 失败的文件会被
+  静默跳过、不计入，整体仍返回 `pruned`。这是刻意的尽力而为清理，**不**是
+  "执行后目录里已无过期文件"的保证。
 - 前端调用失败必须静默（不阻塞面板挂载）。
 
 #### 3.9.3 `analyze_infinite_canvas_image` —— 图生提示词（不经主 AI）
