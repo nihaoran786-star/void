@@ -1,7 +1,9 @@
 /**
  * P5 W2: the crop editor — "keep this bit of the picture".
  *
- * A full-panel editing state, same shell as the mask editor. Drag a frame over
+ * The picture FLOATS over a blurred board (§5.1's plate) with one floating
+ * pill above it (§4's card-toolbar language) — no top bar, no bottom strip.
+ * Same shell as the mask editor. Drag a frame over
  * the picture, confirm, and the panel writes the cut PNG into
  * `media/input/canvas-crops/` and grows a derived card that points at it. The
  * original card and its file are not touched, nothing is submitted anywhere,
@@ -20,6 +22,7 @@
  *   kept in natural pixels, which is what the crop needs.
  */
 import React from 'react';
+import { X } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import {
@@ -33,7 +36,10 @@ import {
   toNaturalPoint,
   type CanvasRect,
 } from './infiniteCanvasImageRaster';
-import { useInfiniteCanvasDismiss } from './useInfiniteCanvasDismiss';
+import {
+  EDITOR_INSIDE_SELECTORS,
+  useInfiniteCanvasDismiss,
+} from './useInfiniteCanvasDismiss';
 import type {
   InfiniteCanvasImagePreviewResolver,
   InfiniteCanvasMediaRef,
@@ -187,7 +193,23 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
     onClose();
   }, [discarding, moved, onClose]);
 
-  const surfaceRef = useInfiniteCanvasDismiss<HTMLDivElement>({ onDismiss: requestClose });
+  /**
+   * §5.1's rule, applied here: the SURFACE is the picture, everything around
+   * it is backdrop. Pressing the blurred board therefore leaves — but through
+   * `requestClose`, so an adjusted frame still raises the discard question
+   * instead of being dropped silently. The pill is declared "inside" because
+   * it is a control, not backdrop.
+   */
+  const dockRef = React.useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useInfiniteCanvasDismiss<HTMLDivElement>({
+    onDismiss: requestClose,
+    inside: [dockRef],
+    insideSelectors: EDITOR_INSIDE_SELECTORS,
+  });
+  const attachFrame = React.useCallback((node: HTMLDivElement | null) => {
+    frameRef.current = node;
+    surfaceRef.current = node;
+  }, [surfaceRef]);
 
   const canConfirm = ready && isCropRectUsable(rect, CANVAS_CROP_MIN_SIZE);
 
@@ -224,106 +246,125 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
       aria-label={t('infiniteCanvas.crop.title')}
       ref={surfaceRef}
     >
-      <div className="infinite-canvas-crop__backdrop" aria-hidden="true" />
-      <div className="infinite-canvas-crop__bar">
-        <span className="infinite-canvas-crop__hint">{t('infiniteCanvas.crop.hint')}</span>
-        <span className="infinite-canvas-crop__spacer" />
-        {exportError ? (
-          <span
-            className="infinite-canvas-dialog__blocked"
-            data-crop-export-error={exportError}
-            role="alert"
-          >
-            {t(`infiniteCanvas.crop.export.${exportError}`)}
-          </span>
-        ) : null}
-        <span className="infinite-canvas-crop__size" data-crop-size="true">
-          {rect ? `${rect.width} × ${rect.height}` : ''}
-        </span>
+      <div className="infinite-canvas-editor__backdrop" aria-hidden="true" />
+      <div className="infinite-canvas-editor__float">
         {/*
-          Owner feedback 2026-08-27: a surface that fills the whole board must
-          carry a visible way out. Esc and a press outside still work, but they
-          are not discoverable. This is the same `requestClose` path, so an
-          adjusted frame still asks before it is thrown away.
+          Owner feedback 2026-08-27 (reference shots): the pill floats
+          ABOVE the picture, and its leftmost item is the way out — a small
+          `×`, cut off from the tools by a hairline. It is the same
+          `requestClose` Esc and an outside press take, so an adjusted
+          frame still asks before it is thrown away.
         */}
-        <button
-          type="button"
-          className="infinite-canvas-crop__back"
-          data-crop-action="back"
-          onClick={requestClose}
-        >
-          {t('infiniteCanvas.crop.back')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-crop__confirm"
-          data-crop-action="confirm"
-          disabled={!canConfirm}
-          onClick={confirm}
-        >
-          {t('infiniteCanvas.crop.confirm')}
-        </button>
-      </div>
-      <div className="infinite-canvas-crop__stage">
+        <div className="infinite-canvas-editor__dock" ref={dockRef}>
+          <div
+            className="infinite-canvas-editor__pill"
+            role="toolbar"
+            aria-label={t('infiniteCanvas.crop.title')}
+          >
+            <button
+              type="button"
+              data-crop-action="back"
+              aria-label={t('infiniteCanvas.crop.back')}
+              title={t('infiniteCanvas.crop.back')}
+              onClick={requestClose}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+            <span className="infinite-canvas-editor__divider" aria-hidden="true" />
+            <span className="infinite-canvas-crop__size" data-crop-size="true">
+              {rect ? `${rect.width} × ${rect.height}` : ''}
+            </span>
+            {/*
+              Crop has no prompt and therefore no shared generator to send
+              from, so this is the one surface where the single primary
+              action still lives in the pill.
+            */}
+            <button
+              type="button"
+              className="infinite-canvas-editor__text infinite-canvas-editor__primary"
+              data-crop-action="confirm"
+              disabled={!canConfirm}
+              onClick={confirm}
+            >
+              {t('infiniteCanvas.crop.confirm')}
+            </button>
+          </div>
+          {exportError ? (
+            <p
+              className="infinite-canvas-editor__note"
+              data-crop-export-error={exportError}
+              role="alert"
+            >
+              {t(`infiniteCanvas.crop.export.${exportError}`)}
+            </p>
+          ) : null}
+        </div>
+        {/*
+          P5 review C6: `ready` never becomes true when the picture fails
+          to decode, so the message that says so is a sibling of the frame
+          rather than something the measure-before-show gate can hide. The
+          pill above stays mounted either way — a surface with no visible
+          way out is exactly what the owner reported.
+        */}
         {failed ? (
           <p className="infinite-canvas-crop__placeholder" role="alert">
             {t('infiniteCanvas.crop.unavailable')}
           </p>
         ) : (
           <>
-            {ready ? null : (
-              <p
-                className="infinite-canvas-crop__placeholder"
-                data-crop-state="loading"
-                role="status"
-              >
-                {t('infiniteCanvas.crop.loading')}
-              </p>
-            )}
-            <div
-              className="infinite-canvas-crop__frame"
-              ref={frameRef}
-              onMouseMove={onFrameMouseMove}
-              onMouseUp={endDrag}
-              onMouseLeave={endDrag}
+          {ready ? null : (
+            <p
+              className="infinite-canvas-crop__placeholder"
+              data-crop-state="loading"
+              role="status"
             >
-              {previewUrl ? (
-                <img
-                  className="infinite-canvas-crop__image"
-                  src={previewUrl}
-                  alt=""
-                  draggable={false}
-                />
-              ) : null}
-              {rect ? (
-                <div
-                  className="infinite-canvas-crop__rect"
-                  data-crop-rect="true"
-                  data-crop-x={rect.x}
-                  data-crop-y={rect.y}
-                  data-crop-width={rect.width}
-                  data-crop-height={rect.height}
-                  style={{
-                    left: percent(rect.x, natural.width),
-                    top: percent(rect.y, natural.height),
-                    width: percent(rect.width, natural.width),
-                    height: percent(rect.height, natural.height),
-                  }}
-                  onMouseDown={event => beginDrag(event, 'move')}
-                >
-                  {/* Rule-of-thirds guides; decoration only, no pointer surface. */}
-                  <span className="infinite-canvas-crop__thirds" aria-hidden="true" />
-                  {CROP_HANDLES.map(handle => (
-                    <span
-                      key={handle}
-                      className="infinite-canvas-crop__handle"
-                      data-crop-handle={handle}
-                      onMouseDown={event => beginDrag(event, handle)}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
+              {t('infiniteCanvas.crop.loading')}
+            </p>
+          )}
+          <div
+            className="infinite-canvas-crop__frame"
+            ref={attachFrame}
+            onMouseMove={onFrameMouseMove}
+            onMouseUp={endDrag}
+            onMouseLeave={endDrag}
+          >
+            {previewUrl ? (
+              <img
+                className="infinite-canvas-crop__image"
+                src={previewUrl}
+                alt=""
+                draggable={false}
+              />
+            ) : null}
+            {rect ? (
+              <div
+                className="infinite-canvas-crop__rect"
+                data-crop-rect="true"
+                data-crop-x={rect.x}
+                data-crop-y={rect.y}
+                data-crop-width={rect.width}
+                data-crop-height={rect.height}
+                style={{
+                  left: percent(rect.x, natural.width),
+                  top: percent(rect.y, natural.height),
+                  width: percent(rect.width, natural.width),
+                  height: percent(rect.height, natural.height),
+                }}
+                onMouseDown={event => beginDrag(event, 'move')}
+              >
+                {/* Rule-of-thirds guides; decoration only, no pointer surface. */}
+                <span className="infinite-canvas-crop__thirds" aria-hidden="true" />
+                {CROP_HANDLES.map(handle => (
+                  <span
+                    key={handle}
+                    className="infinite-canvas-crop__handle"
+                    data-crop-handle={handle}
+                    onMouseDown={event => beginDrag(event, handle)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
           </>
         )}
       </div>

@@ -28,6 +28,9 @@
   --canvas-text-muted: #949aa4;
   --canvas-text-faint: #6b7280;
   --canvas-accent: #4c8dff;
+  // Text/icon colour ON a filled accent button. White reads on both accents,
+  // but naming it keeps the literal out of the rules themselves.
+  --canvas-accent-contrast: #fff;
   --canvas-danger: #ff6b6b;
   --canvas-hairline: rgb(255 255 255 / 8%);
   // Derived surfaces that used to be hard-coded white / black washes: they
@@ -84,6 +87,7 @@
   --canvas-text-muted: #565d68;
   --canvas-text-faint: #7d848f;
   --canvas-accent: #2f6fe4;
+  --canvas-accent-contrast: #fff;
   --canvas-danger: #c53434;
   --canvas-hairline: rgb(16 20 28 / 12%);
   --canvas-hover-wash: rgb(16 20 28 / 7%);
@@ -1080,7 +1084,12 @@
 // stylesheet's card size and kept invisible: showing the guess and snapping to
 // the measured box one frame later is what read as a flicker when clicking
 // between cards.
-.infinite-canvas-generator:not([data-canvas-generator-measured='true']) {
+// Only the CARD surface waits on a measurement — the editors place the same
+// component in ordinary flow, where there is nothing to measure and nothing to
+// snap to.
+.infinite-canvas-generator[data-canvas-generator-surface='card']:not(
+    [data-canvas-generator-measured='true']
+  ) {
   visibility: hidden;
 }
 
@@ -2227,21 +2236,29 @@
 }
 
 // ── P5 editing states: mask brush and crop ─────────────────────────────────
-// Both are full-panel EDITING STATES rather than pop-ups: they sit inside
-// .infinite-canvas-panel, so the --canvas-* vocabulary (and therefore the
-// light/dark switch) reaches them with no remapping. The one thing that never
-// follows the theme is the red of the marks — that is a functional constant
-// living in infiniteCanvasImageRaster.ts, painted onto a canvas, not styled
-// here.
+// Both sit inside .infinite-canvas-panel, so the --canvas-* vocabulary (and
+// therefore the light/dark switch) reaches them with no remapping. The one
+// thing that never follows the theme is the red of the marks — that is a
+// functional constant living in infiniteCanvasImageRaster.ts, painted onto a
+// canvas, not styled here.
+//
+// Owner feedback 2026-08-27 (second pass, replaces the bar-and-strip layout):
+// these are NOT "pages with chrome". The picture FLOATS over a blurred board
+// exactly the way §5.1's full-screen viewer does, and every control lives in
+// ONE floating pill under it, in §4's card-toolbar language. No top bar, no
+// bottom strip, no titles, no explanatory paragraphs.
 
 .infinite-canvas-mask,
 .infinite-canvas-crop {
   position: absolute;
-  z-index: 24;
+  // Below .infinite-canvas-popover (24) on purpose: the shared generator in
+  // here opens the ordinary parameter and model popovers, and they mount as
+  // siblings of the editor, so they have to paint over it.
+  z-index: 22;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   inset: 0;
-
 }
 
 // Measure-before-show (CONTEXT.md lesson): the picture and everything placed
@@ -2259,8 +2276,10 @@
   visibility: hidden;
 }
 
-.infinite-canvas-mask__backdrop,
-.infinite-canvas-crop__backdrop {
+// Same plate as §5.1: a genuinely blurred board tinted with the canvas's OWN
+// background token, so it is dark under the dark theme and light under the
+// light one. Never a hard-coded black scrim.
+.infinite-canvas-editor__backdrop {
   position: absolute;
   z-index: 0;
   inset: 0;
@@ -2268,83 +2287,25 @@
   backdrop-filter: blur(18px) saturate(120%);
 }
 
-.infinite-canvas-mask__bar,
-.infinite-canvas-crop__bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  border-bottom: 1px solid var(--infinite-canvas-hairline);
-  background: var(--infinite-canvas-surface);
-}
-
-.infinite-canvas-mask__divider {
-  width: 1px;
-  height: 16px;
-  margin: 0 4px;
-  background: var(--infinite-canvas-hairline);
-}
-
-.infinite-canvas-mask__tool {
-  display: inline-flex;
-  width: 26px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--infinite-canvas-hover);
-    color: var(--infinite-canvas-text);
-  }
-
-  &[data-active='true'] {
-    background: var(--infinite-canvas-accent-soft);
-    color: var(--infinite-canvas-accent);
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.4;
-  }
-}
-
-.infinite-canvas-mask__size {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--infinite-canvas-muted);
-  font-size: 11px;
-
-  input[type='range'] {
-    width: 96px;
-    accent-color: var(--infinite-canvas-accent);
-  }
-}
-
-.infinite-canvas-mask__size-value {
-  min-width: 22px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.infinite-canvas-mask__stage,
-.infinite-canvas-crop__stage {
+// The pill, the picture and (on the mask lane) the shared generator, stacked
+// and centred. Each shrink-wraps, so everything around them is backdrop —
+// which is what makes "press outside to leave" mean the same thing here as it
+// does in the viewer.
+//
+// Order is document order: pill ABOVE the picture (owner's reference shots),
+// input below it. They sit in ordinary flow rather than being pinned with a
+// measured offset — the picture is capped well short of the panel, so the
+// stack always fits, and no measurement enters the render path (P4's
+// coordinate lesson).
+.infinite-canvas-editor__float {
   position: relative;
   z-index: 1;
   display: flex;
-  flex: 1;
-  min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
+  gap: 10px;
 }
 
 // Shrink-wraps the picture: the mark layer and the crop frame are placed in
@@ -2355,16 +2316,132 @@
   position: relative;
   display: inline-flex;
   max-width: 100%;
-  max-height: 100%;
+  min-height: 0;
+  flex: 0 1 auto;
 }
 
 .infinite-canvas-mask__image,
 .infinite-canvas-crop__image {
-  max-width: 100%;
-  max-height: 100%;
-  border-radius: 6px;
+  // Sized against the window, exactly like §5.1: the frame shrink-wraps the
+  // picture, so a percentage here would chase its own tail. The cap leaves
+  // room for the pill underneath.
+  max-width: 84vw;
+  max-height: 64vh;
+  border-radius: 8px;
+  box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
   object-fit: contain;
   user-select: none;
+}
+
+// The mask lane also carries the input box under the picture, so it gets less
+// of the height than crop does.
+.infinite-canvas-mask__image {
+  max-height: 52vh;
+}
+
+// ── The one floating pill ──────────────────────────────────────────────────
+// Same vocabulary as §4's card toolbar: translucent overlay plate, full
+// radius, icon-first, hairline dividers between groups, brighter on hover.
+// Exactly one filled control per surface — the confirm.
+
+.infinite-canvas-editor__dock {
+  display: flex;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.infinite-canvas-editor__pill {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 999px;
+  background: var(--canvas-surface-overlay);
+  box-shadow: 0 10px 26px var(--canvas-shadow-heavy);
+  white-space: nowrap;
+}
+
+.infinite-canvas-editor__divider {
+  width: 1px;
+  height: 16px;
+  margin: 0 5px;
+  background: var(--canvas-hairline);
+}
+
+// Secondary is the default here, for every control including "back".
+.infinite-canvas-editor__pill button {
+  display: inline-flex;
+  min-width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+
+  &:hover:not(:disabled) {
+    background: var(--canvas-hover-wash);
+    color: var(--canvas-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: -1px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
+}
+
+.infinite-canvas-editor__pill .infinite-canvas-editor__text {
+  padding: 0 10px;
+}
+
+// The single primary action on the surface.
+.infinite-canvas-editor__pill .infinite-canvas-editor__primary {
+  padding: 0 12px;
+  background: var(--canvas-accent);
+  color: var(--canvas-accent-contrast);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--canvas-accent) 86%, #fff);
+    color: var(--canvas-accent-contrast);
+  }
+
+  &:disabled {
+    background: var(--canvas-hover-wash);
+    color: var(--canvas-text-muted);
+    opacity: 1;
+  }
+}
+
+// An engaged marking tool reads with the accent, the way the reference boards
+// mark an active tool.
+.infinite-canvas-editor__pill .infinite-canvas-mask__tool[data-active='true'] {
+  background: var(--infinite-canvas-accent-soft);
+  color: var(--infinite-canvas-accent);
+}
+
+.infinite-canvas-mask__size {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+
+  input[type='range'] {
+    width: 84px;
+    accent-color: var(--canvas-accent);
+  }
 }
 
 .infinite-canvas-mask__layer {
@@ -2388,18 +2465,25 @@
   text-align: center;
 }
 
-// Why a disabled confirm button is disabled (§7: never a dead control with no
-// explanation). Muted in both themes; the tokens carry the light/dark switch.
-.infinite-canvas-mask__blocked,
+// One very short grey line, next to the pill or under the input — the only
+// prose these surfaces are allowed. Muted in both themes; the tokens carry the
+// light/dark switch.
+.infinite-canvas-editor__note,
+.infinite-canvas-generator__note,
 .infinite-canvas-dialog__blocked {
   margin: 0;
-  color: var(--infinite-canvas-muted);
+  color: var(--canvas-text-muted);
   font-size: 11px;
   line-height: 1.4;
 }
 
-.infinite-canvas-mask__blocked {
-  flex: 0 1 190px;
+.infinite-canvas-editor__note {
+  max-width: min(560px, 84vw);
+  text-align: center;
+}
+
+.infinite-canvas-generator__note {
+  padding: 0 2px;
 }
 
 .infinite-canvas-dialog__blocked {
@@ -2407,93 +2491,30 @@
   text-align: left;
 }
 
-.infinite-canvas-mask__prompt {
-  position: relative;
-  z-index: 2;
+// ── The shared generator, standing in an editor ─────────────────────────────
+// Owner feedback 2026-08-27: "所有的都是共用输入框的 设计风格一致". Same
+// component, same plate, same pills, same round send button — it just stops
+// being anchored to a card and stands in the editor's own stack.
+.infinite-canvas-editor__input {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--infinite-canvas-hairline);
-  background: var(--infinite-canvas-surface);
+  max-width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 
-.infinite-canvas-mask__hint,
-.infinite-canvas-crop__hint {
-  max-width: 34%;
-  margin: 0;
-  color: var(--infinite-canvas-muted);
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.infinite-canvas-mask__input {
-  flex: 1;
-  min-height: 46px;
-  padding: 6px 8px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 6px;
-  background: var(--infinite-canvas-raised);
-  color: var(--infinite-canvas-text);
-  font-family: inherit;
-  font-size: 12px;
-  resize: none;
-
-  &:focus {
-    border-color: var(--infinite-canvas-accent-line);
-    outline: none;
-  }
-}
-
-.infinite-canvas-mask__confirm,
-.infinite-canvas-crop__confirm {
-  height: 26px;
-  padding: 0 12px;
-  border: 1px solid var(--infinite-canvas-accent-line);
-  border-radius: 6px;
-  background: var(--infinite-canvas-accent-soft);
-  color: var(--infinite-canvas-accent);
-  cursor: pointer;
-  font-size: 11px;
-  white-space: nowrap;
-
-  &:disabled {
-    border-color: var(--infinite-canvas-hairline);
-    color: var(--infinite-canvas-muted);
-    cursor: default;
-    opacity: 0.55;
-  }
-}
-
-// Owner feedback 2026-08-27: the two board-filling editors carry a visible
-// exit paired with their confirm. Quiet by design — it is the way out, not the
-// thing to press — but it is always on screen.
-.infinite-canvas-mask__back,
-.infinite-canvas-crop__back {
-  height: 26px;
-  padding: 0 12px;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  font-size: 11px;
-  white-space: nowrap;
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--infinite-canvas-border);
-    color: var(--infinite-canvas-text);
-    outline: none;
-  }
-}
-
-.infinite-canvas-crop__spacer {
-  flex: 1;
+.infinite-canvas-generator--editor {
+  position: relative;
+  z-index: auto;
+  width: min(560px, 84vw);
+  min-width: 0;
+  left: auto;
+  top: auto;
 }
 
 .infinite-canvas-crop__size {
-  color: var(--infinite-canvas-muted);
+  padding: 0 8px;
+  color: var(--canvas-text-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }

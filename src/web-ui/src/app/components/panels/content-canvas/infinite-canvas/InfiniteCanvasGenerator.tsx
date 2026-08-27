@@ -63,9 +63,39 @@ export interface InfiniteCanvasGeneratorPlacement {
   measured: boolean;
 }
 
+/**
+ * Where this generator is standing.
+ *
+ * Owner feedback 2026-08-27: "所有的都是共用输入框的" — the board-filling
+ * editors do NOT get an input box of their own. They mount THIS component,
+ * with the same field, the same bottom row of pills and the same round send
+ * button; only the placeholder, one short status line and the reference row
+ * differ. `editor` is that switch, and it is the whole of the difference.
+ */
+export type InfiniteCanvasGeneratorSurface = 'card' | 'editor';
+
 export interface InfiniteCanvasGeneratorProps {
   /** The selected card. There is no generator without one. */
   target: InfiniteCanvasGeneratorTarget;
+  surface?: InfiniteCanvasGeneratorSurface;
+  /**
+   * Overrides the field's placeholder and accessible name. The editors say
+   * what THEY are asking for ("what should change"), which is narrower than
+   * the board's general prompt.
+   */
+  placeholder?: string;
+  /**
+   * One very short grey line above the field — the editors' running status
+   * ("paint the area first"). Nothing else may be written here.
+   */
+  note?: string;
+  /** Machine-readable name for `note`, so tests can assert the reason. */
+  noteReason?: string;
+  /**
+   * False parks the send button and the Enter key: the surface has something
+   * outstanding, and `note` is where it says what.
+   */
+  canSubmit?: boolean;
   placement?: InfiniteCanvasGeneratorPlacement;
   references: readonly InfiniteCanvasGeneratorReference[];
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
@@ -87,7 +117,8 @@ export interface InfiniteCanvasGeneratorProps {
    * actually is.
    */
   onDraftChange?: (prompt: string) => void;
-  onAddReference: (anchor: HTMLElement) => void;
+  /** Absent on the editor surface, which carries no reference row. */
+  onAddReference?: (anchor: HTMLElement) => void;
   /**
    * Owner feedback 2026-08-26: each reference thumbnail carries a small `×`
    * that breaks that reference connection. The panel routes it through the
@@ -173,6 +204,11 @@ GeneratorThumbnail.displayName = 'InfiniteCanvasGeneratorThumbnail';
 
 export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = ({
   target,
+  surface = 'card',
+  placeholder,
+  note,
+  noteReason,
+  canSubmit = true,
   placement,
   references,
   resolvePreviewUrl,
@@ -204,15 +240,19 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   }, [targetNodeId, targetPrompt]);
 
   const pending = target.pending;
+  const blocked = pending || !canSubmit;
   const submit = React.useCallback(() => {
-    if (pending) return;
+    if (blocked) return;
     onSubmit(draft);
-  }, [draft, onSubmit, pending]);
+  }, [blocked, draft, onSubmit]);
 
   return (
     <div
-      className="infinite-canvas-generator"
+      className={`infinite-canvas-generator${
+        surface === 'editor' ? ' infinite-canvas-generator--editor' : ''
+      }`}
       data-canvas-generator="root"
+      data-canvas-generator-surface={surface}
       data-canvas-generator-target={targetNodeId}
       // Until the card has been measured the stylesheet's own placement keeps
       // the input on screen; once it is measured, the inline box wins.
@@ -228,6 +268,13 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           }
         : undefined}
     >
+      {/*
+        The editor surface carries no reference row: its edit target is the
+        picture already open in it, and `confirmMask` deliberately forwards no
+        other references — an "add reference" button there would be a control
+        that quietly does nothing.
+      */}
+      {surface === 'card' ? (
       <div className="infinite-canvas-generator__references">
         {onOpenStyle ? (
           // §6's leftmost "reference / character" entry. Ours is the style
@@ -261,24 +308,36 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
             />
           ))}
         </span>
-        <button
-          type="button"
-          className="infinite-canvas-generator__add"
-          data-canvas-generator-action="add-reference"
-          aria-label={t('infiniteCanvas.generator.addReference')}
-          title={t('infiniteCanvas.generator.addReference')}
-          onClick={event => onAddReference(event.currentTarget)}
-        >
-          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-          </svg>
-        </button>
+        {onAddReference ? (
+          <button
+            type="button"
+            className="infinite-canvas-generator__add"
+            data-canvas-generator-action="add-reference"
+            aria-label={t('infiniteCanvas.generator.addReference')}
+            title={t('infiniteCanvas.generator.addReference')}
+            onClick={event => onAddReference(event.currentTarget)}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
+        ) : null}
       </div>
+      ) : null}
+      {note ? (
+        <p
+          className="infinite-canvas-generator__note"
+          data-canvas-generator-note="true"
+          data-blocked-reason={noteReason}
+        >
+          {note}
+        </p>
+      ) : null}
       <textarea
         className="infinite-canvas-generator__prompt nodrag"
         data-canvas-generator-field="prompt"
-        aria-label={t('infiniteCanvas.generator.label')}
-        placeholder={t('infiniteCanvas.generator.placeholder')}
+        aria-label={placeholder ?? t('infiniteCanvas.generator.label')}
+        placeholder={placeholder ?? t('infiniteCanvas.generator.placeholder')}
         value={draft}
         disabled={pending}
         rows={2}
@@ -336,7 +395,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           type="button"
           className="infinite-canvas-generator__send"
           data-canvas-generator-action="send"
-          disabled={pending}
+          disabled={blocked}
           aria-label={t('infiniteCanvas.generator.send')}
           title={t('infiniteCanvas.generator.sendHint')}
           onClick={submit}

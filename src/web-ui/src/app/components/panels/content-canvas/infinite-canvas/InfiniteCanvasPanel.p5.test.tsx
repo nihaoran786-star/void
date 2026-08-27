@@ -443,14 +443,17 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
       Simulate.mouseMove(layer, { clientX: 50, clientY: 50 } as never);
       Simulate.mouseUp(layer, { clientX: 50, clientY: 50 } as never);
     });
+    // Owner feedback 2026-08-27: the sentence is written in the SHARED board
+    // generator mounted in the editor, and its round send button is the
+    // confirm — this editor has no input box and no confirm of its own.
     act(() => {
       Simulate.change(
-        container.querySelector('[data-mask-control="instruction"]')!,
+        container.querySelector('[data-canvas-generator-field="prompt"]')!,
         { target: { value: 'put a red hat here' } } as never,
       );
     });
     await act(async () => {
-      Simulate.click(container.querySelector('[data-mask-action="confirm"]')!);
+      Simulate.click(container.querySelector('[data-canvas-generator-action="send"]')!);
     });
     await act(async () => { await Promise.resolve(); });
     await act(async () => { await Promise.resolve(); });

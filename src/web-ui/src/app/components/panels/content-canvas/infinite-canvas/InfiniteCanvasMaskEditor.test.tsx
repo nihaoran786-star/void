@@ -44,6 +44,21 @@ const MEDIA_REF = {
 
 const PNG_DATA_URL = 'data:image/png;base64,QUJD';
 
+/**
+ * The card projection the panel hands over so the editor can mount the SHARED
+ * generator (owner, 2026-08-27: the editors do not get an input box of their
+ * own). Nothing here is asserted — it exists so the real component renders.
+ */
+const GENERATOR = {
+  target: {
+    nodeId: 'node-1',
+    mediaKind: 'image' as const,
+    prompt: 'whatever the card carries',
+    modelLabel: 'some-model',
+    pending: false,
+  },
+};
+
 interface RecordedCall {
   name: string;
   args: unknown[];
@@ -171,6 +186,7 @@ describe('InfiniteCanvasMaskEditor', () => {
           toolId={toolId}
           mediaRef={MEDIA_REF}
           resolvePreviewUrl={async () => PNG_DATA_URL}
+          generator={GENERATOR}
           onConfirm={onConfirm}
           onClose={onClose}
         />,
@@ -183,8 +199,14 @@ describe('InfiniteCanvasMaskEditor', () => {
 
   const surface = () => container.querySelector('[data-canvas-editor="mask"]')!;
   const layer = () => container.querySelector('[data-mask-surface="layer"]') as HTMLCanvasElement;
+  // Owner feedback 2026-08-27 (second pass): there is no confirm button of
+  // this editor's own any more. Confirming IS sending from the shared board
+  // generator mounted underneath the picture.
   const confirmButton = () => (
-    container.querySelector('[data-mask-action="confirm"]') as HTMLButtonElement
+    container.querySelector('[data-canvas-generator-action="send"]') as HTMLButtonElement
+  );
+  const promptField = () => (
+    container.querySelector('[data-canvas-generator-field="prompt"]') as HTMLTextAreaElement
   );
   const clearButton = () => (
     container.querySelector('[data-mask-action="clear"]') as HTMLButtonElement
@@ -221,6 +243,7 @@ describe('InfiniteCanvasMaskEditor', () => {
           toolId="inpaint"
           mediaRef={MEDIA_REF}
           resolvePreviewUrl={() => new Promise(() => undefined)}
+          generator={GENERATOR}
           onConfirm={onConfirm}
           onClose={onClose}
         />,
@@ -291,7 +314,7 @@ describe('InfiniteCanvasMaskEditor', () => {
     paintStroke();
     act(() => {
       Simulate.change(
-        container.querySelector('[data-mask-control="instruction"]')!,
+        promptField(),
         { target: { value: 'remove the lamp post' } } as never,
       );
     });
@@ -333,6 +356,7 @@ describe('InfiniteCanvasMaskEditor', () => {
           toolId="inpaint"
           mediaRef={MEDIA_REF}
           resolvePreviewUrl={async () => undefined}
+          generator={GENERATOR}
           onConfirm={onConfirm}
           onClose={onClose}
         />,
@@ -355,6 +379,7 @@ describe('InfiniteCanvasMaskEditor', () => {
           toolId="inpaint"
           mediaRef={MEDIA_REF}
           resolvePreviewUrl={() => new Promise(() => undefined)}
+          generator={GENERATOR}
           onConfirm={onConfirm}
           onClose={onClose}
         />,
@@ -381,7 +406,7 @@ describe('InfiniteCanvasMaskEditor', () => {
   it('opens with the tool 【】 template and refuses to confirm until it is completed', async () => {
     await renderEditor('erase');
 
-    const input = container.querySelector('[data-mask-control="instruction"]') as
+    const input = promptField() as unknown as
       HTMLTextAreaElement;
     expect(input.value).toBe('Remove 【what should go】 from the marked area.');
 
@@ -415,7 +440,7 @@ describe('InfiniteCanvasMaskEditor', () => {
   it('accepts 【】 the user typed themselves, and names the reason when it blocks', async () => {
     await renderEditor('erase');
     paintStroke();
-    const input = container.querySelector('[data-mask-control="instruction"]') as
+    const input = promptField() as unknown as
       HTMLTextAreaElement;
 
     act(() => {
@@ -440,7 +465,7 @@ describe('InfiniteCanvasMaskEditor', () => {
     paintStroke();
     act(() => {
       Simulate.change(
-        container.querySelector('[data-mask-control="instruction"]')!,
+        promptField(),
         { target: { value: 'put a hat here' } } as never,
       );
     });
@@ -560,11 +585,11 @@ describe('InfiniteCanvasMaskEditor', () => {
   });
 
   /**
-   * Owner feedback 2026-08-27: this editor fills the whole board, so it carries
-   * a visible exit next to its confirm. It is the same `requestClose` path as
-   * Escape — out at once when nothing was painted, discard question otherwise.
+   * Owner feedback 2026-08-27 (second pass): the exit is the `×` at the left
+   * end of the floating pill. It is the same `requestClose` path as Escape —
+   * out at once when nothing was painted, discard question otherwise.
    */
-  it('leaves through the visible back button when nothing was painted', async () => {
+  it('leaves through the pill × when nothing was painted', async () => {
     await renderEditor();
 
     act(() => {
@@ -575,7 +600,7 @@ describe('InfiniteCanvasMaskEditor', () => {
     expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
   });
 
-  it('asks before the back button throws painted marks away', async () => {
+  it('asks before the pill × throws painted marks away', async () => {
     await renderEditor();
     paintStroke();
 
@@ -607,5 +632,51 @@ describe('InfiniteCanvasMaskEditor', () => {
     });
     expect((container.querySelector('[data-mask-control="brush-size"]') as HTMLInputElement).value)
       .toBe('96');
+  });
+
+  /**
+   * Owner feedback 2026-08-27 (second pass): the picture FLOATS over §5.1's
+   * blurred plate, so pressing the plate leaves the same way §5.1 does — but
+   * it may never drop painted marks silently.
+   */
+  it('asks before a press on the blurred board throws marks away', async () => {
+    await renderEditor();
+    paintStroke();
+
+    act(() => {
+      dom.window.document.body.dispatchEvent(
+        new dom.window.MouseEvent('mousedown', { bubbles: true }),
+      );
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeTruthy();
+  });
+
+  it('does not leave when the press lands on the picture itself', async () => {
+    await renderEditor();
+
+    act(() => {
+      layer().dispatchEvent(new dom.window.MouseEvent('mousedown', { bubbles: true }));
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
+  });
+
+  /**
+   * Owner feedback 2026-08-27: "所有的都是共用输入框的" — the sentence is written
+   * in the BOARD's generator, mounted here in its editor surface. There is
+   * exactly one field on this screen, and it is that one.
+   */
+  it('writes its sentence in the board generator, not a field of its own', async () => {
+    await renderEditor();
+
+    expect(container.querySelector('[data-canvas-generator-surface="editor"]')).toBeTruthy();
+    expect(container.querySelectorAll('[data-canvas-generator-field="prompt"]'))
+      .toHaveLength(1);
+    expect(container.querySelector('textarea:not([data-canvas-generator-field])')).toBeNull();
+    // The editor carries no confirm of its own; sending is confirming.
+    expect(container.querySelector('[data-mask-action="confirm"]')).toBeNull();
   });
 });

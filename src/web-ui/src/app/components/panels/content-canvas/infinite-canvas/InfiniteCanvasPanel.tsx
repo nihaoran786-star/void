@@ -125,6 +125,7 @@ import { InfiniteCanvasEdge } from './InfiniteCanvasEdge';
 import {
   InfiniteCanvasGenerator,
   type InfiniteCanvasGeneratorReference,
+  type InfiniteCanvasGeneratorTarget,
 } from './InfiniteCanvasGenerator';
 import { InfiniteCanvasModelPopover } from './InfiniteCanvasModelPopover';
 import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
@@ -331,6 +332,42 @@ interface CropEditorRequest {
  * crashes — a port that cannot be resolved simply does not exist, and its
  * feature reports a typed failure instead.
  */
+/**
+ * §6's card projection, as a plain function so both places that mount the
+ * generator read the SAME numbers: the board (for the selected card) and the
+ * mask editor (for the card it is open on).
+ *
+ * Nothing here dispatches or mutates — it is the projection the cards already
+ * read, rearranged for display.
+ */
+function projectGeneratorTarget(
+  node: { id: string; type?: string; data: Record<string, unknown> } | undefined,
+): InfiniteCanvasGeneratorTarget | undefined {
+  if (!node
+    || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
+      && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
+    return undefined;
+  }
+  const params = node.data.generationParams as InfiniteCanvasGenerationParams | undefined;
+  const generation = node.data.generation as { status?: string } | undefined;
+  const isVideo = node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE;
+  return {
+    nodeId: node.id,
+    mediaKind: isVideo ? 'video' : 'image',
+    prompt: (node.data.prompt as string | undefined) ?? '',
+    // §7.3-A: the bar already shows the model on its own control, so the
+    // summary pill next to it carries only the remaining settings.
+    paramsSummary: summarizeInfiniteCanvasGenerationParams(
+      params ? { ...params, model: undefined } : undefined,
+      isVideo ? 'video' : 'image',
+    ) || undefined,
+    modelLabel: params?.model || defaultInfiniteCanvasModelId(isVideo ? 'video' : 'image'),
+    count: params?.n,
+    stylePresetName: node.data.stylePresetName as string | undefined,
+    pending: generation?.status === 'pending',
+  };
+}
+
 function resolvePort<T>(injected: T | undefined, factory: () => T): T | undefined {
   if (injected) return injected;
   try {
@@ -2570,35 +2607,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    */
   const generatorTarget = React.useMemo(() => {
     if (selectedNodeIds.length !== 1) return undefined;
-    const node = flowNodes.find(entry => entry.id === selectedNodeIds[0]);
-    if (!node
-      || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
-        && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
-      return undefined;
-    }
-    const params = node.data.generationParams as InfiniteCanvasGenerationParams | undefined;
-    const generation = node.data.generation as { status?: string } | undefined;
-    return {
-      nodeId: node.id,
-      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE
-        ? 'video' as const
-        : 'image' as const,
-      prompt: (node.data.prompt as string | undefined) ?? '',
-      // §7.3-A: the bar already shows the model on its own control, so the
-      // summary pill next to it carries only the remaining settings.
-      paramsSummary: summarizeInfiniteCanvasGenerationParams(
-        params ? { ...params, model: undefined } : undefined,
-        node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
-      ) || undefined,
-      modelLabel: params?.model
-        || defaultInfiniteCanvasModelId(
-          node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
-        ),
-      count: params?.n,
-      stylePresetName: node.data.stylePresetName as string | undefined,
-      pending: generation?.status === 'pending',
-    };
+    return projectGeneratorTarget(flowNodes.find(entry => entry.id === selectedNodeIds[0]));
   }, [flowNodes, selectedNodeIds]);
+
+  /**
+   * P5 second pass (owner: "所有的都是共用输入框的"): the mask editor mounts the
+   * SAME generator, so it needs the same projection — of the card the editor
+   * is open on, taken from the request rather than from the selection.
+   */
+  const maskGeneratorProps = React.useMemo(() => {
+    if (!maskRequest) return undefined;
+    const target = projectGeneratorTarget(
+      flowNodes.find(entry => entry.id === maskRequest.nodeId),
+    );
+    return target ? { target } : undefined;
+  }, [flowNodes, maskRequest]);
 
   /**
    * §6: where the generator sits — directly under its card, as wide as the
@@ -2989,7 +3012,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           §6: the generator belongs to the selected card and floats under it.
           No selection, no input surface anywhere on the board.
         */}
-        {generatorTarget && generatorPlacement ? (
+        {/*
+          While a board-filling editor is open the SAME generator is mounted
+          inside it (owner, 2026-08-27), so the card-anchored one steps aside:
+          two prompt boxes for one card is exactly the confusion the shared
+          input was meant to remove.
+        */}
+        {generatorTarget && generatorPlacement && !maskRequest && !cropRequest ? (
           <InfiniteCanvasGenerator
             target={generatorTarget}
             placement={generatorPlacement}
@@ -3041,11 +3070,19 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         document.body — a body portal would leave the --canvas-* variable
         scope and the panel-level test selectors behind (P4 §2.1).
       */}
-      {maskRequest ? (
+      {maskRequest && maskGeneratorProps ? (
         <InfiniteCanvasMaskEditor
           toolId={maskRequest.toolId}
           mediaRef={maskRequest.mediaRef}
           resolvePreviewUrl={resolvePreviewUrl}
+          // §6's input box, mounted in the editor rather than reinvented there.
+          generator={{
+            target: maskGeneratorProps.target,
+            onOpenParams: anchor =>
+              nodeActionsRef.current.openParams(maskRequest.nodeId, anchor),
+            onOpenModel: anchor =>
+              nodeActionsRef.current.openModel(maskRequest.nodeId, anchor),
+          }}
           onConfirm={payload => {
             void confirmMask(payload.base64Png, payload.instruction);
           }}

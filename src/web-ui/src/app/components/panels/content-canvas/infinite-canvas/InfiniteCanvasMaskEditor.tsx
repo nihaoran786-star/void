@@ -22,14 +22,18 @@
  *   `infiniteCanvasHistory.ts`. While the editor is open, Ctrl+Z means "undo my
  *   last stroke" and can never reach back onto the board — the panel suspends
  *   its own shortcut listener for exactly as long as an editor is mounted.
- * - **Nothing is thrown away by accident.** Escape and a press outside go
- *   through the shared dismiss contract, but with marks on the layer they open
- *   a discard confirmation first. There is no "Close" button (owner decision).
+ * - **Nothing is thrown away by accident.** Escape, a press on the blurred
+ *   board and the pill's `×` all go through one `requestClose`, and with marks
+ *   on the layer they open a discard confirmation first.
+ * - **The picture floats; the controls do not surround it.** §5.1's blurred
+ *   plate behind, §4's pill above, and the board's OWN generator below — this
+ *   editor invents no input box of its own, and its send button is the
+ *   confirm.
  * - Copy for this lane says "marked area", never "precise mask": the model's
  *   obedience to a red mark is probabilistic, and the UI must not promise more.
  */
 import React from 'react';
-import { Brush, Eraser, RotateCcw, RotateCw, Square, Trash2 } from 'lucide-react';
+import { Brush, Eraser, RotateCcw, RotateCw, Square, Trash2, X } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import type { MaskImageToolId } from '@/shared/services/infinite-canvas';
@@ -54,13 +58,47 @@ import {
   toNaturalLength,
   toNaturalPoint,
 } from './infiniteCanvasImageRaster';
-import { useInfiniteCanvasDismiss } from './useInfiniteCanvasDismiss';
+import {
+  EDITOR_INSIDE_SELECTORS,
+  useInfiniteCanvasDismiss,
+} from './useInfiniteCanvasDismiss';
+import {
+  InfiniteCanvasGenerator,
+  type InfiniteCanvasGeneratorProps,
+} from './InfiniteCanvasGenerator';
 import type {
   InfiniteCanvasImagePreviewResolver,
   InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
 
 export type InfiniteCanvasMaskTool = 'brush' | 'rect' | 'eraser';
+
+/**
+ * Everything the shared generator needs EXCEPT the parts this editor owns.
+ *
+ * Owner feedback 2026-08-27: "所有的都是共用输入框的 设计风格一致". The sentence
+ * is written in the board's own input box, mounted here in its editor surface
+ * — not in a second field invented for this page. The editor supplies the
+ * placeholder, the status line, the submit gate and the submit itself; the
+ * panel supplies the card projection and the popover routes, exactly as it
+ * does for the board.
+ */
+export type InfiniteCanvasMaskGeneratorProps = Omit<
+  InfiniteCanvasGeneratorProps,
+  | 'canSubmit'
+  | 'note'
+  | 'noteReason'
+  | 'onAddReference'
+  | 'onCommitPrompt'
+  | 'onDraftChange'
+  | 'onRemoveReference'
+  | 'onSubmit'
+  | 'placeholder'
+  | 'placement'
+  | 'references'
+  | 'resolvePreviewUrl'
+  | 'surface'
+>;
 
 /**
  * One step of the editor's own history: the pixels of the mark layer, plus
@@ -77,6 +115,8 @@ export interface InfiniteCanvasMaskEditorProps {
   mediaRef: InfiniteCanvasMediaRef;
   /** Always the forceDataUrl resolver: the export lane needs a data URL. */
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
+  /** The shared board generator, mounted here in its editor surface. */
+  generator: InfiniteCanvasMaskGeneratorProps;
   /** Bare base64 PNG of the composite, plus the sentence the user wrote. */
   onConfirm: (payload: { base64Png: string; instruction: string }) => void;
   onClose: () => void;
@@ -86,6 +126,7 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   toolId,
   mediaRef,
   resolvePreviewUrl,
+  generator,
   onConfirm,
   onClose,
 }) => {
@@ -123,6 +164,13 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   const translate = React.useRef(t);
   translate.current = t;
   const [instruction, setInstruction] = React.useState(() => t(maskPrefillKey(toolId)));
+  /**
+   * What the shared generator OPENS with. It is deliberately not `instruction`:
+   * the generator re-seeds its field whenever the prompt it is handed changes,
+   * so feeding it the live text back would fight the user's typing. This value
+   * only moves when the tool does.
+   */
+  const [promptSeed, setPromptSeed] = React.useState(() => t(maskPrefillKey(toolId)));
 
   const maskCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const contextRef = React.useRef<CanvasRenderingContext2D | null>(null);
@@ -135,7 +183,9 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   } | null>(null);
 
   React.useEffect(() => {
-    setInstruction(translate.current(maskPrefillKey(toolId)));
+    const seeded = translate.current(maskPrefillKey(toolId));
+    setInstruction(seeded);
+    setPromptSeed(seeded);
   }, [toolId]);
 
   // Decoding is the one lane: data URL → createImageBitmap. Never an <img>.
@@ -418,7 +468,19 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     onClose();
   }, [discarding, marked, onClose]);
 
-  const surfaceRef = useInfiniteCanvasDismiss<HTMLDivElement>({ onDismiss: requestClose });
+  /**
+   * §5.1's rule: the SURFACE is the picture, everything around it is backdrop,
+   * and pressing the backdrop leaves — through `requestClose`, so painted
+   * marks still raise the discard question rather than vanishing. The pill and
+   * the generator are controls, so they are declared "inside".
+   */
+  const dockRef = React.useRef<HTMLDivElement | null>(null);
+  const promptRef = React.useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useInfiniteCanvasDismiss<HTMLDivElement>({
+    onDismiss: requestClose,
+    inside: [dockRef, promptRef],
+    insideSelectors: EDITOR_INSIDE_SELECTORS,
+  });
 
   // —— Confirmation ————————————————————————————————————————————————————————
 
@@ -431,14 +493,20 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     : instructionBlockReason(instruction, prefill);
   const canConfirm = ready && !blocked;
 
-  const confirm = React.useCallback(() => {
+  /**
+   * The generator's round send button IS this editor's confirm (owner, second
+   * pass): there is no separate "confirm" control any more. The sentence
+   * arrives from the field, so it is taken from the argument rather than from
+   * the mirrored state — the two agree, but the argument cannot be stale.
+   */
+  const confirm = React.useCallback((prompt: string) => {
     const canvas = maskCanvasRef.current;
     if (!bitmap || !canvas || !canConfirm) return;
     try {
       const composite = compositeMarkLayer(bitmap, canvas);
       onConfirm({
         base64Png: exportCanvasPngBase64(composite),
-        instruction: instruction.trim(),
+        instruction: prompt.trim(),
       });
     } catch (error) {
       // P5 review P11: "the picture is past what this browser can rasterise"
@@ -447,7 +515,7 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
       // way — this is a report, not a dismissal.
       setExportError(error instanceof CanvasTooLargeError ? 'too-large' : 'failed');
     }
-  }, [bitmap, canConfirm, instruction, onConfirm]);
+  }, [bitmap, canConfirm, onConfirm]);
 
   const toolButton = (
     value: InfiniteCanvasMaskTool,
@@ -485,64 +553,90 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
       aria-label={t('infiniteCanvas.mask.title')}
       ref={surfaceRef}
     >
-      <div className="infinite-canvas-mask__backdrop" aria-hidden="true" />
-      <div className="infinite-canvas-mask__bar" role="toolbar" aria-label={t('infiniteCanvas.mask.toolsLabel')}>
-        {toolButton('brush', 'infiniteCanvas.mask.tool.brush', <Brush size={14} aria-hidden="true" />)}
-        {toolButton('rect', 'infiniteCanvas.mask.tool.rect', <Square size={14} aria-hidden="true" />)}
-        {toolButton('eraser', 'infiniteCanvas.mask.tool.eraser', <Eraser size={14} aria-hidden="true" />)}
-        <span className="infinite-canvas-mask__divider" aria-hidden="true" />
-        <label className="infinite-canvas-mask__size">
-          <span className="infinite-canvas-mask__size-label">
-            {t('infiniteCanvas.mask.brushSize')}
-          </span>
-          <input
-            type="range"
-            data-mask-control="brush-size"
-            min={CANVAS_BRUSH_MIN}
-            max={CANVAS_BRUSH_MAX}
-            step={1}
-            value={brushSize}
-            aria-label={t('infiniteCanvas.mask.brushSize')}
-            onChange={event => setBrushSize(Number(event.target.value))}
-          />
-          <span className="infinite-canvas-mask__size-value">{brushSize}</span>
-        </label>
-        <span className="infinite-canvas-mask__divider" aria-hidden="true" />
-        <button
-          type="button"
-          className="infinite-canvas-mask__tool"
-          data-mask-action="undo"
-          disabled={undoDepth === 0}
-          aria-label={t('infiniteCanvas.mask.undo')}
-          title={t('infiniteCanvas.mask.undo')}
-          onClick={undo}
-        >
-          <RotateCcw size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-mask__tool"
-          data-mask-action="redo"
-          disabled={redoDepth === 0}
-          aria-label={t('infiniteCanvas.mask.redo')}
-          title={t('infiniteCanvas.mask.redo')}
-          onClick={redo}
-        >
-          <RotateCw size={14} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-mask__tool"
-          data-mask-action="clear"
-          disabled={!marked}
-          aria-label={t('infiniteCanvas.mask.clear')}
-          title={t('infiniteCanvas.mask.clear')}
-          onClick={clearMarks}
-        >
-          <Trash2 size={14} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="infinite-canvas-mask__stage">
+      <div className="infinite-canvas-editor__backdrop" aria-hidden="true" />
+      <div className="infinite-canvas-editor__float">
+        {/*
+          Owner feedback 2026-08-27 (reference shots): one pill, floating
+          ABOVE the picture, `×` first and cut off from the tools by a
+          hairline. The `×` is the same `requestClose` Esc and an outside
+          press take, so painted marks still ask before they are dropped.
+        */}
+        <div className="infinite-canvas-editor__dock" ref={dockRef}>
+          <div
+            className="infinite-canvas-editor__pill"
+            role="toolbar"
+            aria-label={t('infiniteCanvas.mask.toolsLabel')}
+          >
+            <button
+              type="button"
+              data-mask-action="back"
+              aria-label={t('infiniteCanvas.mask.back')}
+              title={t('infiniteCanvas.mask.back')}
+              onClick={requestClose}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+            <span className="infinite-canvas-editor__divider" aria-hidden="true" />
+            {toolButton('brush', 'infiniteCanvas.mask.tool.brush', <Brush size={14} aria-hidden="true" />)}
+            {toolButton('rect', 'infiniteCanvas.mask.tool.rect', <Square size={14} aria-hidden="true" />)}
+            {toolButton('eraser', 'infiniteCanvas.mask.tool.eraser', <Eraser size={14} aria-hidden="true" />)}
+            <span className="infinite-canvas-editor__divider" aria-hidden="true" />
+            <label className="infinite-canvas-mask__size">
+              <input
+                type="range"
+                data-mask-control="brush-size"
+                min={CANVAS_BRUSH_MIN}
+                max={CANVAS_BRUSH_MAX}
+                step={1}
+                value={brushSize}
+                aria-label={t('infiniteCanvas.mask.brushSize')}
+                title={t('infiniteCanvas.mask.brushSize')}
+                onChange={event => setBrushSize(Number(event.target.value))}
+              />
+            </label>
+            <span className="infinite-canvas-editor__divider" aria-hidden="true" />
+            <button
+              type="button"
+              className="infinite-canvas-mask__tool"
+              data-mask-action="undo"
+              disabled={undoDepth === 0}
+              aria-label={t('infiniteCanvas.mask.undo')}
+              title={t('infiniteCanvas.mask.undo')}
+              onClick={undo}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="infinite-canvas-mask__tool"
+              data-mask-action="redo"
+              disabled={redoDepth === 0}
+              aria-label={t('infiniteCanvas.mask.redo')}
+              title={t('infiniteCanvas.mask.redo')}
+              onClick={redo}
+            >
+              <RotateCw size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="infinite-canvas-mask__tool"
+              data-mask-action="clear"
+              disabled={!marked}
+              aria-label={t('infiniteCanvas.mask.clear')}
+              title={t('infiniteCanvas.mask.clear')}
+              onClick={clearMarks}
+            >
+              <Trash2 size={14} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+        {/*
+          P5 review C6: `ready` never becomes true when the picture fails to
+          decode, so the message that says so is a sibling of the frame rather
+          than something the measure-before-show gate can hide. The pill above
+          stays mounted either way — a surface with no visible way out is
+          exactly what the owner reported.
+        */}
         {failed ? (
           <p className="infinite-canvas-mask__placeholder" role="alert">
             {t('infiniteCanvas.mask.unavailable')}
@@ -550,8 +644,8 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
         ) : (
           <>
             {ready ? null : (
-              // A big picture takes a visible moment to decode; saying so beats
-              // an empty rectangle.
+              // A big picture takes a visible moment to decode; saying so
+              // beats an empty rectangle.
               <p
                 className="infinite-canvas-mask__placeholder"
                 data-mask-state="loading"
@@ -560,7 +654,7 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
                 {t('infiniteCanvas.mask.loading')}
               </p>
             )}
-            <div className="infinite-canvas-mask__frame">
+            <div className="infinite-canvas-mask__frame" ref={surfaceRef}>
               {previewUrl ? (
                 <img
                   className="infinite-canvas-mask__image"
@@ -579,54 +673,39 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
                 onMouseLeave={endStroke}
               />
             </div>
+            {/*
+              The board's own input box, in its editor surface. Sending from it
+              IS confirming: same field, same pills, same round send button the
+              canvas uses, so there is nothing new to learn here.
+            */}
+            <div className="infinite-canvas-editor__input" ref={promptRef}>
+              <InfiniteCanvasGenerator
+                {...generator}
+                surface="editor"
+                references={[]}
+                resolvePreviewUrl={resolvePreviewUrl}
+                target={{ ...generator.target, prompt: promptSeed }}
+                placeholder={t('infiniteCanvas.mask.instructionLabel')}
+                note={blocked && ready
+                  ? t(`infiniteCanvas.mask.blocked.${blocked}`)
+                  : undefined}
+                noteReason={blocked && ready ? blocked : undefined}
+                canSubmit={canConfirm}
+                onDraftChange={setInstruction}
+                onSubmit={confirm}
+              />
+              {exportError ? (
+                <p
+                  className="infinite-canvas-editor__note"
+                  data-mask-export-error={exportError}
+                  role="alert"
+                >
+                  {t(`infiniteCanvas.mask.export.${exportError}`)}
+                </p>
+              ) : null}
+            </div>
           </>
         )}
-      </div>
-      <div className="infinite-canvas-mask__prompt">
-        <p className="infinite-canvas-mask__hint">{t('infiniteCanvas.mask.hint')}</p>
-        <textarea
-          className="infinite-canvas-mask__input"
-          data-mask-control="instruction"
-          aria-label={t('infiniteCanvas.mask.instructionLabel')}
-          value={instruction}
-          onChange={event => setInstruction(event.target.value)}
-        />
-        {exportError ? (
-          <p
-            className="infinite-canvas-mask__blocked"
-            data-mask-export-error={exportError}
-            role="alert"
-          >
-            {t(`infiniteCanvas.mask.export.${exportError}`)}
-          </p>
-        ) : blocked && ready ? (
-          <p className="infinite-canvas-mask__blocked" data-blocked-reason={blocked}>
-            {t(`infiniteCanvas.mask.blocked.${blocked}`)}
-          </p>
-        ) : null}
-        {/*
-          Owner feedback 2026-08-27: this editor covers the entire board, so it
-          needs a visible exit next to its confirm — Esc alone is not an exit
-          anyone can see. It goes through `requestClose`, so unsaved marks still
-          raise the discard confirmation first.
-        */}
-        <button
-          type="button"
-          className="infinite-canvas-mask__back"
-          data-mask-action="back"
-          onClick={requestClose}
-        >
-          {t('infiniteCanvas.mask.back')}
-        </button>
-        <button
-          type="button"
-          className="infinite-canvas-mask__confirm"
-          data-mask-action="confirm"
-          disabled={!canConfirm}
-          onClick={confirm}
-        >
-          {t('infiniteCanvas.mask.confirm')}
-        </button>
       </div>
       {discarding ? (
         // Same dialog shell the deletion and re-spend confirmations use, so a

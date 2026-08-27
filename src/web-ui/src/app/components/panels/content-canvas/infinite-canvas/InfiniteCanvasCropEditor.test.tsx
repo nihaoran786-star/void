@@ -215,11 +215,11 @@ describe('InfiniteCanvasCropEditor', () => {
   });
 
   /**
-   * Owner feedback 2026-08-27: a board-filling editor needs a visible way out,
-   * and it must behave exactly like Escape does — straight out when nothing was
-   * touched, and a discard question once the frame has been moved.
+   * Owner feedback 2026-08-27 (second pass): the way out is the `×` at the left
+   * end of the floating pill, and it behaves exactly like Escape — straight out
+   * when nothing was touched, a discard question once the frame has moved.
    */
-  it('leaves through the visible back button when the frame is untouched', async () => {
+  it('leaves through the pill × when the frame is untouched', async () => {
     await renderEditor();
 
     act(() => {
@@ -230,7 +230,7 @@ describe('InfiniteCanvasCropEditor', () => {
     expect(container.querySelector('[data-canvas-confirm="crop-discard"]')).toBeNull();
   });
 
-  it('asks before the back button drops a frame the user adjusted', async () => {
+  it('asks before the pill × drops a frame the user adjusted', async () => {
     await renderEditor();
     act(() => {
       Simulate.mouseDown(frame(), { clientX: 400, clientY: 200 } as never);
@@ -269,6 +269,30 @@ describe('InfiniteCanvasCropEditor', () => {
     expect(surface().getAttribute('data-state')).toBe('failed');
     // Only the frame carries the gate; the message is a sibling of it.
     expect(alert?.closest('.infinite-canvas-crop__frame')).toBeNull();
+  });
+
+  /**
+   * The picture floats over §5.1's blurred plate, so pressing the plate leaves
+   * the same way the viewer does — without ever dropping an adjusted frame
+   * silently.
+   */
+  it('asks before a press on the blurred board drops an adjusted frame', async () => {
+    await renderEditor();
+    act(() => {
+      Simulate.mouseDown(frame(), { clientX: 400, clientY: 200 } as never);
+    });
+    act(() => {
+      Simulate.mouseMove(frame().parentElement!, { clientX: 420, clientY: 210 } as never);
+    });
+
+    act(() => {
+      dom.window.document.body.dispatchEvent(
+        new dom.window.MouseEvent('mousedown', { bubbles: true }),
+      );
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-canvas-confirm="crop-discard"]')).not.toBeNull();
   });
 
   it('says the picture is opening while a slow decode is in flight', async () => {

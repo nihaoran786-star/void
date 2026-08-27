@@ -23,6 +23,17 @@
 import React from 'react';
 
 /**
+ * What a board-filling editor must treat as part of itself: the anchored
+ * popovers, pickers and confirmations it opens all mount as siblings of the
+ * editor rather than children of it.
+ */
+export const EDITOR_INSIDE_SELECTORS = [
+  '.infinite-canvas-popover',
+  '.infinite-canvas-picker',
+  '.infinite-canvas-dialog',
+] as const;
+
+/**
  * An element, or a ref to one. Refs are resolved at event time, so a surface
  * can name a region that had not mounted yet when the hook was called.
  */
@@ -39,6 +50,17 @@ export interface InfiniteCanvasDismissOptions {
   enabled?: boolean;
   /** Further regions that count as part of the surface. */
   inside?: readonly InfiniteCanvasDismissTarget[];
+  /**
+   * CSS selectors whose matches (or ancestors) count as part of the surface,
+   * for regions this surface cannot hold a ref to.
+   *
+   * The board-filling editors need this: their pill and their shared generator
+   * open the ordinary canvas popovers (parameters, model), which mount as
+   * siblings of the editor rather than inside it. Without this, pressing a
+   * choice in the popover the editor itself opened would read as "pressed
+   * outside" and close the editor underneath it.
+   */
+  insideSelectors?: readonly string[];
   /** The control that opened the surface; a press there must not dismiss. */
   ignore?: readonly InfiniteCanvasDismissTarget[];
 }
@@ -79,7 +101,13 @@ export function useInfiniteCanvasDismiss<T extends Element = HTMLElement>(
 
     const isWithin = (target: EventTarget | null): boolean => {
       if (!isNode(target)) return false;
-      const { inside, ignore } = latest.current;
+      const { inside, ignore, insideSelectors } = latest.current;
+      const element = (target as Partial<Element>).closest
+        ? (target as Element)
+        : (target as Node).parentElement;
+      if (insideSelectors?.length && element?.closest) {
+        if (insideSelectors.some(selector => element.closest(selector))) return true;
+      }
       const candidates: InfiniteCanvasDismissTarget[] = [
         surfaceRef.current,
         ...(inside ?? []),

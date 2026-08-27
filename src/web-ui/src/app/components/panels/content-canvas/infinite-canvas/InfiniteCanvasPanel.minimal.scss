@@ -40,18 +40,13 @@
   // P5 editing states: same story as the viewer — they live inside
   // .infinite-canvas-panel and inherit the colour set, so only the workspace
   // spacing and type scale are adopted here. No colour is remapped.
-  .void-ui--minimal .infinite-canvas-mask__bar,
-  .void-ui--minimal .infinite-canvas-crop__bar {
-    padding: var(--workspace-space-1) var(--workspace-space-3);
+  .void-ui--minimal .infinite-canvas-editor__pill {
+    padding: var(--workspace-space-1) var(--workspace-space-2);
   }
 
-  .void-ui--minimal .infinite-canvas-mask__prompt {
-    padding: var(--workspace-space-2) var(--workspace-space-3);
-  }
-
-  .void-ui--minimal .infinite-canvas-mask__input,
-  .void-ui--minimal .infinite-canvas-mask__confirm,
-  .void-ui--minimal .infinite-canvas-crop__confirm {
+  .void-ui--minimal .infinite-canvas-editor__pill button,
+  .void-ui--minimal .infinite-canvas-editor__note,
+  .void-ui--minimal .infinite-canvas-crop__size {
     font-size: var(--workspace-font-size-label);
   }
 }
