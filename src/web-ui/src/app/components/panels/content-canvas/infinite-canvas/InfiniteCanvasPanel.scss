@@ -2069,192 +2069,23 @@
   height: 1px;
 }
 
-// ── Full-screen media viewer (P4 W1) ───────────────────────────────────────
-// Scoped inside the panel so the local --infinite-canvas-* vars still apply
-// (both in classic and in the minimal overlay). Quiet chrome: a single dim
-// backdrop, a hairline toolbar, no shadows beyond the one lift on the frame.
-
-.infinite-canvas-viewer {
-  position: absolute;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  inset: 0;
-}
-
-// Owner feedback 2026-08-26: the enlarged media floats over a genuinely
-// BLURRED board, not a flat dim sheet. The tint is the panel's own background
-// token, so the plate is dark in the dark theme and light in the light one and
-// the media reads correctly against both. Pressing here closes — handled by
-// the shared dismiss contract, not by a click handler on this element.
-.infinite-canvas-viewer__backdrop {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--infinite-canvas-bg) 62%, transparent);
-  backdrop-filter: blur(18px) saturate(120%);
-}
-
-.infinite-canvas-viewer__chrome {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  right: 0;
-  left: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--infinite-canvas-hairline);
-  background: var(--infinite-canvas-surface);
-}
-
-.infinite-canvas-viewer__name {
-  overflow: hidden;
-  max-width: 40%;
-  color: var(--infinite-canvas-text);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.infinite-canvas-viewer__counter {
-  color: var(--infinite-canvas-muted);
-  font-size: 11px;
-}
-
-.infinite-canvas-viewer__spacer {
-  flex: 1;
-}
-
-.infinite-canvas-viewer__button {
-  display: inline-flex;
-  height: 24px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  font-size: 11px;
-
-  &:hover:not(:disabled) {
-    background: var(--infinite-canvas-hover);
-    color: var(--infinite-canvas-text);
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.45;
-  }
-}
-
-.infinite-canvas-viewer__button--zoom {
-  min-width: 44px;
-  justify-content: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.infinite-canvas-viewer__step {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--infinite-canvas-hairline);
-  border-radius: 50%;
-  background: var(--infinite-canvas-surface);
-  color: var(--infinite-canvas-muted);
-  cursor: pointer;
-  transform: translateY(-50%);
-
-  &:hover {
-    color: var(--infinite-canvas-text);
-  }
-}
-
-// The step arrows are absolutely placed; this wrapper only exists so the
-// dismiss contract can call both of them "not backdrop".
-.infinite-canvas-viewer__steps {
-  display: contents;
-}
-
-.infinite-canvas-viewer__step--prev {
-  left: 12px;
-}
-
-.infinite-canvas-viewer__step--next {
-  right: 12px;
-}
-
-.infinite-canvas-viewer__stage {
-  position: absolute;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  inset: 40px 0 0;
-}
-
-// Wraps the media only — it must shrink to the picture, because everything
-// outside it counts as backdrop and closes the viewer when pressed.
-.infinite-canvas-viewer__frame {
-  display: flex;
-  max-width: 100%;
-  max-height: 100%;
-  align-items: center;
-  justify-content: center;
-}
-
-.infinite-canvas-viewer__image {
-  // Sized against the window rather than the frame: the frame shrinks to the
-  // picture, so a percentage here would chase its own tail.
-  max-width: 88vw;
-  max-height: 78vh;
-  border-radius: 6px;
-  object-fit: contain;
-  transform-origin: center center;
-  user-select: none;
-}
-
-.infinite-canvas-viewer__video {
-  max-width: 88vw;
-  max-height: 78vh;
-  border-radius: 6px;
-}
-
-.infinite-canvas-viewer__placeholder {
-  margin: 0;
-  color: var(--infinite-canvas-muted);
-  font-size: 12px;
-}
-
-// ── P5 editing states: mask brush and crop ─────────────────────────────────
-// Both sit inside .infinite-canvas-panel, so the --canvas-* vocabulary (and
-// therefore the light/dark switch) reaches them with no remapping. The one
-// thing that never follows the theme is the red of the marks — that is a
-// functional constant living in infiniteCanvasImageRaster.ts, painted onto a
-// canvas, not styled here.
+// ── §7.4: the one floating media stage ─────────────────────────────────────
+// Owner's ruling 2026-08-28: every place this board enlarges a picture — the
+// full-screen viewer, the mask editor, and the frame editor in both of its
+// directions — is ONE surface. Everything from here to the frame-editor block
+// styles that single shell; the four scenes add only what goes in the pill.
 //
-// Owner feedback 2026-08-27 (second pass, replaces the bar-and-strip layout):
-// these are NOT "pages with chrome". The picture FLOATS over a blurred board
-// exactly the way §5.1's full-screen viewer does, and every control lives in
-// ONE floating pill under it, in §4's card-toolbar language. No top bar, no
-// bottom strip, no titles, no explanatory paragraphs.
+// Scoped inside the panel so the local --infinite-canvas-* and --canvas-* vars
+// still apply (both in classic and in the minimal overlay), which is what
+// carries the light/dark switch into it. The one thing that never follows the
+// theme is the red of the mask marks and the white of the frame grips: those
+// are functional colours that must read against an arbitrary photograph.
 
-.infinite-canvas-mask,
-.infinite-canvas-crop,
-.infinite-canvas-expand {
+.infinite-canvas-stage {
   position: absolute;
   // Below .infinite-canvas-popover (24) on purpose: the shared generator in
   // here opens the ordinary parameter and model popovers, and they mount as
-  // siblings of the editor, so they have to paint over it.
+  // siblings of the stage, so they have to paint over it.
   z-index: 22;
   display: flex;
   align-items: center;
@@ -2262,43 +2093,31 @@
   inset: 0;
 }
 
-// Measure-before-show (CONTEXT.md lesson): the picture and everything placed
-// from its natural size stay invisible until that size is known, so nothing
-// can flash a guessed layout first. Still laid out, so the first paint after
-// decoding is already correct.
-//
-// P5 review C6: the rule is scoped to the FRAME, not to the whole surface. It
-// used to hide the entire editor, and `data-ready` never becomes true when the
-// picture fails to decode — so the failure message, the one thing on screen
-// with something to say, was hidden precisely when it was needed. The loading
-// and failure texts are siblings of the frame and therefore always visible.
-.infinite-canvas-mask[data-ready='false'] .infinite-canvas-mask__frame,
-.infinite-canvas-crop[data-ready='false'] .infinite-canvas-crop__frame,
-.infinite-canvas-expand[data-ready='false'] .infinite-canvas-expand__stage {
-  visibility: hidden;
+// The full-screen viewer sits below the editors: it is a projection, and an
+// editor opened from it must paint over it.
+.infinite-canvas-stage[data-canvas-stage='viewer'] {
+  z-index: 20;
 }
 
-// Same plate as §5.1: a genuinely blurred board tinted with the canvas's OWN
-// background token, so it is dark under the dark theme and light under the
-// light one. Never a hard-coded black scrim.
+// A genuinely blurred board tinted with the canvas's OWN background token, so
+// it is dark under the dark theme and light under the light one. Never a
+// hard-coded black scrim.
 .infinite-canvas-editor__backdrop {
   position: absolute;
   z-index: 0;
   inset: 0;
-  background: color-mix(in srgb, var(--infinite-canvas-bg) 72%, transparent);
+  background: color-mix(in srgb, var(--infinite-canvas-bg) 68%, transparent);
   backdrop-filter: blur(18px) saturate(120%);
 }
 
-// The pill, the picture and (on the mask lane) the shared generator, stacked
+// The pill, the media and (where there is one) the shared generator, stacked
 // and centred. Each shrink-wraps, so everything around them is backdrop —
-// which is what makes "press outside to leave" mean the same thing here as it
-// does in the viewer.
+// which is what makes "press outside to leave" mean one thing everywhere.
 //
-// Order is document order: pill ABOVE the picture (owner's reference shots),
-// input below it. They sit in ordinary flow rather than being pinned with a
-// measured offset — the picture is capped well short of the panel, so the
-// stack always fits, and no measurement enters the render path (P4's
-// coordinate lesson).
+// Order is document order: pill ABOVE the media, input below it. They sit in
+// ordinary flow rather than being pinned with a measured offset — the media is
+// capped well short of the panel, so the stack always fits, and no measurement
+// enters the render path (P4's coordinate lesson).
 .infinite-canvas-editor__float {
   position: relative;
   z-index: 1;
@@ -2310,41 +2129,40 @@
   gap: 10px;
 }
 
-// Shrink-wraps the picture: the mark layer and the crop frame are placed in
-// percentages of THIS box, so no measurement enters the render path and pan,
-// zoom or a window resize can never desynchronise them from the image.
-.infinite-canvas-mask__frame,
-.infinite-canvas-crop__frame {
-  position: relative;
-  display: inline-flex;
+// Shrink-wraps the media. This is the surface: a press anywhere else is a
+// press on the blurred board, and the shared dismiss contract closes on it.
+.infinite-canvas-stage__media {
+  display: flex;
   max-width: 100%;
   min-height: 0;
   flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
 }
 
-.infinite-canvas-mask__image,
-.infinite-canvas-crop__image {
-  // Sized against the window, exactly like §5.1: the frame shrink-wraps the
-  // picture, so a percentage here would chase its own tail. The cap leaves
-  // room for the pill underneath.
-  max-width: 84vw;
-  max-height: 64vh;
-  border-radius: 8px;
-  box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
-  object-fit: contain;
-  user-select: none;
+// Measure-before-show (CONTEXT.md lesson): anything placed from the picture's
+// natural size stays invisible until that size is known, so nothing can flash
+// a guessed layout first. Still laid out, so the first paint after decoding is
+// already correct.
+//
+// The gate covers the MEDIA only. `data-ready` never becomes true when a
+// picture fails to decode, and hiding the whole surface then hid the pill and
+// the failure message — the two things on screen that still had something to
+// say — leaving no visible way out.
+.infinite-canvas-stage[data-ready='false'] .infinite-canvas-stage__media {
+  visibility: hidden;
 }
 
-// The mask lane also carries the input box under the picture, so it gets less
-// of the height than crop does.
-.infinite-canvas-mask__image {
-  max-height: 52vh;
+// The viewer's step arrows place themselves against the whole surface; this
+// wrapper exists only so the dismiss contract can call them "not backdrop".
+.infinite-canvas-stage__extras {
+  display: contents;
 }
 
 // ── The one floating pill ──────────────────────────────────────────────────
 // Same vocabulary as §4's card toolbar: translucent overlay plate, full
 // radius, icon-first, hairline dividers between groups, brighter on hover.
-// Exactly one filled control per surface — the confirm.
+// The leftmost item is always the `×` (§7.4); at most one filled control.
 
 .infinite-canvas-editor__dock {
   display: flex;
@@ -2356,7 +2174,7 @@
 
 .infinite-canvas-editor__pill {
   display: flex;
-  max-width: 100%;
+  max-width: 92vw;
   align-items: center;
   gap: 2px;
   padding: 5px 8px;
@@ -2374,7 +2192,7 @@
   background: var(--canvas-hairline);
 }
 
-// Secondary is the default here, for every control including "back".
+// Secondary is the default here, for every control including the `×`.
 .infinite-canvas-editor__pill button {
   display: inline-flex;
   min-width: 28px;
@@ -2435,39 +2253,6 @@
   color: var(--infinite-canvas-accent);
 }
 
-.infinite-canvas-mask__size {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 4px;
-
-  input[type='range'] {
-    width: 84px;
-    accent-color: var(--canvas-accent);
-  }
-}
-
-.infinite-canvas-mask__layer {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 6px;
-  cursor: crosshair;
-  inset: 0;
-  touch-action: none;
-}
-
-.infinite-canvas-mask__placeholder,
-.infinite-canvas-crop__placeholder,
-.infinite-canvas-expand__placeholder {
-  position: absolute;
-  z-index: 1;
-  max-width: 60%;
-  margin: 0;
-  color: var(--infinite-canvas-muted);
-  font-size: 12px;
-  text-align: center;
-}
-
 // One very short grey line, next to the pill or under the input — the only
 // prose these surfaces are allowed. Muted in both themes; the tokens carry the
 // light/dark switch.
@@ -2494,10 +2279,23 @@
   text-align: left;
 }
 
-// ── The shared generator, standing in an editor ─────────────────────────────
-// Owner feedback 2026-08-27: "所有的都是共用输入框的 设计风格一致". Same
-// component, same plate, same pills, same round send button — it just stops
-// being anchored to a card and stands in the editor's own stack.
+// A loading or failure line. A sibling of the media, never inside it, so the
+// measure-before-show gate cannot hide it.
+.infinite-canvas-stage__placeholder,
+.infinite-canvas-mask__placeholder,
+.infinite-canvas-frame__placeholder {
+  position: absolute;
+  z-index: 1;
+  max-width: 60%;
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+// ── The shared generator, standing in a stage ───────────────────────────────
+// Same component, same plate, same pills, same round send button — it just
+// stops being anchored to a card and stands in the stage's own stack.
 .infinite-canvas-editor__input {
   display: flex;
   max-width: 100%;
@@ -2515,89 +2313,178 @@
   top: auto;
 }
 
-.infinite-canvas-crop__size,
-.infinite-canvas-expand__ratio {
-  padding: 0 8px;
+// ── Scene: the full-screen viewer ──────────────────────────────────────────
+// Its pill carries the file name, the counter, the zoom read-out and "save a
+// copy". No top bar any more: §7.4 folded that chrome into the shared pill.
+
+.infinite-canvas-viewer__name {
+  overflow: hidden;
+  max-width: 26vw;
+  padding: 0 6px;
+  color: var(--canvas-text-primary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.infinite-canvas-viewer__counter {
+  padding: 0 4px;
   color: var(--canvas-text-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
-.infinite-canvas-crop__rect {
-  position: absolute;
-  box-sizing: border-box;
-  border: 1px solid var(--canvas-select-ring);
-  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--infinite-canvas-bg) 55%, transparent);
-  cursor: move;
+.infinite-canvas-editor__pill .infinite-canvas-viewer__button {
+  gap: 4px;
+  padding: 0 8px;
 }
 
-// Rule-of-thirds guides, drawn as two crossing gradients so the frame needs no
-// extra elements to hit-test around.
-.infinite-canvas-crop__thirds {
+.infinite-canvas-editor__pill .infinite-canvas-viewer__button--zoom {
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+}
+
+.infinite-canvas-viewer__step {
   position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--canvas-hairline);
+  border-radius: 50%;
+  background: var(--canvas-surface-overlay);
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+
+  &:hover {
+    color: var(--canvas-text-primary);
+  }
+}
+
+.infinite-canvas-viewer__step--prev {
+  left: 12px;
+}
+
+.infinite-canvas-viewer__step--next {
+  right: 12px;
+}
+
+// Wraps the media only — it must shrink to the picture, because everything
+// outside it counts as backdrop and closes the viewer when pressed.
+.infinite-canvas-viewer__frame {
+  display: flex;
+  max-width: 100%;
+  max-height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.infinite-canvas-viewer__image,
+.infinite-canvas-viewer__video {
+  // Sized against the window rather than the frame: the frame shrinks to the
+  // picture, so a percentage here would chase its own tail. The cap leaves
+  // room for the pill above.
+  max-width: 84vw;
+  max-height: 72vh;
+  border-radius: 8px;
+  box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
+  object-fit: contain;
+}
+
+.infinite-canvas-viewer__image {
+  transform-origin: center center;
+  user-select: none;
+}
+
+.infinite-canvas-viewer__placeholder {
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 12px;
+}
+
+// ── Scene: the mask brush ──────────────────────────────────────────────────
+// The red of the marks is a functional constant living in
+// infiniteCanvasImageRaster.ts, painted onto a canvas, not styled here.
+
+// Shrink-wraps the picture: the mark layer is placed in percentages of THIS
+// box, so no measurement enters the render path and pan, zoom or a window
+// resize can never desynchronise it from the image.
+.infinite-canvas-mask__frame {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 0;
+  flex: 0 1 auto;
+}
+
+.infinite-canvas-mask__image {
+  // Sized against the window: the frame shrink-wraps the picture, so a
+  // percentage here would chase its own tail. The cap leaves room for the pill
+  // above and the input below.
+  max-width: 84vw;
+  max-height: 52vh;
+  border-radius: 8px;
+  box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
+  object-fit: contain;
+  user-select: none;
+}
+
+.infinite-canvas-mask__size {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+
+  input[type='range'] {
+    width: 84px;
+    accent-color: var(--canvas-accent);
+  }
+}
+
+.infinite-canvas-mask__layer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  cursor: crosshair;
   inset: 0;
-  background:
-    linear-gradient(to right, transparent 33.33%, var(--infinite-canvas-hairline) 33.33%, var(--infinite-canvas-hairline) calc(33.33% + 1px), transparent calc(33.33% + 1px), transparent 66.66%, var(--infinite-canvas-hairline) 66.66%, var(--infinite-canvas-hairline) calc(66.66% + 1px), transparent calc(66.66% + 1px)),
-    linear-gradient(to bottom, transparent 33.33%, var(--infinite-canvas-hairline) 33.33%, var(--infinite-canvas-hairline) calc(33.33% + 1px), transparent calc(33.33% + 1px), transparent 66.66%, var(--infinite-canvas-hairline) 66.66%, var(--infinite-canvas-hairline) calc(66.66% + 1px), transparent calc(66.66% + 1px));
-  pointer-events: none;
+  touch-action: none;
 }
 
-.infinite-canvas-crop__handle {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border: 1px solid var(--canvas-select-ring);
-  border-radius: 2px;
-  background: var(--infinite-canvas-surface);
+// ── Scene: the frame editor, both directions (§7.4.1) ──────────────────────
+// One stage, one box, one set of grips. The STAGE is whichever of picture and
+// frame is larger: the picture itself when cropping, the target canvas when
+// expanding. It is sized from its OWN aspect ratio against viewport caps —
+// never from a measurement — so the picture on it and the box over it are pure
+// percentages and can never drift out of step (P4's coordinate lesson).
 
-  &[data-crop-handle='nw'] {
-    top: -5px;
-    left: -5px;
-    cursor: nwse-resize;
-  }
-
-  &[data-crop-handle='ne'] {
-    top: -5px;
-    right: -5px;
-    cursor: nesw-resize;
-  }
-
-  &[data-crop-handle='sw'] {
-    bottom: -5px;
-    left: -5px;
-    cursor: nesw-resize;
-  }
-
-  &[data-crop-handle='se'] {
-    right: -5px;
-    bottom: -5px;
-    cursor: nwse-resize;
-  }
-}
-
-// ── P6: the expand (outpainting) stage ──────────────────────────────────────
-// The stage IS the target canvas. It is sized from its OWN aspect ratio against
-// the viewport caps — never from a measurement — so the picture inside it and
-// the eight grips on its edges can be placed in pure percentages and can never
-// drift out of step with the image (P4's coordinate lesson).
-
-.infinite-canvas-expand__stage {
-  --expand-max-width: 84vw;
-  --expand-max-height: 52vh;
+.infinite-canvas-frame__stage {
+  --frame-max-width: 84vw;
+  // Cropping has no input box under it, so it may take more of the height.
+  --frame-max-height: 64vh;
 
   position: relative;
-  width: min(var(--expand-max-width), calc(var(--expand-max-height) * var(--expand-ratio)));
-  max-width: var(--expand-max-width);
+  width: min(var(--frame-max-width), calc(var(--frame-max-height) * var(--frame-ratio)));
+  max-width: var(--frame-max-width);
   flex: 0 0 auto;
-  aspect-ratio: var(--expand-ratio);
-  // The room being asked for reads as "not picture yet": the canvas tint at low
-  // opacity plus one hairline, in both themes via the tokens.
-  border: 1px solid var(--canvas-hairline);
+  aspect-ratio: var(--frame-ratio);
   border-radius: 8px;
+}
+
+.infinite-canvas-frame[data-canvas-frame-direction='outward'] .infinite-canvas-frame__stage {
+  --frame-max-height: 52vh;
+
+  // Expanding: the stage is the room being asked for, and it has to read as
+  // "not picture yet" — the canvas tint at low opacity plus one hairline, in
+  // both themes via the tokens.
+  border: 1px solid var(--canvas-hairline);
   background: color-mix(in srgb, var(--infinite-canvas-bg) 55%, transparent);
 }
 
-.infinite-canvas-expand__image {
+.infinite-canvas-frame__image {
   position: absolute;
   border-radius: 4px;
   box-shadow: 0 18px 48px var(--canvas-shadow-heavy);
@@ -2606,26 +2493,57 @@
   user-select: none;
 }
 
+.infinite-canvas-frame__box {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+// Cropping: what falls outside the box is dimmed, and the box can be panned.
+.infinite-canvas-frame[data-canvas-frame-direction='inward'] .infinite-canvas-frame__box {
+  border: 1px solid var(--canvas-select-ring);
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--infinite-canvas-bg) 55%, transparent);
+  cursor: move;
+}
+
+// Rule-of-thirds guides, drawn as two crossing gradients so the box needs no
+// extra elements to hit-test around.
+.infinite-canvas-frame__thirds {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, transparent 33.33%, var(--infinite-canvas-hairline) 33.33%, var(--infinite-canvas-hairline) calc(33.33% + 1px), transparent calc(33.33% + 1px), transparent 66.66%, var(--infinite-canvas-hairline) 66.66%, var(--infinite-canvas-hairline) calc(66.66% + 1px), transparent calc(66.66% + 1px)),
+    linear-gradient(to bottom, transparent 33.33%, var(--infinite-canvas-hairline) 33.33%, var(--infinite-canvas-hairline) calc(33.33% + 1px), transparent calc(33.33% + 1px), transparent 66.66%, var(--infinite-canvas-hairline) 66.66%, var(--infinite-canvas-hairline) calc(66.66% + 1px), transparent calc(66.66% + 1px));
+  pointer-events: none;
+}
+
 // Short white angle marks at the four corners and the four edge midpoints —
 // the owner's reference shot, and deliberately NOT a solid rectangle drawn over
 // the work. White is functional here in the same sense the mask red is: it has
 // to read against an arbitrary photograph, so it does not follow the theme; the
-// plate it sits on does.
-.infinite-canvas-expand__handle {
+// plate it sits on does. Both directions get the same eight grips.
+.infinite-canvas-frame__handle {
   position: absolute;
   box-sizing: border-box;
+  padding: 0;
   border: 0 solid #fff;
+  background: transparent;
+  cursor: pointer;
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 45%));
 
-  &[data-expand-handle='nw'],
-  &[data-expand-handle='ne'],
-  &[data-expand-handle='sw'],
-  &[data-expand-handle='se'] {
+  &:focus-visible {
+    outline: 1px solid var(--canvas-accent);
+    outline-offset: 2px;
+  }
+
+  &[data-canvas-frame-handle='nw'],
+  &[data-canvas-frame-handle='ne'],
+  &[data-canvas-frame-handle='sw'],
+  &[data-canvas-frame-handle='se'] {
     width: 18px;
     height: 18px;
   }
 
-  &[data-expand-handle='nw'] {
+  &[data-canvas-frame-handle='nw'] {
     top: -2px;
     left: -2px;
     border-top-width: 3px;
@@ -2634,7 +2552,7 @@
     cursor: nwse-resize;
   }
 
-  &[data-expand-handle='ne'] {
+  &[data-canvas-frame-handle='ne'] {
     top: -2px;
     right: -2px;
     border-top-width: 3px;
@@ -2643,7 +2561,7 @@
     cursor: nesw-resize;
   }
 
-  &[data-expand-handle='sw'] {
+  &[data-canvas-frame-handle='sw'] {
     bottom: -2px;
     left: -2px;
     border-bottom-width: 3px;
@@ -2652,7 +2570,7 @@
     cursor: nesw-resize;
   }
 
-  &[data-expand-handle='se'] {
+  &[data-canvas-frame-handle='se'] {
     right: -2px;
     bottom: -2px;
     border-bottom-width: 3px;
@@ -2662,8 +2580,8 @@
   }
 
   // Edge midpoints: one short bar each, centred on its side.
-  &[data-expand-handle='n'],
-  &[data-expand-handle='s'] {
+  &[data-canvas-frame-handle='n'],
+  &[data-canvas-frame-handle='s'] {
     left: 50%;
     width: 28px;
     height: 3px;
@@ -2673,8 +2591,8 @@
     cursor: ns-resize;
   }
 
-  &[data-expand-handle='e'],
-  &[data-expand-handle='w'] {
+  &[data-canvas-frame-handle='e'],
+  &[data-canvas-frame-handle='w'] {
     top: 50%;
     width: 3px;
     height: 28px;
@@ -2684,26 +2602,33 @@
     cursor: ew-resize;
   }
 
-  &[data-expand-handle='n'] {
+  &[data-canvas-frame-handle='n'] {
     top: -2px;
   }
 
-  &[data-expand-handle='s'] {
+  &[data-canvas-frame-handle='s'] {
     bottom: -2px;
   }
 
-  &[data-expand-handle='w'] {
+  &[data-canvas-frame-handle='w'] {
     left: -2px;
   }
 
-  &[data-expand-handle='e'] {
+  &[data-canvas-frame-handle='e'] {
     right: -2px;
   }
 }
 
 // The pill's read-out and its one line of instruction. Both are grey text, not
-// controls: there is no aspect-ratio preset on this surface to offer.
-.infinite-canvas-expand__hint {
+// controls: neither direction offers a preset, so the pill only reports.
+.infinite-canvas-frame__readout {
+  padding: 0 8px;
+  color: var(--canvas-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.infinite-canvas-frame__hint {
   padding: 0 8px;
   color: var(--canvas-text-muted);
   font-size: 11px;

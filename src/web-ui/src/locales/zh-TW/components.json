@@ -1167,6 +1167,9 @@
       "label": "縮放控件",
       "out": "縮小"
     },
+    "frame": {
+      "handle": "拖曳或使用方向鍵調整框"
+    },
     "crop": {
       "button": "裁切",
       "title": "裁切這張圖",
@@ -1174,10 +1177,6 @@
       "confirm": "裁成一張新卡",
       "unavailable": "這張圖無法開啟進行裁切。",
       "writeFailed": "裁切結果沒能儲存，畫布未做任何變更。",
-      "discardTitle": "放棄這次裁切？",
-      "discardBody": "你拉的框會遺失。無論如何，原圖都不會被更動。",
-      "discardConfirm": "放棄",
-      "discardCancel": "繼續編輯",
       "back": "返回",
       "loading": "正在開啟圖片…",
       "export": {
@@ -1205,10 +1204,6 @@
       "confirm": "標註並生成",
       "unavailable": "這張圖無法開啟進行標註。",
       "writeFailed": "標註後的圖沒能儲存，因此沒有發起生成，也沒有產生任何花費。",
-      "discardTitle": "放棄這些塗抹？",
-      "discardBody": "你塗的內容會遺失。無論如何，原圖都不會被更動。",
-      "discardConfirm": "放棄",
-      "discardCancel": "繼續編輯",
       "back": "返回",
       "directive": {
         "inpaint": "只修改這張圖中被半透明紅色標記覆蓋的區域，其餘像素必須與原圖完全一致。結果中不要出現紅色標記本身。",
@@ -1247,11 +1242,7 @@
       },
       "writeFailed": "擴展後的圖沒能儲存，沒有產生任何內容，也沒有消耗額度。",
       "writeTooLarge": "擴展後的圖太大，無法儲存。把外框往回收一些再試。沒有產生任何內容，也沒有消耗額度。",
-      "writeDenied": "擴展後的圖無法儲存到該位置。沒有產生任何內容，也沒有消耗額度。",
-      "discardTitle": "放棄這個外框？",
-      "discardBody": "你拖出的外框會遺失。無論如何，原圖都不會被更動。",
-      "discardConfirm": "放棄",
-      "discardCancel": "繼續編輯"
+      "writeDenied": "擴展後的圖無法儲存到該位置。沒有產生任何內容，也沒有消耗額度。"
     }
   },
   "agentStudio": {

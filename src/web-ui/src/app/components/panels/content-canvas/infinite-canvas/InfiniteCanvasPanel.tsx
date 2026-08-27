@@ -184,14 +184,13 @@ import { InfiniteCanvasTaskQueuePanel } from './InfiniteCanvasTaskQueuePanel';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
-import { InfiniteCanvasCropEditor } from './InfiniteCanvasCropEditor';
+import { InfiniteCanvasFrameEditor } from './InfiniteCanvasFrameEditor';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
 import {
   InfiniteCanvasOverflowMenu,
   type InfiniteCanvasOverflowAction,
 } from './InfiniteCanvasOverflowMenu';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
-import { InfiniteCanvasExpandEditor } from './InfiniteCanvasExpandEditor';
 import {
   canvasCropRelativePath,
   canvasScratchRelativePath,
@@ -3318,7 +3317,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         collapsed, because the frame is the request (§6.4).
       */}
       {expandRequest && expandGeneratorProps ? (
-        <InfiniteCanvasExpandEditor
+        <InfiniteCanvasFrameEditor
+          direction="outward"
           mediaRef={expandRequest.mediaRef}
           resolvePreviewUrl={resolvePreviewUrl}
           generator={{
@@ -3335,7 +3335,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         />
       ) : null}
       {cropRequest ? (
-        <InfiniteCanvasCropEditor
+        <InfiniteCanvasFrameEditor
+          direction="inward"
           mediaRef={cropRequest.mediaRef}
           resolvePreviewUrl={resolvePreviewUrl}
           onConfirm={payload => {

@@ -309,7 +309,7 @@ describe('InfiniteCanvasMaskEditor', () => {
    * which greyed out confirm, disabled clearing, and let Escape throw the
    * painting away without asking.
    */
-  it('keeps confirm, clear and the discard prompt alive after paint → clear → undo', async () => {
+  it('keeps confirm and clear alive after paint → clear → undo', async () => {
     await renderEditor('erase');
     paintStroke();
     act(() => {
@@ -334,14 +334,14 @@ describe('InfiniteCanvasMaskEditor', () => {
     expect(confirmButton().disabled).toBe(false);
     expect(clearButton().disabled).toBe(false);
 
-    // …and Escape asks before throwing the restored painting away.
+    // …and §7.4.2: Escape still leaves at once, marks or no marks.
     act(() => {
       dom.window.document.dispatchEvent(
         new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
       );
     });
-    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeTruthy();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
   });
 
   /**
@@ -547,7 +547,7 @@ describe('InfiniteCanvasMaskEditor', () => {
       .toBe(true);
   });
 
-  it('closes straight away on Escape when nothing was painted', async () => {
+  it('closes straight away on Escape', async () => {
     await renderEditor();
 
     act(() => {
@@ -560,62 +560,55 @@ describe('InfiniteCanvasMaskEditor', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
-  });
-
-  it('asks before throwing painted marks away', async () => {
-    await renderEditor();
-    paintStroke();
-
-    act(() => {
-      dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
-        key: 'Escape',
-        bubbles: true,
-        cancelable: true,
-      }));
-    });
-
-    expect(onClose).not.toHaveBeenCalled();
-    const confirmDialog = container.querySelector('[data-canvas-confirm="mask-discard"]');
-    expect(confirmDialog).not.toBeNull();
-
-    act(() => {
-      Simulate.click(confirmDialog!.querySelector('[data-canvas-confirm-action="confirm"]')!);
-    });
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   /**
-   * Owner feedback 2026-08-27 (second pass): the exit is the `×` at the left
-   * end of the floating pill. It is the same `requestClose` path as Escape —
-   * out at once when nothing was painted, discard question otherwise.
+   * §7.4.2 (owner 2026-08-28): "closing must not ask". This REPLACES the
+   * previous round's discard confirmation. The marks are a draft — the
+   * original picture and the document were never touched — so Escape leaves
+   * immediately even with a painted layer, and no confirmation is mounted.
    */
-  it('leaves through the pill × when nothing was painted', async () => {
-    await renderEditor();
-
-    act(() => {
-      Simulate.click(container.querySelector('[data-mask-action="back"]')!);
-    });
-
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
-  });
-
-  it('asks before the pill × throws painted marks away', async () => {
+  it('leaves painted marks without asking on Escape', async () => {
     await renderEditor();
     paintStroke();
 
     act(() => {
-      Simulate.click(container.querySelector('[data-mask-action="back"]')!);
+      dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true,
+      }));
     });
 
-    expect(onClose).not.toHaveBeenCalled();
-    const confirmDialog = container.querySelector('[data-canvas-confirm="mask-discard"]');
-    expect(confirmDialog).not.toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm]')).toBeNull();
+  });
+
+  /**
+   * §7.4: the exit is the `×` at the left end of the shared pill, and it is
+   * the same one every other assembly of the shell carries.
+   */
+  it('leaves through the shared pill × when nothing was painted', async () => {
+    await renderEditor();
 
     act(() => {
-      Simulate.click(confirmDialog!.querySelector('[data-canvas-confirm-action="confirm"]')!);
+      Simulate.click(container.querySelector('[data-canvas-stage-action="close"]')!);
     });
+
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm]')).toBeNull();
+  });
+
+  it('leaves painted marks without asking through the pill ×', async () => {
+    await renderEditor();
+    paintStroke();
+
+    act(() => {
+      Simulate.click(container.querySelector('[data-canvas-stage-action="close"]')!);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm]')).toBeNull();
   });
 
   it('offers an adjustable brush that starts at the reference default', async () => {
@@ -635,11 +628,10 @@ describe('InfiniteCanvasMaskEditor', () => {
   });
 
   /**
-   * Owner feedback 2026-08-27 (second pass): the picture FLOATS over §5.1's
-   * blurred plate, so pressing the plate leaves the same way §5.1 does — but
-   * it may never drop painted marks silently.
+   * The picture FLOATS over the shared blurred plate, so pressing the plate
+   * leaves — immediately, marks or no marks (§7.4.2).
    */
-  it('asks before a press on the blurred board throws marks away', async () => {
+  it('leaves on a press on the blurred board without asking', async () => {
     await renderEditor();
     paintStroke();
 
@@ -649,8 +641,8 @@ describe('InfiniteCanvasMaskEditor', () => {
       );
     });
 
-    expect(onClose).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeTruthy();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm]')).toBeNull();
   });
 
   it('does not leave when the press lands on the picture itself', async () => {
@@ -661,7 +653,7 @@ describe('InfiniteCanvasMaskEditor', () => {
     });
 
     expect(onClose).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
+    expect(container.querySelector('[data-canvas-confirm]')).toBeNull();
   });
 
   /**

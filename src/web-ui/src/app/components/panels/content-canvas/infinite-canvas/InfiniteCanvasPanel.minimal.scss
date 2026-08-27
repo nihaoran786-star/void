@@ -26,27 +26,20 @@
     font-size: var(--workspace-font-size-label);
   }
 
-  // P4 W1 viewer: the overlay lives inside .infinite-canvas-panel, so it
-  // inherits the remapped local vars; only spacing and type need the
-  // workspace scale here.
-  .void-ui--minimal .infinite-canvas-viewer__chrome {
-    padding: var(--workspace-space-1) var(--workspace-space-3);
-  }
-
-  .void-ui--minimal .infinite-canvas-viewer__button {
-    font-size: var(--workspace-font-size-label);
-  }
-
-  // P5 editing states: same story as the viewer — they live inside
-  // .infinite-canvas-panel and inherit the colour set, so only the workspace
-  // spacing and type scale are adopted here. No colour is remapped.
+  // §7.4's one floating stage (viewer, mask, crop, expand). It lives inside
+  // .infinite-canvas-panel and inherits the colour set, so only the workspace
+  // spacing and type scale are adopted here. No colour is remapped, and there
+  // is one rule for all four scenes because there is one shell.
   .void-ui--minimal .infinite-canvas-editor__pill {
     padding: var(--workspace-space-1) var(--workspace-space-2);
   }
 
   .void-ui--minimal .infinite-canvas-editor__pill button,
   .void-ui--minimal .infinite-canvas-editor__note,
-  .void-ui--minimal .infinite-canvas-crop__size {
+  .void-ui--minimal .infinite-canvas-viewer__name,
+  .void-ui--minimal .infinite-canvas-viewer__counter,
+  .void-ui--minimal .infinite-canvas-frame__readout,
+  .void-ui--minimal .infinite-canvas-frame__hint {
     font-size: var(--workspace-font-size-label);
   }
 }

@@ -1167,6 +1167,9 @@
       "label": "Zoom controls",
       "out": "Zoom out"
     },
+    "frame": {
+      "handle": "Drag or use the arrow keys to resize the frame"
+    },
     "crop": {
       "button": "Crop",
       "title": "Crop this picture",
@@ -1174,10 +1177,6 @@
       "confirm": "Crop into a new card",
       "unavailable": "This picture could not be opened for cropping.",
       "writeFailed": "The cropped file could not be saved. Nothing was changed.",
-      "discardTitle": "Discard this crop?",
-      "discardBody": "The frame you drew will be lost. The original picture is untouched either way.",
-      "discardConfirm": "Discard",
-      "discardCancel": "Keep editing",
       "back": "Back",
       "loading": "Opening the picture…",
       "export": {
@@ -1205,10 +1204,6 @@
       "confirm": "Mark and generate",
       "unavailable": "This picture could not be opened for marking.",
       "writeFailed": "The marked picture could not be saved, so nothing was generated and nothing was charged.",
-      "discardTitle": "Discard these marks?",
-      "discardBody": "What you painted will be lost. The original picture is untouched either way.",
-      "discardConfirm": "Discard",
-      "discardCancel": "Keep editing",
       "back": "Back",
       "directive": {
         "inpaint": "Change only the area covered by the semi-transparent red marking in this image. Every other pixel must stay exactly as in the original. Do not reproduce the red marking itself in the result.",
@@ -1247,11 +1242,7 @@
       },
       "writeFailed": "The expanded picture could not be saved, so nothing was generated and nothing was charged.",
       "writeTooLarge": "The expanded picture is too large to save. Drag the frame back in, then try again. Nothing was generated and nothing was charged.",
-      "writeDenied": "The expanded picture could not be saved to that location. Nothing was generated and nothing was charged.",
-      "discardTitle": "Discard this frame?",
-      "discardBody": "The frame you dragged will be lost. The original picture is untouched either way.",
-      "discardConfirm": "Discard",
-      "discardCancel": "Keep editing"
+      "writeDenied": "The expanded picture could not be saved to that location. Nothing was generated and nothing was charged."
     }
   },
   "agentStudio": {

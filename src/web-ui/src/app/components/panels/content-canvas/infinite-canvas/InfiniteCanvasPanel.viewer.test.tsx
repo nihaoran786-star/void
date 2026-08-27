@@ -254,14 +254,31 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
     expect(viewer()).toBeNull();
   });
 
-  // Owner feedback 2026-08-26: the blurred plate is the way out. There is no
-  // close button, pressing the media does not close, and Escape still does.
+  // §7.4: the blurred plate is a way out, pressing the media is not, and
+  // Escape still is. The plate belongs to the shared shell now, so it is
+  // named with the shell's own attribute rather than a viewer-only one.
   it('closes when the blurred backdrop is pressed', async () => {
     seed([IMAGE_NODE]);
     await renderPanel();
     await openViewer('n-image');
 
-    await pressOn(action('backdrop'));
+    const backdrop = container.querySelector('[data-canvas-stage-action="backdrop"]');
+    expect(backdrop).not.toBeNull();
+    await pressOn(backdrop!);
+    expect(viewer()).toBeNull();
+  });
+
+  // §7.4 (owner 2026-08-28): the pill's leftmost item is the × on EVERY
+  // assembly of the shell, the viewer included. It is the same exit Escape and
+  // the blurred plate take.
+  it('closes from the shared pill ×', async () => {
+    seed([IMAGE_NODE]);
+    await renderPanel();
+    await openViewer('n-image');
+
+    await act(async () => {
+      Simulate.click(container.querySelector('[data-canvas-stage-action="close"]')!);
+    });
     expect(viewer()).toBeNull();
   });
 

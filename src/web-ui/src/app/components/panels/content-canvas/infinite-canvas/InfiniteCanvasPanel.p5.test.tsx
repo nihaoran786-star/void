@@ -287,7 +287,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
 
     expect(container.querySelector('[data-canvas-editor="crop"]')).not.toBeNull();
     await act(async () => {
-      Simulate.click(container.querySelector('[data-crop-action="confirm"]')!);
+      Simulate.click(container.querySelector('[data-canvas-frame-action="confirm"]')!);
     });
     await act(async () => { await Promise.resolve(); });
 
@@ -330,7 +330,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     await renderPanel();
     await openEditor('[data-node-action="crop"]');
     await act(async () => {
-      Simulate.click(container.querySelector('[data-crop-action="confirm"]')!);
+      Simulate.click(container.querySelector('[data-canvas-frame-action="confirm"]')!);
     });
     await act(async () => { await Promise.resolve(); });
 
@@ -359,7 +359,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
       await renderPanel();
       await openEditor('[data-node-action="crop"]');
       await act(async () => {
-        Simulate.click(container.querySelector('[data-crop-action="confirm"]')!);
+        Simulate.click(container.querySelector('[data-canvas-frame-action="confirm"]')!);
       });
       await act(async () => { await Promise.resolve(); });
 
@@ -403,7 +403,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     });
 
     await act(async () => {
-      Simulate.click(container.querySelector('[data-crop-action="confirm"]')!);
+      Simulate.click(container.querySelector('[data-canvas-frame-action="confirm"]')!);
     });
     await act(async () => { await Promise.resolve(); });
     await service.flushPendingWrites();
@@ -463,7 +463,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
   async function runExpandFlow(dx = 200, dy = 0) {
     await openEditor('[data-node-action="more"]');
     await openEditor('[data-tool-id="expand"]');
-    const grip = container.querySelector('[data-expand-handle="e"]')!;
+    const grip = container.querySelector('[data-canvas-frame-handle="e"]')!;
     act(() => {
       Simulate.mouseDown(grip, { clientX: 0, clientY: 0 } as never);
     });
@@ -471,7 +471,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
       // getBoundingClientRect is all zeros under JSDOM, so client pixels map
       // 1:1 onto natural ones.
       Simulate.mouseMove(
-        container.querySelector('[data-expand-stage="true"]')!,
+        container.querySelector('[data-canvas-frame-stage="true"]')!,
         { clientX: dx, clientY: dy } as never,
       );
     });
