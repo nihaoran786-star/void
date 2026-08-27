@@ -298,7 +298,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     expect(nodes[0].generation).toMatchObject({ status: 'pending', resultMode: 'self' });
   });
 
-  it('acts on the selected card: one that already holds media derives a new card', async () => {
+  it('acts on the selected card: one that already holds media regenerates in place', async () => {
     seed(memory, {
       nodes: [imageNode('card-src', { mediaRef: mediaRefOf('hero.png'), prompt: 'moodier' })],
     });
@@ -308,15 +308,16 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
-      resultMode: 'derived',
-      sourceNodeId: 'card-src',
+      resultMode: 'self',
+      nodeId: 'card-src',
       prompt: 'moodier',
     });
     await service.flushPendingWrites();
-    // The source card is untouched; the placeholder is a new card.
+    // §7.6: the result will pile up on this card, so no second card appears
+    // and the picture already on it is left exactly as it was.
     const source = readDocument(memory).nodes.find(node => node.nodeId === 'card-src');
     expect(source?.mediaRef).toEqual(mediaRefOf('hero.png'));
-    expect(readDocument(memory).nodes).toHaveLength(2);
+    expect(readDocument(memory).nodes).toHaveLength(1);
   });
 
   it('mirrors the selected card\'s reference edges into the thumbnail queue', async () => {

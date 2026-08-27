@@ -1,7 +1,17 @@
 /**
- * P4 W4: the pure batch-landing rules shared by the live media bridge and the
- * residual pending reconciliation — deterministic ids, item 1 into the anchor
- * card, items 2..N into derived cards, never-overwrite, replay idempotency.
+ * The pure batch-landing rules shared by the live media bridge and the
+ * residual pending reconciliation.
+ *
+ * §7.6 (owner 2026-08-28) split them in two, and both halves are guarded here:
+ *
+ * - a plain generation ACCUMULATES its whole batch onto the card it was fired
+ *   from — one card, an ordered picture list, no sibling cards;
+ * - the five tools and crop keep P4's derivation — item 1 into the derived
+ *   placeholder, items 2..N into deterministic sibling cards — because
+ *   turning a picture into a different picture is lineage.
+ *
+ * Never-overwrite, replay idempotency and "partial now, the rest later" are
+ * asserted on both halves.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -27,6 +37,7 @@ function documentWith(nodes: InfiniteCanvasNode[]): InfiniteCanvasDocument {
   };
 }
 
+/** A card waiting on a plain generation — §7.6's accumulating shape. */
 function anchorCard(overrides: Partial<InfiniteCanvasNode> = {}): InfiniteCanvasNode {
   return {
     nodeId: 'card-anchor',
@@ -45,6 +56,29 @@ function anchorCard(overrides: Partial<InfiniteCanvasNode> = {}): InfiniteCanvas
   };
 }
 
+/**
+ * The derived placeholder one of the five tools created at dispatch — the
+ * shape §7.6 deliberately leaves on P4's derivation rule.
+ */
+function toolPlaceholder(overrides: Partial<InfiniteCanvasNode> = {}): InfiniteCanvasNode {
+  return {
+    nodeId: 'card-anchor',
+    kind: 'image',
+    position: { x: 100, y: 40 },
+    size: { width: 240, height: 240 },
+    prompt: 'remove the sign',
+    generationParams: { model: 'gemini-3-pro-image-preview', n: 3 },
+    derivedFrom: { sourceNodeId: 'card-source', toolId: 'inpaint', operationId: 'op-1' },
+    generation: {
+      operationId: 'op-1',
+      toolId: 'inpaint',
+      resultMode: 'derived',
+      status: 'pending',
+    },
+    ...overrides,
+  };
+}
+
 function items(count: number) {
   return Array.from({ length: count }, (_unused, index) => ({
     itemIndex: index + 1,
@@ -52,7 +86,11 @@ function items(count: number) {
   }));
 }
 
-describe('resolveOperationBatchContent', () => {
+function ref(name: string) {
+  return { workspacePath: WORKSPACE_PATH, relativePath: `media/generated/batch-1/${name}` };
+}
+
+describe('resolveOperationBatchContent — a generation accumulates (§7.6)', () => {
   it('lands a single item exactly like the pre-P4 single resolve did', () => {
     const document = documentWith([anchorCard()]);
 
@@ -61,25 +99,178 @@ describe('resolveOperationBatchContent', () => {
     expect(content.nodes).toHaveLength(1);
     expect(content.edges).toEqual([]);
     const [card] = content.nodes;
-    expect(card.mediaRef).toEqual({
-      workspacePath: WORKSPACE_PATH,
-      relativePath: 'media/generated/batch-1/image-001.png',
-    });
+    expect(card.mediaRef).toEqual(ref('image-001.png'));
+    // A one-picture card stays in the pre-§7.6 shape: no list, no index.
+    expect(card.mediaVariants).toBeUndefined();
+    expect(card.activeVariantIndex).toBeUndefined();
     expect(card.generation).toBeUndefined();
-    // Everything else about the card survives untouched.
     expect(card.prompt).toBe('a cat');
     expect(card.position).toEqual({ x: 100, y: 40 });
     expect(card.derivedFrom).toBeUndefined();
   });
 
-  it('fans three items into the anchor plus two derived cards and two derived edges', () => {
+  it('piles all three items of one shot onto the same card, in order', () => {
     const document = documentWith([anchorCard()]);
 
     const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
 
+    expect(content.nodes).toHaveLength(1);
+    expect(content.edges).toEqual([]);
+    const [card] = content.nodes;
+    expect(card.mediaVariants).toEqual([
+      ref('image-001.png'),
+      ref('image-002.png'),
+      ref('image-003.png'),
+    ]);
+    expect(card.activeVariantIndex).toBe(0);
+    expect(card.mediaRef).toEqual(ref('image-001.png'));
+    expect(card.generation).toBeUndefined();
+  });
+
+  it('sorts by itemIndex regardless of the order they arrive in', () => {
+    const document = documentWith([anchorCard()]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, [
+      items(3)[2], items(3)[0], items(3)[1],
+    ]);
+
+    expect(content.nodes[0].mediaVariants).toEqual([
+      ref('image-001.png'),
+      ref('image-002.png'),
+      ref('image-003.png'),
+    ]);
+  });
+
+  it('appends to the pictures the card already carries instead of replacing them', () => {
+    const document = documentWith([
+      anchorCard({ mediaRef: ref('kept.png') }),
+    ]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(2));
+
+    const [card] = content.nodes;
+    expect(card.mediaVariants).toEqual([
+      ref('kept.png'),
+      ref('image-001.png'),
+      ref('image-002.png'),
+    ]);
+    // The freshly produced picture is what the card face shows.
+    expect(card.activeVariantIndex).toBe(1);
+    expect(card.mediaRef).toEqual(ref('image-001.png'));
+  });
+
+  it('accumulates on a video card too', () => {
+    const document = documentWith([anchorCard({ kind: 'video' })]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(2));
+
+    expect(content.nodes).toHaveLength(1);
+    expect(content.nodes[0].kind).toBe('video');
+    expect(content.nodes[0].mediaVariants).toHaveLength(2);
+  });
+
+  it('lands the surviving items of a partial batch that lost item 1', () => {
+    const document = documentWith([anchorCard()]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, [
+      { itemIndex: 3, relativePath: 'media/generated/batch-1/image-003.png' },
+      { itemIndex: 2, relativePath: 'media/generated/batch-1/image-002.png' },
+    ]);
+
+    expect(content.nodes).toHaveLength(1);
+    expect(content.nodes[0].mediaVariants)
+      .toEqual([ref('image-002.png'), ref('image-003.png')]);
+    expect(content.nodes[0].mediaRef).toEqual(ref('image-002.png'));
+  });
+
+  it('is idempotent: replaying the same batch appends nothing', () => {
+    const document = documentWith([anchorCard()]);
+
+    const once = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
+    const landed = { ...document, ...once };
+    const twice = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
+
+    expect(twice.nodes).toBe(landed.nodes);
+    expect(twice.edges).toBe(landed.edges);
+  });
+
+  it('adds only the missing pictures when a batch reports in two events', () => {
+    const first = resolveOperationBatchContent(
+      documentWith([anchorCard()]),
+      'op-1',
+      WORKSPACE_PATH,
+      items(1),
+    );
+    const landed = { ...documentWith([]), ...first };
+
+    const second = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
+
+    expect(second.nodes).toHaveLength(1);
+    expect(second.nodes[0].mediaVariants).toEqual([
+      ref('image-001.png'),
+      ref('image-002.png'),
+      ref('image-003.png'),
+    ]);
+    expect(second.nodes[0].generation).toBeUndefined();
+
+    // …and replaying that second event still writes nothing.
+    const settled = { ...documentWith([]), ...second };
+    const third = resolveOperationBatchContent(settled, 'op-1', WORKSPACE_PATH, items(3));
+    expect(third.nodes).toBe(settled.nodes);
+  });
+
+  it('clears the generation even when every item was already there', () => {
+    const document = documentWith([
+      anchorCard({
+        mediaRef: ref('image-001.png'),
+      }),
+    ]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(1));
+
+    expect(content.nodes[0].generation).toBeUndefined();
+    expect(content.nodes[0].mediaVariants).toBeUndefined();
+    expect(content.nodes[0].mediaRef).toEqual(ref('image-001.png'));
+  });
+
+  it('leaves an unrelated document alone when no anchor can be recovered', () => {
+    const document = documentWith([
+      {
+        nodeId: 'card-other',
+        kind: 'image',
+        position: { x: 0, y: 0 },
+        mediaRef: { workspacePath: WORKSPACE_PATH, relativePath: 'media/generated/other.png' },
+      },
+    ]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
+
+    expect(content.nodes).toBe(document.nodes);
+    expect(content.edges).toBe(document.edges);
+  });
+
+  it('writes nothing for an unknown operation or an empty item list', () => {
+    const document = documentWith([anchorCard()]);
+
+    expect(resolveOperationBatchContent(document, 'op-other', WORKSPACE_PATH, items(3)).nodes)
+      .toBe(document.nodes);
+    expect(resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, []).nodes)
+      .toBe(document.nodes);
+    expect(resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, [
+      { itemIndex: 1, relativePath: '   ' },
+    ]).nodes).toBe(document.nodes);
+  });
+});
+
+describe('resolveOperationBatchContent — the five tools still derive (§7.6)', () => {
+  it('fans three items into the placeholder plus two derived cards and edges', () => {
+    const document = documentWith([toolPlaceholder()]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
+
     expect(content.nodes).toHaveLength(3);
-    expect(content.nodes[0].mediaRef?.relativePath)
-      .toBe('media/generated/batch-1/image-001.png');
+    expect(content.nodes[0].mediaRef).toEqual(ref('image-001.png'));
+    expect(content.nodes[0].mediaVariants).toBeUndefined();
     const derived = content.nodes.slice(1);
     expect(derived.map(node => node.nodeId)).toEqual([
       infiniteCanvasBatchNodeId('op-1', 2),
@@ -93,17 +284,15 @@ describe('resolveOperationBatchContent', () => {
       expect(node.kind).toBe('image');
       expect(node.derivedFrom).toEqual({
         sourceNodeId: 'card-anchor',
-        toolId: 'generate',
+        toolId: 'inpaint',
         operationId: 'op-1',
       });
       expect(node.generation).toBeUndefined();
-      expect(node.prompt).toBe('a cat');
+      expect(node.prompt).toBe('remove the sign');
       expect(node.generationParams).toEqual({ model: 'gemini-3-pro-image-preview', n: 3 });
     }
-    // Placed to the right of the anchor, in order, never on top of each other.
     expect(derived[0].position).toEqual({ x: 100 + 240 + 360, y: 40 });
     expect(derived[1].position).toEqual({ x: 100 + 240 + 720, y: 40 });
-    expect(new Set(derived.map(node => node.position.x)).size).toBe(2);
 
     expect(content.edges).toEqual([
       {
@@ -121,34 +310,9 @@ describe('resolveOperationBatchContent', () => {
     ]);
   });
 
-  it('derives video siblings from a video anchor', () => {
-    const document = documentWith([anchorCard({ kind: 'video' })]);
-
-    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(2));
-
-    expect(content.nodes.map(node => node.kind)).toEqual(['video', 'video']);
-  });
-
-  it('is idempotent: applying the same batch twice adds nothing', () => {
-    const document = documentWith([anchorCard()]);
-
-    const once = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
-    const twice = resolveOperationBatchContent(
-      { ...document, ...once },
-      'op-1',
-      WORKSPACE_PATH,
-      items(3),
-    );
-
-    // The anchor lost its generation on the first pass, so the operation is no
-    // longer registered — the second pass finds no anchor and writes nothing.
-    expect(twice.nodes).toBe(once.nodes);
-    expect(twice.edges).toBe(once.edges);
-  });
-
   it('never grows a duplicate card when the deterministic id already exists', () => {
     const document = documentWith([
-      anchorCard(),
+      toolPlaceholder(),
       {
         nodeId: infiniteCanvasBatchNodeId('op-1', 2),
         kind: 'image',
@@ -162,7 +326,6 @@ describe('resolveOperationBatchContent', () => {
     expect(content.nodes.filter(
       node => node.nodeId === infiniteCanvasBatchNodeId('op-1', 2),
     )).toHaveLength(1);
-    // The pre-existing card keeps its own media; only item 3 is added.
     expect(content.nodes.find(
       node => node.nodeId === infiniteCanvasBatchNodeId('op-1', 2),
     )?.mediaRef?.relativePath).toBe('media/generated/old.png');
@@ -171,23 +334,22 @@ describe('resolveOperationBatchContent', () => {
       .toEqual([infiniteCanvasBatchEdgeId('op-1', 3)]);
   });
 
-  it('lands the first surviving item in the anchor when a partial batch lost item 1', () => {
-    const document = documentWith([anchorCard()]);
+  it('lands the first surviving item in the placeholder when item 1 is missing', () => {
+    const document = documentWith([toolPlaceholder()]);
 
     const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, [
       { itemIndex: 3, relativePath: 'media/generated/batch-1/image-003.png' },
       { itemIndex: 2, relativePath: 'media/generated/batch-1/image-002.png' },
     ]);
 
-    expect(content.nodes[0].mediaRef?.relativePath)
-      .toBe('media/generated/batch-1/image-002.png');
+    expect(content.nodes[0].mediaRef).toEqual(ref('image-002.png'));
     expect(content.nodes).toHaveLength(2);
     expect(content.nodes[1].nodeId).toBe(infiniteCanvasBatchNodeId('op-1', 3));
   });
 
-  it('writes nothing when the anchor already carries a mediaRef (never-overwrite)', () => {
+  it('writes nothing when the placeholder already carries a mediaRef', () => {
     const document = documentWith([
-      anchorCard({
+      toolPlaceholder({
         mediaRef: { workspacePath: WORKSPACE_PATH, relativePath: 'media/generated/keep.png' },
       }),
     ]);
@@ -198,11 +360,8 @@ describe('resolveOperationBatchContent', () => {
     expect(content.edges).toBe(document.edges);
   });
 
-  // P4 review C6: siblings carry the style preset too. Without it, the pill on
-  // a sibling card claimed a style the card no longer had, and regenerating
-  // from it silently produced a differently styled image.
   it('carries the style preset onto every sibling card', () => {
-    const document = documentWith([anchorCard({ stylePresetId: 'preset-noir' })]);
+    const document = documentWith([toolPlaceholder({ stylePresetId: 'preset-noir' })]);
 
     const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
 
@@ -210,86 +369,27 @@ describe('resolveOperationBatchContent', () => {
       .toEqual(['preset-noir', 'preset-noir', 'preset-noir']);
   });
 
-  // P4 review P2: "partial now, the rest later" used to be a dead path — the
-  // first landing cleared the registration and every later item was dropped.
-  describe('a batch that reports in two events', () => {
-    it('grows the missing siblings after the anchor already landed item 1', () => {
-      const first = resolveOperationBatchContent(
-        documentWith([anchorCard()]),
-        'op-1',
-        WORKSPACE_PATH,
-        items(1),
-      );
-      const landed = { ...documentWith([]), ...first };
+  it('grows the missing siblings after the placeholder already landed item 1', () => {
+    const first = resolveOperationBatchContent(
+      documentWith([toolPlaceholder()]),
+      'op-1',
+      WORKSPACE_PATH,
+      items(1),
+    );
+    const landed = { ...documentWith([]), ...first };
 
-      const second = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
+    const second = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
 
-      expect(second.nodes.map(node => node.nodeId)).toEqual([
-        'card-anchor',
-        infiniteCanvasBatchNodeId('op-1', 2),
-        infiniteCanvasBatchNodeId('op-1', 3),
-      ]);
-      // The already-landed item is never duplicated into a sibling card.
-      expect(second.nodes.map(node => node.mediaRef?.relativePath)).toEqual([
-        'media/generated/batch-1/image-001.png',
-        'media/generated/batch-1/image-002.png',
-        'media/generated/batch-1/image-003.png',
-      ]);
-      expect(second.edges.map(edge => edge.edgeId)).toEqual([
-        infiniteCanvasBatchEdgeId('op-1', 2),
-        infiniteCanvasBatchEdgeId('op-1', 3),
-      ]);
-      // The anchor is never rewritten: no generation comes back, no media moves.
-      expect(second.nodes[0].generation).toBeUndefined();
-    });
+    expect(second.nodes.map(node => node.nodeId)).toEqual([
+      'card-anchor',
+      infiniteCanvasBatchNodeId('op-1', 2),
+      infiniteCanvasBatchNodeId('op-1', 3),
+    ]);
+    expect(second.nodes[0].generation).toBeUndefined();
 
-    it('stays idempotent: replaying the second event adds nothing at all', () => {
-      const first = resolveOperationBatchContent(
-        documentWith([anchorCard()]),
-        'op-1',
-        WORKSPACE_PATH,
-        items(1),
-      );
-      const second = resolveOperationBatchContent(
-        { ...documentWith([]), ...first },
-        'op-1',
-        WORKSPACE_PATH,
-        items(3),
-      );
-      const landed = { ...documentWith([]), ...second };
-
-      const third = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(3));
-
-      expect(third.nodes).toBe(landed.nodes);
-      expect(third.edges).toBe(landed.edges);
-    });
-
-    it('leaves an unrelated document alone when no anchor can be recovered', () => {
-      const document = documentWith([
-        {
-          nodeId: 'card-other',
-          kind: 'image',
-          position: { x: 0, y: 0 },
-          mediaRef: { workspacePath: WORKSPACE_PATH, relativePath: 'media/generated/other.png' },
-        },
-      ]);
-
-      const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(3));
-
-      expect(content.nodes).toBe(document.nodes);
-      expect(content.edges).toBe(document.edges);
-    });
-  });
-
-  it('writes nothing for an unknown operation or an empty item list', () => {
-    const document = documentWith([anchorCard()]);
-
-    expect(resolveOperationBatchContent(document, 'op-other', WORKSPACE_PATH, items(3)).nodes)
-      .toBe(document.nodes);
-    expect(resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, []).nodes)
-      .toBe(document.nodes);
-    expect(resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, [
-      { itemIndex: 1, relativePath: '   ' },
-    ]).nodes).toBe(document.nodes);
+    const settled = { ...documentWith([]), ...second };
+    const third = resolveOperationBatchContent(settled, 'op-1', WORKSPACE_PATH, items(3));
+    expect(third.nodes).toBe(settled.nodes);
+    expect(third.edges).toBe(settled.edges);
   });
 });

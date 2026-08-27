@@ -35,6 +35,7 @@ import {
   resolveOperationBatchContent,
   type InfiniteCanvasBatchOutputItem,
 } from './InfiniteCanvasGenerationContent';
+import { infiniteCanvasGenerationAppendsToCard } from './InfiniteCanvasMediaVariants';
 
 /** Read side of the persistence port; `null` when the file does not exist. */
 export interface InfiniteCanvasMediaJobReader {
@@ -99,13 +100,19 @@ function isStoppedWaiting(node: InfiniteCanvasNode): boolean {
     generation
     && generation.status === 'failed'
     && generation.errorKind === 'cancelled'
-    && node.mediaRef === undefined
+    && (node.mediaRef === undefined || infiniteCanvasGenerationAppendsToCard(generation))
     && generation.batchId,
   );
 }
 
 function isReconcilable(node: InfiniteCanvasNode): boolean {
-  if (node.mediaRef !== undefined) return false;
+  // §7.6: a card that already holds pictures is still reconcilable when the
+  // shot it is waiting on is an accumulating regenerate — that result appends
+  // to the card's list, so there is nothing for the never-overwrite rule to
+  // protect, and skipping it would leave the card spinning after a reopen.
+  if (node.mediaRef !== undefined && !infiniteCanvasGenerationAppendsToCard(node.generation)) {
+    return false;
+  }
   return node.generation?.status === 'pending' || isStoppedWaiting(node);
 }
 

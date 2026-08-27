@@ -39,6 +39,7 @@ import {
   resolveOperationBatchContent,
   type InfiniteCanvasBatchOutputItem,
 } from './InfiniteCanvasGenerationContent';
+import { infiniteCanvasGenerationAppendsToCard } from './InfiniteCanvasMediaVariants';
 
 export type InfiniteCanvasMediaBridgeIgnoredReason =
   | 'missing_event_fields'
@@ -345,8 +346,12 @@ function applyIntent(
 
   // resultMode cross-check: the binding must agree with what the front end
   // registered at dispatch. A node that already carries an image is never
-  // written again, no matter what the binding claims.
-  if (binding.resultMode !== generation.resultMode || node.mediaRef !== undefined) {
+  // written again, no matter what the binding claims — §7.6's one exception
+  // is a regenerate the card itself registered, which APPENDS to the card's
+  // picture list and therefore overwrites nothing.
+  const appends = infiniteCanvasGenerationAppendsToCard(generation);
+  if (binding.resultMode !== generation.resultMode
+    || (node.mediaRef !== undefined && !appends)) {
     return keep({ status: 'ignored', reason: 'result_mode_mismatch' });
   }
 
@@ -401,6 +406,22 @@ function applyIntent(
   }
 
   if (intent.intent === 'resolve') {
+    if (appends) {
+      // §7.6: a single result of an accumulating shot is a batch of one, and
+      // it goes through the very same shared function as the multi-item lane
+      // so "one picture back" and "four pictures back" cannot diverge.
+      const next = resolveOperationBatchContent(
+        document,
+        binding.operationId,
+        intent.mediaRef.workspacePath,
+        [{ itemIndex: 1, relativePath: intent.mediaRef.relativePath }],
+      );
+      return {
+        outcome: { status: 'applied', action: 'resolved' },
+        nodes: next.nodes as InfiniteCanvasNode[],
+        edges: next.edges as InfiniteCanvasEdge[],
+      };
+    }
     return {
       outcome: { status: 'applied', action: 'resolved' },
       nodes: document.nodes.map(candidate => {

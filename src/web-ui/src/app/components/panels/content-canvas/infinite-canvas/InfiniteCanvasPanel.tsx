@@ -119,6 +119,7 @@ import {
 import {
   addBlankGenerationCardContent,
   addBlankVideoCardContent,
+  beginAccumulatingGenerationContent,
   beginSelfGenerationContent,
   collectReferenceNodes,
   setNodeGenerationParamsContent,
@@ -1141,59 +1142,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     const generationParams = node.generationParams;
 
     const operationId = createInfiniteCanvasId('op');
-    if (node.mediaRef === undefined) {
-      // Blank card first shot: the result lands in the card itself.
-      await commit(current => beginSelfGenerationContent(current, nodeId, operationId, {
-        mediaKind,
-      }));
-      await submitOperation({
-        operationId,
-        kind: 'generate',
-        mediaKind,
-        resultMode: 'self',
-        nodeId,
-        prompt,
-        stylePresetId: node.stylePresetId,
-        references,
-        ...(generationParams ? { generationParams } : {}),
-      });
-      return;
-    }
-
-    // Regenerate on a card that already has media: derive a new card; the
-    // source card and its mediaRef are never touched.
-    const derivedNodeId = createInfiniteCanvasId('node');
-    const edgeId = createInfiniteCanvasId('edge');
-    await commit(current => {
-      const begun = beginDerivedOperationContent(
-        current,
-        nodeId,
-        'generate',
-        operationId,
-        derivedNodeId,
-        edgeId,
-        { mediaKind },
-      );
-      const withPrompt = setNodePromptContent(
-        { ...current, ...begun },
-        derivedNodeId,
-        prompt,
-      );
-      // The placeholder inherits the source card's parameters, so a retry or
-      // a further regenerate from it keeps the same settings.
-      return setNodeGenerationParamsContent(
-        { ...current, ...withPrompt },
-        derivedNodeId,
-        generationParams,
-      );
-    });
+    // §7.6: generation and regeneration both land on THIS card. A blank card
+    // gets its first picture; a card that already has some gets one more —
+    // the results of the same intent pile up instead of scattering sibling
+    // cards across the board. The five tools and crop still derive (they are
+    // dispatched elsewhere, and their lineage has to stay visible).
+    await commit(current => (
+      node.mediaRef === undefined
+        ? beginSelfGenerationContent(current, nodeId, operationId, { mediaKind })
+        : beginAccumulatingGenerationContent(current, nodeId, operationId, { mediaKind })
+    ));
     await submitOperation({
       operationId,
       kind: 'generate',
       mediaKind,
-      resultMode: 'derived',
-      nodeId: derivedNodeId,
-      sourceNodeId: nodeId,
+      resultMode: 'self',
+      nodeId,
       prompt,
       stylePresetId: node.stylePresetId,
       references,

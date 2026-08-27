@@ -120,6 +120,10 @@ export function setNodeGenerationParamsContent(
 // the K2 image path: self mode stays strictly for the first shot into a
 // blank card, and re-registering the same operationId stays a no-op.
 export { beginSelfGenerationContent } from '@/shared/services/infinite-canvas';
+// §7.6: its sibling for the second and every later shot at the SAME card —
+// the registration a regenerate uses now that results accumulate instead of
+// growing a new card.
+export { beginAccumulatingGenerationContent } from '@/shared/services/infinite-canvas';
 
 /** One collected reference card, in authoritative connection order (1-based). */
 export interface InfiniteCanvasReferenceNode {

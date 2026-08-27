@@ -14,6 +14,7 @@ import type {
   InfiniteCanvasNode,
   InfiniteCanvasViewport,
 } from '@/shared/services/infinite-canvas';
+import { infiniteCanvasGenerationAppendsToCard } from '@/shared/services/infinite-canvas';
 
 export const INFINITE_CANVAS_TEXT_NODE_TYPE = 'infinite-canvas-text';
 export const INFINITE_CANVAS_IMAGE_NODE_TYPE = 'infinite-canvas-image';
@@ -412,7 +413,14 @@ export function retryOperationContent(
     ...content(document),
     nodes: document.nodes.map(node => {
       if (node.generation?.operationId !== previousOperationId) return node;
-      if (node.generation.status !== 'failed' || node.mediaRef !== undefined) return node;
+      if (node.generation.status !== 'failed') return node;
+      // §7.6: a failed regenerate on a card that already holds pictures is
+      // retryable — its result would be appended, so there is nothing for the
+      // never-overwrite rule to guard here.
+      if (node.mediaRef !== undefined
+        && !infiniteCanvasGenerationAppendsToCard(node.generation)) {
+        return node;
+      }
       return {
         ...node,
         generation: {

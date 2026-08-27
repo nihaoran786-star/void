@@ -23,6 +23,11 @@ import type {
   InfiniteCanvasGenerationMediaKind,
   InfiniteCanvasNode,
 } from './InfiniteCanvasTypes';
+import {
+  appendInfiniteCanvasVariants,
+  infiniteCanvasNodeVariants,
+  infiniteCanvasOperationAccumulates,
+} from './InfiniteCanvasMediaVariants';
 
 /** Horizontal offset used to place a derived placeholder beside its source. */
 const DERIVED_NODE_OFFSET_X = 360;
@@ -106,6 +111,48 @@ export function beginSelfGenerationContent(
             ? { stylePresetId: options.stylePresetId }
             : {}),
           generation: generationRecord(operationId, toolId, 'self', mediaKind),
+        }
+        : node
+    )),
+  };
+}
+
+/**
+ * §7.6: registers a REGENERATE on a card that already carries pictures.
+ *
+ * Before §7.6 this shot grew a sibling card; the owner asked for the results
+ * to pile up on the card they were fired from instead. The registration is
+ * therefore self mode on the card itself, which is exactly the shape
+ * `infiniteCanvasGenerationAppendsToCard` lets past the never-overwrite guard
+ * in both landing lanes. `toolId` is always `'generate'` — the five tools and
+ * crop keep deriving their own card, and this helper refuses anything else.
+ *
+ * Idempotent on `operationId`, like every other registration here; a card that
+ * is missing, of the wrong kind, or already busy with another shot is left
+ * untouched.
+ */
+export function beginAccumulatingGenerationContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  operationId: string,
+  options: InfiniteCanvasBeginGenerationOptions = {},
+): InfiniteCanvasDocumentContent {
+  const mediaKind = options.mediaKind ?? 'image';
+  const target = document.nodes.find(node => node.nodeId === nodeId);
+  if (!target || target.kind !== generationCardKind(mediaKind)) return content(document);
+  if (target.generation?.operationId === operationId) return content(document);
+  if (target.generation?.status === 'pending') return content(document);
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => (
+      node.nodeId === nodeId
+        ? {
+          ...node,
+          ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
+          ...(options.stylePresetId !== undefined
+            ? { stylePresetId: options.stylePresetId }
+            : {}),
+          generation: generationRecord(operationId, 'generate', 'self', mediaKind),
         }
         : node
     )),
@@ -202,11 +249,18 @@ export function applyLocalDerivedMedia(
 // —— P4 W4: batch (n > 1) landing ————————————————————————————————————————
 //
 // One submitted operation can come back with several produced media items
-// (`outputMediaItems`, R2). Item 1 lands in the anchor card exactly like a
-// single result did before P4; items 2..N each grow their own derived card
-// wired back to the anchor. Both the live media bridge and the residual
+// (`outputMediaItems`, R2). Both the live media bridge and the residual
 // pending reconciliation call this one function, so "landed while open" and
 // "reconciled after reopening" can never disagree.
+//
+// §7.6 (owner 2026-08-28) split this into two landing rules:
+//
+// - `toolId: 'generate'` — the whole batch ACCUMULATES on the card it was
+//   fired from, becoming that card's picture list. No sibling cards at all.
+// - the five tools and crop — unchanged P4 behavior: item 1 fills the derived
+//   placeholder, items 2..N each grow their own deterministic sibling card,
+//   because turning a picture into a different picture is lineage the owner
+//   must be able to see.
 
 /** One produced media item of a batch, as carried by R2's `outputMediaItems`. */
 export interface InfiniteCanvasBatchOutputItem {
@@ -276,19 +330,57 @@ function recoverBatchAnchor(
   ));
   if (derivedAnchor) return derivedAnchor;
   const paths = new Set(items.map(item => item.relativePath));
-  return document.nodes.find(node => (
-    node.mediaRef !== undefined
-    && node.mediaRef.workspacePath === workspacePath
-    && paths.has(node.mediaRef.relativePath)
-  ));
+  return document.nodes.find(node => infiniteCanvasNodeVariants(node).some(variant => (
+    // §7.6: the earlier landing may have gone into the card's picture LIST,
+    // so the lookup has to scan every picture, not just the current one.
+    variant.workspacePath === workspacePath && paths.has(variant.relativePath)
+  )));
+}
+
+/** The operation kind a card's landing rule is decided by (§7.6). */
+function anchorToolId(anchor: InfiniteCanvasNode): CanvasImageOperationKind {
+  return anchor.generation?.toolId ?? anchor.derivedFrom?.toolId ?? 'generate';
+}
+
+/**
+ * §7.6's landing: the whole batch piles up on the anchor card.
+ *
+ * Every item becomes one more picture on the card, in `itemIndex` order, and
+ * the first genuinely new one becomes what the card face shows. Pictures the
+ * card already carries are skipped, which is the entire idempotency story for
+ * this lane — a replayed event and a reconciliation pass over an already
+ * landed batch both add nothing. A still-registered anchor always has its
+ * generation cleared, even when every item was a duplicate, or the card would
+ * spin forever.
+ */
+function accumulateBatchOntoAnchor(
+  document: Readonly<InfiniteCanvasDocument>,
+  anchor: InfiniteCanvasNode,
+  items: readonly InfiniteCanvasBatchOutputItem[],
+  workspacePath: string,
+  registered: boolean,
+): InfiniteCanvasDocumentContent {
+  const appended = appendInfiniteCanvasVariants(
+    anchor,
+    items.map(item => ({ workspacePath, relativePath: item.relativePath })),
+  );
+  if (appended === anchor && !registered) return content(document);
+  const { generation: _cleared, ...settled } = appended;
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => (node.nodeId === anchor.nodeId ? settled : node)),
+  };
 }
 
 /**
  * Lands a whole batch of produced media onto the document.
  *
- * Rules (plan §2.3, PRD §3.4):
+ * Rules (plan §2.3, PRD §3.4 as revised by §3.10):
  * - The anchor is still the node registered under `operationId`; nothing else
  *   is ever written.
+ * - §7.6: for a plain generation the whole batch is appended to the anchor's
+ *   picture list and no sibling card is grown. Everything below describes the
+ *   five tools and crop, whose derivation behavior P4 defined and §7.6 keeps.
  * - A still-registered anchor that already carries a mediaRef is left
  *   completely alone — never-overwrite wins over any claim the result makes.
  *   Zero writes.
@@ -319,13 +411,25 @@ export function resolveOperationBatchContent(
   if (ordered.length === 0) return content(document);
 
   const registered = document.nodes.find(node => node.generation?.operationId === operationId);
-  // A still-registered anchor that already carries media is the never-overwrite
-  // case: zero writes, exactly as before P4 review.
-  if (registered?.mediaRef !== undefined) return content(document);
+  if (registered) {
+    // §7.6: a plain generation piles its whole batch onto the card it was
+    // fired from. This branch sits BEFORE the never-overwrite guard on
+    // purpose — appending is not overwriting, and the guard below is what
+    // still protects every other operation kind.
+    if (infiniteCanvasOperationAccumulates(anchorToolId(registered))) {
+      return accumulateBatchOntoAnchor(document, registered, ordered, workspacePath, true);
+    }
+    // A still-registered anchor that already carries media is the
+    // never-overwrite case: zero writes, exactly as before P4 review.
+    if (registered.mediaRef !== undefined) return content(document);
+  }
   // P2: with the registration already cleared the batch may still be landing
   // its later items; recover the anchor and fill only the missing siblings.
   const anchor = registered ?? recoverBatchAnchor(document, operationId, workspacePath, ordered);
   if (!anchor) return content(document);
+  if (!registered && infiniteCanvasOperationAccumulates(anchorToolId(anchor))) {
+    return accumulateBatchOntoAnchor(document, anchor, ordered, workspacePath, false);
+  }
 
   const head = ordered[0];
   const landsHead = registered !== undefined;
@@ -342,11 +446,11 @@ export function resolveOperationBatchContent(
   const takenNodeIds = new Set(document.nodes.map(node => node.nodeId));
   const takenEdgeIds = new Set(document.edges.map(edge => edge.edgeId));
   const takenPaths = new Set(
-    document.nodes
-      .filter(node => node.mediaRef?.workspacePath === workspacePath)
-      .map(node => node.mediaRef!.relativePath),
+    document.nodes.flatMap(node => infiniteCanvasNodeVariants(node)
+      .filter(variant => variant.workspacePath === workspacePath)
+      .map(variant => variant.relativePath)),
   );
-  const toolId = anchor.generation?.toolId ?? anchor.derivedFrom?.toolId ?? 'generate';
+  const toolId = anchorToolId(anchor);
   const anchorWidth = anchor.size?.width ?? 0;
   let ordinal = 0;
   for (const item of ordered) {

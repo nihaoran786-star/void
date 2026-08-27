@@ -318,7 +318,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
   });
 
   it('regenerating a derived card carries no reference from its version-tree edge', async () => {
-    // card-v2 was derived from card-v1 by a regenerate: the version edge is
+    // card-v2 was derived from card-v1 by a five-tool run: the version edge is
     // marked role:'derived'. Regenerating card-v2 must stay a pure
     // text-to-image dispatch — no inherited 垫图 reference, no badge.
     seedDocument(memory, {
@@ -327,7 +327,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
         imageNode('card-v2', {
           mediaRef: mediaRefOf('v2.png'),
           prompt: 'same subject, new lighting',
-          derivedFrom: { sourceNodeId: 'card-v1', toolId: 'generate', operationId: 'op-v2' },
+          derivedFrom: { sourceNodeId: 'card-v1', toolId: 'expand', operationId: 'op-v2' },
         }),
       ],
       edges: [
@@ -343,16 +343,17 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
       kind: 'generate',
-      resultMode: 'derived',
-      sourceNodeId: 'card-v2',
+      resultMode: 'self',
+      nodeId: 'card-v2',
       references: [],
     });
 
-    // The regenerate itself wrote another marked version edge (v2 → v3).
+    // §7.6: the regenerate accumulates on card-v2 itself, so it grows neither
+    // a card nor an edge — the board keeps exactly the two cards it had.
     await service.flushPendingWrites();
     const persisted = readDocument(memory);
-    const versionEdge = persisted.edges.find(edge => edge.sourceNodeId === 'card-v2');
-    expect(versionEdge).toMatchObject({ role: 'derived' });
+    expect(persisted.nodes).toHaveLength(2);
+    expect(persisted.edges.map(edge => edge.edgeId)).toEqual(['e-version']);
   });
 
   it('blocks dispatch with a typed notice while a reference card has no image', async () => {
@@ -638,7 +639,10 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
   });
 
-  it('never touches the source mediaRef when regenerating a card that has an image', async () => {
+  // §7.6: a regenerate on a card that already holds a picture no longer grows
+  // a sibling card — it registers on the card itself and its result will be
+  // appended. The picture already on the card is still never touched.
+  it('regenerates onto the card itself, leaving the picture it already has alone', async () => {
     const sourceMediaRef = mediaRefOf('hero.png');
     seedDocument(memory, {
       nodes: [imageNode('card-src', { mediaRef: sourceMediaRef, prompt: 'moodier light' })],
@@ -650,19 +654,18 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
       kind: 'generate',
-      resultMode: 'derived',
-      sourceNodeId: 'card-src',
+      resultMode: 'self',
+      nodeId: 'card-src',
       prompt: 'moodier light',
     });
     expect(recording.invocations[0].editTargetMediaRef).toBeUndefined();
 
     await service.flushPendingWrites();
     const persisted = readDocument(memory);
-    expect(persisted.nodes).toHaveLength(2);
-    const source = persisted.nodes.find(node => node.nodeId === 'card-src')!;
+    expect(persisted.nodes).toHaveLength(1);
+    const source = persisted.nodes[0];
     expect(source.mediaRef).toEqual(sourceMediaRef);
-    expect(source.generation).toBeUndefined();
-    const derived = persisted.nodes.find(node => node.nodeId !== 'card-src')!;
-    expect(derived.generation).toMatchObject({ status: 'pending', resultMode: 'derived' });
+    expect(source.mediaVariants).toBeUndefined();
+    expect(source.generation).toMatchObject({ status: 'pending', resultMode: 'self' });
   });
 });

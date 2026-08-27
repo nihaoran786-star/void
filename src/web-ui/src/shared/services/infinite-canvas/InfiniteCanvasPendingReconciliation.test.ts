@@ -375,9 +375,12 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
 
   it('never overwrites a node that already carries a mediaRef', async () => {
     const keptMediaRef = { workspacePath: 'C:/ws', relativePath: 'media/input/keep.png' };
+    // Illegal-by-construction: pending but already has an image. Since 7.6 the
+    // tool id decides — a plain generation would legitimately APPEND, so the
+    // never-overwrite guard is proven with a five-tool result.
+    const base = pendingNode('card-1', 'op-1', 'batch-1', { mediaRef: { ...keptMediaRef } });
     const { harness, document } = createHarness([
-      // Illegal-by-construction: pending but already has an image.
-      pendingNode('card-1', 'op-1', 'batch-1', { mediaRef: { ...keptMediaRef } }),
+      { ...base, generation: { ...base.generation!, toolId: 'matting' } },
     ]);
     harness.files.set(
       mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
@@ -386,12 +389,40 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
 
     await reconcile(harness, document);
 
-    expect(harness.readDocument().nodes[0].mediaRef).toEqual(keptMediaRef);
+    const persisted = harness.readDocument();
+    expect(persisted.nodes[0].mediaRef).toEqual(keptMediaRef);
+    expect(persisted.nodes[0].mediaVariants).toBeUndefined();
+  });
+
+  // 7.6: the reopen pass has to reach a card that already holds pictures when
+  // the shot it is waiting on is a regenerate of its own, or that card spins
+  // forever after a restart.
+  it('appends a reconciled regenerate to the pictures the card already has', async () => {
+    const keptMediaRef = { workspacePath: 'C:/ws', relativePath: 'media/input/first.png' };
+    const { harness, document } = createHarness([
+      pendingNode('card-1', 'op-1', 'batch-1', { mediaRef: { ...keptMediaRef } }),
+    ]);
+    harness.files.set(
+      mediaJobBatchFilePath(WORKSPACE.workspacePath, 'batch-1'),
+      multiResultManifest(2),
+    );
+
+    await reconcile(harness, document);
+
+    const persisted = harness.readDocument();
+    expect(persisted.nodes).toHaveLength(1);
+    expect(persisted.nodes[0].mediaVariants?.map(variant => variant.relativePath)).toEqual([
+      'media/input/first.png',
+      'media/generated/batch-1/image-001.png',
+      'media/generated/batch-1/image-002.png',
+    ]);
+    expect(persisted.nodes[0].activeVariantIndex).toBe(1);
+    expect(persisted.nodes[0].generation).toBeUndefined();
   });
 
   // —— P4 W4: multi-result batches reconciled after a reopen ————————————————
 
-  it('reconciles a batch that produced three images into three cards', async () => {
+  it('reconciles a batch that produced three images onto the one card', async () => {
     const { harness, document } = createHarness([
       pendingNode('card-1', 'op-1', 'batch-1'),
     ]);
@@ -406,28 +437,17 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
       { operationId: 'op-1', nodeId: 'card-1', action: 'resolved' },
     ]);
     const persisted = harness.readDocument();
+    // 7.6: the two lanes share one landing function, so this is exactly what
+    // the live bridge writes for the same batch - one card, three pictures.
+    expect(persisted.nodes).toHaveLength(1);
     expect(persisted.nodes[0].mediaRef?.relativePath)
       .toBe('media/generated/batch-1/image-001.png');
-    expect(persisted.nodes.slice(1).map(node => node.nodeId))
-      .toEqual(['node-op-1-i2', 'node-op-1-i3']);
-    expect(persisted.nodes.slice(1).map(node => node.mediaRef?.relativePath)).toEqual([
+    expect(persisted.nodes[0].mediaVariants?.map(node => node.relativePath)).toEqual([
+      'media/generated/batch-1/image-001.png',
       'media/generated/batch-1/image-002.png',
       'media/generated/batch-1/image-003.png',
     ]);
-    expect(persisted.edges).toEqual([
-      {
-        edgeId: 'edge-op-1-i2',
-        sourceNodeId: 'card-1',
-        targetNodeId: 'node-op-1-i2',
-        role: 'derived',
-      },
-      {
-        edgeId: 'edge-op-1-i3',
-        sourceNodeId: 'card-1',
-        targetNodeId: 'node-op-1-i3',
-        role: 'derived',
-      },
-    ]);
+    expect(persisted.edges).toEqual([]);
   });
 
   it('uses the same deterministic ids as the live bridge, so a second pass adds nothing', async () => {
@@ -531,8 +551,9 @@ describe('reconcilePendingInfiniteCanvasGenerations', () => {
       await reconcile(harness, document);
 
       const persisted = harness.readDocument();
-      expect(persisted.nodes).toHaveLength(3);
-      expect(persisted.edges).toHaveLength(2);
+      expect(persisted.nodes).toHaveLength(1);
+      expect(persisted.nodes[0].mediaVariants).toHaveLength(3);
+      expect(persisted.edges).toEqual([]);
     });
 
     it('is left exactly as it is while the job is still unresolved', async () => {

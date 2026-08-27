@@ -26,6 +26,7 @@ const DOCUMENT_ID = defaultInfiniteCanvasDocumentId(WORKSPACE.workspaceId);
 
 const SOURCE_MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/src.png' };
 const OCCUPIED_MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/keep.png' };
+const GALLERY_MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/b0/first.png' };
 
 function seedNodes(): InfiniteCanvasNode[] {
   return [
@@ -75,12 +76,30 @@ function seedNodes(): InfiniteCanvasNode[] {
     },
     {
       // Illegal-by-construction state used to prove the never-overwrite guard.
+      // The tool id matters since 7.6: a plain generation would legitimately
+      // ACCUMULATE onto a card that already holds a picture, so the guard is
+      // proven with a five-tool result, which may never land here.
       nodeId: 'card-occupied',
       kind: 'image',
       position: { x: 0, y: 300 },
       mediaRef: { ...OCCUPIED_MEDIA_REF },
       generation: {
         operationId: 'op-occupied',
+        toolId: 'matting',
+        resultMode: 'self',
+        status: 'pending',
+      },
+    },
+    {
+      // 7.6: a card that already holds a picture and is waiting on a
+      // regenerate of its own - the one shape allowed to land on top.
+      nodeId: 'card-gallery',
+      kind: 'image',
+      position: { x: 0, y: 600 },
+      prompt: 'a cat',
+      mediaRef: { ...GALLERY_MEDIA_REF },
+      generation: {
+        operationId: 'op-gallery',
         toolId: 'generate',
         resultMode: 'self',
         status: 'pending',
@@ -567,7 +586,7 @@ describe('InfiniteCanvasMediaBridge', () => {
 
     expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-self' });
     const document = await readDocument();
-    expect(document.nodes).toHaveLength(5);
+    expect(document.nodes).toHaveLength(6);
     expect(document.edges).toHaveLength(1);
     const card = node(document, 'card-self');
     expect(card.mediaRef).toEqual({
@@ -578,7 +597,7 @@ describe('InfiniteCanvasMediaBridge', () => {
     expect(card.prompt).toBe(seedNodes()[0].prompt);
   });
 
-  it('fans an n=3 batch into the anchor card plus two derived cards and edges', async () => {
+  it('piles an n=3 batch onto the anchor card, growing no sibling at all', async () => {
     const { bridge, readDocument } = createHarness();
 
     const result = await bridge.handleToolRunEvent(completedMediaEvent({
@@ -587,33 +606,55 @@ describe('InfiniteCanvasMediaBridge', () => {
 
     expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-self' });
     const document = await readDocument();
-    expect(node(document, 'card-self').mediaRef?.relativePath)
-      .toBe('media/generated/batch-1/image-001.png');
-    const siblings = document.nodes.filter(
-      candidate => candidate.derivedFrom?.operationId === 'op-self',
-    );
-    expect(siblings.map(candidate => candidate.nodeId))
-      .toEqual(['node-op-self-i2', 'node-op-self-i3']);
-    expect(siblings.map(candidate => candidate.mediaRef?.relativePath)).toEqual([
+    expect(document.nodes).toHaveLength(6);
+    const card = node(document, 'card-self');
+    expect(card.mediaVariants?.map(variant => variant.relativePath)).toEqual([
+      'media/generated/batch-1/image-001.png',
       'media/generated/batch-1/image-002.png',
       'media/generated/batch-1/image-003.png',
     ]);
-    expect(siblings[0].position).not.toEqual(siblings[1].position);
-    const newEdges = document.edges.filter(edge => edge.edgeId !== 'edge-1');
-    expect(newEdges).toEqual([
-      {
-        edgeId: 'edge-op-self-i2',
-        sourceNodeId: 'card-self',
-        targetNodeId: 'node-op-self-i2',
-        role: 'derived',
-      },
-      {
-        edgeId: 'edge-op-self-i3',
-        sourceNodeId: 'card-self',
-        targetNodeId: 'node-op-self-i3',
-        role: 'derived',
-      },
+    expect(card.activeVariantIndex).toBe(0);
+    expect(card.mediaRef?.relativePath).toBe('media/generated/batch-1/image-001.png');
+    expect(document.edges.map(edge => edge.edgeId)).toEqual(['edge-1']);
+  });
+
+  it('appends a regenerate onto the pictures the card already carries', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    const result = await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-gallery',
+      operationId: 'op-gallery',
+      outputMediaItems: batchItems(2),
+    }));
+
+    expect(result).toEqual({ status: 'applied', action: 'resolved', operationId: 'op-gallery' });
+    const document = await readDocument();
+    expect(document.nodes).toHaveLength(6);
+    const card = node(document, 'card-gallery');
+    expect(card.mediaVariants).toEqual([
+      GALLERY_MEDIA_REF,
+      { workspacePath: 'C:/ws', relativePath: 'media/generated/batch-1/image-001.png' },
+      { workspacePath: 'C:/ws', relativePath: 'media/generated/batch-1/image-002.png' },
     ]);
+    // The freshly produced picture becomes the one the card face shows.
+    expect(card.activeVariantIndex).toBe(1);
+    expect(card.generation).toBeUndefined();
+  });
+
+  it('appends a singular (non-batch) regenerate result too', async () => {
+    const { bridge, readDocument } = createHarness();
+
+    await bridge.handleToolRunEvent(completedMediaEvent({
+      nodeId: 'card-gallery',
+      operationId: 'op-gallery',
+    }));
+
+    const card = node(await readDocument(), 'card-gallery');
+    expect(card.mediaVariants).toEqual([
+      GALLERY_MEDIA_REF,
+      { workspacePath: 'C:/ws', relativePath: 'media/generated/batch-1/image-001.png' },
+    ]);
+    expect(card.mediaRef?.relativePath).toBe('media/generated/batch-1/image-001.png');
   });
 
   it('is idempotent when the same batch completion event is replayed', async () => {
@@ -632,7 +673,7 @@ describe('InfiniteCanvasMediaBridge', () => {
       .toEqual(afterFirst.edges.map(edge => edge.edgeId));
   });
 
-  it('lands only the surviving items of a partial batch, first one into the anchor', async () => {
+  it('lands every surviving item of a partial batch on the anchor', async () => {
     const { bridge, readDocument } = createHarness();
 
     await bridge.handleToolRunEvent({
@@ -642,12 +683,13 @@ describe('InfiniteCanvasMediaBridge', () => {
     });
 
     const document = await readDocument();
-    expect(node(document, 'card-self').mediaRef?.relativePath)
-      .toBe('media/generated/batch-1/image-002.png');
-    const siblings = document.nodes.filter(
-      candidate => candidate.derivedFrom?.operationId === 'op-self',
-    );
-    expect(siblings.map(candidate => candidate.nodeId)).toEqual(['node-op-self-i3']);
+    const card = node(document, 'card-self');
+    expect(card.mediaRef?.relativePath).toBe('media/generated/batch-1/image-002.png');
+    expect(card.mediaVariants?.map(variant => variant.relativePath)).toEqual([
+      'media/generated/batch-1/image-002.png',
+      'media/generated/batch-1/image-003.png',
+    ]);
+    expect(document.nodes).toHaveLength(6);
   });
 
   it('settles a batch with no usable item as a typed failure, adding no cards', async () => {
@@ -668,7 +710,7 @@ describe('InfiniteCanvasMediaBridge', () => {
 
     expect(result).toMatchObject({ status: 'applied', action: 'failed', errorKind: 'backend' });
     const document = await readDocument();
-    expect(document.nodes).toHaveLength(5);
+    expect(document.nodes).toHaveLength(6);
     expect(node(document, 'card-self').generation?.status).toBe('failed');
   });
 
@@ -703,7 +745,7 @@ describe('InfiniteCanvasMediaBridge', () => {
     const document = await readDocument();
     expect(node(document, 'card-self').mediaRef?.relativePath)
       .toBe('media/generated/batch-1/image-001.png');
-    expect(document.nodes).toHaveLength(5);
+    expect(document.nodes).toHaveLength(6);
   });
 });
 
