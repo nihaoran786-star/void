@@ -240,6 +240,20 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
         <span className="infinite-canvas-crop__size" data-crop-size="true">
           {rect ? `${rect.width} × ${rect.height}` : ''}
         </span>
+        {/*
+          Owner feedback 2026-08-27: a surface that fills the whole board must
+          carry a visible way out. Esc and a press outside still work, but they
+          are not discoverable. This is the same `requestClose` path, so an
+          adjusted frame still asks before it is thrown away.
+        */}
+        <button
+          type="button"
+          className="infinite-canvas-crop__back"
+          data-crop-action="back"
+          onClick={requestClose}
+        >
+          {t('infiniteCanvas.crop.back')}
+        </button>
         <button
           type="button"
           className="infinite-canvas-crop__confirm"

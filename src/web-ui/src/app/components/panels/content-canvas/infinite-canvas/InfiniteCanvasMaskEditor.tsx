@@ -604,6 +604,20 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
             {t(`infiniteCanvas.mask.blocked.${blocked}`)}
           </p>
         ) : null}
+        {/*
+          Owner feedback 2026-08-27: this editor covers the entire board, so it
+          needs a visible exit next to its confirm — Esc alone is not an exit
+          anyone can see. It goes through `requestClose`, so unsaved marks still
+          raise the discard confirmation first.
+        */}
+        <button
+          type="button"
+          className="infinite-canvas-mask__back"
+          data-mask-action="back"
+          onClick={requestClose}
+        >
+          {t('infiniteCanvas.mask.back')}
+        </button>
         <button
           type="button"
           className="infinite-canvas-mask__confirm"

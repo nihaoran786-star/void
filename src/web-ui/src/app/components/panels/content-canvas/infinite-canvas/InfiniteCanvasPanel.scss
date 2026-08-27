@@ -2416,6 +2416,29 @@
   }
 }
 
+// Owner feedback 2026-08-27: the two board-filling editors carry a visible
+// exit paired with their confirm. Quiet by design — it is the way out, not the
+// thing to press — but it is always on screen.
+.infinite-canvas-mask__back,
+.infinite-canvas-crop__back {
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--infinite-canvas-hairline);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--infinite-canvas-muted);
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--infinite-canvas-border);
+    color: var(--infinite-canvas-text);
+    outline: none;
+  }
+}
+
 .infinite-canvas-crop__spacer {
   flex: 1;
 }

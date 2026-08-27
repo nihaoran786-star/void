@@ -559,6 +559,40 @@ describe('InfiniteCanvasMaskEditor', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Owner feedback 2026-08-27: this editor fills the whole board, so it carries
+   * a visible exit next to its confirm. It is the same `requestClose` path as
+   * Escape — out at once when nothing was painted, discard question otherwise.
+   */
+  it('leaves through the visible back button when nothing was painted', async () => {
+    await renderEditor();
+
+    act(() => {
+      Simulate.click(container.querySelector('[data-mask-action="back"]')!);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeNull();
+  });
+
+  it('asks before the back button throws painted marks away', async () => {
+    await renderEditor();
+    paintStroke();
+
+    act(() => {
+      Simulate.click(container.querySelector('[data-mask-action="back"]')!);
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    const confirmDialog = container.querySelector('[data-canvas-confirm="mask-discard"]');
+    expect(confirmDialog).not.toBeNull();
+
+    act(() => {
+      Simulate.click(confirmDialog!.querySelector('[data-canvas-confirm-action="confirm"]')!);
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('offers an adjustable brush that starts at the reference default', async () => {
     await renderEditor();
 

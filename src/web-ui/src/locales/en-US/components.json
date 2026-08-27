@@ -1172,6 +1172,7 @@
       "discardBody": "The frame you drew will be lost. The original picture is untouched either way.",
       "discardConfirm": "Discard",
       "discardCancel": "Keep editing",
+      "back": "Back",
       "loading": "Opening the picture…",
       "export": {
         "too-large": "This picture is too large for the browser to process. Nothing was changed.",
@@ -1202,6 +1203,7 @@
       "discardBody": "What you painted will be lost. The original picture is untouched either way.",
       "discardConfirm": "Discard",
       "discardCancel": "Keep editing",
+      "back": "Back",
       "directive": {
         "inpaint": "Change only the area covered by the semi-transparent red marking in this image. Every other pixel must stay exactly as in the original. Do not reproduce the red marking itself in the result.",
         "erase": "Remove what sits under the semi-transparent red marking in this image and fill that area naturally with content that matches its surroundings. Every other pixel must stay exactly as in the original. Do not reproduce the red marking itself in the result."

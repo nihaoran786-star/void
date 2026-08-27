@@ -214,6 +214,39 @@ describe('InfiniteCanvasCropEditor', () => {
     expect(container.querySelector('[data-canvas-confirm="crop-discard"]')).not.toBeNull();
   });
 
+  /**
+   * Owner feedback 2026-08-27: a board-filling editor needs a visible way out,
+   * and it must behave exactly like Escape does — straight out when nothing was
+   * touched, and a discard question once the frame has been moved.
+   */
+  it('leaves through the visible back button when the frame is untouched', async () => {
+    await renderEditor();
+
+    act(() => {
+      Simulate.click(container.querySelector('[data-crop-action="back"]')!);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-canvas-confirm="crop-discard"]')).toBeNull();
+  });
+
+  it('asks before the back button drops a frame the user adjusted', async () => {
+    await renderEditor();
+    act(() => {
+      Simulate.mouseDown(frame(), { clientX: 400, clientY: 200 } as never);
+    });
+    act(() => {
+      Simulate.mouseMove(frame().parentElement!, { clientX: 420, clientY: 210 } as never);
+    });
+
+    act(() => {
+      Simulate.click(container.querySelector('[data-crop-action="back"]')!);
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-canvas-confirm="crop-discard"]')).not.toBeNull();
+  });
+
   it('reports a picture it cannot open instead of showing an empty stage', async () => {
     await renderEditor(async () => undefined);
 
