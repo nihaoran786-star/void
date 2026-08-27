@@ -971,11 +971,6 @@
       "inpaint": "Inpaint",
       "erase": "Erase",
       "matting": "Cutout",
-      "instructionTitle": "Complete the instruction",
-      "instructionHint": "Replace every 【】 placeholder before confirming.",
-      "instructionLabel": "Tool instruction",
-      "confirm": "Confirm and generate",
-      "cancel": "Cancel",
       "dismiss": "Got it",
       "crop": "Crop",
       "blocked": {
@@ -1239,7 +1234,7 @@
     "expand": {
       "title": "Expand this picture",
       "back": "Back",
-      "hint": "Drag the outer frame to expand",
+      "hint": "Drag any grip — the frame must still hold the whole picture",
       "loading": "Opening the picture…",
       "unavailable": "This picture could not be opened for expanding.",
       "blocked": {
@@ -1252,7 +1247,8 @@
       },
       "writeFailed": "The expanded picture could not be saved, so nothing was generated and nothing was charged.",
       "writeTooLarge": "The expanded picture is too large to save. Drag the frame back in, then try again. Nothing was generated and nothing was charged.",
-      "writeDenied": "The expanded picture could not be saved to that location. Nothing was generated and nothing was charged."
+      "writeDenied": "The expanded picture could not be saved to that location. Nothing was generated and nothing was charged.",
+      "promptPlaceholder": "Optional: what should appear in the new space? Leave empty to continue the scene"
     }
   },
   "agentStudio": {

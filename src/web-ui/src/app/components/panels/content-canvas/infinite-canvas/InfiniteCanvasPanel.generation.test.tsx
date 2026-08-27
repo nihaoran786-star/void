@@ -377,26 +377,39 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     expect(readDocument(memory).nodes.every(node => node.generation === undefined)).toBe(true);
   });
 
-  it('derives a pending placeholder card from a confirmed tool instruction', async () => {
+  /**
+   * §7.4.3: there is one input box on the whole board, so a tool that needs a
+   * sentence writes it into THAT box and waits. The lane behind the send is
+   * unchanged — this is the same derive-a-new-card dispatch the deleted
+   * completion dialog used to reach.
+   */
+  it('derives a pending placeholder card from a tool instruction sent from the shared input', async () => {
     const sourceMediaRef = mediaRefOf('hero.png');
     seedDocument(memory, {
       nodes: [imageNode('card-src', { mediaRef: sourceMediaRef })],
     });
     await renderPanel();
 
-    // P6: outpainting now opens the expand EDITOR, so the placeholder
-    // completion dialog is exercised through a tool that still uses it. The
-    // lane behind the dialog is unchanged.
     await clickButton(button => button.getAttribute('data-tool-id') === 'upscale');
-    const input = container.querySelector('.infinite-canvas-dialog textarea');
+    // No second window: the instruction is sitting in the card's own box.
+    expect(container.querySelector('.infinite-canvas-dialog[data-tool-id]')).toBeNull();
+    const input = container.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-generator-target="card-src"] [data-canvas-generator-field="prompt"]',
+    );
     expect(input).not.toBeNull();
+    expect(input!.value).toBe('Upscale this image to 【target resolution】 while preserving detail.');
+
+    // Pressing the tool dispatched nothing; the round send button is still the
+    // only control on this board that spends money.
+    expect(recording.invocations).toHaveLength(0);
+
     await act(async () => {
       Simulate.change(input!, {
         target: { value: 'Upscale this image to 4K while preserving detail.' },
       } as never);
     });
     await clickButton(button => (
-      button.className.includes('infinite-canvas-dialog__confirm')
+      button.getAttribute('data-canvas-generator-action') === 'send'
     ));
 
     expect(recording.invocations).toHaveLength(1);

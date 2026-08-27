@@ -971,11 +971,6 @@
       "inpaint": "局部重繪",
       "erase": "智慧擦除",
       "matting": "智慧去背",
-      "instructionTitle": "補全指令",
-      "instructionHint": "確認前請補全所有【】佔位內容。",
-      "instructionLabel": "工具指令",
-      "confirm": "確認生成",
-      "cancel": "取消",
       "dismiss": "知道了",
       "crop": "裁切",
       "blocked": {
@@ -1239,7 +1234,7 @@
     "expand": {
       "title": "擴展這張圖",
       "back": "返回",
-      "hint": "拖曳外框進行擴圖",
+      "hint": "任意拖曳控點，外框始終包住整張圖",
       "loading": "正在開啟圖片…",
       "unavailable": "這張圖無法開啟進行擴圖。",
       "blocked": {
@@ -1252,7 +1247,8 @@
       },
       "writeFailed": "擴展後的圖沒能儲存，沒有產生任何內容，也沒有消耗額度。",
       "writeTooLarge": "擴展後的圖太大，無法儲存。把外框往回收一些再試。沒有產生任何內容，也沒有消耗額度。",
-      "writeDenied": "擴展後的圖無法儲存到該位置。沒有產生任何內容，也沒有消耗額度。"
+      "writeDenied": "擴展後的圖無法儲存到該位置。沒有產生任何內容，也沒有消耗額度。",
+      "promptPlaceholder": "可不填：描述擴出來的部分要畫什麼，留空則自然延續畫面"
     }
   },
   "agentStudio": {

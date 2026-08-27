@@ -93,6 +93,15 @@ const ARROW_DELTAS: Readonly<Record<string, readonly [number, number]>> = {
 export interface InfiniteCanvasFrameEditorConfirmPayload {
   /** Bare base64 PNG: the cut for inward, the composite for outward. */
   base64Png: string;
+  /**
+   * What the user typed underneath, trimmed; `''` when they typed nothing.
+   *
+   * §7.4.4 (owner 2026-08-28: "然后下面再打字"): the outward lane keeps the
+   * shared input's writing area, so the user may describe what should appear
+   * in the room they just made. It is optional — an empty sentence still
+   * sends, and the lane falls back to "continue the existing scene".
+   */
+  prompt: string;
   /** The box in natural pixels, relative to the picture's origin. */
   rect: CanvasRect;
   /** The same box as outward insets; all zeros unless it was dragged out. */
@@ -108,10 +117,10 @@ export interface InfiniteCanvasFrameEditorProps {
   /** Always the forceDataUrl resolver: the export lane needs a data URL. */
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
   /**
-   * The shared board generator. Outward mounts it with the writing area
-   * collapsed and sends from it; inward has no prompt at all and passes none,
-   * which is why inward is the one surface whose primary action is still in
-   * the pill (§7.2.1, unchanged by §7.4).
+   * The shared board generator. Outward mounts it whole — writing area
+   * included (§7.4.4) — and sends from its round button; inward has no prompt
+   * at all and passes none, which is why inward is the one surface whose
+   * primary action is still in the pill (§7.2.1, unchanged by §7.4).
    */
   generator?: InfiniteCanvasEditorGeneratorProps;
   onConfirm: (payload: InfiniteCanvasFrameEditorConfirmPayload) => void;
@@ -148,6 +157,11 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
 
   const imageRef = React.useRef<HTMLImageElement | null>(null);
   const dragRef = React.useRef<FrameDrag | null>(null);
+  /**
+   * Mirrors `dragRef` as state purely so the window listeners below can be
+   * subscribed for exactly as long as a drag lasts.
+   */
+  const [dragging, setDragging] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -215,6 +229,7 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
       scaleX: box && box.width > 0 ? natural.width / box.width : 1,
       scaleY: box && box.height > 0 ? natural.height / box.height : 1,
     };
+    setDragging(true);
   }, [direction, edges, natural, ready]);
 
   const onStageMouseMove = React.useCallback((event: React.MouseEvent) => {
@@ -225,7 +240,36 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
 
   const endDrag = React.useCallback(() => {
     dragRef.current = null;
+    setDragging(false);
   }, []);
+
+  /**
+   * A drag is followed on the WINDOW, not on the stage (§7.4.4).
+   *
+   * The grips sit ON the box's border, so the very first outward pixel of the
+   * gesture leaves the stage element. While the stage owned the listeners that
+   * ended the drag on the spot: the owner reported the frame "wouldn't move",
+   * and this is why. Deltas stay measured against the same frozen origin, so
+   * following them further out is the same arithmetic, just not cut short.
+   * The stage's own React handlers stay as they are — a second, identical
+   * `applyDelta` from the same frozen start is a no-op.
+   */
+  React.useEffect(() => {
+    if (!dragging) return undefined;
+    const view = imageRef.current?.ownerDocument?.defaultView;
+    if (!view) return undefined;
+    const onMove = (event: MouseEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      applyDelta(drag, event.clientX - drag.originX, event.clientY - drag.originY);
+    };
+    view.addEventListener('mousemove', onMove);
+    view.addEventListener('mouseup', endDrag);
+    return () => {
+      view.removeEventListener('mousemove', onMove);
+      view.removeEventListener('mouseup', endDrag);
+    };
+  }, [applyDelta, dragging, endDrag]);
 
   /**
    * The grips are buttons, so they are reachable and nudgeable from the
@@ -263,7 +307,7 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
    * rectangle AND the insets AND the size, and the panel routes each direction
    * down the lane it already had.
    */
-  const confirm = React.useCallback(() => {
+  const confirm = React.useCallback((prompt = '') => {
     if (!bitmap || !edges || !canConfirm) return;
     try {
       const clamped = clampCanvasFrameEdges(direction, edges, natural);
@@ -273,6 +317,7 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
         : expandBitmap(bitmap, clamped);
       onConfirm({
         base64Png: exportCanvasPngBase64(produced),
+        prompt: prompt.trim(),
         rect,
         insets: direction === 'inward'
           ? { left: 0, top: 0, right: 0, bottom: 0 }
@@ -339,7 +384,7 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
               className="infinite-canvas-editor__text infinite-canvas-editor__primary"
               data-canvas-frame-action="confirm"
               disabled={!canConfirm}
-              onClick={confirm}
+              onClick={() => confirm()}
             >
               {t('infiniteCanvas.crop.confirm')}
             </button>
@@ -362,16 +407,25 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
       )}
       footer={direction === 'outward' && generator && !failed ? (
         <>
+          {/*
+            §7.4.4 — the writing area is BACK. The owner's words were "然后
+            下面再打字": the frame says how much room to make, and the sentence
+            underneath says what should appear in it. It is optional, so it
+            never gates the send button; only an undragged frame does.
+          */}
           <InfiniteCanvasGenerator
             {...generator}
             surface="editor"
-            collapsePrompt
             references={[]}
             resolvePreviewUrl={resolvePreviewUrl}
+            // Opens empty: this sentence is about the room being ADDED, not the
+            // sentence that made the picture in the first place.
+            target={{ ...generator.target, prompt: '' }}
+            placeholder={t('infiniteCanvas.expand.promptPlaceholder')}
             note={ready && !canConfirm ? t('infiniteCanvas.expand.blocked.frame') : undefined}
             noteReason={ready && !canConfirm ? 'frame' : undefined}
             canSubmit={canConfirm}
-            onSubmit={confirm}
+            onSubmit={prompt => confirm(prompt)}
           />
           {exportNote}
         </>
@@ -389,8 +443,27 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
           } as React.CSSProperties}
           onMouseMove={onStageMouseMove}
           onMouseUp={endDrag}
-          onMouseLeave={endDrag}
         >
+          {/*
+            §7.4.4: the room between the box and the picture is what will be
+            painted, so it is pressed down a shade — one glance says which part
+            is not there yet. It is laid UNDER the picture rather than over it,
+            which is why the picture reads at full strength and the shading
+            stops exactly at its edge without a second cut-out rectangle.
+          */}
+          {direction === 'outward' && edges ? (
+            <span
+              className="infinite-canvas-frame__veil"
+              data-canvas-frame-veil="true"
+              aria-hidden="true"
+              style={{
+                left: `${layout.frame.left}%`,
+                top: `${layout.frame.top}%`,
+                width: `${layout.frame.width}%`,
+                height: `${layout.frame.height}%`,
+              }}
+            />
+          ) : null}
           {previewUrl ? (
             <img
               className="infinite-canvas-frame__image"

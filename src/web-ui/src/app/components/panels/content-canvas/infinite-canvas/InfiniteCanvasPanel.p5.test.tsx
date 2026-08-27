@@ -415,7 +415,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     expect(notice!.textContent).toContain('infiniteCanvas.crop.cardMissing');
   });
 
-  it('opens the mask editor for inpaint instead of the instruction dialog', async () => {
+  it('opens the mask editor for inpaint instead of a dialog', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
     await openEditor('[data-tool-id="inpaint"]');
@@ -424,17 +424,64 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     expect(container.querySelector('.infinite-canvas-dialog[data-tool-id]')).toBeNull();
   });
 
-  it('keeps the two remaining tools on the instruction dialog', async () => {
+  /**
+   * §7.4.3 (owner 2026-08-28: "所有的输入框都是共用的"). The completion dialog
+   * is gone from the product, not merely bypassed: the remaining two tools
+   * write their instruction into the card's OWN input box and stop there.
+   */
+  it('writes the remaining tools straight into the shared input, with no dialog anywhere', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
-    // P6: expand left the dialog for its own editor, so upscale and matting are
-    // the two tools the placeholder-completion dialog is still for.
     await openEditor('[data-tool-id="upscale"]');
 
     expect(container.querySelector('[data-canvas-editor="mask"]')).toBeNull();
     expect(container.querySelector('[data-canvas-editor="expand"]')).toBeNull();
-    expect(container.querySelector('.infinite-canvas-dialog[data-tool-id="upscale"]'))
-      .not.toBeNull();
+    // No completion layer, under any selector it ever rendered with.
+    expect(container.querySelector('.infinite-canvas-dialog[data-tool-id]')).toBeNull();
+    expect(container.querySelector('.infinite-canvas-dialog__confirm')).toBeNull();
+
+    // Exactly one place to type on the whole board, and the instruction is in
+    // it, placeholder intact so it can be edited where it stands.
+    const fields = container.querySelectorAll('[data-canvas-generator-field="prompt"]');
+    expect(fields).toHaveLength(1);
+    expect((fields[0] as HTMLTextAreaElement).value).toContain('【target resolution】');
+
+    // The send button is parked while a 【】 is outstanding — and it says why,
+    // on the input's own short grey line rather than in a window.
+    const send = container.querySelector(
+      '[data-canvas-generator-action="send"]',
+    ) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    expect(container.querySelector('[data-canvas-generator-note="true"]')
+      ?.getAttribute('data-blocked-reason')).toBe('placeholder');
+  });
+
+  /**
+   * §7.4.3: the pending instruction belongs to the card it was written into.
+   * Look at another card and the intent goes with the box it lived in — the
+   * next round send must be an ordinary generation, not an inherited tool.
+   */
+  it('drops a pending tool instruction when the selection moves on', async () => {
+    const other = { ...IMAGE_NODE, nodeId: 'n-other', prompt: 'a dog', mediaRef: undefined };
+    seedDocument(memory, { nodes: [IMAGE_NODE, other] });
+    await renderPanel();
+    await openEditor('[data-node-id="n-image"] [data-tool-id="upscale"]');
+
+    await act(async () => {
+      flow.props.onSelectionChange?.({ nodes: [{ id: 'n-other' }] });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      Simulate.click(container.querySelector('[data-canvas-generator-action="send"]')!);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    // One dispatch, and it is that card's own generation — not an upscale of
+    // the picture the user walked away from.
+    expect(stubRuntime.gateway.invoke).toHaveBeenCalledTimes(1);
+    const invocation = stubRuntime.gateway.invoke.mock.calls[0][0] as any;
+    expect(invocation.kind).toBe('generate');
+    expect(invocation.nodeId).toBe('n-other');
   });
 
   /**
@@ -483,12 +530,12 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
   }
 
   /**
-   * §6.4's last line, made real: outpainting needs no sentence, so the shared
-   * generator mounts with its writing area collapsed. The bottom row — model,
-   * parameters, count, round send — is untouched, and the send button is the
-   * confirm.
+   * §7.4.4 (owner 2026-08-28: "然后下面再打字"): the outpainting editor mounts
+   * the shared generator WHOLE — writing area included — so the user can
+   * describe the room being added. The bottom row — model, parameters, count,
+   * round send — is untouched, and the send button is the confirm.
    */
-  it('mounts the shared generator with no prompt area and a parked send', async () => {
+  it('mounts the shared generator with its prompt area and a parked send', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
     await openEditor('[data-node-action="more"]');
@@ -496,8 +543,14 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
 
     const generator = container.querySelector('[data-canvas-generator="root"]')!;
     expect(generator.getAttribute('data-canvas-generator-surface')).toBe('editor');
-    expect(generator.getAttribute('data-canvas-generator-prompt')).toBe('collapsed');
-    expect(generator.querySelector('[data-canvas-generator-field="prompt"]')).toBeNull();
+    expect(generator.getAttribute('data-canvas-generator-prompt')).toBe('open');
+    const field = generator.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-generator-field="prompt"]',
+    );
+    expect(field).not.toBeNull();
+    // It opens empty: this sentence is about what to ADD, not the sentence
+    // that made the picture in the first place.
+    expect(field!.value).toBe('');
     // The bottom row is the board's own, unchanged.
     expect(generator.querySelector('[data-canvas-generator-action="model"]')).not.toBeNull();
     expect(generator.querySelector('[data-canvas-generator-action="params"]')).not.toBeNull();
@@ -555,6 +608,50 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     expect(derived.derivedFrom).toMatchObject({ sourceNodeId: 'n-image', toolId: 'expand' });
     expect(derived.mediaRef).toBeUndefined();
     expect(derived.generation).toMatchObject({ status: 'pending', toolId: 'expand' });
+  });
+
+  /**
+   * §7.4.4: what the user types underneath describes the new room, and it
+   * travels through the SAME assembler and the SAME gateway call — an extra
+   * sentence, not an extra lane. Leaving it empty is still a valid send, which
+   * every other test in this block already exercises.
+   */
+  it('carries the sentence written under the frame into the same submission', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-action="more"]');
+    await openEditor('[data-tool-id="expand"]');
+
+    const grip = container.querySelector('[data-canvas-frame-handle="e"]')!;
+    act(() => {
+      Simulate.mouseDown(grip, { clientX: 0, clientY: 0 } as never);
+    });
+    act(() => {
+      Simulate.mouseMove(
+        container.querySelector('[data-canvas-frame-stage="true"]')!,
+        { clientX: 200, clientY: 0 } as never,
+      );
+    });
+    act(() => {
+      Simulate.change(
+        container.querySelector('[data-canvas-generator-field="prompt"]')!,
+        { target: { value: 'a long empty pier going out to sea' } } as never,
+      );
+    });
+    await act(async () => {
+      Simulate.click(container.querySelector('[data-canvas-generator-action="send"]')!);
+    });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(stubRuntime.gateway.invoke).toHaveBeenCalledTimes(1);
+    const invocation = stubRuntime.gateway.invoke.mock.calls[0][0] as any;
+    expect(invocation.kind).toBe('expand');
+    expect(invocation.prompt).toContain('a long empty pier going out to sea');
+    // Still the one directive-then-template shape, with nothing left unfilled.
+    expect(invocation.prompt).toContain('infiniteCanvas.expand.directive');
+    expect(invocation.prompt).toContain('the right');
+    expect(hasUnfilledInstructionPlaceholder(invocation.prompt)).toBe(false);
   });
 
   it('submits nothing when the outpainting composite cannot be written', async () => {

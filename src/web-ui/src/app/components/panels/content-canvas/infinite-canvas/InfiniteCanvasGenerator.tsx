@@ -18,6 +18,7 @@
 import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
+import { instructionBlockReason } from '@/shared/services/infinite-canvas';
 import { infiniteCanvasStyleSwatch } from './infiniteCanvasStyleSwatch';
 import type {
   InfiniteCanvasImagePreviewResolver,
@@ -102,15 +103,17 @@ export interface InfiniteCanvasGeneratorProps {
    */
   canSubmit?: boolean;
   /**
-   * Hides the prompt field, leaving only the bottom row (§6.4's last line).
+   * The prefilled tool instruction this box is currently carrying, if any.
    *
-   * The outpainting editor asks for no sentence at all — the frame the user
-   * dragged already carries the whole request — and the owner's reference shot
-   * shows exactly that: no writing area, just the pills and the round send
-   * button. This is that switch, and it is the ONLY difference; the surface
-   * still mounts this component rather than a second, smaller input bar.
+   * §7.4.3 (owner 2026-08-28): there is exactly ONE input box on the whole
+   * board, so the tools that need a sentence no longer open a completion
+   * dialog of their own — they write their template straight in here with its
+   * 【】 placeholders intact. Passing that template back tells the box which
+   * brackets are the tool's, so it can say "you still have one to fill in" on
+   * its own short grey line instead of a second window, and never mistake the
+   * user's own 【】 punctuation for an unfinished placeholder.
    */
-  collapsePrompt?: boolean;
+  instructionTemplate?: string;
   placement?: InfiniteCanvasGeneratorPlacement;
   references: readonly InfiniteCanvasGeneratorReference[];
   resolvePreviewUrl: InfiniteCanvasImagePreviewResolver;
@@ -162,7 +165,7 @@ export interface InfiniteCanvasGeneratorProps {
 export type InfiniteCanvasEditorGeneratorProps = Omit<
   InfiniteCanvasGeneratorProps,
   | 'canSubmit'
-  | 'collapsePrompt'
+  | 'instructionTemplate'
   | 'note'
   | 'noteReason'
   | 'onAddReference'
@@ -309,7 +312,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   note,
   noteReason,
   canSubmit = true,
-  collapsePrompt = false,
+  instructionTemplate,
   placement,
   references,
   resolvePreviewUrl,
@@ -341,7 +344,20 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   }, [targetNodeId, targetPrompt]);
 
   const pending = target.pending;
-  const blocked = pending || !canSubmit;
+  /**
+   * §7.4.3: a prefilled tool instruction is the one thing this box refuses to
+   * send as it stands, and it says so on its own grey line — the rule the
+   * deleted dialog carried, moved here rather than dropped. Nothing else may
+   * grey out the send button silently: a reason always travels with it.
+   */
+  const instructionBlock = instructionTemplate
+    ? instructionBlockReason(draft, instructionTemplate)
+    : undefined;
+  const shownNote = note ?? (
+    instructionBlock ? t(`infiniteCanvas.tools.blocked.${instructionBlock}`) : undefined
+  );
+  const shownNoteReason = noteReason ?? instructionBlock;
+  const blocked = pending || !canSubmit || Boolean(instructionBlock);
   const submit = React.useCallback(() => {
     if (blocked) return;
     onSubmit(draft);
@@ -354,7 +370,8 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
       }`}
       data-canvas-generator="root"
       data-canvas-generator-surface={surface}
-      data-canvas-generator-prompt={collapsePrompt ? 'collapsed' : 'open'}
+      data-canvas-generator-prompt="open"
+      data-canvas-generator-instruction={instructionTemplate ? 'true' : undefined}
       data-canvas-generator-target={targetNodeId}
       // Until the card has been measured the stylesheet's own placement keeps
       // the input on screen; once it is measured, the inline box wins.
@@ -444,16 +461,15 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         ) : null}
       </div>
       ) : null}
-      {note ? (
+      {shownNote ? (
         <p
           className="infinite-canvas-generator__note"
           data-canvas-generator-note="true"
-          data-blocked-reason={noteReason}
+          data-blocked-reason={shownNoteReason}
         >
-          {note}
+          {shownNote}
         </p>
       ) : null}
-      {collapsePrompt ? null : (
       <textarea
         className="infinite-canvas-generator__prompt nodrag"
         data-canvas-generator-field="prompt"
@@ -475,7 +491,6 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
           submit();
         }}
       />
-      )}
       <div className="infinite-canvas-generator__bar">
         {/* §7.3-A: model name first, then the parameter summary pill; each
             opens its own popover. Owner feedback 2026-08-27: these are small

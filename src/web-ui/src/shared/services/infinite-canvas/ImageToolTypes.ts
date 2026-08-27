@@ -193,10 +193,13 @@ export const IMAGE_TOOL_DEFINITIONS: readonly ImageToolDefinition[] = [
 // original onto a larger, otherwise transparent canvas and submits THAT as the
 // edit target. `GenerateImage` still sees "a prompt and one reference image".
 //
-// The prompt is not written by the user: an outpainting frame already says
-// everything the request needs, so the editor collapses the prompt area and
-// this module fills the existing `expand` template's bracket placeholders from
-// the frame instead. No second prompt assembler, no new instruction template.
+// The frame says HOW MUCH room to make. What goes in it is the user's to
+// describe if they want to (§7.4.4, owner 2026-08-28: "然后下面再打字"): the
+// editor keeps the shared input's writing area, and whatever is in it fills the
+// existing `expand` template's "scene description" placeholder. Leave it empty
+// and the template falls back to "more of what is already there", which is what
+// outpainting means when nobody says otherwise. Either way it is the same
+// template and the same assembler — no second prompt path.
 
 /** How far the frame was dragged past each edge, in the picture's own pixels. */
 export interface CanvasExpandInsets {
@@ -210,10 +213,8 @@ export interface CanvasExpandInsets {
 export const EXPAND_DIRECTIVE_KEY = 'infiniteCanvas.expand.directive';
 
 /**
- * What fills the template's "scene description" placeholder.
- *
- * The user never types here (see above), so the instruction asks for the one
- * thing outpainting always wants: more of the picture that is already there.
+ * What fills the template's "scene description" placeholder when the user
+ * wrote nothing: the one thing outpainting always wants.
  */
 const EXPAND_SCENE_DESCRIPTION = 'content that continues the existing scene naturally';
 
@@ -249,6 +250,7 @@ export function expandInstructionDirection(insets: CanvasExpandInsets): string {
 export function buildExpandInstruction(
   directive: string,
   insets: CanvasExpandInsets,
+  sceneDescription = '',
 ): string {
   const definition = IMAGE_TOOL_DEFINITIONS.find(entry => entry.toolId === 'expand');
   const template = definition?.instructionTemplate ?? '';
@@ -257,7 +259,11 @@ export function buildExpandInstruction(
   if (directionToken) {
     filled = filled.replace(directionToken, expandInstructionDirection(insets));
   }
-  if (sceneToken) filled = filled.replace(sceneToken, EXPAND_SCENE_DESCRIPTION);
+  // The user's own sentence when there is one; the fallback otherwise. Either
+  // way the placeholder is gone, so the template can never reach a model with
+  // a bracket still in it.
+  const scene = sceneDescription.trim() || EXPAND_SCENE_DESCRIPTION;
+  if (sceneToken) filled = filled.replace(sceneToken, scene);
   // The same joiner the mask lane uses — one "directive then instruction"
   // shape for every lane that prepends a machine-facing sentence.
   return buildMaskInstruction(directive, filled);

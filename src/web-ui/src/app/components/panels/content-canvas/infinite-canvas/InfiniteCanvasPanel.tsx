@@ -62,6 +62,7 @@ import {
   buildExpandInstruction,
   buildMaskInstruction,
   EXPAND_DIRECTIVE_KEY,
+  IMAGE_TOOL_DEFINITIONS,
   isMaskImageTool,
   maskDirectiveKey,
 } from '@/shared/services/infinite-canvas';
@@ -185,7 +186,6 @@ import {
 import { InfiniteCanvasTaskQueuePanel } from './InfiniteCanvasTaskQueuePanel';
 import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
-import { InfiniteCanvasToolInstructionDialog } from './InfiniteCanvasToolInstructionDialog';
 import { InfiniteCanvasFrameEditor } from './InfiniteCanvasFrameEditor';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
 import {
@@ -283,9 +283,21 @@ function assetWriteNotice(
   return { messageKey: `infiniteCanvas.${lane}.writeFailed`, errorKind: 'backend' };
 }
 
-interface ToolDialogRequest {
+/**
+ * A five-tool action that has been picked but not yet sent (§7.4.3).
+ *
+ * There is no dialog behind this any more. Pressing "smart upscale" writes the
+ * tool's instruction template into the CARD'S OWN input box — the one shared
+ * input the whole board has — and remembers, here, that the next press of that
+ * box's round send button is that tool rather than an ordinary generation. The
+ * user edits the sentence in place and sends it from where they were already
+ * looking; there is no second window and no second confirm button.
+ */
+interface ToolIntent {
   nodeId: string;
   toolId: ImageToolId;
+  /** The template as prefilled, so the box knows which 【】 are the tool's. */
+  template: string;
 }
 
 /** P5 W4: the card whose picture is open in the mask editor, and for which tool. */
@@ -566,7 +578,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     React.useState<'card' | 'reference'>('card');
   const [stylePickerNodeId, setStylePickerNodeId] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<GenerationNotice | null>(null);
-  const [toolDialog, setToolDialog] = React.useState<ToolDialogRequest | null>(null);
+  const [toolIntent, setToolIntent] = React.useState<ToolIntent | null>(null);
   /** P5: the two full-panel editing states. Mutually exclusive by construction. */
   const [maskRequest, setMaskRequest] = React.useState<MaskEditorRequest | null>(null);
   const [cropRequest, setCropRequest] = React.useState<CropEditorRequest | null>(null);
@@ -1180,10 +1192,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     });
   }, [commit, findMediaNode, prepareDispatch, submitOperation]);
 
-  const confirmToolInstruction = React.useCallback(async (instruction: string) => {
-    const request = toolDialog;
-    setToolDialog(null);
-    if (!request) return;
+  /**
+   * Send a five-tool action from the shared input (§7.4.3).
+   *
+   * Everything downstream of here is exactly what the deleted dialog did: the
+   * derive-a-new-card mutation, the same gateway call, the same edit target.
+   * Only where the sentence was typed has changed.
+   */
+  const confirmToolInstruction = React.useCallback(async (
+    request: ToolIntent,
+    instruction: string,
+  ) => {
+    setToolIntent(null);
     const found = findImageNode(request.nodeId);
     if (!found) return;
     const { document, node } = found;
@@ -1216,7 +1236,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       references,
       editTargetMediaRef: node.mediaRef,
     });
-  }, [commit, findImageNode, prepareDispatch, submitOperation, toolDialog]);
+  }, [commit, findImageNode, prepareDispatch, submitOperation]);
 
   // —— P5: crop and the mask lane ————————————————————————————————————————————
 
@@ -1385,6 +1405,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const confirmExpand = React.useCallback(async (
     base64Png: string,
     insets: CanvasExpandInsets,
+    sceneDescription: string,
   ) => {
     const request = expandRequest;
     setExpandRequest(null);
@@ -1393,7 +1414,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     if (!found?.node.mediaRef) return;
     const { document, node } = found;
 
-    const finalPrompt = buildExpandInstruction(t(EXPAND_DIRECTIVE_KEY), insets);
+    // §7.4.4: whatever the user typed underneath describes the room being
+    // added. Empty is fine — the template's own fallback covers it — and it
+    // goes through the SAME assembler either way.
+    const finalPrompt = buildExpandInstruction(
+      t(EXPAND_DIRECTIVE_KEY),
+      insets,
+      sceneDescription,
+    );
     // Same gate as every other dispatch: a prompt, a reachable target session.
     if (!prepareDispatch(document, request.nodeId, finalPrompt)) return;
     if (!assetWriter) {
@@ -1654,10 +1682,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         const found = findImageNode(nodeId);
         if (!found?.node.mediaRef) return;
         // P5 W4: inpaint and erase are now "circle it on the picture" rather
-        // than "describe where in words". The other three keep
-        // the placeholder-completion dialog.
+        // than "describe where in words". Their sentence is prefilled into the
+        // SAME shared input, mounted at the bottom of the editor (§7.4.3).
         if (isMaskImageTool(toolId)) {
-          setToolDialog(null);
+          setToolIntent(null);
           setCropRequest(null);
           setExpandRequest(null);
           setMaskRequest({ nodeId, toolId, mediaRef: found.node.mediaRef });
@@ -1666,13 +1694,37 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         // P6: outpainting is a frame you drag, not a direction you describe.
         // The "more" drawer entry is unchanged; what it opens is.
         if (toolId === 'expand') {
-          setToolDialog(null);
+          setToolIntent(null);
           setCropRequest(null);
           setMaskRequest(null);
           setExpandRequest({ nodeId, mediaRef: found.node.mediaRef });
           return;
         }
-        setToolDialog({ nodeId, toolId });
+        // §7.4.3: the remaining tools write their instruction into the card's
+        // own input box, placeholders and all, and wait there. Nothing is
+        // dispatched by the press — the round send button is still the only
+        // control on this board that spends money.
+        const template = IMAGE_TOOL_DEFINITIONS
+          .find(entry => entry.toolId === toolId)?.instructionTemplate ?? '';
+        setToolIntent({ nodeId, toolId, template });
+        // Same live-draft bookkeeping the reverse-prompt lane does, so a slow
+        // arrival cannot land on top of what the box is showing.
+        generatorDraftRef.current = { nodeId, value: template };
+        // The box only exists under the SELECTED card, so writing into it
+        // means selecting that card — otherwise the press would look like it
+        // did nothing at all.
+        selectedNodeIdsRef.current = [nodeId];
+        setViewportTransform(viewportRef.current);
+        setSelectedNodeIds([nodeId]);
+        setFlowNodes(nodes => nodes.map(node => (
+          node.selected === (node.id === nodeId)
+            ? node
+            : { ...node, selected: node.id === nodeId }
+        )));
+        void commit(
+          document => setNodePromptContent(document, nodeId, template),
+          { history: true },
+        );
       },
       reversePrompt: (nodeId, anchor) => {
         // Owner approval 2026-08-27: the vision call is billed, so the press
@@ -1684,7 +1736,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       cropImage: nodeId => {
         const found = findImageNode(nodeId);
         if (!found?.node.mediaRef) return;
-        setToolDialog(null);
+        setToolIntent(null);
         setMaskRequest(null);
         setExpandRequest(null);
         setCropRequest({ nodeId, mediaRef: found.node.mediaRef });
@@ -1822,7 +1874,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setModelNodeId(null);
     setStylePickerNodeId(null);
     setNotice(null);
-    setToolDialog(null);
+    setToolIntent(null);
     setMaskRequest(null);
     setCropRequest(null);
     // P5 review C9: the three surfaces P5 added are node-scoped too. An
@@ -2804,8 +2856,27 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         history: true,
       });
     }
+    // §7.4.3: the same round button, two destinations. If this card is
+    // carrying a five-tool instruction the user just finished editing, the
+    // press is that tool — derive a new card off this picture — and otherwise
+    // it is the ordinary generation it has always been.
+    if (toolIntent && toolIntent.nodeId === target.nodeId) {
+      await confirmToolInstruction(toolIntent, prompt.trim());
+      return;
+    }
     await generateForNode(target.nodeId);
-  }, [commit, generateForNode, generatorTarget]);
+  }, [commit, confirmToolInstruction, generateForNode, generatorTarget, toolIntent]);
+
+  /**
+   * A prefilled tool instruction belongs to the card it was written into. Look
+   * away — select another card, or nothing — and the intent goes with the box
+   * it was living in, so the next card's send button cannot inherit it.
+   */
+  React.useEffect(() => {
+    if (!toolIntent) return;
+    if (selectedNodeIds.length === 1 && selectedNodeIds[0] === toolIntent.nodeId) return;
+    setToolIntent(null);
+  }, [selectedNodeIds, toolIntent]);
 
   const onGeneratorAddReference = React.useCallback((anchor?: HTMLElement) => {
     setImagePickerAnchor(anchor ?? null);
@@ -2969,15 +3040,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           </div>
         </div>
       ) : null}
-      {toolDialog ? (
-        <InfiniteCanvasToolInstructionDialog
-          toolId={toolDialog.toolId}
-          onConfirm={instruction => {
-            void confirmToolInstruction(instruction);
-          }}
-          onClose={() => setToolDialog(null)}
-        />
-      ) : null}
       <div
         className="infinite-canvas-panel__flow"
         aria-label={t('infiniteCanvas.title')}
@@ -3127,6 +3189,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           <InfiniteCanvasGenerator
             target={generatorTarget}
             placement={generatorPlacement}
+            // §7.4.3: present only while this card is carrying a prefilled
+            // tool instruction; it is what lets the box say "there is still a
+            // 【】 to fill in" on its own grey line instead of in a dialog.
+            instructionTemplate={toolIntent?.nodeId === generatorTarget.nodeId
+              ? toolIntent.template
+              : undefined}
             references={generatorReferences}
             resolvePreviewUrl={resolvePreviewUrl}
             onSubmit={prompt => {
@@ -3306,9 +3374,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         </InfiniteCanvasPopover>
       ) : null}
       {/*
-        P6: the third editing state. Same three-part stack as the other two —
-        pill, media, shared generator — with the generator's writing area
-        collapsed, because the frame is the request (§6.4).
+        P6 / §7.4.4: the third editing state. Same three-part stack as the
+        other two — pill, media, shared generator — and the generator keeps its
+        writing area: the frame says how much room to add, the sentence
+        underneath says what should go in it, and it is optional.
       */}
       {expandRequest && expandGeneratorProps ? (
         <InfiniteCanvasFrameEditor
@@ -3323,7 +3392,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               nodeActionsRef.current.openModel(expandRequest.nodeId, anchor),
           }}
           onConfirm={payload => {
-            void confirmExpand(payload.base64Png, payload.insets);
+            void confirmExpand(payload.base64Png, payload.insets, payload.prompt);
           }}
           onClose={() => setExpandRequest(null)}
         />

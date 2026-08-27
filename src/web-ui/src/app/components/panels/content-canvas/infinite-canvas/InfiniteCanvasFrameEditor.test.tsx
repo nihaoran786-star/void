@@ -194,11 +194,13 @@ describe('InfiniteCanvasFrameEditor', () => {
     await renderEditor('outward');
     expect(surface().getAttribute('data-canvas-stage')).toBe('expand');
     expect(closeButton()).not.toBeNull();
-    // Expanding sends from the SHARED generator, with its writing area shut.
+    // §7.4.4: expanding sends from the SHARED generator, writing area and all
+    // — the owner asked to be able to type underneath the frame.
     expect(container.querySelector('[data-canvas-generator-surface="editor"]')).not.toBeNull();
     expect(container.querySelector('[data-canvas-generator-prompt]')?.getAttribute(
       'data-canvas-generator-prompt',
-    )).toBe('collapsed');
+    )).toBe('open');
+    expect(container.querySelector('[data-canvas-generator-field="prompt"]')).not.toBeNull();
     expect(cropConfirm()).toBeNull();
   });
 
@@ -299,12 +301,12 @@ describe('InfiniteCanvasFrameEditor', () => {
   });
 
   /**
-   * The load-bearing rule of the outward direction: outpainting must leave the
-   * source pixels alone, so a frame dragged INWARDS is refused rather than
-   * quietly becoming a crop — which is the other direction of this very
-   * component, and a different lane entirely.
+   * The load-bearing rule of the outward direction (§7.4.4): the box may be
+   * dragged either way, and the only thing it may not do is stop containing
+   * the picture. A grip pulled inwards therefore walks that side back to the
+   * picture's edge and stops there — it is held, not rejected.
    */
-  it('refuses to let the outward frame shrink below the picture', async () => {
+  it('holds an inward-dragged outward grip at the picture edge', async () => {
     await renderEditor('outward');
 
     drag('e', -400, 0);
@@ -312,6 +314,99 @@ describe('InfiniteCanvasFrameEditor', () => {
 
     expect(rectOf()).toEqual({ x: 0, y: 0, width: 1000, height: 500 });
     expect(sendButton().disabled).toBe(true);
+  });
+
+  /**
+   * §7.4.4, in the owner's words: "你还可以任意拖拽调整裁剪框". Out on one side,
+   * back in on the same side, out again — each grip answers in both directions
+   * for as long as the box still holds the picture.
+   */
+  it('lets an outward grip be dragged back in and out again', async () => {
+    await renderEditor('outward');
+
+    drag('e', 400, 0);
+    expect(rectOf()).toEqual({ x: 0, y: 0, width: 1400, height: 500 });
+
+    // Back in — not to zero, to somewhere in between. This is the gesture the
+    // owner reported as impossible.
+    drag('e', -150, 0);
+    expect(rectOf()).toEqual({ x: 0, y: 0, width: 1250, height: 500 });
+
+    drag('e', 50, 0);
+    expect(rectOf()).toEqual({ x: 0, y: 0, width: 1300, height: 500 });
+    expect(sendButton().disabled).toBe(false);
+  });
+
+  /**
+   * The frame may sit off-centre on the picture — a lot added on the left and
+   * nothing on the right is a legal request — and an off-centre frame submits
+   * exactly as it looks.
+   */
+  it('submits an off-centre outward frame as it stands', async () => {
+    await renderEditor('outward');
+
+    drag('w', -300, 0);
+
+    expect(rectOf()).toEqual({ x: -300, y: 0, width: 1300, height: 500 });
+    act(() => {
+      Simulate.click(sendButton());
+    });
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      insets: { left: 300, top: 0, right: 0, bottom: 0 },
+      size: { width: 1300, height: 500 },
+    }));
+  });
+
+  /**
+   * The grips ride the box's border, so the first pixel of an outward gesture
+   * is already off the stage element. Following the drag on the window is what
+   * makes the frame movable at all; this asserts the gesture survives.
+   */
+  it('keeps following an outward drag after the pointer leaves the stage', async () => {
+    await renderEditor('outward');
+
+    act(() => {
+      Simulate.mouseDown(
+        container.querySelector('[data-canvas-frame-handle="e"]')!,
+        { clientX: 0, clientY: 0 } as never,
+      );
+    });
+    act(() => {
+      stage().dispatchEvent(new dom.window.MouseEvent('mouseleave', { bubbles: false }));
+    });
+    act(() => {
+      dom.window.dispatchEvent(new dom.window.MouseEvent('mousemove', {
+        clientX: 260,
+        clientY: 0,
+      }));
+    });
+
+    expect(rectOf().width).toBe(1260);
+  });
+
+  /**
+   * §7.4.4: the writing area is optional. An empty box still sends, and what
+   * is typed travels with the frame.
+   */
+  it('sends the outward frame with or without a sentence', async () => {
+    await renderEditor('outward');
+    drag('e', 200, 0);
+
+    act(() => {
+      Simulate.click(sendButton());
+    });
+    expect(onConfirm).toHaveBeenLastCalledWith(expect.objectContaining({ prompt: '' }));
+
+    const field = container.querySelector('[data-canvas-generator-field="prompt"]')!;
+    act(() => {
+      Simulate.change(field, { target: { value: '  a wider beach  ' } } as never);
+    });
+    act(() => {
+      Simulate.click(sendButton());
+    });
+    expect(onConfirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({ prompt: 'a wider beach' }),
+    );
   });
 
   it('stops each outward side at the cap however far the grip is dragged', async () => {
@@ -358,6 +453,8 @@ describe('InfiniteCanvasFrameEditor', () => {
 
     expect(onConfirm).toHaveBeenCalledWith({
       base64Png: 'RlJBTUU=',
+      // Cropping mounts no input box, so it never carries a sentence.
+      prompt: '',
       rect: { x: 100, y: 50, width: 800, height: 400 },
       insets: { left: 0, top: 0, right: 0, bottom: 0 },
       size: { width: 800, height: 400 },
@@ -375,6 +472,7 @@ describe('InfiniteCanvasFrameEditor', () => {
 
     expect(onConfirm).toHaveBeenCalledWith({
       base64Png: 'RlJBTUU=',
+      prompt: '',
       rect: { x: -200, y: -100, width: 1200, height: 600 },
       insets: { left: 200, top: 100, right: 0, bottom: 0 },
       size: { width: 1200, height: 600 },
