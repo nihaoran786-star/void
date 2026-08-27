@@ -98,12 +98,16 @@ describe('InfiniteCanvasStylePicker thumbnails', () => {
     renderPicker([WITH_THUMBNAIL]);
     const image = tile(WITH_THUMBNAIL.presetId)?.querySelector('img');
     expect(image).toBeTruthy();
-    expect(image?.getAttribute('src')).toBe(WITH_THUMBNAIL.thumbnailRef);
+    // P5 review P17: `thumbnailRef` is stored relative, and these files are
+    // served from the root of `public/` — so a relative src resolved against
+    // whatever route the panel happened to be on and 404'd. The leading slash
+    // is the fix and is pinned here.
+    expect(image?.getAttribute('src')).toBe(`/${WITH_THUMBNAIL.thumbnailRef}`);
     // Lazy and async by contract: the grid must not preload 161 files, and the
     // thumbnails must never be routed through the workspace preview resolver.
     expect(image?.getAttribute('loading')).toBe('lazy');
     expect(image?.getAttribute('decoding')).toBe('async');
-    expect(image?.getAttribute('src')?.startsWith('style-presets/')).toBe(true);
+    expect(image?.getAttribute('src')?.startsWith('/style-presets/')).toBe(true);
     expect(tile(WITH_THUMBNAIL.presetId)?.querySelector('[data-canvas-style-swatch]')).toBeNull();
   });
 

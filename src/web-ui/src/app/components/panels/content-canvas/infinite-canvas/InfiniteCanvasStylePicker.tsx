@@ -64,7 +64,17 @@ const StyleTile: React.FC<StyleTileProps> = ({ preset, selected, onPick }) => {
     () => infiniteCanvasStyleSwatch(preset.presetId, preset.name),
     [preset.presetId, preset.name],
   );
-  const showThumbnail = Boolean(preset.thumbnailRef) && !failed;
+  /**
+   * P5 review P17: `thumbnailRef` is stored relative
+   * (`style-presets/…/x.webp`), so a browser resolves it against whatever the
+   * current route happens to be and 404s from any nested path. These files
+   * live under `public/`, which is served from the root, so the leading slash
+   * is the only correct form.
+   */
+  const thumbnailSrc = preset.thumbnailRef
+    ? (preset.thumbnailRef.startsWith('/') ? preset.thumbnailRef : `/${preset.thumbnailRef}`)
+    : undefined;
+  const showThumbnail = Boolean(thumbnailSrc) && !failed;
 
   return (
     <button
@@ -77,7 +87,7 @@ const StyleTile: React.FC<StyleTileProps> = ({ preset, selected, onPick }) => {
       {showThumbnail ? (
         <img
           className="infinite-canvas-picker__thumbnail"
-          src={preset.thumbnailRef}
+          src={thumbnailSrc}
           alt=""
           aria-hidden="true"
           loading="lazy"
