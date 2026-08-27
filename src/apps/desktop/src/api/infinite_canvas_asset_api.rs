@@ -8,16 +8,32 @@
 //! real file on disk, so this module adds one small, tightly-scoped command
 //! that both share.
 //!
-//! **This is deliberately not a general binary-write facility.** The
-//! two-prefix allowlist below is the only barrier keeping it from becoming a
-//! write-anywhere hole in the web layer. Widening it is equivalent to opening a
-//! new attack surface and must be escalated to the owner, not done in passing.
+//! **This is deliberately not a general binary-write facility.** Three
+//! independent barriers keep it from becoming a write-anywhere hole in the web
+//! layer, and none of them is redundant:
+//!
+//! 1. **Workspace binding.** `workspacePath` is not trusted as supplied. It
+//!    must resolve to the same directory as the desktop app's *currently
+//!    active* workspace root (`AppState::workspace_path`). A caller cannot name
+//!    an arbitrary directory on the machine and have this command create files
+//!    under it. Boundary: this pins the write to one directory tree — anything
+//!    the owner has genuinely opened as a workspace is in scope, by design.
+//! 2. **Prefix allowlist.** Inside that root, only the two directories in
+//!    `ALLOWED_RELATIVE_PREFIXES` may be written.
+//! 3. **Symlink-safe landing.** The bytes are staged into a fresh temporary
+//!    file and renamed over the destination, so neither a symlinked parent nor
+//!    a symlinked destination can redirect the write outside the workspace.
+//!
+//! Widening any of them is equivalent to opening a new attack surface and must
+//! be escalated to the owner, not done in passing.
 //! See `docs/features/infinite-canvas-and-media-tools-prd.md` §3.9.
 
+use crate::api::app_state::AppState;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
+use tauri::State;
 
 /// The only two workspace-relative directories this command may write into.
 ///
@@ -35,10 +51,33 @@ const ALLOWED_RELATIVE_PREFIXES: &[&str] = &[
 /// runaway front end cannot fill the disk through this command.
 const MAX_DECODED_BYTES: usize = 32 * 1024 * 1024;
 
-/// PNG signature. The extension check alone only constrains the *name*; this
-/// constrains the *content*, so the command cannot be used to drop arbitrary
-/// payloads under a `.png` name.
+/// PNG signature.
+///
+/// Honest scope, corrected after the P5 adversarial review: the extension check
+/// constrains the file *name*, and this plus [`validate_png_header`] constrain
+/// the first 33 bytes of the *content*. Neither is a guarantee that the payload
+/// carries nothing else — a well-formed PNG header followed by arbitrary bytes
+/// still passes, exactly as it would for any real PNG with trailing junk.
+/// Treat these as well-formedness checks that stop a plain non-image blob from
+/// being parked under a `.png` name, not as a proof of harmless content. The
+/// barrier that actually bounds the damage is *where* the file may land
+/// (workspace binding + prefix allowlist), not what is inside it.
 const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+
+/// Signature + IHDR chunk (4-byte length, 4-byte type, 13-byte data, 4-byte
+/// CRC). Anything shorter cannot be a PNG at all.
+const PNG_MIN_HEADER_BYTES: usize = 8 + 4 + 4 + 13 + 4;
+
+/// Windows reserved device names. `media/input/canvas-crops/NUL.png` opens the
+/// null device rather than creating a file, so the command would report
+/// `written` for a file that does not exist. The UI never produces such a name,
+/// but the command contract has to hold on its own. Rejected on *every*
+/// platform so the accepted-path contract does not vary by OS.
+const WINDOWS_RESERVED_STEMS: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "CONIN$",
+    "CONOUT$",
+];
 
 /// Default scratch retention. Cleanup is best-effort housekeeping, not a
 /// correctness requirement: a failed generation may be retried against the
@@ -162,6 +201,91 @@ fn validate_relative_path_shape(normalized: &str) -> Result<(), String> {
             "relativePath must not escape the workspace, got '{normalized}'"
         ));
     }
+    if let Some(reserved) = first_reserved_device_segment(normalized) {
+        return Err(format!(
+            "relativePath must not name the reserved device '{reserved}', got '{normalized}'"
+        ));
+    }
+    Ok(())
+}
+
+/// Returns the first path segment whose leading name is a Windows device name.
+///
+/// `NUL`, `NUL.png` and `nul.png.bak` all open the null device on Windows, so
+/// the whole segment is judged by the text before its first `.`.
+fn first_reserved_device_segment(normalized: &str) -> Option<String> {
+    normalized
+        .split('/')
+        .find(|segment| {
+            let stem = segment.split('.').next().unwrap_or(segment).trim();
+            WINDOWS_RESERVED_STEMS
+                .iter()
+                .any(|reserved| stem.eq_ignore_ascii_case(reserved))
+        })
+        .map(str::to_string)
+}
+
+/// Structural check on the PNG header: signature, then an IHDR chunk whose
+/// declared geometry and pixel format are legal per the PNG spec.
+///
+/// Deliberately does *not* claim to validate the whole file — see [`PNG_MAGIC`].
+fn validate_png_header(bytes: &[u8]) -> Result<(), String> {
+    if !bytes.starts_with(PNG_MAGIC) {
+        return Err("base64Png does not decode to PNG bytes".to_string());
+    }
+    if bytes.len() < PNG_MIN_HEADER_BYTES {
+        return Err("base64Png is too short to contain a PNG header".to_string());
+    }
+    let chunk_length = u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
+    if chunk_length != 13 || &bytes[12..16] != b"IHDR" {
+        return Err("base64Png does not start with a PNG IHDR chunk".to_string());
+    }
+    let width = u32::from_be_bytes([bytes[16], bytes[17], bytes[18], bytes[19]]);
+    let height = u32::from_be_bytes([bytes[20], bytes[21], bytes[22], bytes[23]]);
+    if width == 0 || height == 0 {
+        return Err("base64Png declares a zero-sized image".to_string());
+    }
+    let bit_depth = bytes[24];
+    let colour_type = bytes[25];
+    if !matches!(bit_depth, 1 | 2 | 4 | 8 | 16) {
+        return Err(format!("base64Png declares an illegal PNG bit depth: {bit_depth}"));
+    }
+    if !matches!(colour_type, 0 | 2 | 3 | 4 | 6) {
+        return Err(format!(
+            "base64Png declares an illegal PNG colour type: {colour_type}"
+        ));
+    }
+    Ok(())
+}
+
+/// Binds a caller-supplied `workspacePath` to the workspace the desktop app
+/// actually has open.
+///
+/// Without this the web layer could name *any* existing absolute directory and
+/// have files created under it. The check is deliberately exact-root equality:
+/// there is one active workspace at a time in `AppState`, and both the canvas
+/// panel and the media library already operate on that root.
+///
+/// Boundary, stated plainly: this proves the write lands in the workspace the
+/// owner currently has open — it does not sandbox the workspace itself, and it
+/// denies everything while no workspace is open (including remote workspaces,
+/// whose roots do not exist on this machine).
+fn workspace_matches_active(active: Option<&Path>, requested: &Path) -> Result<(), String> {
+    let Some(active) = active else {
+        return Err(
+            "no workspace is open; this command only writes inside the active workspace"
+                .to_string(),
+        );
+    };
+    // Canonicalise so `C:/ws` and `C:\ws\.` compare equal; fall back to the raw
+    // path when a side cannot be resolved, which then only matches verbatim.
+    let resolve = |path: &Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    if resolve(active) != resolve(requested) {
+        return Err(format!(
+            "workspacePath is not the active workspace root: {}",
+            requested.display()
+        ));
+    }
     Ok(())
 }
 
@@ -233,10 +357,8 @@ pub(crate) fn validate_write_request(
             bytes.len()
         )));
     }
-    if !bytes.starts_with(PNG_MAGIC) {
-        return Err(WriteCanvasImageResponse::invalid_input(
-            "base64Png does not decode to PNG bytes",
-        ));
+    if let Err(message) = validate_png_header(&bytes) {
+        return Err(WriteCanvasImageResponse::invalid_input(message));
     }
 
     Ok((normalized, bytes))
@@ -264,6 +386,17 @@ fn resolved_stays_inside(workspace_root: &Path, parent: &Path) -> bool {
 #[tauri::command]
 pub async fn write_canvas_image_bytes(
     request: WriteCanvasImageBytesRequest,
+    state: State<'_, AppState>,
+) -> Result<WriteCanvasImageResponse, String> {
+    let active_workspace = state.workspace_path.read().await.clone();
+    write_canvas_image_bytes_inner(request, active_workspace.as_deref()).await
+}
+
+/// The command body, with the active workspace root passed in rather than read
+/// from `AppState`, so the containment rules are unit-testable.
+pub(crate) async fn write_canvas_image_bytes_inner(
+    request: WriteCanvasImageBytesRequest,
+    active_workspace: Option<&Path>,
 ) -> Result<WriteCanvasImageResponse, String> {
     let (normalized, bytes) = match validate_write_request(&request) {
         Ok(validated) => validated,
@@ -275,6 +408,10 @@ pub async fn write_canvas_image_bytes(
         return Ok(WriteCanvasImageResponse::invalid_input(
             "workspacePath does not exist on this machine",
         ));
+    }
+    // The caller does not get to choose which directory tree it writes into.
+    if let Err(message) = workspace_matches_active(active_workspace, &workspace_root) {
+        return Ok(WriteCanvasImageResponse::path_denied(message));
     }
 
     let target = workspace_root.join(&normalized);
@@ -295,8 +432,28 @@ pub async fn write_canvas_image_bytes(
         )));
     }
 
+    // A destination that already exists as a *symlink* would make a plain
+    // `fs::write` follow the link and land the bytes wherever it points —
+    // possibly outside the workspace, while still reporting `written`. The
+    // parent canonicalisation above cannot see this, because it only resolves
+    // the directory. Reject the leaf explicitly, and also refuse a destination
+    // that exists as anything other than a regular file.
+    match tokio::fs::symlink_metadata(&target).await {
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            return Ok(WriteCanvasImageResponse::path_denied(format!(
+                "relativePath already exists as a symlink and will not be followed: {normalized}"
+            )));
+        }
+        Ok(metadata) if !metadata.is_file() => {
+            return Ok(WriteCanvasImageResponse::path_denied(format!(
+                "relativePath already exists and is not a regular file: {normalized}"
+            )));
+        }
+        _ => {}
+    }
+
     let bytes_written = bytes.len() as u64;
-    match tokio::fs::write(&target, &bytes).await {
+    match write_through_temp_file(&target, &bytes).await {
         Ok(()) => Ok(WriteCanvasImageResponse::written(normalized, bytes_written)),
         Err(error) => Ok(WriteCanvasImageResponse::backend(format!(
             "failed to write '{}': {error}",
@@ -305,12 +462,58 @@ pub async fn write_canvas_image_bytes(
     }
 }
 
+/// Stages the bytes into a fresh sibling file and renames it over the
+/// destination.
+///
+/// `create_new(true)` is `O_EXCL`: it fails outright if the staging path
+/// already exists in any form, so the write itself can never follow a symlink.
+/// `rename` then replaces the destination *entry* rather than writing through
+/// it, so even if a symlink were planted at the destination between the check
+/// above and this call, the bytes still land inside the workspace. Together
+/// these give the leaf the same guarantee `canonicalize` gives the parent,
+/// without needing `O_NOFOLLOW` (and therefore without a new dependency).
+async fn write_through_temp_file(target: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut staging = target.as_os_str().to_os_string();
+    staging.push(format!(".{}.tmp", uuid::Uuid::new_v4()));
+    let staging = PathBuf::from(staging);
+
+    let write_result = async {
+        let mut file = tokio::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&staging)
+            .await?;
+        tokio::io::AsyncWriteExt::write_all(&mut file, bytes).await?;
+        tokio::io::AsyncWriteExt::flush(&mut file).await?;
+        drop(file);
+        tokio::fs::rename(&staging, target).await
+    }
+    .await;
+
+    if write_result.is_err() {
+        // Never leave a stray staging file behind in an allowlisted directory.
+        let _ = tokio::fs::remove_file(&staging).await;
+    }
+    write_result
+}
+
 /// Deletes expired red-mark composites. Best-effort by contract: the front end
 /// fires this on panel mount and ignores the outcome, so it must never be a
 /// blocking or user-visible failure.
 #[tauri::command]
 pub async fn prune_canvas_scratch(
     request: PruneCanvasScratchRequest,
+    state: State<'_, AppState>,
+) -> Result<PruneCanvasScratchResponse, String> {
+    let active_workspace = state.workspace_path.read().await.clone();
+    prune_canvas_scratch_inner(request, active_workspace.as_deref()).await
+}
+
+/// The command body, with the active workspace root passed in rather than read
+/// from `AppState`, so the containment rules are unit-testable.
+pub(crate) async fn prune_canvas_scratch_inner(
+    request: PruneCanvasScratchRequest,
+    active_workspace: Option<&Path>,
 ) -> Result<PruneCanvasScratchResponse, String> {
     if !Path::new(&request.workspace_path).is_absolute() {
         return Ok(PruneCanvasScratchResponse {
@@ -325,6 +528,17 @@ pub async fn prune_canvas_scratch(
             status: "invalid_input".to_string(),
             removed_count: None,
             message: Some("workspacePath does not exist on this machine".to_string()),
+        });
+    }
+    // Same binding as the write command: without it this deletes scratch files
+    // under any directory the caller names. Reported as `invalid_input` because
+    // the prune contract has no `path_denied` status and the front end ignores
+    // the outcome either way.
+    if let Err(message) = workspace_matches_active(active_workspace, &workspace_root) {
+        return Ok(PruneCanvasScratchResponse {
+            status: "invalid_input".to_string(),
+            removed_count: None,
+            message: Some(message),
         });
     }
 
@@ -347,6 +561,14 @@ pub async fn prune_canvas_scratch(
 /// Removes expired *files* directly inside the scratch directory. Never
 /// recurses and never touches directories, so nothing outside
 /// `.void/infinite-canvas/scratch/` can be reached from here.
+///
+/// Failure accounting, stated honestly: a file whose `remove_file` fails —
+/// read-only attribute, a Windows lock held by a viewer, permissions — is
+/// silently skipped and simply not counted in `removedCount`. `removedCount` is
+/// therefore "files actually deleted", never "files that were expired", and the
+/// command still reports `pruned`. That is intentional for best-effort
+/// housekeeping the front end ignores; it is not a claim that the directory is
+/// empty of expired files afterwards.
 pub(crate) async fn prune_scratch_dir(
     scratch_dir: &Path,
     max_age_days: u64,
@@ -726,7 +948,8 @@ pub(crate) async fn analyze_infinite_canvas_image_with_runtime(
 #[cfg(test)]
 mod tests {
     use super::{
-        prune_scratch_dir, validate_write_request, WriteCanvasImageBytesRequest,
+        prune_canvas_scratch_inner, prune_scratch_dir, validate_write_request,
+        write_canvas_image_bytes_inner, PruneCanvasScratchRequest, WriteCanvasImageBytesRequest,
         MAX_DECODED_BYTES, PNG_MAGIC,
     };
     use base64::engine::general_purpose::STANDARD as BASE64;
@@ -742,9 +965,17 @@ mod tests {
         root
     }
 
+    /// A structurally valid PNG head: signature + a well-formed 1×1 8-bit RGBA
+    /// IHDR chunk. Kept as the shared fixture so the header validation runs for
+    /// real in every write test rather than against magic bytes alone.
     fn tiny_png_bytes() -> Vec<u8> {
         let mut bytes = PNG_MAGIC.to_vec();
-        bytes.extend_from_slice(b"\x00\x00\x00\x0DIHDR-not-a-real-image");
+        bytes.extend_from_slice(&13u32.to_be_bytes());
+        bytes.extend_from_slice(b"IHDR");
+        bytes.extend_from_slice(&1u32.to_be_bytes()); // width
+        bytes.extend_from_slice(&1u32.to_be_bytes()); // height
+        bytes.extend_from_slice(&[8, 6, 0, 0, 0]); // depth, colour, compression, filter, interlace
+        bytes.extend_from_slice(&[0x1F, 0x15, 0xC4, 0x89]); // IHDR CRC
         bytes
     }
 
@@ -783,8 +1014,8 @@ mod tests {
 
     #[test]
     fn rejects_every_path_outside_the_allowlist() {
-        // The allowlist is the only barrier against this becoming a general
-        // write-to-disk command; each escape shape gets its own case.
+        // The allowlist is one of the three barriers against this becoming a
+        // general write-to-disk command; each escape shape gets its own case.
         for path in [
             "media/generated/x.png",
             "media/input/x.png",
@@ -862,6 +1093,43 @@ mod tests {
             .unwrap_or_default()
             .contains("does not decode to PNG"));
 
+        // The signature alone is not enough: the IHDR chunk must be there and
+        // must be structurally legal. This is what the header check buys over
+        // the old eight-byte magic test.
+        for (label, payload) in [
+            ("magic only", PNG_MAGIC.to_vec()),
+            ("magic plus junk", {
+                let mut bytes = PNG_MAGIC.to_vec();
+                bytes.extend_from_slice(b"\x00\x00\x00\x0DIHDR-not-a-real-image");
+                bytes
+            }),
+            ("zero-sized image", {
+                let mut bytes = tiny_png_bytes();
+                bytes[16..20].copy_from_slice(&0u32.to_be_bytes());
+                bytes
+            }),
+            ("illegal bit depth", {
+                let mut bytes = tiny_png_bytes();
+                bytes[24] = 7;
+                bytes
+            }),
+            ("illegal colour type", {
+                let mut bytes = tiny_png_bytes();
+                bytes[25] = 5;
+                bytes
+            }),
+        ] {
+            let mut input = request("media/input/canvas-crops/a.png");
+            input.base64_png = BASE64.encode(payload);
+            assert_eq!(
+                validate_write_request(&input)
+                    .expect_err("must reject")
+                    .status,
+                "invalid_input",
+                "payload was accepted: {label}"
+            );
+        }
+
         // data: URLs are the caller's mistake, not a silently accepted input.
         let mut input = request("media/input/canvas-crops/a.png");
         input.base64_png = format!("data:image/png;base64,{}", BASE64.encode(tiny_png_bytes()));
@@ -876,11 +1144,14 @@ mod tests {
     #[tokio::test]
     async fn writes_the_exact_bytes_and_creates_missing_parents() {
         let workspace = temp_workspace();
-        let response = super::write_canvas_image_bytes(WriteCanvasImageBytesRequest {
-            workspace_path: workspace.to_string_lossy().to_string(),
-            relative_path: "media/input/canvas-crops/shot-crop-1.png".to_string(),
-            base64_png: BASE64.encode(tiny_png_bytes()),
-        })
+        let response = write_canvas_image_bytes_inner(
+            WriteCanvasImageBytesRequest {
+                workspace_path: workspace.to_string_lossy().to_string(),
+                relative_path: "media/input/canvas-crops/shot-crop-1.png".to_string(),
+                base64_png: BASE64.encode(tiny_png_bytes()),
+            },
+            Some(workspace.as_path()),
+        )
         .await
         .expect("command must not error out");
 
@@ -905,11 +1176,14 @@ mod tests {
         let workspace = temp_workspace();
         let relative = ".void/infinite-canvas/scratch/op-1-mark.png".to_string();
         for _ in 0..2 {
-            let response = super::write_canvas_image_bytes(WriteCanvasImageBytesRequest {
-                workspace_path: workspace.to_string_lossy().to_string(),
-                relative_path: relative.clone(),
-                base64_png: BASE64.encode(tiny_png_bytes()),
-            })
+            let response = write_canvas_image_bytes_inner(
+                WriteCanvasImageBytesRequest {
+                    workspace_path: workspace.to_string_lossy().to_string(),
+                    relative_path: relative.clone(),
+                    base64_png: BASE64.encode(tiny_png_bytes()),
+                },
+                Some(workspace.as_path()),
+            )
             .await
             .expect("command must not error out");
             assert_eq!(response.status, "written");
@@ -925,14 +1199,180 @@ mod tests {
     #[tokio::test]
     async fn write_reports_a_missing_workspace_as_invalid_input() {
         let missing = std::env::temp_dir().join(format!("void-canvas-missing-{}", uuid::Uuid::new_v4()));
-        let response = super::write_canvas_image_bytes(WriteCanvasImageBytesRequest {
-            workspace_path: missing.to_string_lossy().to_string(),
-            relative_path: "media/input/canvas-crops/a.png".to_string(),
-            base64_png: BASE64.encode(tiny_png_bytes()),
-        })
+        let response = write_canvas_image_bytes_inner(
+            WriteCanvasImageBytesRequest {
+                workspace_path: missing.to_string_lossy().to_string(),
+                relative_path: "media/input/canvas-crops/a.png".to_string(),
+                base64_png: BASE64.encode(tiny_png_bytes()),
+            },
+            Some(missing.as_path()),
+        )
         .await
         .expect("command must not error out");
         assert_eq!(response.status, "invalid_input");
+    }
+
+    #[test]
+    fn rejects_windows_reserved_device_names_on_every_platform() {
+        // `NUL.png` opens the null device on Windows: the write "succeeds" and
+        // no file exists. Rejected everywhere so the contract is one contract.
+        for path in [
+            "media/input/canvas-crops/NUL.png",
+            "media/input/canvas-crops/nul.png",
+            "media/input/canvas-crops/CON.png",
+            "media/input/canvas-crops/com1.png",
+            "media/input/canvas-crops/LPT9.png",
+            "media/input/canvas-crops/aux.png",
+            ".void/infinite-canvas/scratch/PRN.png",
+            ".void/infinite-canvas/scratch/NUL/op-1.png",
+        ] {
+            let response =
+                validate_write_request(&request(path)).expect_err("reserved name must be rejected");
+            assert_eq!(response.status, "path_denied", "path was accepted: {path}");
+        }
+        // Names that merely *contain* a device name are ordinary files.
+        for path in [
+            "media/input/canvas-crops/nullify.png",
+            "media/input/canvas-crops/console.png",
+            "media/input/canvas-crops/com10.png",
+        ] {
+            assert!(
+                validate_write_request(&request(path)).is_ok(),
+                "path must be accepted: {path}"
+            );
+        }
+    }
+
+    /// Creates a file symlink, returning `false` when the platform refuses
+    /// (Windows without developer mode), so the test can skip instead of fail.
+    fn try_symlink_file(source: &std::path::Path, link: &std::path::Path) -> bool {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(source, link).is_ok()
+        }
+        #[cfg(windows)]
+        {
+            std::os::windows::fs::symlink_file(source, link).is_ok()
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = (source, link);
+            false
+        }
+    }
+
+    #[tokio::test]
+    async fn write_refuses_to_follow_a_symlinked_destination() {
+        // C1: the parent canonicalisation cannot see a symlink at the *leaf*.
+        // A repo clone, a restored backup or a hand-made link can leave one
+        // there pointing outside the workspace; the write must not follow it.
+        let workspace = temp_workspace();
+        let outside = temp_workspace();
+        let escape_target = outside.join("pwned.png");
+        std::fs::write(&escape_target, b"original outside content").expect("seed outside file");
+
+        let crops = workspace.join("media/input/canvas-crops");
+        std::fs::create_dir_all(&crops).expect("create crops dir");
+        let link = crops.join("shot-crop-1.png");
+        if !try_symlink_file(&escape_target, &link) {
+            // Windows without developer mode: nothing to assert, and the
+            // symlink_metadata guard is platform-independent anyway.
+            let _ = std::fs::remove_dir_all(&workspace);
+            let _ = std::fs::remove_dir_all(&outside);
+            return;
+        }
+
+        let response = write_canvas_image_bytes_inner(
+            WriteCanvasImageBytesRequest {
+                workspace_path: workspace.to_string_lossy().to_string(),
+                relative_path: "media/input/canvas-crops/shot-crop-1.png".to_string(),
+                base64_png: BASE64.encode(tiny_png_bytes()),
+            },
+            Some(workspace.as_path()),
+        )
+        .await
+        .expect("command must not error out");
+
+        assert_eq!(response.status, "path_denied");
+        assert_eq!(
+            std::fs::read(&escape_target).expect("outside file must still be readable"),
+            b"original outside content".to_vec(),
+            "the write must not have landed outside the workspace"
+        );
+
+        let _ = std::fs::remove_dir_all(workspace);
+        let _ = std::fs::remove_dir_all(outside);
+    }
+
+    #[tokio::test]
+    async fn write_refuses_a_workspace_the_app_does_not_have_open() {
+        // C2: `workspacePath` is caller-supplied, so it is only honoured when
+        // it names the workspace the desktop app actually has active.
+        let active = temp_workspace();
+        let foreign = temp_workspace();
+
+        let response = write_canvas_image_bytes_inner(
+            WriteCanvasImageBytesRequest {
+                workspace_path: foreign.to_string_lossy().to_string(),
+                relative_path: "media/input/canvas-crops/a.png".to_string(),
+                base64_png: BASE64.encode(tiny_png_bytes()),
+            },
+            Some(active.as_path()),
+        )
+        .await
+        .expect("command must not error out");
+
+        assert_eq!(response.status, "path_denied");
+        assert!(
+            !foreign.join("media").exists(),
+            "a denied write must not even create directories"
+        );
+
+        // With no workspace open at all, nothing is writable.
+        let closed = write_canvas_image_bytes_inner(
+            WriteCanvasImageBytesRequest {
+                workspace_path: active.to_string_lossy().to_string(),
+                relative_path: "media/input/canvas-crops/a.png".to_string(),
+                base64_png: BASE64.encode(tiny_png_bytes()),
+            },
+            None,
+        )
+        .await
+        .expect("command must not error out");
+        assert_eq!(closed.status, "path_denied");
+        assert!(!active.join("media").exists());
+
+        let _ = std::fs::remove_dir_all(active);
+        let _ = std::fs::remove_dir_all(foreign);
+    }
+
+    #[tokio::test]
+    async fn prune_refuses_a_workspace_the_app_does_not_have_open() {
+        let active = temp_workspace();
+        let foreign = temp_workspace();
+        let scratch = foreign.join(".void/infinite-canvas/scratch");
+        std::fs::create_dir_all(&scratch).expect("create scratch");
+        let stale = scratch.join("stale-mark.png");
+        std::fs::write(&stale, b"stale").expect("write stale");
+        let long_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(30 * 86_400);
+        filetime::set_file_mtime(&stale, filetime::FileTime::from_system_time(long_ago))
+            .expect("age the stale file");
+
+        let response = prune_canvas_scratch_inner(
+            PruneCanvasScratchRequest {
+                workspace_path: foreign.to_string_lossy().to_string(),
+                max_age_days: None,
+            },
+            Some(active.as_path()),
+        )
+        .await
+        .expect("command must not error out");
+
+        assert_eq!(response.status, "invalid_input");
+        assert!(stale.exists(), "prune must not reach a foreign workspace");
+
+        let _ = std::fs::remove_dir_all(active);
+        let _ = std::fs::remove_dir_all(foreign);
     }
 
     #[tokio::test]
@@ -971,10 +1411,13 @@ mod tests {
 
     #[tokio::test]
     async fn prune_rejects_a_relative_workspace_path() {
-        let response = super::prune_canvas_scratch(super::PruneCanvasScratchRequest {
-            workspace_path: "relative/workspace".to_string(),
-            max_age_days: None,
-        })
+        let response = prune_canvas_scratch_inner(
+            PruneCanvasScratchRequest {
+                workspace_path: "relative/workspace".to_string(),
+                max_age_days: None,
+            },
+            None,
+        )
         .await
         .expect("command must not error out");
         assert_eq!(response.status, "invalid_input");
