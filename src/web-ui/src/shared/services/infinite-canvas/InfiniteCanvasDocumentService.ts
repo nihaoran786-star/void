@@ -167,6 +167,27 @@ function parseAgentOps(value: unknown): InfiniteCanvasDocument['agentOps'] {
   return { appliedSeq };
 }
 
+/**
+ * §7.6 additive field; same tolerance rule as {@link parseDerivedFrom}.
+ *
+ * A list with any unusable entry is dropped whole rather than silently
+ * shortened: half a gallery is worse than the single-picture card the node
+ * already describes through `mediaRef`.
+ */
+function parseMediaVariants(value: unknown): InfiniteCanvasNode['mediaVariants'] {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  const variants: NonNullable<InfiniteCanvasNode['mediaVariants']> = [];
+  for (const entry of value) {
+    if (!isRecord(entry)
+      || !isNonEmptyString(entry.workspacePath)
+      || !isNonEmptyString(entry.relativePath)) {
+      return undefined;
+    }
+    variants.push({ workspacePath: entry.workspacePath, relativePath: entry.relativePath });
+  }
+  return variants;
+}
+
 function parseNode(value: unknown): InfiniteCanvasNode | undefined {
   if (!isRecord(value)) return undefined;
   const kind = value.kind;
@@ -198,6 +219,31 @@ function parseNode(value: unknown): InfiniteCanvasNode | undefined {
       workspacePath: value.mediaRef.workspacePath,
       relativePath: value.mediaRef.relativePath,
     };
+  }
+  // §7.6: the gallery is only meaningful next to a current picture, and the
+  // two must agree. A list without a mediaRef, or one that does not contain
+  // the mediaRef at all, is repaired down to the single-picture card the
+  // mediaRef already describes — tolerant, never an invalid document.
+  const mediaVariants = node.mediaRef ? parseMediaVariants(value.mediaVariants) : undefined;
+  if (mediaVariants && mediaVariants.length > 1) {
+    const current = node.mediaRef!;
+    const requested = isFiniteNumber(value.activeVariantIndex)
+      && Number.isInteger(value.activeVariantIndex)
+      && value.activeVariantIndex >= 0
+      && value.activeVariantIndex < mediaVariants.length
+      ? value.activeVariantIndex
+      : -1;
+    const matches = (index: number): boolean => (
+      mediaVariants[index].workspacePath === current.workspacePath
+      && mediaVariants[index].relativePath === current.relativePath
+    );
+    const resolved = requested >= 0 && matches(requested)
+      ? requested
+      : mediaVariants.findIndex((_, index) => matches(index));
+    if (resolved >= 0) {
+      node.mediaVariants = mediaVariants;
+      node.activeVariantIndex = resolved;
+    }
   }
   if (isNonEmptyString(value.stylePresetId)) node.stylePresetId = value.stylePresetId;
   if (typeof value.prompt === 'string') node.prompt = value.prompt;

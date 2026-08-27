@@ -224,11 +224,18 @@ interface ImageToolResult {
 
 **resultMode 语义（两种落图模式）**：
 
-- `'self'`（写回自身）：**仅限"此前从无图的空卡首次生成成功"**——图落进
-  卡本身。这不构成覆盖，因为无原图可覆盖。
-- `'derived'`（派生新卡）：卡上已有 `mediaRef` 的一切再生成与五件套操作
-  ——产出新节点 + 一条源卡→新卡的边。已有图的卡的 `mediaRef` 在任何路径
-  下都不可变更（测试断言的不变量）。
+- `'self'`（写回自身）：空卡首次生成，以及**同一张卡上的再生成**（§3.10）
+  ——图落进卡本身的图列表。
+- `'derived'`（派生新卡）：**五件套 + 裁剪**（局部重绘/擦除/裁剪/扩图/
+  高清放大）——产出新节点 + 一条源卡→新卡的边。它们把一张图加工成另一张
+  图，血缘必须看得见。
+- 无论哪种模式，**已经存在于卡上的任何一张图都不可变更或替换**（测试断言
+  的不变量）；§3.10 之后这条不变量从"单个 `mediaRef`"扩展到"图列表的每一
+  项"。
+
+> **修订（2026-08-28，视觉语言 §7.6）**：此前"卡上已有 `mediaRef` 的再生成
+> 一律派生新卡"的规则已被业主推翻，改为累积到同一张卡（§3.10）。五件套与
+> 裁剪的派生行为不变。
 
 ### 3.2 infinite_canvas 绑定对象（GenerateImage / GenerateVideo input 的可选字段）
 
@@ -349,10 +356,17 @@ GenerateImage 接受该字段；**自 P3 起 GenerateVideo 同样接受该字段
 7. `mediaRef` 不可变与 never-overwrite 在批量路径下同样是硬不变量：批量
    落位只允许**新增节点 / 新增边 / 填充自己登记的 pending 节点**。
 
+> **修订（2026-08-28，§3.10）**：上述第 3 条"第 2..N 项各生成一张新卡"只
+> 对**五件套与裁剪**继续成立。`toolId: 'generate'` 的批量结果不再派生兄弟
+> 卡，而是整批按 `itemIndex` 升序**追加到锚点卡的图列表**（含第 1 项）。
+> 第 4 条的确定性 ID 幂等由"路径去重"接管：已在列表里的图不会被二次追加，
+> 重放事件与对账补放都是 no-op。
+
 ### 3.5 保留不变量
 
-- **派生新版本、永不覆盖**：除 self 模式的空卡首图外，每次图像操作产出
-  一个新节点（版本树语义），原图节点与其 `mediaRef` 不被修改或删除。
+- **派生新版本、永不覆盖**：除同一张卡上的生成累积（§3.10）外，每次图像
+  操作产出一个新节点（版本树语义），原图节点与其已有的每一张图都不被修改
+  或删除。
 - `autoRun` 本期仍恒 `false`：五件套经指令补全确认后才派发。
 
 ### 3.6 第三期合法实现（P3）：AI 指挥画布工具面
@@ -641,6 +655,39 @@ interface InfiniteCanvasMaskedReference {
   **不自动触发生成**（写死断言），且**不覆盖用户已输入的内容**——
   输入器非空时改为浮出一行"替换 / 追加"的紧凑确认。
 
+### 3.10 一张卡承载多张图（P6，视觉语言 §7.6）
+
+业主 2026-08-28 要求：同一张卡上反复生成，结果累积在这张卡上；右上角显示
+张数角标，点开是四宫格图库，超过四张翻页，点某张即设为卡面当前图。
+
+**数据契约（加法，schemaVersion 仍为 '1'）**：
+
+```jsonc
+interface InfiniteCanvasNode {
+  /** 当前展示的那一张；等于 mediaVariants[activeVariantIndex]。 */
+  mediaRef?: { workspacePath: string; relativePath: string };
+  /** §7.6 加法：本卡的全部图，按产出先后。缺省 = [mediaRef]（旧文档）。 */
+  mediaVariants?: { workspacePath: string; relativePath: string }[];
+  /** §7.6 加法：当前项下标；缺省或越界均按 0 解析。 */
+  activeVariantIndex?: number;
+}
+```
+
+- **旧文档无损**：只有 `mediaRef` 的卡等价于"一张图的列表"，加载与回写逐
+  字节不变；只有一张图的卡**不写** `mediaVariants` / `activeVariantIndex`。
+- **两者恒一致**：`mediaRef` 是"当前那张"的兼容出口，任何写入都由
+  `InfiniteCanvasMediaVariants.ts` 的规范化写法产生，不允许手搓这两个字段。
+- **解析容错**：列表中任一项残缺 → 整个列表按"字段缺失"处理（回落成单图
+  卡）；列表不含 `mediaRef` 时同样回落；下标越界则按 `mediaRef` 的实际位置
+  修正。均不构成 `invalid-document`。
+- **追加不可覆盖**：列表只增不改，已存在的项不可被修改、替换或删除；唯一
+  允许变化的是 `activeVariantIndex`（可撤销）。
+- **累积 vs 派生**：`toolId: 'generate'`（文生图 / 再生成，含 n>1）累积到
+  发起的那张卡；**局部重绘 / 擦除 / 裁剪 / 扩图 / 高清放大仍派生新卡**。
+- **两条车道共用同一落位函数**（`resolveOperationBatchContent`）：实时桥接
+  与 pending 对账的结果必须一致；幂等判据由确定性 ID 扩展为"路径已在列表
+  里即跳过"。
+
 ## 4. K0-3 媒体 Provider Adapter（已被复用决策取代）
 
 **本节自 K2 起整体降级为历史备忘。** 业主在 K2 计划（B1 审批）中确定：
@@ -706,7 +753,10 @@ interface InfiniteCanvasNode {
   position: { x: number; y: number };
   size?: { width: number; height: number };
   text?: string;
-  mediaRef?: { workspacePath: string; relativePath: string }; // 引用不复制
+  mediaRef?: { workspacePath: string; relativePath: string }; // 当前展示的那一张
+  // —— §7.6 / §3.10 加法字段（schemaVersion 保持 '1'，旧文档无损）——
+  mediaVariants?: { workspacePath: string; relativePath: string }[]; // 本卡全部图
+  activeVariantIndex?: number;   // 当前项；恒有 mediaRef === mediaVariants[此下标]
   stylePresetId?: string;      // 只挂 ID，渲染时经目录服务解析
   domainRef?: InfiniteCanvasDomainRef; // K3 保留字段，本期恒为 undefined
 

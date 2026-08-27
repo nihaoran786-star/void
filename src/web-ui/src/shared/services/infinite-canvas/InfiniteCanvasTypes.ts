@@ -77,8 +77,34 @@ export interface InfiniteCanvasNode {
   position: { x: number; y: number };
   size?: { width: number; height: number };
   text?: string;
-  /** Reference into Workspace Media; the media truth is never copied. */
+  /**
+   * Reference into Workspace Media; the media truth is never copied.
+   *
+   * §7.6: this is now the compatibility outlet for "the picture the card face
+   * currently shows". When {@link InfiniteCanvasNode.mediaVariants} is present
+   * it always equals `mediaVariants[activeVariantIndex]`; the two can never
+   * disagree. A card with a single picture writes only this field, exactly as
+   * every pre-§7.6 document does.
+   */
   mediaRef?: { workspacePath: string; relativePath: string };
+  /**
+   * §7.6 additive (schemaVersion stays '1'): every picture this card carries,
+   * oldest first. Absent means "the one in `mediaRef`", which is why old
+   * documents load and round-trip unchanged.
+   *
+   * The list is APPEND-ONLY: no entry may ever be changed, replaced or
+   * removed. The never-overwrite invariant did not go away with §7.6 — it
+   * moved from the single `mediaRef` to every entry of this list. Helpers that
+   * keep this true live in `InfiniteCanvasMediaVariants.ts`; no writer should
+   * build these two fields by hand.
+   */
+  mediaVariants?: { workspacePath: string; relativePath: string }[];
+  /**
+   * §7.6 additive: which entry of `mediaVariants` the card face shows. Absent
+   * (or out of range, which the parser repairs) means the first one. This is
+   * the only card-level thing §7.6 lets the user change, and it is undoable.
+   */
+  activeVariantIndex?: number;
   /** Style preset ID only; resolution goes through the StylePresetCatalog. */
   stylePresetId?: string;
   domainRef?: InfiniteCanvasDomainRef;
