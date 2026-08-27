@@ -959,7 +959,9 @@
 
 .infinite-canvas-dialog__actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .infinite-canvas-dialog__confirm {
@@ -2191,12 +2193,21 @@
   flex-direction: column;
   inset: 0;
 
-  // Measure-before-show (CONTEXT.md lesson): the surface stays invisible until
-  // its geometry is known, so it can never flash a guessed layout first. Still
-  // laid out, so the first paint after decoding is already correct.
-  &[data-ready='false'] {
-    visibility: hidden;
-  }
+}
+
+// Measure-before-show (CONTEXT.md lesson): the picture and everything placed
+// from its natural size stay invisible until that size is known, so nothing
+// can flash a guessed layout first. Still laid out, so the first paint after
+// decoding is already correct.
+//
+// P5 review C6: the rule is scoped to the FRAME, not to the whole surface. It
+// used to hide the entire editor, and `data-ready` never becomes true when the
+// picture fails to decode — so the failure message, the one thing on screen
+// with something to say, was hidden precisely when it was needed. The loading
+// and failure texts are siblings of the frame and therefore always visible.
+.infinite-canvas-mask[data-ready='false'] .infinite-canvas-mask__frame,
+.infinite-canvas-crop[data-ready='false'] .infinite-canvas-crop__frame {
+  visibility: hidden;
 }
 
 .infinite-canvas-mask__backdrop,
@@ -2319,9 +2330,32 @@
 
 .infinite-canvas-mask__placeholder,
 .infinite-canvas-crop__placeholder {
+  position: absolute;
+  z-index: 1;
+  max-width: 60%;
   margin: 0;
   color: var(--infinite-canvas-muted);
   font-size: 12px;
+  text-align: center;
+}
+
+// Why a disabled confirm button is disabled (§7: never a dead control with no
+// explanation). Muted in both themes; the tokens carry the light/dark switch.
+.infinite-canvas-mask__blocked,
+.infinite-canvas-dialog__blocked {
+  margin: 0;
+  color: var(--infinite-canvas-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.infinite-canvas-mask__blocked {
+  flex: 0 1 190px;
+}
+
+.infinite-canvas-dialog__blocked {
+  flex: 1;
+  text-align: left;
 }
 
 .infinite-canvas-mask__prompt {

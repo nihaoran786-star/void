@@ -13,8 +13,13 @@ import { JSDOM } from 'jsdom';
 import {
   CANVAS_CROP_MIN_SIZE,
   CANVAS_CROP_PREFIX,
+  CANVAS_MARK_UNDO_BUDGET_BYTES,
+  CANVAS_MARK_UNDO_LIMIT,
+  CANVAS_MARK_UNDO_MIN,
   CANVAS_SCRATCH_PREFIX,
   canvasCropRelativePath,
+  canvasMarkUndoLimit,
+  CanvasTooLargeError,
   canvasScratchRelativePath,
   clampCropRect,
   compositeMarkLayer,
@@ -167,11 +172,64 @@ describe('infiniteCanvasImageRaster', () => {
       expect(exported.startsWith('data:')).toBe(false);
     });
 
+    /**
+     * P5 review P11: a canvas past the browser's maximum surface area does not
+     * throw — `toDataURL` quietly returns the empty `data:,`. Passing that on
+     * wrote a zero-byte PNG and blamed the backend for it.
+     */
+    it('names "too large" instead of exporting the empty data:, canvas', () => {
+      stubCanvas(dom);
+      dom.window.HTMLCanvasElement.prototype.toDataURL = (() => 'data:,') as never;
+      const canvas = createCanvasSurface({ width: 40000, height: 40000 });
+
+      expect(() => exportCanvasPngBase64(canvas)).toThrow(CanvasTooLargeError);
+    });
+
     it('never produces a zero-sized surface', () => {
       stubCanvas(dom);
       const canvas = createCanvasSurface({ width: 0, height: -4 });
       expect(canvas.width).toBe(1);
       expect(canvas.height).toBe(1);
+    });
+  });
+
+  /**
+   * P5 review P10: the editor's undo stack holds full-resolution `ImageData`.
+   * Thirty entries of a 4096² layer is ~2 GB — enough to take the webview down
+   * on exactly the pictures this feature is most useful on.
+   */
+  describe('undo depth', () => {
+    it('gives ordinary pictures the full depth', () => {
+      expect(canvasMarkUndoLimit({ width: 800, height: 600 })).toBe(CANVAS_MARK_UNDO_LIMIT);
+    });
+
+    it('shrinks the depth so a large layer cannot blow the memory budget', () => {
+      const size = { width: 2048, height: 2048 };
+      const limit = canvasMarkUndoLimit(size);
+
+      expect(limit).toBeLessThan(CANVAS_MARK_UNDO_LIMIT);
+      expect(limit).toBeGreaterThan(CANVAS_MARK_UNDO_MIN);
+      expect(limit * size.width * size.height * 4)
+        .toBeLessThanOrEqual(CANVAS_MARK_UNDO_BUDGET_BYTES);
+    });
+
+    /**
+     * The floor wins over the budget, deliberately: one undo has to work even
+     * on a picture where a single snapshot is enormous. It is still a tenth of
+     * the ~2 GB the flat thirty-entry cap used to reach at this size.
+     */
+    it('keeps the floor on a 4096² layer, an order of magnitude under the old cap', () => {
+      const size = { width: 4096, height: 4096 };
+      const perEntry = size.width * size.height * 4;
+
+      expect(canvasMarkUndoLimit(size)).toBe(CANVAS_MARK_UNDO_MIN);
+      expect(CANVAS_MARK_UNDO_MIN * perEntry)
+        .toBeLessThan(CANVAS_MARK_UNDO_LIMIT * perEntry / 5);
+    });
+
+    it('never drops below one useful step, however absurd the picture', () => {
+      expect(canvasMarkUndoLimit({ width: 60000, height: 60000 }))
+        .toBe(CANVAS_MARK_UNDO_MIN);
     });
   });
 

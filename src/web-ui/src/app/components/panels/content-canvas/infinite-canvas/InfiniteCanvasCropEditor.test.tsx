@@ -221,4 +221,29 @@ describe('InfiniteCanvasCropEditor', () => {
       .toBe('infiniteCanvas.crop.unavailable');
     expect(confirmButton().disabled).toBe(true);
   });
+
+  /**
+   * P5 review C6: `data-ready` never becomes true when decoding fails, and the
+   * stylesheet used to hang `visibility: hidden` off that attribute for the
+   * WHOLE surface — so pressing "crop" on an unreadable picture produced an
+   * invisible panel with an invisible explanation, i.e. nothing at all.
+   */
+  it('keeps the failure message outside the measure-before-show gate', async () => {
+    await renderEditor(async () => undefined);
+
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert).toBeTruthy();
+    expect(surface().getAttribute('data-state')).toBe('failed');
+    // Only the frame carries the gate; the message is a sibling of it.
+    expect(alert?.closest('.infinite-canvas-crop__frame')).toBeNull();
+  });
+
+  it('says the picture is opening while a slow decode is in flight', async () => {
+    await renderEditor(() => new Promise(() => undefined));
+
+    expect(surface().getAttribute('data-state')).toBe('loading');
+    const loading = container.querySelector('[data-crop-state="loading"]');
+    expect(loading?.getAttribute('role')).toBe('status');
+    expect(loading?.closest('.infinite-canvas-crop__frame')).toBeNull();
+  });
 });

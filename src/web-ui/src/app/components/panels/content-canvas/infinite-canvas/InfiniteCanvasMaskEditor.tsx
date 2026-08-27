@@ -34,17 +34,19 @@ import { Brush, Eraser, RotateCcw, RotateCw, Square, Trash2 } from 'lucide-react
 import { useI18n } from '@/infrastructure/i18n';
 import type { MaskImageToolId } from '@/shared/services/infinite-canvas';
 import {
-  hasUnfilledInstructionPlaceholder,
+  instructionBlockReason,
   maskPrefillKey,
 } from '@/shared/services/infinite-canvas';
 import {
   CANVAS_BRUSH_DEFAULT,
   CANVAS_BRUSH_MAX,
   CANVAS_BRUSH_MIN,
+  CANVAS_MARK_ERASE,
   CANVAS_MARK_FILL,
   CANVAS_MARK_STROKE,
   CANVAS_MARK_STROKE_WIDTH,
-  CANVAS_MARK_UNDO_LIMIT,
+  canvasMarkUndoLimit,
+  CanvasTooLargeError,
   compositeMarkLayer,
   exportCanvasPngBase64,
   loadCanvasImageBitmap,
@@ -59,6 +61,16 @@ import type {
 } from './InfiniteCanvasNodes';
 
 export type InfiniteCanvasMaskTool = 'brush' | 'rect' | 'eraser';
+
+/**
+ * One step of the editor's own history: the pixels of the mark layer, plus
+ * whether that layer counted as marked. The flag travels WITH the pixels — see
+ * the `marked` state below for why keeping them apart was a bug.
+ */
+interface MarkLayerSnapshot {
+  image: ImageData | undefined;
+  marked: boolean;
+}
 
 export interface InfiniteCanvasMaskEditorProps {
   toolId: MaskImageToolId;
@@ -81,14 +93,24 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const [bitmap, setBitmap] = React.useState<ImageBitmap | undefined>(undefined);
   const [failed, setFailed] = React.useState(false);
+  /** Export-time failure, kept apart from a decode failure (review P11). */
+  const [exportError, setExportError] =
+    React.useState<'too-large' | 'failed' | undefined>(undefined);
   const [tool, setTool] = React.useState<InfiniteCanvasMaskTool>('brush');
   const [brushSize, setBrushSize] = React.useState(CANVAS_BRUSH_DEFAULT);
   /**
-   * Stroke count rather than a pixel check: it is what "has the user painted
-   * anything" means for the confirm button and the discard prompt, and it stays
-   * honest in environments where the 2d context is unavailable.
+   * "Does the mark layer currently carry marks?" — a property OF THE LAYER,
+   * never a running tally.
+   *
+   * P5 review C5: this used to be a stroke counter that `clearMarks` reset to
+   * zero and `undo` merely decremented. "Paint → clear → undo" therefore put
+   * the marks back on screen while the counter stayed at 0, which greyed out
+   * the confirm button, disabled clearing, and made Escape throw the painting
+   * away without asking. Every entry on the undo/redo stacks now carries the
+   * flag that belonged to the layer it snapshots, so restoring a layer
+   * restores this flag with it and the two can no longer disagree.
    */
-  const [strokes, setStrokes] = React.useState(0);
+  const [marked, setMarked] = React.useState(false);
   const [undoDepth, setUndoDepth] = React.useState(0);
   const [redoDepth, setRedoDepth] = React.useState(0);
   const [discarding, setDiscarding] = React.useState(false);
@@ -104,8 +126,8 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
 
   const maskCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const contextRef = React.useRef<CanvasRenderingContext2D | null>(null);
-  const undoStackRef = React.useRef<(ImageData | undefined)[]>([]);
-  const redoStackRef = React.useRef<(ImageData | undefined)[]>([]);
+  const undoStackRef = React.useRef<MarkLayerSnapshot[]>([]);
+  const redoStackRef = React.useRef<MarkLayerSnapshot[]>([]);
   const strokeRef = React.useRef<{
     from: { x: number; y: number };
     last: { x: number; y: number };
@@ -157,8 +179,18 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     redoStackRef.current = [];
     setUndoDepth(0);
     setRedoDepth(0);
-    setStrokes(0);
+    setMarked(false);
   }, [naturalHeight, naturalWidth, ready]);
+
+  /**
+   * P5 review P10: depth is a MEMORY budget, not a constant. Each entry is a
+   * full-resolution RGBA `ImageData`, so a 4096² picture that would have kept
+   * ~2 GB alive at thirty steps keeps a handful of steps instead.
+   */
+  const undoLimit = React.useMemo(
+    () => canvasMarkUndoLimit({ width: naturalWidth, height: naturalHeight }),
+    [naturalHeight, naturalWidth],
+  );
 
   const snapshot = React.useCallback((): ImageData | undefined => {
     const context = contextRef.current;
@@ -182,47 +214,59 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     context.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
 
-  /** Pushes the pre-stroke state; the stack is capped, oldest entry drops. */
-  const pushUndo = React.useCallback((entry: ImageData | undefined) => {
+  /**
+   * The layer exactly as it stands right now, flag included. `markedRef`
+   * mirrors the state so a snapshot taken inside an event handler reads the
+   * value the layer has at that instant, not the one the last render closed
+   * over.
+   */
+  const markedRef = React.useRef(false);
+  markedRef.current = marked;
+  const captureNow = React.useCallback((): MarkLayerSnapshot => (
+    { image: snapshot(), marked: markedRef.current }
+  ), [snapshot]);
+
+  /** Pushes the pre-change state; the stack is capped, oldest entry drops. */
+  const pushUndo = React.useCallback((entry: MarkLayerSnapshot) => {
     const next = [...undoStackRef.current, entry];
-    undoStackRef.current = next.length > CANVAS_MARK_UNDO_LIMIT
-      ? next.slice(next.length - CANVAS_MARK_UNDO_LIMIT)
+    undoStackRef.current = next.length > undoLimit
+      ? next.slice(next.length - undoLimit)
       : next;
     redoStackRef.current = [];
     setUndoDepth(undoStackRef.current.length);
     setRedoDepth(0);
-  }, []);
+  }, [undoLimit]);
 
   const undo = React.useCallback(() => {
     const stack = undoStackRef.current;
     if (stack.length === 0) return;
     const entry = stack[stack.length - 1];
     undoStackRef.current = stack.slice(0, -1);
-    redoStackRef.current = [...redoStackRef.current, snapshot()];
-    restore(entry);
+    redoStackRef.current = [...redoStackRef.current, captureNow()];
+    restore(entry.image);
     setUndoDepth(undoStackRef.current.length);
     setRedoDepth(redoStackRef.current.length);
-    setStrokes(count => Math.max(0, count - 1));
-  }, [restore, snapshot]);
+    setMarked(entry.marked);
+  }, [captureNow, restore]);
 
   const redo = React.useCallback(() => {
     const stack = redoStackRef.current;
     if (stack.length === 0) return;
     const entry = stack[stack.length - 1];
     redoStackRef.current = stack.slice(0, -1);
-    undoStackRef.current = [...undoStackRef.current, snapshot()];
-    restore(entry);
+    undoStackRef.current = [...undoStackRef.current, captureNow()];
+    restore(entry.image);
     setUndoDepth(undoStackRef.current.length);
     setRedoDepth(redoStackRef.current.length);
-    setStrokes(count => count + 1);
-  }, [restore, snapshot]);
+    setMarked(entry.marked);
+  }, [captureNow, restore]);
 
   const clearMarks = React.useCallback(() => {
-    if (strokes === 0) return;
-    pushUndo(snapshot());
+    if (!marked) return;
+    pushUndo(captureNow());
     restore(undefined);
-    setStrokes(0);
-  }, [pushUndo, restore, snapshot, strokes]);
+    setMarked(false);
+  }, [captureNow, marked, pushUndo, restore]);
 
   /**
    * Ctrl+Z / Ctrl+Shift+Z (and Ctrl+Y) inside the editor. Registered in the
@@ -274,12 +318,21 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   ) => {
     const context = contextRef.current;
     if (!context) return;
+    const erasing = tool === 'eraser';
     context.save();
     // The eraser removes marks from the layer itself; it never draws over the
     // picture, so the source pixels stay untouched by construction.
-    context.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-    context.strokeStyle = CANVAS_MARK_FILL;
-    context.fillStyle = CANVAS_MARK_FILL;
+    //
+    // P5 review C4: under `destination-out` it is the SOURCE ALPHA that decides
+    // how much of the destination goes. Painting the eraser in the translucent
+    // mark colour removed only 55% per pass and left a pink ghost that the
+    // composite then burnt into the picture. The eraser is therefore fully
+    // opaque, and `globalAlpha` is pinned to 1 so no ambient value can dilute
+    // it again.
+    context.globalAlpha = 1;
+    context.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+    context.strokeStyle = erasing ? CANVAS_MARK_ERASE : CANVAS_MARK_FILL;
+    context.fillStyle = erasing ? CANVAS_MARK_ERASE : CANVAS_MARK_FILL;
     context.lineWidth = naturalBrush();
     context.lineCap = 'round';
     context.lineJoin = 'round';
@@ -298,6 +351,7 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     if (!context) return;
     const rect = rectFromCorners(from, to);
     context.save();
+    context.globalAlpha = 1;
     context.globalCompositeOperation = 'source-over';
     context.fillStyle = CANVAS_MARK_FILL;
     context.strokeStyle = CANVAS_MARK_STROKE;
@@ -311,13 +365,16 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     if (!ready) return;
     event.preventDefault();
     const point = naturalFromEvent(event);
-    const baseline = snapshot();
-    pushUndo(baseline);
-    strokeRef.current = { from: point, last: point, baseline };
-    setStrokes(count => count + 1);
+    const before = captureNow();
+    pushUndo(before);
+    strokeRef.current = { from: point, last: point, baseline: before.image };
+    // The eraser takes marks away: after an erase stroke the layer may well be
+    // blank again, so "marked" is re-read from the pixels once the stroke ends
+    // rather than assumed here.
+    if (tool !== 'eraser') setMarked(true);
     if (tool === 'rect') paintRect(point, point);
     else paintSegment(point, point);
-  }, [naturalFromEvent, paintRect, paintSegment, pushUndo, ready, snapshot, tool]);
+  }, [captureNow, naturalFromEvent, paintRect, paintSegment, pushUndo, ready, tool]);
 
   const onCanvasMouseMove = React.useCallback((event: React.MouseEvent) => {
     const stroke = strokeRef.current;
@@ -335,26 +392,44 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   }, [naturalFromEvent, paintRect, paintSegment, restore, tool]);
 
   const endStroke = React.useCallback(() => {
+    const stroke = strokeRef.current;
     strokeRef.current = null;
-  }, []);
+    if (!stroke || tool !== 'eraser') return;
+    // Only the eraser can turn "marked" back off, and only the pixels can say
+    // so. Where the pixels cannot be read (no 2d context in the environment)
+    // the flag is left as it was: erring towards "there is still something
+    // here" costs one extra confirmation, erring the other way loses work.
+    const image = snapshot();
+    if (!image) return;
+    const { data } = image;
+    for (let index = 3; index < data.length; index += 4) {
+      if (data[index] !== 0) return;
+    }
+    setMarked(false);
+  }, [snapshot, tool]);
 
   // —— Dismissal ————————————————————————————————————————————————————————————
 
   const requestClose = React.useCallback(() => {
-    if (strokes > 0 && !discarding) {
+    if (marked && !discarding) {
       setDiscarding(true);
       return;
     }
     onClose();
-  }, [discarding, onClose, strokes]);
+  }, [discarding, marked, onClose]);
 
   const surfaceRef = useInfiniteCanvasDismiss<HTMLDivElement>({ onDismiss: requestClose });
 
   // —— Confirmation ————————————————————————————————————————————————————————
 
-  const incomplete = hasUnfilledInstructionPlaceholder(instruction)
-    || instruction.trim().length === 0;
-  const canConfirm = ready && strokes > 0 && !incomplete;
+  // P5 review P16: judged against the prefilled template's OWN tokens, so 【】
+  // typed as ordinary punctuation cannot silently disable the button — and
+  // whatever does disable it is named on screen next to it.
+  const prefill = t(maskPrefillKey(toolId));
+  const blocked: 'marks' | 'empty' | 'placeholder' | undefined = !marked
+    ? 'marks'
+    : instructionBlockReason(instruction, prefill);
+  const canConfirm = ready && !blocked;
 
   const confirm = React.useCallback(() => {
     const canvas = maskCanvasRef.current;
@@ -365,8 +440,12 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
         base64Png: exportCanvasPngBase64(composite),
         instruction: instruction.trim(),
       });
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      // P5 review P11: "the picture is past what this browser can rasterise"
+      // is not "the picture could not be opened", and the editor is the only
+      // place that still knows which one happened. The marks are kept either
+      // way — this is a report, not a dismissal.
+      setExportError(error instanceof CanvasTooLargeError ? 'too-large' : 'failed');
     }
   }, [bitmap, canConfirm, instruction, onConfirm]);
 
@@ -394,10 +473,14 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
       className="infinite-canvas-mask"
       data-canvas-editor="mask"
       data-tool-id={toolId}
-      // Coordinate-system lesson: nothing here is placed from a measurement,
-      // but the surface still stays invisible until the picture has decoded,
-      // so it can never flash an empty stage at the wrong size first.
+      // Coordinate-system lesson: the picture and its mark layer stay
+      // invisible until the picture has decoded, so the stage can never flash
+      // at the wrong size first. P5 review C6: that rule now applies to the
+      // FRAME only. It used to hide the whole surface, and because `ready`
+      // stays false forever when decoding fails, the role="alert" below was
+      // hidden exactly when it had something to say.
       data-ready={ready ? 'true' : 'false'}
+      data-state={failed ? 'failed' : ready ? 'ready' : 'loading'}
       role="dialog"
       aria-label={t('infiniteCanvas.mask.title')}
       ref={surfaceRef}
@@ -451,7 +534,7 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
           type="button"
           className="infinite-canvas-mask__tool"
           data-mask-action="clear"
-          disabled={strokes === 0}
+          disabled={!marked}
           aria-label={t('infiniteCanvas.mask.clear')}
           title={t('infiniteCanvas.mask.clear')}
           onClick={clearMarks}
@@ -465,25 +548,38 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
             {t('infiniteCanvas.mask.unavailable')}
           </p>
         ) : (
-          <div className="infinite-canvas-mask__frame">
-            {previewUrl ? (
-              <img
-                className="infinite-canvas-mask__image"
-                src={previewUrl}
-                alt=""
-                draggable={false}
+          <>
+            {ready ? null : (
+              // A big picture takes a visible moment to decode; saying so beats
+              // an empty rectangle.
+              <p
+                className="infinite-canvas-mask__placeholder"
+                data-mask-state="loading"
+                role="status"
+              >
+                {t('infiniteCanvas.mask.loading')}
+              </p>
+            )}
+            <div className="infinite-canvas-mask__frame">
+              {previewUrl ? (
+                <img
+                  className="infinite-canvas-mask__image"
+                  src={previewUrl}
+                  alt=""
+                  draggable={false}
+                />
+              ) : null}
+              <canvas
+                className="infinite-canvas-mask__layer"
+                data-mask-surface="layer"
+                ref={maskCanvasRef}
+                onMouseDown={onCanvasMouseDown}
+                onMouseMove={onCanvasMouseMove}
+                onMouseUp={endStroke}
+                onMouseLeave={endStroke}
               />
-            ) : null}
-            <canvas
-              className="infinite-canvas-mask__layer"
-              data-mask-surface="layer"
-              ref={maskCanvasRef}
-              onMouseDown={onCanvasMouseDown}
-              onMouseMove={onCanvasMouseMove}
-              onMouseUp={endStroke}
-              onMouseLeave={endStroke}
-            />
-          </div>
+            </div>
+          </>
         )}
       </div>
       <div className="infinite-canvas-mask__prompt">
@@ -495,6 +591,19 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
           value={instruction}
           onChange={event => setInstruction(event.target.value)}
         />
+        {exportError ? (
+          <p
+            className="infinite-canvas-mask__blocked"
+            data-mask-export-error={exportError}
+            role="alert"
+          >
+            {t(`infiniteCanvas.mask.export.${exportError}`)}
+          </p>
+        ) : blocked && ready ? (
+          <p className="infinite-canvas-mask__blocked" data-blocked-reason={blocked}>
+            {t(`infiniteCanvas.mask.blocked.${blocked}`)}
+          </p>
+        ) : null}
         <button
           type="button"
           className="infinite-canvas-mask__confirm"

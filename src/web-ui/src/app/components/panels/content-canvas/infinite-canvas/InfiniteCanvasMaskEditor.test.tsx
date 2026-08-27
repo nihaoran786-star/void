@@ -12,14 +12,26 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
+// The prefill keys resolve to their REAL English sentences: P5 review P16
+// made the placeholder check compare against the template the editor actually
+// prefilled, so a stub that returned bare key names would test nothing.
 vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
+  useI18n: () => ({
+    t: (key: string) => ({
+      'infiniteCanvas.mask.prefill.erase': 'Remove 【what should go】 from the marked area.',
+      'infiniteCanvas.mask.prefill.inpaint':
+        'Turn the marked area into 【what should be there instead】.',
+    } as Record<string, string>)[key] ?? key,
+  }),
 }));
 
 import {
   CANVAS_BRUSH_DEFAULT,
+  CANVAS_MARK_ERASE,
   CANVAS_MARK_FILL,
+  CANVAS_MARK_UNDO_BUDGET_BYTES,
   CANVAS_MARK_UNDO_LIMIT,
+  canvasMarkUndoLimit,
 } from './infiniteCanvasImageRaster';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
 
@@ -37,17 +49,29 @@ interface RecordedCall {
   args: unknown[];
 }
 
+/** The paint state at the instant `stroke()` ran. */
+interface StrokeState {
+  composite: string;
+  strokeStyle: string;
+  globalAlpha: number;
+}
+
 interface ContextStub {
   calls: RecordedCall[];
   composites: string[];
+  /** One entry per `stroke()`, in order. */
+  strokes: StrokeState[];
 }
 
 function installCanvasStub(dom: JSDOM): ContextStub {
   const calls: RecordedCall[] = [];
   const composites: string[] = [];
+  const strokes: StrokeState[] = [];
   const record = (name: string) => (...args: unknown[]) => {
     calls.push({ name, args });
   };
+  let strokeStyle = '';
+  let globalAlpha = 1;
   dom.window.HTMLCanvasElement.prototype.getContext = (function getContext(
     this: HTMLCanvasElement,
   ) {
@@ -57,7 +81,20 @@ function installCanvasStub(dom: JSDOM): ContextStub {
       lineJoin: 'miter',
       lineWidth: 1,
       fillStyle: '',
-      strokeStyle: '',
+      // Read back at `stroke()` time: P5 review C4 is entirely about which
+      // colour and which alpha were in force at that instant.
+      set strokeStyle(value: string) {
+        strokeStyle = value;
+      },
+      get strokeStyle() {
+        return strokeStyle;
+      },
+      set globalAlpha(value: number) {
+        globalAlpha = value;
+      },
+      get globalAlpha() {
+        return globalAlpha;
+      },
       set globalCompositeOperation(value: string) {
         composites.push(value);
       },
@@ -69,7 +106,14 @@ function installCanvasStub(dom: JSDOM): ContextStub {
       beginPath: record('beginPath'),
       moveTo: record('moveTo'),
       lineTo: record('lineTo'),
-      stroke: record('stroke'),
+      stroke(...args: unknown[]) {
+        calls.push({ name: 'stroke', args });
+        strokes.push({
+          composite: composites[composites.length - 1] ?? 'source-over',
+          strokeStyle,
+          globalAlpha,
+        });
+      },
       fillRect: record('fillRect'),
       strokeRect: record('strokeRect'),
       clearRect: record('clearRect'),
@@ -85,7 +129,7 @@ function installCanvasStub(dom: JSDOM): ContextStub {
   dom.window.HTMLCanvasElement.prototype.toDataURL = (() => (
     'data:image/png;base64,Q09NUE9TSVRF'
   )) as never;
-  return { calls, composites };
+  return { calls, composites, strokes };
 }
 
 describe('InfiniteCanvasMaskEditor', () => {
@@ -141,6 +185,16 @@ describe('InfiniteCanvasMaskEditor', () => {
   const layer = () => container.querySelector('[data-mask-surface="layer"]') as HTMLCanvasElement;
   const confirmButton = () => (
     container.querySelector('[data-mask-action="confirm"]') as HTMLButtonElement
+  );
+  const clearButton = () => (
+    container.querySelector('[data-mask-action="clear"]') as HTMLButtonElement
+  );
+  const undoButton = () => (
+    container.querySelector('[data-mask-action="undo"]') as HTMLButtonElement
+  );
+  const blockedReason = () => (
+    container.querySelector('[data-blocked-reason]')?.getAttribute('data-blocked-reason')
+      ?? undefined
   );
 
   function paintStroke(from = { clientX: 10, clientY: 10 }, to = { clientX: 40, clientY: 40 }) {
@@ -199,6 +253,120 @@ describe('InfiniteCanvasMaskEditor', () => {
     expect(stub.composites).toContain('destination-out');
   });
 
+  /**
+   * P5 review C4: `destination-out` removes the destination in proportion to
+   * the SOURCE ALPHA. Erasing with the translucent mark colour took away 55%
+   * per pass and left a pink ghost that the composite burnt into the picture,
+   * contradicting the directive's "only the area covered by the red marking".
+   */
+  it('erases at full opacity, so one pass removes the mark completely', async () => {
+    await renderEditor();
+    paintStroke();
+    const painted = stub.strokes[stub.strokes.length - 1];
+    expect(painted.composite).toBe('source-over');
+    expect(painted.strokeStyle).toBe(CANVAS_MARK_FILL);
+
+    act(() => {
+      Simulate.click(container.querySelector('[data-mask-tool="eraser"]')!);
+    });
+    paintStroke();
+
+    const erased = stub.strokes[stub.strokes.length - 1];
+    expect(erased.composite).toBe('destination-out');
+    expect(erased.strokeStyle).toBe(CANVAS_MARK_ERASE);
+    expect(erased.globalAlpha).toBe(1);
+    // The whole point: nothing translucent may reach a destination-out stroke.
+    expect(erased.strokeStyle).not.toBe(CANVAS_MARK_FILL);
+    expect(CANVAS_MARK_ERASE.endsWith(', 1)')).toBe(true);
+  });
+
+  /**
+   * P5 review C5: the stroke COUNT and the mark LAYER could disagree. "Paint →
+   * clear → undo" put the marks back on screen while the counter stayed at 0,
+   * which greyed out confirm, disabled clearing, and let Escape throw the
+   * painting away without asking.
+   */
+  it('keeps confirm, clear and the discard prompt alive after paint → clear → undo', async () => {
+    await renderEditor('erase');
+    paintStroke();
+    act(() => {
+      Simulate.change(
+        container.querySelector('[data-mask-control="instruction"]')!,
+        { target: { value: 'remove the lamp post' } } as never,
+      );
+    });
+    expect(confirmButton().disabled).toBe(false);
+
+    act(() => {
+      Simulate.click(clearButton());
+    });
+    expect(confirmButton().disabled).toBe(true);
+    expect(clearButton().disabled).toBe(true);
+
+    act(() => {
+      Simulate.click(undoButton());
+    });
+    // The marks are back on the layer, so every control that depends on them
+    // is back too.
+    expect(confirmButton().disabled).toBe(false);
+    expect(clearButton().disabled).toBe(false);
+
+    // …and Escape asks before throwing the restored painting away.
+    act(() => {
+      dom.window.document.dispatchEvent(
+        new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      );
+    });
+    expect(container.querySelector('[data-canvas-confirm="mask-discard"]')).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * P5 review C6: `data-ready` never becomes true when decoding fails, and the
+   * stylesheet used to hide the WHOLE surface on that attribute — so the one
+   * message with something to say was hidden exactly when it had to speak.
+   */
+  it('keeps the failure message outside the measure-before-show gate', async () => {
+    await act(async () => {
+      root.render(
+        <InfiniteCanvasMaskEditor
+          toolId="inpaint"
+          mediaRef={MEDIA_REF}
+          resolvePreviewUrl={async () => undefined}
+          onConfirm={onConfirm}
+          onClose={onClose}
+        />,
+      );
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toBe('infiniteCanvas.mask.unavailable');
+    expect(surface().getAttribute('data-state')).toBe('failed');
+    // The alert is a sibling of the frame, never a descendant of it: only the
+    // frame carries the visibility gate.
+    expect(alert?.closest('.infinite-canvas-mask__frame')).toBeNull();
+  });
+
+  it('says the picture is opening while a slow decode is in flight', async () => {
+    await act(async () => {
+      root.render(
+        <InfiniteCanvasMaskEditor
+          toolId="inpaint"
+          mediaRef={MEDIA_REF}
+          resolvePreviewUrl={() => new Promise(() => undefined)}
+          onConfirm={onConfirm}
+          onClose={onClose}
+        />,
+      );
+    });
+
+    expect(surface().getAttribute('data-state')).toBe('loading');
+    const loading = container.querySelector('[data-mask-state="loading"]');
+    expect(loading?.getAttribute('role')).toBe('status');
+    expect(loading?.closest('.infinite-canvas-mask__frame')).toBeNull();
+  });
+
   it('fills and outlines a dragged rectangle', async () => {
     await renderEditor();
     act(() => {
@@ -215,20 +383,56 @@ describe('InfiniteCanvasMaskEditor', () => {
 
     const input = container.querySelector('[data-mask-control="instruction"]') as
       HTMLTextAreaElement;
-    expect(input.value).toBe('infiniteCanvas.mask.prefill.erase');
+    expect(input.value).toBe('Remove 【what should go】 from the marked area.');
 
     // Nothing painted yet, so confirming is impossible whatever the text says.
     expect(confirmButton().disabled).toBe(true);
+    expect(blockedReason()).toBe('marks');
     paintStroke();
+    // The template's own token is still there: still blocked, and it says so.
+    expect(confirmButton().disabled).toBe(true);
+    expect(blockedReason()).toBe('placeholder');
+
     act(() => {
-      Simulate.change(input, { target: { value: 'remove 【】' } } as never);
+      Simulate.change(input, { target: { value: '   ' } } as never);
     });
     expect(confirmButton().disabled).toBe(true);
+    expect(blockedReason()).toBe('empty');
 
     act(() => {
       Simulate.change(input, { target: { value: 'remove the lamp post' } } as never);
     });
     expect(confirmButton().disabled).toBe(false);
+    expect(blockedReason()).toBeUndefined();
+  });
+
+  /**
+   * P5 review P16: `/[【】]/` fired on a SINGLE lenticular bracket, so a
+   * Chinese-writing owner using 【】 as ordinary emphasis had the confirm
+   * button greyed out with nothing on screen explaining it. Only the tokens
+   * the prefilled template shipped may block.
+   */
+  it('accepts 【】 the user typed themselves, and names the reason when it blocks', async () => {
+    await renderEditor('erase');
+    paintStroke();
+    const input = container.querySelector('[data-mask-control="instruction"]') as
+      HTMLTextAreaElement;
+
+    act(() => {
+      Simulate.change(input, { target: { value: 'replace the sign reading 【OPEN】' } } as never);
+    });
+    expect(confirmButton().disabled).toBe(false);
+    expect(blockedReason()).toBeUndefined();
+
+    // The template's exact token, however, is still an unfilled placeholder.
+    act(() => {
+      Simulate.change(
+        input,
+        { target: { value: 'Remove 【what should go】 from the marked area.' } } as never,
+      );
+    });
+    expect(confirmButton().disabled).toBe(true);
+    expect(blockedReason()).toBe('placeholder');
   });
 
   it('hands back the composite as bare base64 plus the sentence', async () => {
@@ -279,16 +483,28 @@ describe('InfiniteCanvasMaskEditor', () => {
     expect(confirmButton().disabled).toBe(true);
   });
 
-  it('caps the undo stack instead of growing without bound', async () => {
+  /**
+   * P5 review P10: the depth is a MEMORY budget, so it is the budget — not the
+   * ceiling constant — that the stack must honour. At 1600×1200 one snapshot
+   * is ~7.7 MB, which buys fewer than the thirty the constant allows.
+   */
+  it('caps the undo stack at the memory budget for THIS picture size', async () => {
     await renderEditor();
-    for (let index = 0; index < CANVAS_MARK_UNDO_LIMIT + 6; index += 1) {
+    const limit = canvasMarkUndoLimit({ width: 1600, height: 1200 });
+    expect(limit).toBeLessThan(CANVAS_MARK_UNDO_LIMIT);
+    expect(limit * 1600 * 1200 * 4).toBeLessThanOrEqual(CANVAS_MARK_UNDO_BUDGET_BYTES);
+
+    for (let index = 0; index < limit + 6; index += 1) {
       paintStroke({ clientX: index, clientY: index }, { clientX: index + 5, clientY: index + 5 });
     }
 
-    const undo = container.querySelector('[data-mask-action="undo"]') as HTMLButtonElement;
-    for (let index = 0; index < CANVAS_MARK_UNDO_LIMIT; index += 1) {
+    const undo = undoButton();
+    for (let index = 0; index < limit - 1; index += 1) {
       act(() => Simulate.click(undo));
     }
+    // Exactly `limit` steps were kept: one left here, none after it.
+    expect(undo.disabled).toBe(false);
+    act(() => Simulate.click(undo));
     expect(undo.disabled).toBe(true);
   });
 

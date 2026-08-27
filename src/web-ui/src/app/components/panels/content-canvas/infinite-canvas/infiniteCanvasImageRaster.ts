@@ -29,6 +29,19 @@
 export const CANVAS_MARK_FILL = 'rgba(255, 46, 46, 0.55)';
 /** Mark outline, used for the rectangle tool. */
 export const CANVAS_MARK_STROKE = 'rgba(255, 46, 46, 0.95)';
+/**
+ * Eraser stroke colour — FULLY OPAQUE, and that is the whole point.
+ *
+ * P5 review C4: the eraser draws with `destination-out`, where the *source
+ * alpha* decides how much of the destination is removed. Painting it with the
+ * translucent `CANVAS_MARK_FILL` removed only 55% of the mark per pass, so a
+ * "cleared" area kept a pink ghost that the composite then burnt into the
+ * picture — directly contradicting the directive's "only the area covered by
+ * the red marking". Alpha 1 removes the mark completely in one pass. The RGB
+ * channels are ignored by `destination-out`; black is simply the honest
+ * "no colour is being contributed" value.
+ */
+export const CANVAS_MARK_ERASE = 'rgba(0, 0, 0, 1)';
 /** Rectangle outline width, in natural pixels. */
 export const CANVAS_MARK_STROKE_WIDTH = 4;
 
@@ -43,6 +56,31 @@ export const CANVAS_BRUSH_DEFAULT = 36;
  * from the canvas document history (`infiniteCanvasHistory.ts`).
  */
 export const CANVAS_MARK_UNDO_LIMIT = 30;
+
+/**
+ * How much memory the editor's undo stack is allowed to hold, in bytes.
+ *
+ * P5 review P10: at 30 entries a 4096×4096 mark layer would keep ~2 GB of
+ * `ImageData` alive — enough to take the webview down on the exact pictures
+ * this feature is most useful on. The depth is therefore a budget, not a
+ * constant: big pictures simply get a shorter history.
+ */
+export const CANVAS_MARK_UNDO_BUDGET_BYTES = 192 * 1024 * 1024;
+
+/** Never fewer than this, however large the picture — one stroke back is a floor. */
+export const CANVAS_MARK_UNDO_MIN = 4;
+
+/**
+ * Undo depth for a mark layer of the given natural size: `CANVAS_MARK_UNDO_LIMIT`
+ * for ordinary pictures, shrinking towards `CANVAS_MARK_UNDO_MIN` as one
+ * snapshot (`width × height × 4` bytes of RGBA) grows.
+ */
+export function canvasMarkUndoLimit(size: CanvasSize): number {
+  const pixels = Math.max(1, Math.round(size.width)) * Math.max(1, Math.round(size.height));
+  const perEntry = Math.max(1, pixels * 4);
+  const affordable = Math.floor(CANVAS_MARK_UNDO_BUDGET_BYTES / perEntry);
+  return Math.max(CANVAS_MARK_UNDO_MIN, Math.min(CANVAS_MARK_UNDO_LIMIT, affordable));
+}
 
 /** Smallest crop the editor will accept, in natural pixels. */
 export const CANVAS_CROP_MIN_SIZE = 30;
@@ -162,13 +200,36 @@ export function cropBitmap(
 }
 
 /**
+ * The picture is larger than this browser can rasterise. Distinct from a write
+ * failure: nothing reached the disk and nothing was charged, and the wording
+ * the user sees has to say "too big", not "saving failed".
+ */
+export class CanvasTooLargeError extends Error {
+  readonly width: number;
+  readonly height: number;
+
+  constructor(width: number, height: number) {
+    super(`The canvas is too large to export (${width}×${height}).`);
+    this.name = 'CanvasTooLargeError';
+    this.width = width;
+    this.height = height;
+  }
+}
+
+/**
  * Exports a canvas as BARE base64 (no `data:image/png;base64,` prefix) —
  * exactly the shape `write_canvas_image_bytes` expects for `base64Png`.
  */
 export function exportCanvasPngBase64(canvas: HTMLCanvasElement): string {
   const dataUrl = canvas.toDataURL('image/png');
   const comma = dataUrl.indexOf(',');
-  return comma < 0 ? dataUrl : dataUrl.slice(comma + 1);
+  const payload = comma < 0 ? dataUrl : dataUrl.slice(comma + 1);
+  // P5 review P11: a canvas past the browser's maximum surface area does not
+  // throw — `toDataURL` quietly returns the empty `data:,`. Sending that on
+  // would have written a zero-byte PNG and blamed the backend for it, so the
+  // one place that can still tell what happened raises a named error instead.
+  if (payload.length === 0) throw new CanvasTooLargeError(canvas.width, canvas.height);
+  return payload;
 }
 
 // —— Geometry ————————————————————————————————————————————————————————————————

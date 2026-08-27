@@ -977,7 +977,11 @@
       "confirm": "Confirm and generate",
       "cancel": "Cancel",
       "dismiss": "Got it",
-      "crop": "Crop"
+      "crop": "Crop",
+      "blocked": {
+        "empty": "Write the instruction before confirming.",
+        "placeholder": "Replace the 【】 placeholder with your own words."
+      }
     },
     "generation": {
       "promptLabel": "Generation prompt",
@@ -1148,7 +1152,8 @@
         "invalid_image": "This picture could not be read, so no prompt came back.",
         "path_denied": "This picture is outside the workspace, so it cannot be read.",
         "backend": "Reading the picture failed. Nothing on the card was changed."
-      }
+      },
+      "pending": "Reading the picture and writing a prompt…"
     },
     "zoom": {
       "fit": "Fit the board to the view",
@@ -1166,7 +1171,15 @@
       "discardTitle": "Discard this crop?",
       "discardBody": "The frame you drew will be lost. The original picture is untouched either way.",
       "discardConfirm": "Discard",
-      "discardCancel": "Keep editing"
+      "discardCancel": "Keep editing",
+      "loading": "Opening the picture…",
+      "export": {
+        "too-large": "This picture is too large for the browser to process. Nothing was changed.",
+        "failed": "The cropped picture could not be prepared. Nothing was changed."
+      },
+      "writeTooLarge": "The cropped picture is too large to save. Nothing was changed.",
+      "writeDenied": "The cropped picture could not be saved to that location. Nothing was changed.",
+      "cardMissing": "The cropped file was saved, but the card it came from is gone, so no new card was made. You can find the file in the media library."
     },
     "mask": {
       "title": "Mark the area to change",
@@ -1196,7 +1209,19 @@
       "prefill": {
         "inpaint": "Turn the marked area into 【what should be there instead】.",
         "erase": "Remove 【what should go】 from the marked area."
-      }
+      },
+      "loading": "Opening the picture…",
+      "blocked": {
+        "marks": "Paint over the area you want changed first.",
+        "empty": "Say what should happen in the marked area.",
+        "placeholder": "Replace the 【】 placeholder with your own words."
+      },
+      "export": {
+        "too-large": "This picture is too large for the browser to process. Crop it smaller first, then mark it. Nothing was generated and nothing was charged.",
+        "failed": "The marked picture could not be prepared, so nothing was generated and nothing was charged."
+      },
+      "writeTooLarge": "The marked picture is too large to save. Nothing was generated and nothing was charged.",
+      "writeDenied": "The marked picture could not be saved to that location. Nothing was generated and nothing was charged."
     }
   },
   "agentStudio": {

@@ -25,6 +25,7 @@ import { useI18n } from '@/infrastructure/i18n';
 import {
   CANVAS_CROP_MIN_SIZE,
   clampCropRect,
+  CanvasTooLargeError,
   cropBitmap,
   exportCanvasPngBase64,
   isCropRectUsable,
@@ -74,6 +75,9 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
   const [previewUrl, setPreviewUrl] = React.useState<string | undefined>(undefined);
   const [bitmap, setBitmap] = React.useState<ImageBitmap | undefined>(undefined);
   const [failed, setFailed] = React.useState(false);
+  /** Export-time failure, kept apart from a decode failure (review P11). */
+  const [exportError, setExportError] =
+    React.useState<'too-large' | 'failed' | undefined>(undefined);
   const [rect, setRect] = React.useState<CanvasRect | undefined>(undefined);
   const [moved, setMoved] = React.useState(false);
   const [discarding, setDiscarding] = React.useState(false);
@@ -193,8 +197,10 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
       const clamped = clampCropRect(rect, natural);
       const cut = cropBitmap(bitmap, clamped);
       onConfirm({ base64Png: exportCanvasPngBase64(cut), rect: clamped });
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      // Review P11: "too big to rasterise" reads nothing like "could not be
+      // opened", and only this catch still knows the difference.
+      setExportError(error instanceof CanvasTooLargeError ? 'too-large' : 'failed');
     }
   }, [bitmap, canConfirm, natural, onConfirm, rect]);
 
@@ -207,8 +213,13 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
       className="infinite-canvas-crop"
       data-canvas-editor="crop"
       // Measure-before-show: the frame's geometry is derived from the natural
-      // size, so the surface stays invisible until that number exists.
+      // size, so the FRAME stays invisible until that number exists. P5 review
+      // C6: this used to hide the whole surface, and `ready` never becomes
+      // true when decoding fails — which hid the role="alert" below at exactly
+      // the moment it mattered, leaving a press on "crop" with no visible
+      // result at all.
       data-ready={ready ? 'true' : 'false'}
+      data-state={failed ? 'failed' : ready ? 'ready' : 'loading'}
       role="dialog"
       aria-label={t('infiniteCanvas.crop.title')}
       ref={surfaceRef}
@@ -217,6 +228,15 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
       <div className="infinite-canvas-crop__bar">
         <span className="infinite-canvas-crop__hint">{t('infiniteCanvas.crop.hint')}</span>
         <span className="infinite-canvas-crop__spacer" />
+        {exportError ? (
+          <span
+            className="infinite-canvas-dialog__blocked"
+            data-crop-export-error={exportError}
+            role="alert"
+          >
+            {t(`infiniteCanvas.crop.export.${exportError}`)}
+          </span>
+        ) : null}
         <span className="infinite-canvas-crop__size" data-crop-size="true">
           {rect ? `${rect.width} × ${rect.height}` : ''}
         </span>
@@ -236,50 +256,61 @@ export const InfiniteCanvasCropEditor: React.FC<InfiniteCanvasCropEditorProps> =
             {t('infiniteCanvas.crop.unavailable')}
           </p>
         ) : (
-          <div
-            className="infinite-canvas-crop__frame"
-            ref={frameRef}
-            onMouseMove={onFrameMouseMove}
-            onMouseUp={endDrag}
-            onMouseLeave={endDrag}
-          >
-            {previewUrl ? (
-              <img
-                className="infinite-canvas-crop__image"
-                src={previewUrl}
-                alt=""
-                draggable={false}
-              />
-            ) : null}
-            {rect ? (
-              <div
-                className="infinite-canvas-crop__rect"
-                data-crop-rect="true"
-                data-crop-x={rect.x}
-                data-crop-y={rect.y}
-                data-crop-width={rect.width}
-                data-crop-height={rect.height}
-                style={{
-                  left: percent(rect.x, natural.width),
-                  top: percent(rect.y, natural.height),
-                  width: percent(rect.width, natural.width),
-                  height: percent(rect.height, natural.height),
-                }}
-                onMouseDown={event => beginDrag(event, 'move')}
+          <>
+            {ready ? null : (
+              <p
+                className="infinite-canvas-crop__placeholder"
+                data-crop-state="loading"
+                role="status"
               >
-                {/* Rule-of-thirds guides; decoration only, no pointer surface. */}
-                <span className="infinite-canvas-crop__thirds" aria-hidden="true" />
-                {CROP_HANDLES.map(handle => (
-                  <span
-                    key={handle}
-                    className="infinite-canvas-crop__handle"
-                    data-crop-handle={handle}
-                    onMouseDown={event => beginDrag(event, handle)}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
+                {t('infiniteCanvas.crop.loading')}
+              </p>
+            )}
+            <div
+              className="infinite-canvas-crop__frame"
+              ref={frameRef}
+              onMouseMove={onFrameMouseMove}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
+            >
+              {previewUrl ? (
+                <img
+                  className="infinite-canvas-crop__image"
+                  src={previewUrl}
+                  alt=""
+                  draggable={false}
+                />
+              ) : null}
+              {rect ? (
+                <div
+                  className="infinite-canvas-crop__rect"
+                  data-crop-rect="true"
+                  data-crop-x={rect.x}
+                  data-crop-y={rect.y}
+                  data-crop-width={rect.width}
+                  data-crop-height={rect.height}
+                  style={{
+                    left: percent(rect.x, natural.width),
+                    top: percent(rect.y, natural.height),
+                    width: percent(rect.width, natural.width),
+                    height: percent(rect.height, natural.height),
+                  }}
+                  onMouseDown={event => beginDrag(event, 'move')}
+                >
+                  {/* Rule-of-thirds guides; decoration only, no pointer surface. */}
+                  <span className="infinite-canvas-crop__thirds" aria-hidden="true" />
+                  {CROP_HANDLES.map(handle => (
+                    <span
+                      key={handle}
+                      className="infinite-canvas-crop__handle"
+                      data-crop-handle={handle}
+                      onMouseDown={event => beginDrag(event, handle)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </>
         )}
       </div>
       {discarding ? (
