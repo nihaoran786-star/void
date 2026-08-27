@@ -478,6 +478,27 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     expect(actions).toEqual(['copy', 'duplicate', 'delete']);
   });
 
+  /**
+   * P5 review C9: every piece of panel memory is scoped to ONE document, and
+   * the P5 surfaces were left out of the effect that enforces it. An overflow
+   * drawer left standing across a workspace switch points at a node id that
+   * does not exist in the new document.
+   */
+  it('drops the P5 overflow drawer when the document underneath changes', async () => {
+    seedDocument(memory, {
+      nodes: [{ nodeId: 'n-blank', kind: 'image' as const, position: { x: 0, y: 0 } }],
+    });
+    await renderPanel();
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
+    expect(container.querySelector('[data-canvas-popover="card-overflow"]')).not.toBeNull();
+
+    // Same root, so the panel's document-change effect is what has to clean
+    // up — not an unmount.
+    await renderPanel({ workspaceId: 'workspace-b', workspacePath: 'C:/workspace-b' });
+
+    expect(container.querySelector('[data-canvas-popover="card-overflow"]')).toBeNull();
+  });
+
   it('keeps documents isolated per workspace', async () => {
     await renderPanel();
     await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');

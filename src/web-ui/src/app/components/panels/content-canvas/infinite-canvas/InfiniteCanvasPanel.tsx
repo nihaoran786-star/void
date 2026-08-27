@@ -247,6 +247,34 @@ interface GenerationNotice {
   /** i18n key under the components namespace. */
   messageKey: string;
   errorKind?: ImageToolErrorKind;
+  /**
+   * P5 review C8: not every notice is a failure. A long-running, paid call
+   * needs to say it is running somewhere the user can still see after the
+   * surface they started it from has closed.
+   */
+  busy?: boolean;
+}
+
+/**
+ * Why a canvas PNG did not reach the disk, in words the owner can act on.
+ *
+ * P5 review P11: every non-`written` status used to collapse into one
+ * "saving failed, this is a backend problem" line. `invalid_input` is what the
+ * command reports for a payload it will not take — in practice a picture too
+ * large to send — and telling someone to retry a picture that will never fit
+ * is worse than telling them nothing.
+ */
+function assetWriteNotice(
+  lane: 'mask' | 'crop',
+  status: 'invalid_input' | 'path_denied' | 'backend',
+): GenerationNotice {
+  if (status === 'invalid_input') {
+    return { messageKey: `infiniteCanvas.${lane}.writeTooLarge`, errorKind: 'invalid-input' };
+  }
+  if (status === 'path_denied') {
+    return { messageKey: `infiniteCanvas.${lane}.writeDenied`, errorKind: 'invalid-input' };
+  }
+  return { messageKey: `infiniteCanvas.${lane}.writeFailed`, errorKind: 'backend' };
 }
 
 interface ToolDialogRequest {
@@ -497,6 +525,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const reversePromptNodeIdRef = React.useRef<string | null>(null);
   const [reversePromptChoice, setReversePromptChoice] =
     React.useState<ReversePromptChoice | null>(null);
+  /**
+   * P5 review C7: the generator's prompt box only commits on blur, so
+   * `node.prompt` is stale for as long as the box has focus. Anything that has
+   * to know "is there text in the box right now" — the reverse-prompt lane
+   * being the one that could destroy it — reads this instead. A ref, not
+   * state: it must never re-render the panel on a keystroke.
+   */
+  const generatorDraftRef = React.useRef<{ nodeId: string; value: string } | null>(null);
   /** P4 W1: the card whose media the full-screen viewer is showing. */
   const [viewerNodeId, setViewerNodeId] = React.useState<string | null>(null);
   /** P4 W3: the card whose generation parameters are being edited. */
@@ -772,9 +808,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     if (result.status === 'applied') {
       if (entry) applyHistoryState(state => pushHistoryEntry(state, entry!));
       projectDocument(result.document);
-    } else {
-      setState({ phase: 'failed', error: result.error });
+      // Returned so a caller that has already written bytes to disk can check
+      // that the card it expected actually exists (review P12). Every other
+      // caller ignores it, exactly as before.
+      return result.document;
     }
+    setState({ phase: 'failed', error: result.error });
+    return undefined;
   }, [applyHistoryState, projectDocument, service, workspaceRef]);
 
   /** Applies the newest undo (or redo) entry, or discards a stale branch. */
@@ -1170,13 +1210,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     const relativePath = canvasCropRelativePath(request.mediaRef.relativePath, Date.now());
     const written = await assetWriter({ workspacePath, relativePath, base64Png });
     if (written.status !== 'written') {
-      setNotice({ messageKey: 'infiniteCanvas.crop.writeFailed', errorKind: 'backend' });
+      setNotice(assetWriteNotice('crop', written.status));
       return;
     }
     const operationId = createInfiniteCanvasId('op');
     const derivedNodeId = `node-${operationId}`;
     const edgeId = `edge-${operationId}`;
-    await commit(current => {
+    const next = await commit(current => {
       const begun = beginDerivedOperationContent(
         current,
         request.nodeId,
@@ -1190,6 +1230,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         relativePath: written.relativePath,
       });
     });
+    // P5 review P12: the bytes are already on disk by now. If the source card
+    // disappeared between opening the editor and confirming (a delete, an
+    // agent op, a reload), `beginDerivedOperationContent` grows nothing and the
+    // crop became a file with no card — silently, until the user found it in
+    // the media library. Now it says so.
+    if (!next?.nodes.some(node => node.nodeId === derivedNodeId)) {
+      setNotice({ messageKey: 'infiniteCanvas.crop.cardMissing', errorKind: 'invalid-input' });
+    }
   }, [assetWriter, commit, cropRequest, workspacePath]);
 
   /**
@@ -1236,7 +1284,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       base64Png,
     });
     if (written.status !== 'written') {
-      setNotice({ messageKey: 'infiniteCanvas.mask.writeFailed', errorKind: 'backend' });
+      setNotice(assetWriteNotice('mask', written.status));
       return;
     }
 
@@ -1297,6 +1345,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    *   model configured" reads as exactly that and points at settings, rather
    *   than as a spinner that stops.
    */
+  /** The card's prompt as the USER sees it: live draft first, document second. */
+  const liveNodePrompt = React.useCallback((nodeId: string): string => {
+    const draft = generatorDraftRef.current;
+    if (draft && draft.nodeId === nodeId) return draft.value;
+    return findImageNode(nodeId)?.node.prompt ?? '';
+  }, [findImageNode]);
+
   const runReversePrompt = React.useCallback(async (nodeId: string, anchor?: HTMLElement) => {
     if (reversePromptNodeIdRef.current) return;
     const found = findImageNode(nodeId);
@@ -1310,9 +1365,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       return;
     }
     setReversePromptChoice(null);
-    setNotice(null);
     reversePromptNodeIdRef.current = nodeId;
     setReversePromptPendingNodeId(nodeId);
+    // P5 review C8: the drawer this was started from closes on the click, so
+    // the busy state it used to carry was invisible for the whole 10-30 s of a
+    // paid vision call. The panel-level notice outlives the drawer.
+    setNotice({ messageKey: 'infiniteCanvas.reversePrompt.pending', busy: true });
     let result: InfiniteCanvasImageAnalysisResult;
     try {
       result = await imageAnalyzer({
@@ -1323,6 +1381,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     } finally {
       reversePromptNodeIdRef.current = null;
       setReversePromptPendingNodeId(null);
+      // Only the busy notice this call put up; an unrelated one stays.
+      setNotice(current => (current?.busy ? null : current));
     }
 
     const prompt = result.status === 'completed' ? (result.prompt ?? '').trim() : '';
@@ -1338,28 +1398,35 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     }
 
     // Re-read: the analysis is a network round trip, and the owner may have
-    // typed into the box while it was in flight.
-    const current = (findImageNode(nodeId)?.node.prompt ?? '').trim();
+    // typed into the box while it was in flight — WITHOUT clicking away, which
+    // is the case `node.prompt` alone cannot see (review C7). The live draft
+    // wins whenever the generator is attached to this card; a non-empty draft
+    // counts as "already has content" and goes to the replace/append choice.
+    const current = liveNodePrompt(nodeId).trim();
     if (!current) {
+      generatorDraftRef.current = { nodeId, value: prompt };
       await commit(document => setNodePromptContent(document, nodeId, prompt), { history: true });
       return;
     }
     setReversePromptChoice({ nodeId, anchor: anchor ?? null, prompt });
-  }, [commit, findImageNode, imageAnalyzer]);
+  }, [commit, findImageNode, imageAnalyzer, liveNodePrompt]);
 
   const applyReversePrompt = React.useCallback(async (mode: 'replace' | 'append') => {
     const choice = reversePromptChoice;
     setReversePromptChoice(null);
     if (!choice) return;
-    const existing = (findImageNode(choice.nodeId)?.node.prompt ?? '').trim();
+    // The same live read: "add underneath" must append under what is actually
+    // in the box, not under the last thing that happened to be committed.
+    const existing = liveNodePrompt(choice.nodeId).trim();
     const next = mode === 'replace' || !existing
       ? choice.prompt
       : `${existing}\n\n${choice.prompt}`;
+    generatorDraftRef.current = { nodeId: choice.nodeId, value: next };
     await commit(
       document => setNodePromptContent(document, choice.nodeId, next),
       { history: true },
     );
-  }, [commit, findImageNode, reversePromptChoice]);
+  }, [commit, liveNodePrompt, reversePromptChoice]);
 
   const retryGeneration = React.useCallback(async (
     nodeId: string,
@@ -1599,6 +1666,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setToolDialog(null);
     setMaskRequest(null);
     setCropRequest(null);
+    // P5 review C9: the three surfaces P5 added are node-scoped too. An
+    // overflow drawer or a "replace or append" choice left standing across a
+    // document switch points at a node id that no longer exists here, and a
+    // stale pending id would keep the reverse-prompt entry disabled forever.
+    setOverflow(null);
+    overflowAnchorRef.current = null;
+    setReversePromptChoice(null);
+    setReversePromptPendingNodeId(null);
+    reversePromptNodeIdRef.current = null;
   }, [documentId, workspaceId]);
 
   React.useEffect(() => {
@@ -2636,8 +2712,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       {notice ? (
         <div
           className="infinite-canvas-panel__tool-notice"
-          role="alert"
+          // A busy notice is a status, not an alert: it must not interrupt a
+          // screen reader mid-sentence the way a failure legitimately does.
+          role={notice.busy ? 'status' : 'alert'}
           data-error-kind={notice.errorKind}
+          data-notice-busy={notice.busy ? 'true' : undefined}
+          aria-busy={notice.busy || undefined}
         >
           <strong>{t('infiniteCanvas.generation.noticeTitle')}</strong>
           <span>{t(notice.messageKey)}</span>
@@ -2891,10 +2971,16 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               void onGeneratorSubmit(prompt);
             }}
             onCommitPrompt={prompt => {
+              generatorDraftRef.current = { nodeId: generatorTarget.nodeId, value: prompt };
               void commit(
                 document => setNodePromptContent(document, generatorTarget.nodeId, prompt),
                 { history: true },
               );
+            }}
+            // Review C7: the panel keeps the box's live text so a slow
+            // reverse-prompt cannot land on top of it.
+            onDraftChange={prompt => {
+              generatorDraftRef.current = { nodeId: generatorTarget.nodeId, value: prompt };
             }}
             onAddReference={onGeneratorAddReference}
             onRemoveReference={onGeneratorRemoveReference}

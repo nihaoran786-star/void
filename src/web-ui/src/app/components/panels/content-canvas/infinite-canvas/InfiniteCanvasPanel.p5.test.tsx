@@ -336,7 +336,82 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     await service.flushPendingWrites();
     // No half-made card pointing at a file that does not exist.
     expect(readDocument(memory).nodes).toHaveLength(1);
-    expect(container.querySelector('.infinite-canvas-panel__tool-notice')).not.toBeNull();
+    const notice = container.querySelector('.infinite-canvas-panel__tool-notice');
+    expect(notice).not.toBeNull();
+    expect(notice!.textContent).toContain('infiniteCanvas.crop.writeDenied');
+  });
+
+  /**
+   * P5 review P11: every non-`written` status used to collapse into one
+   * "saving failed, retry" line. `invalid_input` is what the command reports
+   * for a payload it will not take — in practice a picture too large — and
+   * telling someone to retry something that can never work is worse than
+   * saying nothing.
+   */
+  it('names "too large" separately from a backend write failure', async () => {
+    for (const [status, key] of [
+      ['invalid_input', 'infiniteCanvas.crop.writeTooLarge'],
+      ['backend', 'infiniteCanvas.crop.writeFailed'],
+    ] as const) {
+      writeCanvasImage.mockResolvedValue({ status, message: 'nope' });
+      seedDocument(memory, { nodes: [IMAGE_NODE] });
+      await renderPanel();
+      await openEditor('[data-node-action="crop"]');
+      await act(async () => {
+        Simulate.click(container.querySelector('[data-crop-action="confirm"]')!);
+      });
+      await act(async () => { await Promise.resolve(); });
+
+      const notice = container.querySelector('.infinite-canvas-panel__tool-notice');
+      expect(notice!.textContent, `wrong copy for ${status}`).toContain(key);
+      expect(readDocument(memory).nodes).toHaveLength(1);
+
+      await act(async () => root.unmount());
+      root = createRoot(container);
+    }
+  });
+
+  it('names "too large" separately on the mask lane too, and spends nothing', async () => {
+    writeCanvasImage.mockResolvedValue({ status: 'invalid_input', message: 'too big' });
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await runMaskFlow();
+
+    const notice = container.querySelector('.infinite-canvas-panel__tool-notice');
+    expect(notice!.textContent).toContain('infiniteCanvas.mask.writeTooLarge');
+    expect(stubRuntime.gateway.invoke).not.toHaveBeenCalled();
+  });
+
+  /**
+   * P5 review P12: the bytes are on disk before the document is touched. If
+   * the source card vanished in between, `beginDerivedOperationContent` grows
+   * nothing and the crop became a file with no card — silently.
+   */
+  it('says so instead of leaving an orphan file when the source card is gone', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-action="crop"]');
+
+    // The source card disappears while the editor is open (a delete, an agent
+    // op, another window) — the editor is holding its own copy of the picture.
+    await act(async () => {
+      await service.mutateDefaultDocument(
+        { workspaceId: WORKSPACE.workspaceId, workspacePath: WORKSPACE.workspacePath },
+        current => ({ ...current, nodes: [], edges: [] }),
+      );
+    });
+
+    await act(async () => {
+      Simulate.click(container.querySelector('[data-crop-action="confirm"]')!);
+    });
+    await act(async () => { await Promise.resolve(); });
+    await service.flushPendingWrites();
+
+    // The file was written — that is the whole reason this needs saying.
+    expect(writeCanvasImage).toHaveBeenCalledTimes(1);
+    expect(readDocument(memory).nodes).toHaveLength(0);
+    const notice = container.querySelector('.infinite-canvas-panel__tool-notice');
+    expect(notice!.textContent).toContain('infiniteCanvas.crop.cardMissing');
   });
 
   it('opens the mask editor for inpaint instead of the instruction dialog', async () => {

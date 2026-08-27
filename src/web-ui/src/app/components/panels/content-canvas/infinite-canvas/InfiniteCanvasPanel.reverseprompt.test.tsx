@@ -86,6 +86,7 @@ import {
   type InMemoryInfiniteCanvasPersistence,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import { selectCanvasCards } from './infiniteCanvasGeneratorDriver.testkit';
 
 /**
  * Restated here rather than imported: the gateway module is mocked in this
@@ -400,5 +401,116 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     // The drawer never closed — the refused press did nothing — so the entry
     // is still on screen, and it has dropped the pending mark.
     expect(button()!.getAttribute('data-pending')).toBeNull();
+  });
+
+  /**
+   * P5 review C8: the pending mark above lives inside the "more" drawer, and
+   * choosing the entry CLOSES that drawer. A paid 10-30 s vision call
+   * therefore ran with no feedback anywhere the owner could see it.
+   */
+  it('says the call is running on the board, not only inside the closed drawer', async () => {
+    let release: (value: unknown) => void = () => undefined;
+    analyzeCanvasImage.mockImplementationOnce(
+      () => new Promise(resolve => { release = resolve; }) as never,
+    );
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+
+    await openOverflow();
+    await act(async () => {
+      button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    // The drawer is gone…
+    expect(container.querySelector('[data-canvas-overflow-action]')).toBeNull();
+    // …and the board itself now carries the in-progress state.
+    const notice = container.querySelector('.infinite-canvas-panel__tool-notice');
+    expect(notice).not.toBeNull();
+    expect(notice!.getAttribute('data-notice-busy')).toBe('true');
+    // A status, not an alert: it is progress, not a failure.
+    expect(notice!.getAttribute('role')).toBe('status');
+    expect(notice!.textContent).toContain('infiniteCanvas.reversePrompt.pending');
+
+    await act(async () => {
+      release({ status: 'completed', prompt: REVERSED });
+      await Promise.resolve();
+    });
+    await service.flushPendingWrites();
+    // It clears itself when the call lands; it is not a sticky banner.
+    expect(container.querySelector('.infinite-canvas-panel__tool-notice')).toBeNull();
+  });
+
+  /**
+   * P5 review C7: the generator commits its prompt on BLUR, so `node.prompt`
+   * is stale while the box has focus. Typing during the vision call without
+   * clicking away used to land in the "the box is empty, just fill it" branch
+   * and destroy what was being written.
+   */
+  it('does not overwrite text typed into the box while the call is in flight', async () => {
+    let release: (value: unknown) => void = () => undefined;
+    analyzeCanvasImage.mockImplementationOnce(
+      () => new Promise(resolve => { release = resolve; }) as never,
+    );
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+
+    await openOverflow();
+    await act(async () => {
+      button()!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    // Select the card so its generator is on screen, then type WITHOUT
+    // blurring: nothing is committed to the document.
+    await selectCanvasCards(flow, ['n-image']);
+    const field = container.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-generator-field="prompt"]',
+    )!;
+    await act(async () => {
+      field.value = 'a fox I am still writing about';
+      Simulate.change(field);
+    });
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].prompt).toBeUndefined();
+
+    await act(async () => {
+      release({ status: 'completed', prompt: REVERSED });
+      await Promise.resolve();
+    });
+    await service.flushPendingWrites();
+
+    // Nothing was overwritten. The non-empty draft took the replace/append
+    // route, exactly as a committed prompt would have.
+    expect(readDocument(memory).nodes[0].prompt).toBeUndefined();
+    const preview = container.querySelector('[data-canvas-reverse-prompt="preview"]');
+    expect(preview?.textContent).toBe(REVERSED);
+
+    // …and "add underneath" appends under what is IN THE BOX, not under the
+    // empty committed value.
+    await act(async () => {
+      Simulate.click(
+        container.querySelector('[data-canvas-reverse-prompt-action="append"]')!,
+      );
+    });
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].prompt)
+      .toBe(`a fox I am still writing about\n\n${REVERSED}`);
+  });
+
+  /**
+   * P5 review C9: the document-change effect scrubs every piece of node-scoped
+   * panel memory, and P5's three additions were left out of it. A "replace or
+   * append" choice carried into another workspace would write into a node id
+   * that does not exist there.
+   */
+  it('drops a pending replace-or-append choice when the document changes', async () => {
+    seedDocument(memory, { nodes: [{ ...IMAGE_NODE, prompt: 'my own words' }] });
+    await renderPanel();
+    await press();
+    expect(container.querySelector('[data-canvas-reverse-prompt="preview"]')).not.toBeNull();
+
+    // Same root: the effect, not an unmount, has to do the cleaning.
+    await renderPanel({ workspaceId: 'workspace-b', workspacePath: 'C:/workspace-b' });
+
+    expect(container.querySelector('[data-canvas-reverse-prompt="preview"]')).toBeNull();
   });
 });

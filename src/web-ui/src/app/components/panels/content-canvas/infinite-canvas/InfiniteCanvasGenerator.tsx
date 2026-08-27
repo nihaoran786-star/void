@@ -76,6 +76,17 @@ export interface InfiniteCanvasGeneratorProps {
    * on-card prompt box made on blur.
    */
   onCommitPrompt?: (prompt: string) => void;
+  /**
+   * The live, UNCOMMITTED text of the box, reported on every keystroke.
+   *
+   * P5 review C7: the prompt only reaches the document on blur, so anything
+   * that reads `node.prompt` while the box is focused reads a stale value. The
+   * reverse-prompt lane did exactly that: type during the 10-30 s vision call
+   * without clicking away and its "the box is empty, just fill it" branch
+   * overwrote what you were writing. This is how the panel sees the box as it
+   * actually is.
+   */
+  onDraftChange?: (prompt: string) => void;
   onAddReference: (anchor: HTMLElement) => void;
   /**
    * Owner feedback 2026-08-26: each reference thumbnail carries a small `×`
@@ -167,6 +178,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   resolvePreviewUrl,
   onSubmit,
   onCommitPrompt,
+  onDraftChange,
   onAddReference,
   onRemoveReference,
   onOpenParams,
@@ -181,8 +193,14 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   // Selecting another card adopts that card's prompt; the generator is a view
   // of the card it is attached to, not a second place a prompt could hide. A
   // blank generation card therefore opens with an empty field.
+  // The reporter is read through a ref so a caller that passes an inline
+  // arrow (the panel does) cannot re-run this effect on every render.
+  const reportDraft = React.useRef(onDraftChange);
+  reportDraft.current = onDraftChange;
+
   React.useEffect(() => {
     setDraft(targetPrompt);
+    reportDraft.current?.(targetPrompt);
   }, [targetNodeId, targetPrompt]);
 
   const pending = target.pending;
@@ -264,7 +282,10 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         value={draft}
         disabled={pending}
         rows={2}
-        onChange={event => setDraft(event.target.value)}
+        onChange={event => {
+          setDraft(event.target.value);
+          onDraftChange?.(event.target.value);
+        }}
         onBlur={() => {
           if (draft !== targetPrompt) onCommitPrompt?.(draft);
         }}
