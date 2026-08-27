@@ -407,6 +407,21 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
     expect(popover('model')).toBeNull();
   });
 
+  /**
+   * §6.3: the bar's three readouts became pressable pills. The count pill is
+   * the one that had no coverage, and "a pill that does nothing" is exactly the
+   * failure the restyle could have introduced.
+   */
+  it('opens the parameters from the count pill too', async () => {
+    seed([IMAGE_CARD]);
+    await renderPanel();
+    await select([IMAGE_CARD.nodeId]);
+
+    await click(generatorAction('count'));
+    expect(popover('params')).not.toBeNull();
+    expect(popover('model')).toBeNull();
+  });
+
   it('lists every model with the capability chips the table knows', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();

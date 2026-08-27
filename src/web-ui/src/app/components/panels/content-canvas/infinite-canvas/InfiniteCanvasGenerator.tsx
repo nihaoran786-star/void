@@ -297,7 +297,9 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
       />
       <div className="infinite-canvas-generator__bar">
         {/* §7.3-A: model name first, then the parameter summary pill; each
-            opens its own popover. */}
+            opens its own popover. Owner feedback 2026-08-27: these are small
+            pressable PILLS carrying their real values, separated by the
+            faintest of hairlines — not a run of grey words strung on dots. */}
         <button
           type="button"
           className="infinite-canvas-generator__meta infinite-canvas-generator__meta--model"
@@ -308,7 +310,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         >
           {target.modelLabel}
         </button>
-        <span className="infinite-canvas-generator__dot" aria-hidden="true" />
+        <span className="infinite-canvas-generator__rule" aria-hidden="true" />
         <button
           type="button"
           className="infinite-canvas-generator__meta infinite-canvas-generator__meta--params"
@@ -319,10 +321,10 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         >
           {target.paramsSummary || t('infiniteCanvas.params.button')}
         </button>
-        <span className="infinite-canvas-generator__dot" aria-hidden="true" />
+        <span className="infinite-canvas-generator__rule" aria-hidden="true" />
         <button
           type="button"
-          className="infinite-canvas-generator__meta"
+          className="infinite-canvas-generator__meta infinite-canvas-generator__meta--count"
           data-canvas-generator-action="count"
           onClick={event => onOpenParams?.(event.currentTarget)}
         >

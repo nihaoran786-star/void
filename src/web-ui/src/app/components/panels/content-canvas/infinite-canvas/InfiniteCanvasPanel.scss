@@ -1090,17 +1090,28 @@
   display: flex;
   min-width: 320px;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  // Owner feedback 2026-08-27: "the prompt box at the bottom is a bit ugly."
+  // The form is right; the finish was not. Padding is tighter, the three rows
+  // sit closer together, and a focused box tints the panel's own hairline
+  // instead of growing a heavy border of its own.
+  gap: 6px;
+  padding: 9px 11px 8px;
   border: 1px solid var(--canvas-hairline);
   border-radius: 18px;
   background: var(--canvas-surface-overlay);
   box-shadow: 0 18px 44px var(--canvas-shadow-heavy);
+  transition: border-color 140ms ease;
+
+  &:focus-within {
+    border-color: color-mix(in srgb, var(--canvas-accent) 42%, var(--canvas-hairline));
+  }
 }
 
+// One row height for the whole reference lane, so the thumbnails, the style
+// button and the `+` sit on a single baseline instead of drifting apart.
 .infinite-canvas-generator__references {
   display: flex;
-  min-height: 34px;
+  min-height: 32px;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
@@ -1109,23 +1120,25 @@
 .infinite-canvas-generator__thumbs {
   display: inline-flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
 }
 
 .infinite-canvas-generator__thumb {
   position: relative;
   display: inline-block;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
+  flex: none;
   border: 1px solid var(--canvas-hairline);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--canvas-surface-card);
 
   img {
     display: block;
     width: 100%;
     height: 100%;
-    border-radius: 7px;
+    border-radius: 8px;
     object-fit: cover;
   }
 
@@ -1164,16 +1177,18 @@
   }
 }
 
+// Same 32px box and same radius as a thumbnail: the lane reads as one row of
+// equal squares, which is what the reference shot does.
 .infinite-canvas-generator__icon-button,
 .infinite-canvas-generator__add {
   display: inline-flex;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   flex: none;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--canvas-hairline);
-  border-radius: 8px;
+  border-radius: 9px;
   background: transparent;
   color: var(--canvas-text-muted);
   cursor: pointer;
@@ -1191,19 +1206,22 @@
   }
 }
 
-// §6: borderless, panel-coloured, larger and softer than card type.
+// §6: borderless, panel-coloured, larger and softer than card type. The
+// focus cue lives on the panel's own hairline (above) — a ring around the text
+// area itself was the heavy-looking thing the owner objected to.
 .infinite-canvas-generator__prompt {
-  min-height: 52px;
+  min-height: 48px;
+  padding: 2px 2px 4px;
   border: 0;
   background: transparent;
   color: var(--canvas-text-primary);
   font: inherit;
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 14.5px;
+  line-height: 1.5;
   resize: none;
 
   &::placeholder {
-    color: var(--canvas-text-faint);
+    color: color-mix(in srgb, var(--canvas-text-faint) 78%, transparent);
   }
 
   &:focus {
@@ -1217,25 +1235,36 @@
 
 .infinite-canvas-generator__bar {
   display: flex;
+  min-height: 28px;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
 }
 
+// Owner feedback 2026-08-27: each of these is a small pressable pill carrying
+// its real value (`21:9 · 1080p`), not a word floating in the row.
 .infinite-canvas-generator__meta {
+  display: inline-flex;
   overflow: hidden;
-  max-width: 220px;
-  padding: 2px 4px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
+  max-width: 190px;
+  height: 21px;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--canvas-surface-raised);
   color: var(--canvas-text-muted);
   cursor: pointer;
   font-size: 11px;
+  line-height: 1;
   text-overflow: ellipsis;
+  transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
   white-space: nowrap;
 
-  &:hover {
+  &:hover,
+  &:focus-visible {
+    border-color: var(--canvas-hairline);
     color: var(--canvas-text-primary);
+    outline: none;
   }
 
   &[data-has-params='true'] {
@@ -1243,35 +1272,54 @@
   }
 }
 
-.infinite-canvas-generator__dot {
-  width: 3px;
-  height: 3px;
+.infinite-canvas-generator__meta--model {
+  max-width: 150px;
+}
+
+.infinite-canvas-generator__meta--count {
+  padding: 0 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+// §7.3-A's grouping mark: the faintest possible upright rule, never a dot.
+.infinite-canvas-generator__rule {
+  width: 1px;
+  height: 12px;
   flex: none;
-  border-radius: 50%;
-  background: var(--canvas-text-faint);
+  margin: 0 1px;
+  background: color-mix(in srgb, var(--canvas-surface-line) 55%, transparent);
 }
 
 .infinite-canvas-generator__spacer {
   flex: 1;
 }
 
+// Round, filled, and centred on the bar's own axis — `align-items: center`
+// above plus a fixed box is what keeps it from riding high next to the pills.
 .infinite-canvas-generator__send {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   flex: none;
   align-items: center;
   justify-content: center;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: var(--canvas-text-primary);
   color: var(--canvas-surface-base);
   cursor: pointer;
+  transition: background-color 120ms ease, transform 120ms ease, opacity 120ms ease;
 
   &:hover:not(:disabled) {
     // A tint towards the accent, not towards white: on a light board a white
     // hover would erase the button.
     background: color-mix(in srgb, var(--canvas-text-primary) 78%, var(--canvas-accent));
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: none;
   }
 
   &:focus-visible {
@@ -1283,6 +1331,7 @@
     background: var(--canvas-surface-line);
     color: var(--canvas-text-faint);
     cursor: default;
+    opacity: 0.75;
   }
 }
 
