@@ -26,6 +26,16 @@
 //!
 //! Widening any of them is equivalent to opening a new attack surface and must
 //! be escalated to the owner, not done in passing.
+//!
+//! The reverse-prompt command further down (`analyze_infinite_canvas_image`)
+//! *reads* rather than writes, and is bound by barrier 1 as well. Its boundary
+//! differs on purpose and is worth stating plainly: it has **no prefix
+//! allowlist**, because what it reads is the owner's own media, which lives all
+//! over the workspace — but every path it reads must still resolve inside the
+//! workspace the app currently has open. That matters more here than for the
+//! writes, not less: this command sends the bytes it reads to a configured
+//! vision model, so an unbound `workspacePath` would be a channel for shipping
+//! arbitrary local files off the machine.
 //! See `docs/features/infinite-canvas-and-media-tools-prd.md` §3.9.
 
 use crate::api::app_state::AppState;
@@ -644,11 +654,12 @@ const DETAILED_REVERSE_PROMPT_INSTRUCTION: &str = "Look at this image and write 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalyzeInfiniteCanvasImageRequest {
-    /// Absolute local workspace root.
+    /// Absolute local workspace root. Must be the workspace the app currently
+    /// has open; it is checked against `AppState`, not taken on trust.
     pub workspace_path: String,
     /// Workspace-relative path of the image to read. No directory allowlist
     /// here — unlike the write command this reads the owner's own media —
-    /// but it must still stay inside the workspace.
+    /// but it must still stay inside that one workspace.
     pub relative_path: String,
     /// "summary" | "detailed". Defaults to "detailed".
     #[serde(default)]
@@ -870,9 +881,12 @@ pub(crate) fn validate_analysis_request(
 #[tauri::command]
 pub async fn analyze_infinite_canvas_image(
     request: AnalyzeInfiniteCanvasImageRequest,
+    state: State<'_, AppState>,
 ) -> Result<AnalyzeInfiniteCanvasImageResponse, String> {
+    let active_workspace = state.workspace_path.read().await.clone();
     analyze_infinite_canvas_image_with_runtime(
         request,
+        active_workspace.as_deref(),
         Arc::new(DefaultCanvasImageAnalysisRuntime),
     )
     .await
@@ -880,6 +894,7 @@ pub async fn analyze_infinite_canvas_image(
 
 pub(crate) async fn analyze_infinite_canvas_image_with_runtime(
     request: AnalyzeInfiniteCanvasImageRequest,
+    active_workspace: Option<&Path>,
     runtime: Arc<dyn CanvasImageAnalysisRuntime>,
 ) -> Result<AnalyzeInfiniteCanvasImageResponse, String> {
     let normalized = match validate_analysis_request(&request) {
@@ -892,6 +907,16 @@ pub(crate) async fn analyze_infinite_canvas_image_with_runtime(
         return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
             "path_denied",
             "workspacePath does not exist on this machine",
+        ));
+    }
+    // Same binding as the write commands. Without it a caller can name any
+    // directory on the machine and have local images read out and posted to
+    // the configured vision model — the file never has to leave the disk for
+    // its contents to leave the machine.
+    if let Err(message) = workspace_matches_active(active_workspace, &workspace_root) {
+        return Ok(AnalyzeInfiniteCanvasImageResponse::failure(
+            "path_denied",
+            message,
         ));
     }
     let target = workspace_root.join(&normalized);
@@ -1598,6 +1623,7 @@ mod tests {
 
         let response = analyze_infinite_canvas_image_with_runtime(
             analysis_request(&workspace, "media/generated/batch-1/image-001.png"),
+            Some(workspace.as_path()),
             Arc::new(FakeAnalysisRuntime {
                 outcome: Ok(CanvasImageAnalysisSuccess {
                     prompt: "a lone red fox in snow, cinematic rim light".to_string(),
@@ -1624,6 +1650,7 @@ mod tests {
 
         let response = analyze_infinite_canvas_image_with_runtime(
             analysis_request(&workspace, "a.png"),
+            Some(workspace.as_path()),
             Arc::new(FakeAnalysisRuntime {
                 outcome: Err(classify_vision_model_error(VoidError::service(
                     "Image understanding model is not configured.",
@@ -1646,6 +1673,7 @@ mod tests {
 
         let denied = analyze_infinite_canvas_image_with_runtime(
             analysis_request(&workspace, "../escape.png"),
+            Some(workspace.as_path()),
             Arc::new(PanicAnalysisRuntime),
         )
         .await
@@ -1654,6 +1682,7 @@ mod tests {
 
         let missing = analyze_infinite_canvas_image_with_runtime(
             analysis_request(&workspace, "not-there.png"),
+            Some(workspace.as_path()),
             Arc::new(PanicAnalysisRuntime),
         )
         .await
@@ -1664,6 +1693,7 @@ mod tests {
             .expect("write non-image");
         let not_an_image = analyze_infinite_canvas_image_with_runtime(
             analysis_request(&workspace, "notes.txt"),
+            Some(workspace.as_path()),
             Arc::new(PanicAnalysisRuntime),
         )
         .await
@@ -1671,5 +1701,40 @@ mod tests {
         assert_eq!(not_an_image.status, "invalid_image");
 
         let _ = std::fs::remove_dir_all(workspace);
+    }
+
+    #[tokio::test]
+    async fn analysis_refuses_a_workspace_the_app_does_not_have_open() {
+        // Reading has no prefix allowlist on purpose, so the workspace binding
+        // is the whole of the containment here — and this command posts what it
+        // reads to a vision model, so a miss ships the owner's file off the
+        // machine. A real, readable PNG is planted in the foreign workspace so
+        // the only thing standing between it and the model is the binding.
+        let active = temp_workspace();
+        let foreign = temp_workspace();
+        std::fs::write(foreign.join("private.png"), real_png_bytes()).expect("write fixture png");
+
+        let response = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&foreign, "private.png"),
+            Some(active.as_path()),
+            Arc::new(PanicAnalysisRuntime),
+        )
+        .await
+        .expect("command must not error out");
+        assert_eq!(response.status, "path_denied");
+        assert!(response.prompt.is_none());
+
+        // No workspace open at all denies everything too.
+        let closed = analyze_infinite_canvas_image_with_runtime(
+            analysis_request(&foreign, "private.png"),
+            None,
+            Arc::new(PanicAnalysisRuntime),
+        )
+        .await
+        .expect("command must not error out");
+        assert_eq!(closed.status, "path_denied");
+
+        let _ = std::fs::remove_dir_all(active);
+        let _ = std::fs::remove_dir_all(foreign);
     }
 }

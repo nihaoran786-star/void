@@ -605,9 +605,19 @@ interface InfiniteCanvasMaskedReference {
 
 - 输入：`{ workspacePath: string, relativePath: string,
   detail?: "summary" | "detailed" }`（缺省 `detailed`）。
-- 路径纪律：`workspacePath` 绝对且 `is_dir()`；`relativePath` 为**工作区内
-  任意相对路径**（读的是用户自己的媒体，因此无目录白名单），但同样
-  不得绝对 / 以 `/` `\` 开头 / 含 `:` / 含 `..`，且解析后必须仍在工作区内。
+- 路径纪律：
+  1. `workspacePath` 绝对且 `is_dir()`。
+  2. **`workspacePath` 必须就是当前激活的工作区根**（与 §3.9.1 第 2 条同一个
+     校验、同一边界），否则 `path_denied`。**这条在读命令上比在写命令上更要紧**：
+     本命令会把读到的字节发给已配置的视觉模型，`workspacePath` 不绑定就等于
+     "可指定本机任意目录、把本地图片读出来送出机器"——文件不用离开磁盘，内容
+     也已经离开了本机。
+  3. `relativePath` 为**当前工作区内任意相对路径**——读的是业主自己的媒体，
+     媒体散落在工作区各处，因此**刻意不设目录白名单**（这是与 §3.9.1 的
+     有意差异，不是遗漏）；但同样不得绝对 / 以 `/` `\` 开头 / 含 `:` /
+     含 `..` / 命中保留设备名，且解析后必须仍在该工作区内。
+  4. 目标文件本身（不只是父目录）要 `canonicalize` 后复核仍在工作区内，
+     越界 `path_denied`。
 - 输出（typed）：
 
 ```jsonc
