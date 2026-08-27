@@ -372,7 +372,9 @@ function projectGeneratorTarget(
     ) || undefined,
     modelLabel: params?.model || defaultInfiniteCanvasModelId(isVideo ? 'video' : 'image'),
     count: params?.n,
+    stylePresetId: node.data.stylePresetId as string | undefined,
     stylePresetName: node.data.stylePresetName as string | undefined,
+    styleThumbnailRef: node.data.styleThumbnailRef as string | undefined,
     pending: generation?.status === 'pending',
   };
 }
@@ -821,6 +823,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
                   stylePresetId: view.data.stylePresetId,
                   stylePresetName: view.data.stylePresetId
                     ? catalog.getById(view.data.stylePresetId)?.name
+                    : undefined,
+                  // §7.5: the input box's style entry shows the chosen look,
+                  // not just its name.
+                  styleThumbnailRef: view.data.stylePresetId
+                    ? catalog.getById(view.data.stylePresetId)?.thumbnailRef
                     : undefined,
                   onOpenStylePicker: openStylePicker,
                   onRunImageTool: (nodeId: string, toolId: ImageToolId) => (

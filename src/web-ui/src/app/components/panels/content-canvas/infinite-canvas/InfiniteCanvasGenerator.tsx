@@ -18,6 +18,7 @@
 import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
+import { infiniteCanvasStyleSwatch } from './infiniteCanvasStyleSwatch';
 import type {
   InfiniteCanvasImagePreviewResolver,
   InfiniteCanvasMediaRef,
@@ -37,7 +38,11 @@ export interface InfiniteCanvasGeneratorTarget {
   paramsSummary?: string;
   modelLabel: string;
   count?: number;
+  /** §7.5: needed for the deterministic swatch a preset without a picture gets. */
+  stylePresetId?: string;
   stylePresetName?: string;
+  /** §7.5: the chosen preset's sample picture, relative to `public/`. */
+  styleThumbnailRef?: string;
   /** A card that is mid-generation cannot be dispatched again. */
   pending: boolean;
 }
@@ -238,6 +243,65 @@ const GeneratorThumbnail: React.FC<{
 
 GeneratorThumbnail.displayName = 'InfiniteCanvasGeneratorThumbnail';
 
+/**
+ * The chosen style, as a small square (§7.5).
+ *
+ * Same two-state rule the style picker's grid follows: a preset with a sample
+ * picture shows it, and a preset without one (156 of the 317 ship none, and
+ * never will) shows the deterministic colour block instead — same square, same
+ * radius, so both states are finished rather than one being an empty frame.
+ * A thumbnail that fails to load falls back to the block too, because the
+ * browser's broken-image glyph is not a design.
+ *
+ * The path is a plain `public/` URL with a leading slash. These files are NOT
+ * routed through the workspace media resolver or `convertFileSrc`: those exist
+ * for workspace files, and mixing the two schemes is a mistake this project has
+ * already paid for.
+ */
+const GeneratorStyleTile: React.FC<{
+  presetId: string;
+  name: string;
+  thumbnailRef?: string;
+}> = ({ presetId, name, thumbnailRef }) => {
+  const [failed, setFailed] = React.useState(false);
+  const swatch = React.useMemo(
+    () => infiniteCanvasStyleSwatch(presetId, name),
+    [presetId, name],
+  );
+  React.useEffect(() => { setFailed(false); }, [thumbnailRef]);
+  const source = thumbnailRef
+    ? (thumbnailRef.startsWith('/') ? thumbnailRef : `/${thumbnailRef}`)
+    : undefined;
+
+  if (source && !failed) {
+    return (
+      <img
+        className="infinite-canvas-generator__style-tile"
+        data-canvas-generator-style-thumbnail="true"
+        src={source}
+        alt=""
+        aria-hidden="true"
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <span
+      className="infinite-canvas-generator__style-tile"
+      style={{ '--swatch-hue': swatch.hue } as React.CSSProperties}
+      data-canvas-generator-style-swatch="true"
+      aria-hidden="true"
+    >
+      {swatch.label}
+    </span>
+  );
+};
+
+GeneratorStyleTile.displayName = 'InfiniteCanvasGeneratorStyleTile';
+
 export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = ({
   target,
   surface = 'card',
@@ -317,19 +381,37 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
         {onOpenStyle ? (
           // §6's leftmost "reference / character" entry. Ours is the style
           // preset catalogue: the one look-and-character library we have.
+          // §7.5 (owner 2026-08-28): once a style is chosen this entry SHOWS
+          // it — a small square picture plus the name — rather than staying a
+          // generic dot that says nothing about what was picked.
           <button
             type="button"
-            className="infinite-canvas-generator__icon-button"
+            className={`infinite-canvas-generator__icon-button${
+              target.stylePresetName ? ' infinite-canvas-generator__style--picked' : ''
+            }`}
             data-canvas-generator-action="style"
             data-has-style={target.stylePresetName ? 'true' : undefined}
-            aria-label={t('infiniteCanvas.generator.style')}
+            aria-label={target.stylePresetName ?? t('infiniteCanvas.generator.style')}
             title={target.stylePresetName ?? t('infiniteCanvas.generator.style')}
             onClick={event => onOpenStyle(event.currentTarget)}
           >
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-              <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
-              <circle cx="8" cy="8" r="1.9" fill="currentColor" />
-            </svg>
+            {target.stylePresetName ? (
+              <>
+                <GeneratorStyleTile
+                  presetId={target.stylePresetId ?? target.stylePresetName}
+                  name={target.stylePresetName}
+                  thumbnailRef={target.styleThumbnailRef}
+                />
+                <span className="infinite-canvas-generator__style-name">
+                  {target.stylePresetName}
+                </span>
+              </>
+            ) : (
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                <circle cx="8" cy="8" r="1.9" fill="currentColor" />
+              </svg>
+            )}
           </button>
         ) : null}
         <span

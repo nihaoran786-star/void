@@ -124,6 +124,12 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
   /** Resolved display name of the applied style preset, if any. */
   stylePresetName?: string;
+  /**
+   * §7.5: the applied preset's sample picture, as a `public/` relative path.
+   * Absent for the 156 presets that ship no upstream image; those fall back to
+   * the deterministic swatch, which is a finished tile too.
+   */
+  styleThumbnailRef?: string;
   onOpenStylePicker: (nodeId: string, anchor?: HTMLElement) => void;
   /**
    * Opens the surface for one of the five tools. Which surface is the panel's

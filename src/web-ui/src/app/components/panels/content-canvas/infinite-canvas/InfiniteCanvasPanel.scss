@@ -1215,6 +1215,47 @@
   }
 }
 
+// §7.5 (owner 2026-08-28): once a style is chosen, the entry stops being a
+// 32px icon square and becomes a small picture plus its name, so the input box
+// says WHICH look is on. It stays the same height and the same radius as the
+// thumbnails beside it, so the row still reads as one line of squares.
+.infinite-canvas-generator__style--picked {
+  width: auto;
+  max-width: 170px;
+  justify-content: flex-start;
+  padding: 0 8px 0 3px;
+  gap: 6px;
+}
+
+// The picture, and — for the 156 presets that ship none — the deterministic
+// colour block that stands in for it. Same box, same radius: both states are
+// finished, neither is an empty frame.
+.infinite-canvas-generator__style-tile {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: hsl(
+    var(--swatch-hue, 220) var(--canvas-swatch-saturation) var(--canvas-swatch-lightness)
+  );
+  color: var(--canvas-swatch-label);
+  font-size: 10px;
+  font-weight: 500;
+  object-fit: cover;
+  user-select: none;
+}
+
+.infinite-canvas-generator__style-name {
+  overflow: hidden;
+  color: var(--canvas-text-primary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // §6: borderless, panel-coloured, larger and softer than card type. The
 // focus cue lives on the panel's own hairline (above) — a ring around the text
 // area itself was the heavy-looking thing the owner objected to.
