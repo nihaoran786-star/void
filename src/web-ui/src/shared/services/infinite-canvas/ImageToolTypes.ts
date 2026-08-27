@@ -90,15 +90,52 @@ export function maskPrefillKey(toolId: MaskImageToolId): string {
 }
 
 /**
+ * A complete 【…】 placeholder token. Deliberately the whole pair, never one
+ * bracket: P5 review P16: the old `/[【】]/` fired on a *single* lenticular
+ * bracket, so a Chinese-writing owner who used 【】 as ordinary emphasis had
+ * the confirm button silently greyed out with nothing on screen saying why.
+ */
+const INSTRUCTION_PLACEHOLDER_ALL = /【[^【】]*】/g;
+/** Separate non-global twin: `RegExp.test` on a `/g` pattern is stateful. */
+const INSTRUCTION_PLACEHOLDER_ONE = /【[^【】]*】/;
+
+/** Every placeholder token a template carries, de-duplicated. */
+export function instructionPlaceholders(template: string): string[] {
+  return Array.from(new Set(template.match(INSTRUCTION_PLACEHOLDER_ALL) ?? []));
+}
+
+/**
  * Whether an instruction still carries an unfilled 【】 placeholder.
  *
  * The single definition of that check: the tool instruction dialog and the
  * mask editor both prefill a template and both refuse to submit until the user
  * has replaced every placeholder, and two copies of the pattern would be two
  * chances to disagree.
+ *
+ * When the prefilled `template` is passed (both callers do), the check is
+ * exact: only the tokens that template actually shipped count as unfilled. Any
+ * other use of 【】 is the user's own prose and must not block them. Without a
+ * template the check falls back to "any complete placeholder token".
  */
-export function hasUnfilledInstructionPlaceholder(value: string): boolean {
-  return /[【】]/.test(value);
+export function hasUnfilledInstructionPlaceholder(value: string, template?: string): boolean {
+  if (template === undefined) return INSTRUCTION_PLACEHOLDER_ONE.test(value);
+  return instructionPlaceholders(template).some(token => value.includes(token));
+}
+
+/**
+ * Why an instruction cannot be submitted yet, as an i18n key suffix — or
+ * `undefined` when it can. §7 of the visual language: a disabled control must
+ * be able to say what would enable it.
+ */
+export type InstructionBlockReason = 'empty' | 'placeholder';
+
+export function instructionBlockReason(
+  value: string,
+  template?: string,
+): InstructionBlockReason | undefined {
+  if (value.trim().length === 0) return 'empty';
+  if (hasUnfilledInstructionPlaceholder(value, template)) return 'placeholder';
+  return undefined;
 }
 
 /**
