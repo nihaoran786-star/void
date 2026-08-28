@@ -1134,7 +1134,8 @@
       },
       "label": "來自短劇 · {{kind}} {{handle}}",
       "labelPending": "來自短劇 · {{kind}}",
-      "labelMissing": "來自短劇 · {{kind}}（已不存在）"
+      "labelMissing": "來自短劇 · {{kind}}（已不存在）",
+      "labelReviewing": "{{origin}} · 待審閱"
     },
     "domainImport": {
       "assetMissing": "目前工作區裡找不到這個短劇產物。",
@@ -1272,6 +1273,19 @@
       "writeTooLarge": "擴展後的圖太大，無法儲存。把外框往回收一些再試。沒有產生任何內容，也沒有消耗額度。",
       "writeDenied": "擴展後的圖無法儲存到該位置。沒有產生任何內容，也沒有消耗額度。",
       "promptPlaceholder": "可不填：描述擴出來的部分要畫什麼，留空則自然延續畫面"
+    },
+    "writeBack": {
+      "button": "送回短劇",
+      "assetMissing": "這張卡來自的短劇素材已被刪除。",
+      "sent": "已送回短劇，等你在短劇裡確認。",
+      "refused": {
+        "remoteWorkspace": "遠端工作區暫不支援送回短劇。",
+        "foreignWorkspace": "這張圖不屬於目前的工作區。",
+        "projectUnreadable": "讀不到目前工作區的短劇專案。",
+        "assetMissing": "這張卡來自的短劇素材已經不在了。",
+        "unusablePicture": "這張圖暫時不能送回短劇。",
+        "saveFailed": "短劇專案沒能儲存，什麼都沒有變動。"
+      }
     }
   },
   "agentStudio": {

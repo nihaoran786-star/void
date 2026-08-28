@@ -1134,7 +1134,8 @@
       },
       "label": "来自短剧 · {{kind}} {{handle}}",
       "labelPending": "来自短剧 · {{kind}}",
-      "labelMissing": "来自短剧 · {{kind}}（已不存在）"
+      "labelMissing": "来自短剧 · {{kind}}（已不存在）",
+      "labelReviewing": "{{origin}} · 待审阅"
     },
     "domainImport": {
       "assetMissing": "当前工作区里找不到这个短剧资产。",
@@ -1272,6 +1273,19 @@
       "writeTooLarge": "扩展后的图太大，无法保存。把外框往回收一些再试。没有生成任何内容，也没有消耗额度。",
       "writeDenied": "扩展后的图无法保存到该位置。没有生成任何内容，也没有消耗额度。",
       "promptPlaceholder": "可不填：描述扩出来的部分要画什么，留空则自然延续画面"
+    },
+    "writeBack": {
+      "button": "送回短剧",
+      "assetMissing": "这张卡来自的短剧资产已被删除。",
+      "sent": "已送回短剧，等你在短剧里确认。",
+      "refused": {
+        "remoteWorkspace": "远程工作区暂不支持送回短剧。",
+        "foreignWorkspace": "这张图不属于当前工作区。",
+        "projectUnreadable": "读不到当前工作区的短剧项目。",
+        "assetMissing": "这张卡来自的短剧资产已经不在了。",
+        "unusablePicture": "这张图暂时不能送回短剧。",
+        "saveFailed": "短剧项目没能保存，什么都没有改动。"
+      }
     }
   },
   "agentStudio": {

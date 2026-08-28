@@ -38,6 +38,12 @@ import {
   type ShortDramaCanvasOrigin,
 } from '@/shared/services/canvas-short-drama/shortDramaCanvasImport';
 import { readShortDramaProjectForCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasProjectReader';
+import {
+  sendCanvasPictureBackToShortDrama,
+  type ShortDramaCanvasWriteBackRefusal,
+  type ShortDramaCanvasWriteBackRequest,
+  type ShortDramaCanvasWriteBackResult,
+} from '@/shared/services/canvas-short-drama/shortDramaCanvasWriteBack';
 import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
 import type {
   ImageToolErrorKind,
@@ -469,7 +475,23 @@ interface NodeActions {
 interface CardToolbarActions {
   saveMediaAs: (nodeId: string) => void;
   overflow: (nodeId: string, action: InfiniteCanvasOverflowAction) => void;
+  /** K3 §5.2: send this card's picture home to the asset it belongs to. */
+  sendToShortDrama: (nodeId: string) => void;
 }
+
+/**
+ * K3 §5.2: one refusal, one sentence. Every reason the write-back can give
+ * back has its own line — a press that does nothing and says nothing is the
+ * failure mode this whole slice exists to avoid.
+ */
+const WRITE_BACK_REFUSAL_KEYS: Record<ShortDramaCanvasWriteBackRefusal, string> = {
+  'remote-workspace': 'infiniteCanvas.writeBack.refused.remoteWorkspace',
+  'foreign-workspace': 'infiniteCanvas.writeBack.refused.foreignWorkspace',
+  'project-unreadable': 'infiniteCanvas.writeBack.refused.projectUnreadable',
+  'asset-missing': 'infiniteCanvas.writeBack.refused.assetMissing',
+  'unusable-picture': 'infiniteCanvas.writeBack.refused.unusablePicture',
+  'save-failed': 'infiniteCanvas.writeBack.refused.saveFailed',
+};
 
 /** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
 function referenceLabelsByNode(
@@ -511,6 +533,13 @@ export interface InfiniteCanvasPanelProps {
   readShortDramaProject?: (
     workspacePath: string | undefined,
   ) => Promise<ShortDramaProject | undefined>;
+  /**
+   * K3 §5.2: the return leg. Injected in tests so no manifest is ever written;
+   * production uses the typed write-back service, which owns the three gates.
+   */
+  sendPictureBackToShortDrama?: (
+    request: ShortDramaCanvasWriteBackRequest,
+  ) => Promise<ShortDramaCanvasWriteBackResult>;
   /** Injection seams for tests; production uses the shared singletons. */
   service?: InfiniteCanvasDocumentService;
   resolvePreviewUrl?: InfiniteCanvasImagePreviewResolver;
@@ -552,6 +581,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   sourceSessionId,
   pendingDomainImport,
   readShortDramaProject = readShortDramaProjectForCanvas,
+  sendPictureBackToShortDrama = sendCanvasPictureBackToShortDrama,
   service: injectedService,
   resolvePreviewUrl = defaultPreviewResolver,
   mediaLibrary = workspaceMediaLibraryService,
@@ -742,6 +772,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     InfiniteCanvasDomainOrigins | undefined
   >(undefined);
   /**
+   * Bumped after a successful send home, so the badge picks up the asset's new
+   * "waiting for review" state. Nothing else invalidates the lookup: the board
+   * does not subscribe to short drama, and a picture the user is refining must
+   * never change under them.
+   */
+  const [domainOriginsRefreshKey, setDomainOriginsRefreshKey] = React.useState(0);
+  /**
    * Selected connections. Edges are not mirrored into React state the way
    * nodes are — nothing renders off them but the Delete key — so a ref is the
    * whole story and no extra re-render is provoked by clicking a wire.
@@ -820,6 +857,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const cardToolbarActionsRef = React.useRef<CardToolbarActions>({
     saveMediaAs: () => undefined,
     overflow: () => undefined,
+    sendToShortDrama: () => undefined,
   });
 
   /**
@@ -882,6 +920,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             ...(view.data.domainRef === undefined
               ? {}
               : { domainRef: view.data.domainRef }),
+            // K3 §5.2: the way home. Only a card that belongs to an asset AND
+            // holds a picture has one to offer.
+            ...(view.data.domainRef && view.data.mediaRef
+              ? {
+                  onSendToShortDrama: (nodeId: string) => (
+                    cardToolbarActionsRef.current.sendToShortDrama(nodeId)
+                  ),
+                }
+              : {}),
             resolvePreviewUrl,
             onCommitPrompt: (nodeId: string, prompt: string) => (
               nodeActionsRef.current.commitPrompt(nodeId, prompt)
@@ -2574,7 +2621,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       setDomainOrigins(next);
     })();
     return () => { cancelled = true; };
-  }, [domainRefSignature, readShortDramaProject, workspacePath]);
+  }, [domainOriginsRefreshKey, domainRefSignature, readShortDramaProject, workspacePath]);
 
   /**
    * §5.1.6: the import itself. One request id lands at most one card, and an
@@ -2644,6 +2691,66 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
     return undefined;
   }, [commit, nextSpawnPosition, pendingDomainImport, readShortDramaProject, t, workspacePath]);
+
+  /**
+   * §5.2: "send back to short drama".
+   *
+   * The panel's whole job here is to name the card and hand it over. Which
+   * workspace, which asset, whether the picture converts, whether the asset
+   * still exists — every one of those questions belongs to the write-back
+   * service, and asking any of them here would put a second copy of the rules
+   * on the board.
+   *
+   * One press at a time per card: a second press while the first is in flight
+   * is dropped rather than queued, so an impatient double click cannot write
+   * twice. (The service is idempotent anyway; this just keeps the card honest
+   * about what is happening.)
+   */
+  const sendingToShortDramaRef = React.useRef(new Set<string>());
+  const markSendingToShortDrama = React.useCallback((nodeId: string, busy: boolean) => {
+    setFlowNodes(nodes => nodes.map(node => (
+      node.id === nodeId
+        ? { ...node, data: { ...node.data, sendToShortDramaBusy: busy } }
+        : node
+    )));
+  }, []);
+
+  const sendNodeToShortDrama = React.useCallback((nodeId: string) => {
+    const node = documentRef.current?.nodes.find(entry => entry.nodeId === nodeId);
+    const domainRef = node?.domainRef;
+    const mediaRef = node?.mediaRef;
+    if (!domainRef || !mediaRef) return;
+    if (sendingToShortDramaRef.current.has(nodeId)) return;
+    sendingToShortDramaRef.current.add(nodeId);
+    markSendingToShortDrama(nodeId, true);
+
+    void sendPictureBackToShortDrama({
+      domainRef,
+      mediaRef,
+      canvasNodeId: nodeId,
+      workspacePath,
+      backend: 'local',
+    })
+      .then(result => {
+        if (result.status === 'sent') {
+          notificationService.success(t('infiniteCanvas.writeBack.sent'), { duration: 4000 });
+          // The asset is in review now; the badge should say so.
+          setDomainOriginsRefreshKey(key => key + 1);
+          return;
+        }
+        notificationService.warning(t(WRITE_BACK_REFUSAL_KEYS[result.reason]), { duration: 5000 });
+      })
+      .catch(() => {
+        notificationService.warning(
+          t(WRITE_BACK_REFUSAL_KEYS['save-failed']),
+          { duration: 5000 },
+        );
+      })
+      .finally(() => {
+        sendingToShortDramaRef.current.delete(nodeId);
+        if (isMountedRef.current) markSendingToShortDrama(nodeId, false);
+      });
+  }, [markSendingToShortDrama, sendPictureBackToShortDrama, t, workspacePath]);
 
   const onPickStyle = React.useCallback((presetId: string | undefined) => {
     const nodeId = stylePickerNodeId;
@@ -2896,6 +3003,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         const item = viewerItems.find(entry => entry.nodeId === nodeId);
         if (item) onSaveMediaAs(item);
       },
+      sendToShortDrama: sendNodeToShortDrama,
       overflow: (nodeId, action) => {
         switch (action) {
           case 'expand':
@@ -2929,6 +3037,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     onRevealMedia,
     onSaveMediaAs,
     requestDeleteNodes,
+    sendNodeToShortDrama,
     viewerItems,
   ]);
 

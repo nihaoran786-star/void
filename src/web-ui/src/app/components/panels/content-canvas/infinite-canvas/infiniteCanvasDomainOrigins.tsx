@@ -31,7 +31,7 @@ import {
 export type InfiniteCanvasDomainOrigins = ReadonlyMap<string, ShortDramaCanvasOrigin>;
 
 export type InfiniteCanvasDomainOriginState =
-  | { state: 'known'; handle?: string; title?: string }
+  | { state: 'known'; handle?: string; title?: string; status?: string }
   | { state: 'pending' }
   | { state: 'dangling' };
 

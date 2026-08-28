@@ -20,6 +20,7 @@ import {
   Brush,
   ChevronLeft,
   ChevronRight,
+  CornerUpLeft,
   Crop,
   Download,
   Eraser,
@@ -139,6 +140,13 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
    * way to undo the belonging.
    */
   domainRef?: InfiniteCanvasDomainRef;
+  /**
+   * K3 §5.2: "send back to short drama". Present only on a card that belongs
+   * to an asset; the panel supplies it, the card only presses it.
+   */
+  onSendToShortDrama?: (nodeId: string) => void;
+  /** The press is in flight. One at a time, so a double press cannot double-write. */
+  sendToShortDramaBusy?: boolean;
 }
 
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
@@ -238,13 +246,19 @@ const NodeDomainBadge: React.FC<{
   if (!domainRef || !origin) return null;
 
   const kind = t(`infiniteCanvas.domainRef.kind.${domainRef.kind}`);
-  const label = origin.state === 'dangling'
+  const origin_ = origin.state === 'dangling'
     ? t('infiniteCanvas.domainRef.labelMissing', { kind })
     : origin.state === 'known' && origin.handle
       ? t('infiniteCanvas.domainRef.label', { kind, handle: origin.handle })
       // Still reading the project, or an asset with no handle yet: say where
       // the card came from without claiming anything about what it is now.
       : t('infiniteCanvas.domainRef.labelPending', { kind });
+  // §5.2: a picture that went home is not finished — someone still has to say
+  // yes to it. The card says so instead of looking done.
+  const reviewing = origin.state === 'known' && origin.status === 'reviewing';
+  const label = reviewing
+    ? t('infiniteCanvas.domainRef.labelReviewing', { origin: origin_ })
+    : origin_;
 
   return (
     <span
@@ -252,6 +266,7 @@ const NodeDomainBadge: React.FC<{
       data-testid="infinite-canvas-domain-badge"
       data-domain-state={origin.state}
       data-domain-kind={domainRef.kind}
+      data-domain-reviewing={reviewing ? 'true' : undefined}
     >
       {label}
     </span>
@@ -648,6 +663,10 @@ const InfiniteCanvasMediaCard: React.FC<
   const activeVariantIndex = data.activeVariantIndex ?? 0;
   const [galleryOpen, setGalleryOpen] = React.useState(false);
   const hasGallery = variants.length > 1 && Boolean(data.onSelectVariant);
+  // K3 §5.2: the return leg needs the same answer the badge does — is the
+  // asset this card belongs to still there?
+  const domainOrigin = useInfiniteCanvasDomainOrigin(data.domainRef);
+  const domainDangling = domainOrigin?.state === 'dangling';
   React.useEffect(() => {
     if (!hasGallery) setGalleryOpen(false);
   }, [hasGallery]);
@@ -898,6 +917,38 @@ const InfiniteCanvasMediaCard: React.FC<
                 onClick={() => data.onSaveMediaAs?.(id)}
               >
                 <Download size={14} aria-hidden="true" />
+              </button>
+            ) : null,
+            data.domainRef && mediaRef && data.onSendToShortDrama ? (
+              /*
+                §5.2: "send back to short drama". It sits in the output group,
+                next to save-a-copy and open-full-screen, because it is the same
+                kind of act — take the finished picture somewhere. It appears
+                only on a card that belongs to an asset, so no ordinary card
+                grows a button it could never use.
+
+                A card whose asset was deleted keeps the entry but disabled,
+                and says why on hover. §7 would normally hide an entry that
+                cannot act, but silence here reads as "this card was never from
+                short drama", which is the one thing that is not true. The
+                picture stays the user's either way; only the way home is gone.
+              */
+              <button
+                key="send-to-short-drama"
+                type="button"
+                className="infinite-canvas-node__toolbar-button"
+                data-node-action="send-to-short-drama"
+                data-domain-dangling={domainDangling ? 'true' : undefined}
+                disabled={Boolean(data.sendToShortDramaBusy) || domainDangling}
+                aria-label={domainDangling
+                  ? t('infiniteCanvas.writeBack.assetMissing')
+                  : t('infiniteCanvas.writeBack.button')}
+                title={domainDangling
+                  ? t('infiniteCanvas.writeBack.assetMissing')
+                  : t('infiniteCanvas.writeBack.button')}
+                onClick={() => data.onSendToShortDrama?.(id)}
+              >
+                <CornerUpLeft size={14} aria-hidden="true" />
               </button>
             ) : null,
             mediaRef && data.onOpenViewer ? (

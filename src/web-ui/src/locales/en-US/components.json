@@ -1134,7 +1134,8 @@
       },
       "label": "From short drama · {{kind}} {{handle}}",
       "labelPending": "From short drama · {{kind}}",
-      "labelMissing": "From short drama · {{kind}} (no longer exists)"
+      "labelMissing": "From short drama · {{kind}} (no longer exists)",
+      "labelReviewing": "{{origin}} · Waiting for review"
     },
     "domainImport": {
       "assetMissing": "That short drama asset could not be found in this workspace.",
@@ -1272,6 +1273,19 @@
       "writeTooLarge": "The expanded picture is too large to save. Drag the frame back in, then try again. Nothing was generated and nothing was charged.",
       "writeDenied": "The expanded picture could not be saved to that location. Nothing was generated and nothing was charged.",
       "promptPlaceholder": "Optional: what should appear in the new space? Leave empty to continue the scene"
+    },
+    "writeBack": {
+      "button": "Send back to short drama",
+      "assetMissing": "The short drama asset this card came from has been deleted.",
+      "sent": "Sent back to short drama. The asset is waiting for your review there.",
+      "refused": {
+        "remoteWorkspace": "Sending back is not available on a remote workspace.",
+        "foreignWorkspace": "This picture does not belong to the current workspace.",
+        "projectUnreadable": "The short drama project in this workspace could not be read.",
+        "assetMissing": "The short drama asset this card came from no longer exists.",
+        "unusablePicture": "This picture cannot be sent back to short drama.",
+        "saveFailed": "The short drama project could not be saved. Nothing was changed."
+      }
     }
   },
   "agentStudio": {

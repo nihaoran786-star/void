@@ -17,7 +17,10 @@ import type {
   InfiniteCanvasDomainRef,
 } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
 import { resolveShortDramaArtifactReference } from '@/shared/services/short-drama/ShortDramaArtifactIndex';
-import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
+import type {
+  ShortDramaArtifactStatus,
+  ShortDramaProject,
+} from '@/shared/services/short-drama/ShortDramaTypes';
 import { toCanvasMediaRef, type CanvasMediaRef } from './shortDramaCanvasRefBridge';
 
 /**
@@ -32,6 +35,14 @@ import { toCanvasMediaRef, type CanvasMediaRef } from './shortDramaCanvasRefBrid
 export interface ShortDramaCanvasOrigin {
   handle?: string;
   title?: string;
+  /**
+   * K3 §5.2: what the asset is doing right now. The board shows only one thing
+   * from it — that a picture it sent is waiting to be looked at — and it is
+   * read, never written: the board cannot move an asset's status and does not
+   * try. Resolved with the handle so a refined card stops looking finished
+   * while a person still has to say yes.
+   */
+  status?: ShortDramaArtifactStatus;
 }
 
 export type ShortDramaCanvasImportResolution =
@@ -62,7 +73,11 @@ export function resolveShortDramaCanvasImport(
   return {
     status: 'ready',
     mediaRef,
-    origin: { handle: resolved.entry.handle, title: resolved.artifact.title },
+    origin: {
+      handle: resolved.entry.handle,
+      title: resolved.artifact.title,
+      status: resolved.artifact.status,
+    },
   };
 }
 
@@ -81,5 +96,9 @@ export function resolveShortDramaCanvasOrigin(
   if (resolved.status !== 'ready' || resolved.artifact.type !== domainRef.kind) {
     return undefined;
   }
-  return { handle: resolved.entry.handle, title: resolved.artifact.title };
+  return {
+    handle: resolved.entry.handle,
+    title: resolved.artifact.title,
+    status: resolved.artifact.status,
+  };
 }
