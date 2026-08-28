@@ -862,6 +862,12 @@
         "reason": "The short drama artifact still exists, but the linked media item cannot be resolved.",
         "nextAction": "Restore the media item or regenerate only the affected artifact."
       }
+    },
+    "canvasHandoff": {
+      "send": "Refine {{title}} on the canvas",
+      "sendShort": "Refine on the canvas",
+      "unavailable": "The canvas could not be opened for this workspace.",
+      "unusablePicture": "This picture cannot be sent to the canvas yet."
     }
   },
   "flexiblePanel": {

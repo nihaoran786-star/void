@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ShortDramaMediaReference } from '@/shared/services/short-drama/ShortDramaTypes';
 import {
+  canRefineShortDramaArtifactOnCanvas,
   toCanvasMediaRef,
   toShortDramaRelativePath,
 } from './shortDramaCanvasRefBridge';
@@ -91,5 +92,42 @@ describe('toShortDramaRelativePath', () => {
     ['a card with no workspace', { relativePath: 'media/generated/a.png' }],
   ])('refuses %s', (_label, mediaRef) => {
     expect(toShortDramaRelativePath(mediaRef, WORKSPACE)).toBeNull();
+  });
+});
+
+describe('canRefineShortDramaArtifactOnCanvas', () => {
+  it.each([
+    ['character', 'character'],
+    ['location', 'location'],
+    ['storyboard', 'storyboard'],
+  ] as const)('lets a %s asset with a picture go to the board', (_label, type) => {
+    expect(canRefineShortDramaArtifactOnCanvas({
+      type,
+      mediaReference: media(),
+    })).toBe(true);
+  });
+
+  it('keeps the entry away from an asset that has no picture yet', () => {
+    expect(canRefineShortDramaArtifactOnCanvas({
+      type: 'character',
+      mediaReference: undefined,
+    })).toBe(false);
+  });
+
+  it.each([
+    ['video', 'video'],
+    ['audio', 'audio'],
+  ] as const)('keeps the entry away from a %s asset', (_label, kind) => {
+    expect(canRefineShortDramaArtifactOnCanvas({
+      type: 'storyboard',
+      mediaReference: media({ kind }),
+    })).toBe(false);
+  });
+
+  it('keeps the entry away from an asset type the board cannot own', () => {
+    expect(canRefineShortDramaArtifactOnCanvas({
+      type: 'video',
+      mediaReference: media(),
+    })).toBe(false);
   });
 });

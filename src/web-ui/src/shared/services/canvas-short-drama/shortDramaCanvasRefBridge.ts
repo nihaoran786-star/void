@@ -21,7 +21,11 @@
  * Pure: no React, no Tauri, no panel imports.
  */
 import { areCanvasWorkspacePathsEquivalent } from '@/shared/services/canvas';
-import type { ShortDramaMediaReference } from '@/shared/services/short-drama/ShortDramaTypes';
+import { INFINITE_CANVAS_DOMAIN_KINDS } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+import type {
+  ShortDramaArtifact,
+  ShortDramaMediaReference,
+} from '@/shared/services/short-drama/ShortDramaTypes';
 
 export interface CanvasMediaRef {
   workspacePath: string;
@@ -55,6 +59,30 @@ function cleanRelativePath(value: unknown): string | undefined {
   // resolving it here is exactly the path arithmetic this file refuses to do.
   if (normalized.split('/').some(segment => segment === '..')) return undefined;
   return normalized;
+}
+
+/**
+ * K3 §5.1.5: may this asset be refined on the board at all?
+ *
+ * It lives here, not in the panel and not next to the surface call, for one
+ * reason: this is the only question the short-drama panel is allowed to ask,
+ * and answering it must not drag a canvas service into the panel's import
+ * graph. `ShortDramaCenterPanel.tsx` is an orchestration hotspot; the predicate
+ * it calls has to be a pure function over two plain shapes.
+ *
+ * Two conditions, both narrow on purpose:
+ *  - the asset type is one the board knows how to own a reference to, and
+ *  - the picture is a picture. Video and audio assets are out of scope: the
+ *    board can render a video card, but the refinement pipeline behind it is
+ *    an image pipeline, so a video sent there would have nothing to do.
+ */
+export function canRefineShortDramaArtifactOnCanvas(
+  artifact: Pick<ShortDramaArtifact, 'type' | 'mediaReference'>,
+): boolean {
+  if (!(INFINITE_CANVAS_DOMAIN_KINDS as readonly string[]).includes(artifact.type)) {
+    return false;
+  }
+  return artifact.mediaReference?.kind === 'image';
 }
 
 /**

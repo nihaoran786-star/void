@@ -862,6 +862,12 @@
         "reason": "短劇產物仍然存在，但關聯的媒體項無法解析。",
         "nextAction": "恢復媒體項，或只重做受影響的產物。"
       }
+    },
+    "canvasHandoff": {
+      "send": "在畫布中精修「{{title}}」",
+      "sendShort": "在畫布中精修",
+      "unavailable": "目前工作區無法開啟畫布。",
+      "unusablePicture": "這張圖暫時送不進畫布。"
     }
   },
   "flexiblePanel": {

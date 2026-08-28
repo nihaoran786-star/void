@@ -1411,4 +1411,40 @@
 
 }
 
+/*
+ * K3: "refine on the canvas". A quiet square in the card's top-right corner —
+ * it has to be findable without competing with the picture, so it only gains
+ * contrast on hover and focus. Both light and dark themes come free: every
+ * colour here is a --short-drama-* token.
+ */
+.short-drama-card__canvas-handoff {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--short-drama-border) 70%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--short-drama-surface) 78%, transparent);
+  color: var(--short-drama-muted);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.short-drama-card__canvas-handoff:hover:not(:disabled),
+.short-drama-card__canvas-handoff:focus-visible {
+  border-color: var(--short-drama-border);
+  background: var(--short-drama-surface);
+  color: var(--short-drama-ink);
+}
+
+.short-drama-card__canvas-handoff:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
 @include minimal.styles;

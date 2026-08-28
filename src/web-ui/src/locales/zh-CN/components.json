@@ -862,6 +862,12 @@
         "reason": "短剧产物仍然存在，但关联的媒体项无法解析。",
         "nextAction": "恢复媒体项，或只重做受影响的产物。"
       }
+    },
+    "canvasHandoff": {
+      "send": "在画布中精修「{{title}}」",
+      "sendShort": "在画布中精修",
+      "unavailable": "当前工作区无法打开画布。",
+      "unusablePicture": "这张图暂时送不进画布。"
     }
   },
   "flexiblePanel": {

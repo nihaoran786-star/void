@@ -76,6 +76,7 @@ import { getNextShortDramaRovingTabIndex } from './ShortDramaKeyboardNavigation'
 import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootstrap';
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
+import { ArtifactSendToCanvasButton } from './ShortDramaCanvasHandoffContext';
 import { ShortDramaTopBar } from './ShortDramaTopBar';
 import { useRecoverableWorkspaceMediaUrl } from './useRecoverableWorkspaceMediaUrl';
 import {
@@ -1564,6 +1565,7 @@ function AssetAnchorCard({
       data-status={artifact.status}
     >
       <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+      <ArtifactSendToCanvasButton artifact={artifact} />
       <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="tile" />
       <button
         type="button"
@@ -1679,6 +1681,7 @@ function StoryboardGrid({
             data-status={artifact.status}
           >
             <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+            <ArtifactSendToCanvasButton artifact={artifact} />
             <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="tile" />
             <span className="short-drama-storyboard-row__badge" aria-hidden="true">{cardTitle}</span>
             <button
@@ -1963,6 +1966,7 @@ function PostStage({
             onClick={() => onArtifactFocus(artifact)}
           >
             <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+            <ArtifactSendToCanvasButton artifact={artifact} />
             <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} variant="row" />
             <strong>{artifact.title}</strong>
             <span className="short-drama-center__post-media-ref">
@@ -2048,6 +2052,7 @@ function ArtifactCard({
       onClick={() => onArtifactFocus?.(artifact)}
     >
       <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+      <ArtifactSendToCanvasButton artifact={artifact} />
       <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} />
       <ArtifactCardBody artifact={artifact} t={t} />
     </article>

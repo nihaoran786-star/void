@@ -627,4 +627,23 @@
       animation-iteration-count: 1 !important;
     }
   }
+
+  /*
+   * K3 handoff entry, minimal presentation. The overlay only remaps the
+   * workspace tokens and the corner radius; the geometry stays in the classic
+   * sheet so the two never drift apart.
+   */
+  .void-ui--minimal .short-drama-card__canvas-handoff {
+    border-color: var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-surface-panel);
+    color: var(--workspace-text-muted);
+  }
+
+  .void-ui--minimal .short-drama-card__canvas-handoff:hover:not(:disabled),
+  .void-ui--minimal .short-drama-card__canvas-handoff:focus-visible {
+    background: var(--workspace-surface-raised);
+    color: var(--workspace-text-primary);
+  }
+
 }
