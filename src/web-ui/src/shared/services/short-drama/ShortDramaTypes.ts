@@ -196,6 +196,16 @@ export interface ShortDramaArtifactRevision {
   userInstruction?: string;
   source?: 'mainAI' | 'stageAgent' | 'user';
   downstreamImpact?: ShortDramaImpactItem[];
+  /**
+   * K3 (canvas refinement, additive — the manifest schema version does not
+   * move). The idempotency key of the write-back that produced this revision.
+   * A manifest written before K3 simply has neither field, which reads as
+   * "this revision did not come from the board", so old projects load
+   * unchanged.
+   */
+  sourceOperationId?: string;
+  /** K3: the board card the picture came from. Provenance only. */
+  sourceCanvasNodeId?: string;
 }
 
 export interface ShortDramaArtifactAttempt {

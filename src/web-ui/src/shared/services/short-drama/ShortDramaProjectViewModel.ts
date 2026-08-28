@@ -2503,6 +2503,98 @@ function createRuntimeRevisionReason(event: ShortDramaAgentEvent) {
     : `${actor} completed run ${event.runId}.`;
 }
 
+/**
+ * K3 §5.2: one picture, refined on the infinite canvas, coming home.
+ *
+ * The canvas builds the media reference (the neutral adapter owns that
+ * conversion); this function only decides what the project looks like
+ * afterwards.
+ */
+export interface ShortDramaCanvasRefinement {
+  artifactId: string;
+  mediaReference: ShortDramaMediaReference;
+  /** The board's idempotency key for this one press. */
+  operationId: string;
+  /** Which card it came from. Provenance only; nothing reads it back. */
+  canvasNodeId: string;
+  timestamp: number;
+}
+
+/**
+ * The short-drama half of the return leg, and the only thing the canvas is
+ * allowed to do to a project.
+ *
+ * It appends a revision, points the asset at the new picture, and puts the
+ * asset into review. That is all. Three deliberate absences:
+ *
+ * 1. **No attempt is recorded.** An attempt means "a stage agent ran"; the
+ *    retry counter and the `needs_intervention` threshold are computed from
+ *    them. A person tidying a picture by hand is not a failed agent run, and
+ *    writing one here would poison both. This is an intentional difference
+ *    from the runtime path in {@link applyShortDramaAgentEvent}.
+ * 2. **No approval.** The picture is proposed, not accepted — that is what
+ *    `reviewing` means, and the existing approve entry point stays the only
+ *    way out of it. This function does not touch that function.
+ * 3. **Nothing is overwritten.** The previous picture keeps its own revision
+ *    and its own file; the board never deletes media and neither does this.
+ *
+ * Idempotent on two keys, because two paths can deliver the same picture: the
+ * board's own press (this one) and, later, a generation that carried the
+ * asset's coordinates and came back through the runtime. Same `operationId`
+ * or same `mediaItemId` means the picture is already recorded, so the project
+ * is returned untouched — whichever arrived first wins and the second is a
+ * silent no-op. Sending a *different* picture is not blocked: that is a new
+ * proposal and gets its own revision.
+ *
+ * A missing artifact returns the project unchanged rather than throwing; the
+ * caller checks existence itself and has a better message for the user.
+ */
+export function applyShortDramaCanvasRefinement(
+  project: ShortDramaProject,
+  refinement: ShortDramaCanvasRefinement,
+): ShortDramaProject {
+  if (!project.artifacts.some(artifact => artifact.id === refinement.artifactId)) {
+    return project;
+  }
+
+  return updateArtifact(project, refinement.artifactId, artifact => {
+    const alreadyRecorded = artifact.revisions.some(revision => (
+      revision.sourceOperationId === refinement.operationId
+      || (revision.mediaItemId !== undefined
+        && revision.mediaItemId === refinement.mediaReference.mediaItemId)
+    ));
+    if (alreadyRecorded) {
+      return artifact;
+    }
+
+    const revisions: ShortDramaArtifactRevision[] = [
+      ...artifact.revisions,
+      {
+        id: `revision-canvas-${refinement.operationId}`,
+        version: artifact.revisions.length + 1,
+        createdAt: refinement.timestamp,
+        // The manifest stores the fact in English, the way every other
+        // runtime-written revision reason does; the panel translates.
+        summary: 'Refined on the infinite canvas.',
+        reason: `A picture refined on the infinite canvas was attached from card ${refinement.canvasNodeId}.`,
+        source: 'user',
+        changedFields: ['status', 'revisions', 'mediaReference'],
+        mediaItemId: refinement.mediaReference.mediaItemId,
+        sourceOperationId: refinement.operationId,
+        sourceCanvasNodeId: refinement.canvasNodeId,
+      },
+    ];
+
+    return {
+      ...artifact,
+      status: 'reviewing',
+      revisions,
+      revisionCount: revisions.length,
+      mediaReference: refinement.mediaReference,
+    };
+  });
+}
+
 export function approveShortDramaArtifactReview(
   project: ShortDramaProject,
   approval: ShortDramaArtifactReviewApproval,

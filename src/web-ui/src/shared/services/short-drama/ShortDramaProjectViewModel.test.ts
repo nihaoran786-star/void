@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyShortDramaCanvasRefinement,
+  approveShortDramaArtifactReview,
   createShortDramaArtifactChatContext,
   createShortDramaArtifactCardViewModel,
   createShortDramaSpecialistContextPackage,
@@ -1622,5 +1624,149 @@ describe('short drama media preview version propagation', () => {
 
     expect(refreshed.mediaReference?.modifiedAt).toBe(42);
     expect(preview.status === 'ready' ? preview.modifiedAt : undefined).toBe(42);
+  });
+});
+
+describe('short drama canvas refinement (K3 return leg)', () => {
+  const refinedPicture = (mediaItemId = 'batch-refined-1') => ({
+    mediaItemId,
+    kind: 'image' as const,
+    label: 'Refined on the canvas',
+    relativePath: 'media/generated/batch-refined/image-1.png',
+    localPath: 'C:/work/media/generated/batch-refined/image-1.png',
+    filePath: 'C:/work/media/generated/batch-refined/image-1.png',
+    source: 'generated' as const,
+  });
+
+  const refinementFor = (project: ShortDramaProject) => {
+    const artifact = project.artifacts.find(item => item.mediaReference?.kind === 'image')!;
+    return {
+      artifact,
+      refinement: {
+        artifactId: artifact.id,
+        mediaReference: refinedPicture(),
+        operationId: 'op-canvas-1',
+        canvasNodeId: 'node-7',
+        timestamp: 1_700_000_000_000,
+      },
+    };
+  };
+
+  it('records one revision, points at the new picture, and asks for review', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+    const previousMediaItemId = artifact.mediaReference!.mediaItemId;
+
+    const next = applyShortDramaCanvasRefinement(project, refinement);
+    const updated = next.artifacts.find(item => item.id === artifact.id)!;
+    const latest = updated.revisions[updated.revisions.length - 1];
+
+    expect(updated.status).toBe('reviewing');
+    expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-1');
+    expect(updated.revisions).toHaveLength(artifact.revisions.length + 1);
+    expect(updated.revisionCount).toBe(updated.revisions.length);
+    expect(latest.summary).toBe('Refined on the infinite canvas.');
+    expect(latest.mediaItemId).toBe('batch-refined-1');
+    expect(latest.sourceOperationId).toBe('op-canvas-1');
+    expect(latest.sourceCanvasNodeId).toBe('node-7');
+    expect(latest.approvedBy).toBeUndefined();
+    // The old picture is still named by its own revision — nothing overwrote it.
+    expect(updated.revisions.some(revision => revision.mediaItemId === previousMediaItemId))
+      .toBe(true);
+  });
+
+  it('never writes an attempt, so the retry counter stays the agents\' own', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const next = applyShortDramaCanvasRefinement(project, refinement);
+    const updated = next.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.attempts).toEqual(artifact.attempts);
+    expect(updated.attemptCount).toBe(artifact.attemptCount);
+  });
+
+  it('is idempotent on the operation id', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const once = applyShortDramaCanvasRefinement(project, refinement);
+    const twice = applyShortDramaCanvasRefinement(once, {
+      ...refinement,
+      // A different picture, but the same press: still one revision.
+      mediaReference: refinedPicture('batch-refined-2'),
+      timestamp: refinement.timestamp + 1000,
+    });
+    const updated = twice.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.revisions).toHaveLength(artifact.revisions.length + 1);
+    expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-1');
+  });
+
+  it('is idempotent on the media item id, whichever path delivered it first', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const once = applyShortDramaCanvasRefinement(project, refinement);
+    const twice = applyShortDramaCanvasRefinement(once, {
+      ...refinement,
+      operationId: 'op-canvas-2',
+      timestamp: refinement.timestamp + 1000,
+    });
+    const updated = twice.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.revisions).toHaveLength(artifact.revisions.length + 1);
+  });
+
+  it('lets a different picture through — idempotency guards repeats, not choices', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const once = applyShortDramaCanvasRefinement(project, refinement);
+    const twice = applyShortDramaCanvasRefinement(once, {
+      ...refinement,
+      operationId: 'op-canvas-2',
+      mediaReference: refinedPicture('batch-refined-2'),
+      timestamp: refinement.timestamp + 1000,
+    });
+    const updated = twice.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.revisions).toHaveLength(artifact.revisions.length + 2);
+    expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-2');
+    expect(updated.status).toBe('reviewing');
+  });
+
+  it('returns the project untouched when the artifact is gone', () => {
+    const project = createShortDramaStaticProject();
+    const { refinement } = refinementFor(project);
+
+    const next = applyShortDramaCanvasRefinement(project, {
+      ...refinement,
+      artifactId: 'artifact-that-was-deleted',
+    });
+
+    expect(next).toBe(project);
+  });
+
+  it('keeps the canvas revision after the user approves the review', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const reviewing = applyShortDramaCanvasRefinement(project, refinement);
+    const approved = approveShortDramaArtifactReview(reviewing, {
+      artifactId: artifact.id,
+      summary: 'Approved the refined picture.',
+      approvedBy: 'director',
+      timestamp: refinement.timestamp + 5000,
+    });
+    const updated = approved.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.status).toBe('ready');
+    expect(updated.revisions.some(revision => (
+      revision.sourceOperationId === 'op-canvas-1'
+      && revision.summary === 'Refined on the infinite canvas.'
+    ))).toBe(true);
+    expect(updated.revisions.some(revision => revision.summary === 'Approved the refined picture.'))
+      .toBe(true);
   });
 });
