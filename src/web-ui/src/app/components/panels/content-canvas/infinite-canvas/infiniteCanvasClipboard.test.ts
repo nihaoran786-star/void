@@ -42,6 +42,14 @@ const RICH_CARD: InfiniteCanvasNode = {
   generationParams: { model: 'gemini', size: '16:9', n: 2 },
   mediaRef: MEDIA_REF,
   derivedFrom: { sourceNodeId: 'parent', toolId: 'generate', operationId: 'op-old' },
+  // K3 §5.1.3: writable now, and still deliberately not copied — one asset
+  // gets one official refinement slot on the board.
+  domainRef: {
+    moduleId: 'short-drama',
+    kind: 'character',
+    id: 'artifact-1',
+    role: 'refine',
+  },
   generation: {
     operationId: 'op-live',
     toolId: 'generate',
@@ -80,6 +88,7 @@ describe('copySelectionSnapshot', () => {
     });
     expect(copied.generation).toBeUndefined();
     expect(copied.derivedFrom).toBeUndefined();
+    // The source card DOES belong to a short-drama asset; the copy does not.
     expect(copied.domainRef).toBeUndefined();
   });
 

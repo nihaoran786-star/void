@@ -531,6 +531,11 @@ const CANVAS_OPS_JOURNAL_MAX_BATCHES: usize = 200;
 /// `update_node.set` whitelist (PRD §3.6.4). `mediaRef`, `derivedFrom`,
 /// `generation` and `domainRef` are deliberately absent: the mediaRef
 /// immutability invariant continues to hold on every path.
+///
+/// K3 (PRD §5.1.2) made `domainRef` writable — by the short-drama handoff in
+/// the front end, and by nothing else. This gate does not move: which domain
+/// object a card belongs to is the user's decision, so no agent op may set it,
+/// change it, or clear it.
 const UPDATE_SET_WHITELIST: [&str; 5] = ["prompt", "text", "stylePresetId", "position", "size"];
 
 const CANVAS_OP_TOOL_IDS: [&str; 6] =

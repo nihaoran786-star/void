@@ -30,13 +30,43 @@ export interface InfiniteCanvasViewport {
   zoom: number;
 }
 
-/** Reserved for K3 canvas-to-domain references; no phase-1 writer may set it. */
+/**
+ * K3 (contract §5.1.1): which domain object a card belongs to.
+ *
+ * Four fields, fixed forever — the display handle (`CHAR-001`) is deliberately
+ * NOT one of them, because a handle can be renamed and this has to survive
+ * that. No path and no media id either: this answers "which asset", never
+ * "which picture"; the picture is `mediaRef`, and keeping the two apart is
+ * what lets an asset change picture without breaking its reference.
+ *
+ * Only one writer exists: the short-drama handoff. The three AI gates
+ * (`update_node` whitelist, Rust `canvas_tools`, clipboard) stay shut, so
+ * once written this is effectively read-only and deleting the card is the only
+ * way to undo it.
+ */
 export interface InfiniteCanvasDomainRef {
   moduleId: string;
   kind: string;
   id: string;
   role: string;
 }
+
+/**
+ * K3 §5.1.2: the modules allowed to own a `domainRef`. A reference naming any
+ * other module is dropped on read as "absent" — forward compatible, never a
+ * corrupted document.
+ */
+export const INFINITE_CANVAS_DOMAIN_MODULE_IDS = ['short-drama'] as const;
+
+/** K3 §5.1.1: the short-drama asset types that can be refined on the board. */
+export const INFINITE_CANVAS_DOMAIN_KINDS = [
+  'character',
+  'location',
+  'storyboard',
+] as const;
+
+/** K3 §5.1.1: the only role this phase defines. */
+export const INFINITE_CANVAS_DOMAIN_ROLES = ['refine'] as const;
 
 /**
  * Node kinds. `'video'` is a P3 addition (schemaVersion stays '1'); known

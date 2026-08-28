@@ -145,6 +145,12 @@ function malformed(detail: string): CanvasAgentOp {
  * `mediaRef`, `derivedFrom`, `generation` and `domainRef` — are silently
  * dropped here and can therefore never reach the document (second gate for
  * the mediaRef-immutability invariant).
+ *
+ * K3 (contract §5.1.2) changed what `domainRef` means without changing this
+ * gate by one line: the field is now written by the short-drama handoff, so
+ * the assertion is no longer "it is always undefined" but the stronger "a card
+ * that already has one keeps it, whatever the AI asks for". Who a card belongs
+ * to is the user's decision, never an agent's.
  */
 function parseUpdateSet(value: unknown): CanvasAgentUpdateSet {
   const set: CanvasAgentUpdateSet = {};
@@ -399,7 +405,8 @@ function applyOp(
         return skipped(nodes, edges, 'empty_update', { nodeId: op.nodeId });
       }
       // Only whitelisted fields exist in `set` (parse gate); mediaRef,
-      // derivedFrom, generation and domainRef are untouchable by design.
+      // derivedFrom, generation and domainRef are untouchable by design —
+      // K3 opened domainRef to the short-drama handoff, not to agent ops.
       return applied(
         nodes.map(node => (
           node.nodeId === op.nodeId

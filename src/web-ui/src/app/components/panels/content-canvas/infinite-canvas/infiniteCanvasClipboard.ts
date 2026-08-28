@@ -18,7 +18,12 @@
  *   in-flight card would be a second one.
  * - `derivedFrom` — lineage belongs to the original. A pasted card is a new
  *   root, not a version of anything.
- * - `domainRef` — reserved for K3; no path in this phase may ever write it.
+ * - `domainRef` — writable since K3, and DELIBERATELY still not copied
+ *   (contract §5.1.3). A short-drama asset gets exactly one official
+ *   refinement slot on the board; a second card wearing the same badge would
+ *   leave two cards arguing over which one goes back, and the user with no way
+ *   to tell. A pasted card is a clean new card: the picture is there, the
+ *   ownership is not. Want ownership? Send it from the short-drama side again.
  *
  * Edges are copied only when BOTH ends are inside the selection. A half-copied
  * edge would quietly re-order some other card's reference list, and reference

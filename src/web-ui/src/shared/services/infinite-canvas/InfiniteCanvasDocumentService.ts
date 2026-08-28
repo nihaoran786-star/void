@@ -10,6 +10,7 @@ import type {
   CanvasImageOperationKind,
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
+  InfiniteCanvasDomainRef,
   InfiniteCanvasEdge,
   InfiniteCanvasLoadResult,
   InfiniteCanvasMutateResult,
@@ -20,7 +21,12 @@ import type {
   InfiniteCanvasWorkspaceRef,
 } from './InfiniteCanvasTypes';
 import type { ImageToolErrorKind } from './ImageToolTypes';
-import { INFINITE_CANVAS_SCHEMA_VERSION } from './InfiniteCanvasTypes';
+import {
+  INFINITE_CANVAS_DOMAIN_KINDS,
+  INFINITE_CANVAS_DOMAIN_MODULE_IDS,
+  INFINITE_CANVAS_DOMAIN_ROLES,
+  INFINITE_CANVAS_SCHEMA_VERSION,
+} from './InfiniteCanvasTypes';
 import type { InfiniteCanvasPersistencePort } from './InfiniteCanvasPersistencePort';
 
 const REMOTE_UNAVAILABLE_REASON =
@@ -155,6 +161,42 @@ function parseGenerationParams(value: unknown): InfiniteCanvasNode['generationPa
 }
 
 /**
+ * K3 §5.1.4: read the domain reference back.
+ *
+ * Before K3 this field was written by nobody and read by nobody, which made
+ * "store it" and "lose it" the same thing. Now it round-trips — under the same
+ * tolerance rule as every other additive field: a malformed reference (not an
+ * object, a missing or blank field, a module outside the whitelist) is dropped
+ * as ABSENT and the rest of the node parses normally. One bad label must never
+ * cost the user the whole board.
+ *
+ * The parser deliberately does not ask whether the referenced asset still
+ * exists. That is a runtime question, and answering it here would make the
+ * canvas document depend on the short-drama domain. A reference whose asset is
+ * gone stays in the document and degrades in the UI instead (§5.1.4).
+ */
+function parseDomainRef(value: unknown): InfiniteCanvasDomainRef | undefined {
+  if (!isRecord(value)) return undefined;
+  const { moduleId, kind, id, role } = value;
+  if (!isNonEmptyString(moduleId)
+    || !isNonEmptyString(kind)
+    || !isNonEmptyString(id)
+    || !isNonEmptyString(role)) {
+    return undefined;
+  }
+  if (!(INFINITE_CANVAS_DOMAIN_MODULE_IDS as readonly string[]).includes(moduleId)) {
+    return undefined;
+  }
+  if (!(INFINITE_CANVAS_DOMAIN_KINDS as readonly string[]).includes(kind)) {
+    return undefined;
+  }
+  if (!(INFINITE_CANVAS_DOMAIN_ROLES as readonly string[]).includes(role)) {
+    return undefined;
+  }
+  return { moduleId, kind, id, role };
+}
+
+/**
  * P3 additive document field; a broken value is treated as "field absent",
  * never as an invalid document.
  */
@@ -274,8 +316,11 @@ function parseNode(value: unknown): InfiniteCanvasNode | undefined {
   if (derivedFrom) node.derivedFrom = derivedFrom;
   const generation = parseGeneration(value.generation);
   if (generation) node.generation = generation;
-  // domainRef is a K3 reserved field: it is intentionally not read back in
-  // phase 1, so no restore path can smuggle domain references in early.
+  // K3 §5.1.4: the domain reference round-trips now. Structurally unusable or
+  // outside the module whitelist reads as absent; nothing here can invalidate
+  // the document.
+  const domainRef = parseDomainRef(value.domainRef);
+  if (domainRef) node.domainRef = domainRef;
   return node;
 }
 

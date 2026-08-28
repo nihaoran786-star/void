@@ -93,6 +93,45 @@ describe('parseCanvasAgentOpsBatch', () => {
     if (op?.op !== 'update_node') throw new Error('unexpected op');
     expect(op.set).toEqual({ prompt: 'new prompt' });
   });
+
+  /**
+   * K3 §5.1.2: `domainRef` is writable now — by the short-drama handoff, and
+   * by nothing else. The old assertion ("it is always undefined") no longer
+   * says anything useful; this is the stronger one it becomes.
+   */
+  it('cannot change a card that already belongs to a short-drama asset', () => {
+    const domainRef = {
+      moduleId: 'short-drama',
+      kind: 'character',
+      id: 'artifact-1',
+      role: 'refine',
+    } as const;
+    const document = makeDocument({
+      nodes: [{
+        nodeId: 'node-owned',
+        kind: 'image',
+        position: { x: 0, y: 0 },
+        mediaRef: { ...MEDIA_REF },
+        domainRef: { ...domainRef },
+      }],
+      edges: [],
+    });
+
+    const result = applyCanvasAgentOpsBatchContent(document, batch([
+      {
+        op: 'update_node',
+        nodeId: 'node-owned',
+        set: {
+          prompt: 'agent prompt',
+          domainRef: { moduleId: 'short-drama', kind: 'storyboard', id: 'other', role: 'refine' },
+        },
+      },
+    ]));
+
+    const node = result.content?.nodes.find(entry => entry.nodeId === 'node-owned');
+    expect(node?.prompt).toBe('agent prompt');
+    expect(node?.domainRef).toEqual(domainRef);
+  });
 });
 
 describe('applyCanvasAgentOpsBatchContent', () => {

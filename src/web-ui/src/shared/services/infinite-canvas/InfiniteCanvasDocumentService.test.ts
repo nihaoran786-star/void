@@ -384,6 +384,15 @@ describe('InfiniteCanvasDocumentService', () => {
           relativePath: 'media/generated/batch-1/item-1.png',
         },
         stylePresetId: 'cinematic:noir-01',
+        // K3 §5.1.4: the domain reference has a writer now, so it has to
+        // survive a save and a reload. Before K3 the parser dropped it, which
+        // made storing it and losing it the same thing.
+        domainRef: {
+          moduleId: 'short-drama',
+          kind: 'character',
+          id: 'artifact-1',
+          role: 'refine',
+        },
       }, {
         nodeId: 'text-1',
         kind: 'text' as const,
@@ -410,14 +419,63 @@ describe('InfiniteCanvasDocumentService', () => {
           relativePath: 'media/generated/batch-1/item-1.png',
         },
         stylePresetId: 'cinematic:noir-01',
+        domainRef: {
+          moduleId: 'short-drama',
+          kind: 'character',
+          id: 'artifact-1',
+          role: 'refine',
+        },
       }),
       expect.objectContaining({ nodeId: 'text-1', text: 'storyboard note' }),
     ]);
     expect(reloaded.document.edges).toEqual([
       { edgeId: 'edge-1', sourceNodeId: 'text-1', targetNodeId: 'image-1' },
     ]);
-    // The K3 reserved field never comes back populated in phase 1.
-    expect(reloaded.document.nodes.every(node => node.domainRef === undefined)).toBe(true);
+    // A card that was never sent from short-drama still has no owner.
+    expect(reloaded.document.nodes[1].domainRef).toBeUndefined();
+  });
+
+  /**
+   * K3 §5.1.4: one bad label must never cost the user the whole board. Every
+   * malformed reference below reads as "absent" and the node around it still
+   * parses — the document is never invalid because of this field.
+   */
+  it('drops an unusable domain reference without invalidating the node', () => {
+    const badRefs = [
+      'short-drama',
+      null,
+      {},
+      { moduleId: 'short-drama', kind: 'character', id: 'a' },
+      { moduleId: 'short-drama', kind: 'character', id: '  ', role: 'refine' },
+      { moduleId: 'short-drama', kind: 'character', id: 'a', role: 42 },
+      // Forward compatibility: a module this build does not know is dropped
+      // silently rather than treated as corruption.
+      { moduleId: 'some-future-module', kind: 'character', id: 'a', role: 'refine' },
+      { moduleId: 'short-drama', kind: 'video', id: 'a', role: 'refine' },
+      { moduleId: 'short-drama', kind: 'character', id: 'a', role: 'reference' },
+    ];
+    const raw = JSON.stringify({
+      documentId: 'doc',
+      schemaVersion: '1',
+      workspaceId: 'w',
+      revision: 1,
+      nodes: badRefs.map((domainRef, index) => ({
+        nodeId: `node-${index}`,
+        kind: 'image',
+        position: { x: index, y: 0 },
+        domainRef,
+      })),
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: '2026-08-28T00:00:00.000Z',
+    });
+
+    const parsed = parseInfiniteCanvasDocument(raw);
+
+    expect(parsed.status).toBe('ok');
+    if (parsed.status !== 'ok') return;
+    expect(parsed.document.nodes).toHaveLength(badRefs.length);
+    expect(parsed.document.nodes.every(node => node.domainRef === undefined)).toBe(true);
   });
 
   it('parses the additive edge role tolerantly: derived kept, unknown dropped', () => {
