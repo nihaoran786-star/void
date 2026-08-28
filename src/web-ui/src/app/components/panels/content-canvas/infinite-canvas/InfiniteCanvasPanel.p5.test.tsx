@@ -457,6 +457,80 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
   });
 
   /**
+   * Adversarial review C3: pressing a tool must not eat the user's prompt.
+   *
+   * The template used to be committed straight into the card's `prompt` and
+   * saved, so the sentence the user had written was gone for good — walking
+   * away did not bring it back, and the card was left carrying a 【】 template
+   * as its prompt.
+   */
+  it('never saves a prefilled tool instruction onto the card', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-id="n-image"] [data-tool-id="upscale"]');
+
+    const field = () => container.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-generator-field="prompt"]',
+    );
+    expect(field()!.value).toContain('【target resolution】');
+
+    // The document still holds what the user wrote, not the template.
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].prompt).toBe('a cat on a bench');
+
+    // Editing the instruction, then walking away without sending, is a
+    // cancel: the card's own prompt comes straight back into the box.
+    await act(async () => {
+      Simulate.change(field()!, { target: { value: 'Upscale this image to 4K.' } } as never);
+    });
+    await act(async () => {
+      flow.props.onSelectionChange?.({ nodes: [] });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      flow.props.onSelectionChange?.({ nodes: [{ id: 'n-image' }] });
+      await Promise.resolve();
+    });
+    expect(field()!.value).toBe('a cat on a bench');
+
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].prompt).toBe('a cat on a bench');
+
+    // And the next plain send spends money on the user's prompt, never on the
+    // abandoned template.
+    await act(async () => {
+      Simulate.click(container.querySelector('[data-canvas-generator-action="send"]')!);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(stubRuntime.gateway.invoke).toHaveBeenCalledTimes(1);
+    const invocation = stubRuntime.gateway.invoke.mock.calls[0][0] as any;
+    expect(invocation.kind).toBe('generate');
+    expect(invocation.prompt).toContain('a cat on a bench');
+    expect(invocation.prompt).not.toContain('【');
+  });
+
+  /**
+   * C3, second half: an untouched template can never be dispatched at all —
+   * the round button stays parked while a 【】 is outstanding, so there is no
+   * way to pay for the template itself.
+   */
+  it('refuses to send an untouched tool template', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-id="n-image"] [data-tool-id="matting"]');
+
+    const send = container.querySelector<HTMLButtonElement>(
+      '[data-canvas-generator-action="send"]',
+    )!;
+    expect(send.disabled).toBe(true);
+    await act(async () => {
+      Simulate.click(send);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(stubRuntime.gateway.invoke).not.toHaveBeenCalled();
+  });
+
+  /**
    * §7.4.3: the pending instruction belongs to the card it was written into.
    * Look at another card and the intent goes with the box it lived in — the
    * next round send must be an ordinary generation, not an inherited tool.

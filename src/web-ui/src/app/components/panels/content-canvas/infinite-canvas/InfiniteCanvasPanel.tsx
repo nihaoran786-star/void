@@ -1704,6 +1704,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         // own input box, placeholders and all, and wait there. Nothing is
         // dispatched by the press — the round send button is still the only
         // control on this board that spends money.
+        //
+        // Adversarial review C3: and nothing is SAVED by the press either. The
+        // template is a draft the box shows while the intent lives; the card's
+        // own prompt is untouched, so Escape (or picking another card) brings
+        // it back and a later plain send can never spend money on the template.
         const template = IMAGE_TOOL_DEFINITIONS
           .find(entry => entry.toolId === toolId)?.instructionTemplate ?? '';
         setToolIntent({ nodeId, toolId, template });
@@ -1721,10 +1726,6 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             ? node
             : { ...node, selected: node.id === nodeId }
         )));
-        void commit(
-          document => setNodePromptContent(document, nodeId, template),
-          { history: true },
-        );
       },
       reversePrompt: (nodeId, anchor) => {
         // Owner approval 2026-08-27: the vision call is billed, so the press
@@ -2851,18 +2852,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const onGeneratorSubmit = React.useCallback(async (prompt: string) => {
     const target = generatorTarget;
     if (!target) return;
-    if (prompt !== target.prompt) {
-      await commit(document => setNodePromptContent(document, target.nodeId, prompt), {
-        history: true,
-      });
-    }
     // §7.4.3: the same round button, two destinations. If this card is
     // carrying a five-tool instruction the user just finished editing, the
     // press is that tool — derive a new card off this picture — and otherwise
     // it is the ordinary generation it has always been.
+    //
+    // C3: the tool branch runs BEFORE the prompt is persisted, because a tool
+    // instruction belongs to the card it derives, not to the card it was typed
+    // on. `confirmToolInstruction` already writes it onto the new card.
     if (toolIntent && toolIntent.nodeId === target.nodeId) {
       await confirmToolInstruction(toolIntent, prompt.trim());
       return;
+    }
+    if (prompt !== target.prompt) {
+      await commit(document => setNodePromptContent(document, target.nodeId, prompt), {
+        history: true,
+      });
     }
     await generateForNode(target.nodeId);
   }, [commit, confirmToolInstruction, generateForNode, generatorTarget, toolIntent]);
@@ -3202,6 +3207,10 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             }}
             onCommitPrompt={prompt => {
               generatorDraftRef.current = { nodeId: generatorTarget.nodeId, value: prompt };
+              // C3: while a tool instruction is prefilled the box is showing a
+              // draft that belongs to the tool, not to this card. Blurring it
+              // must not save it over the card's own prompt.
+              if (toolIntent?.nodeId === generatorTarget.nodeId) return;
               void commit(
                 document => setNodePromptContent(document, generatorTarget.nodeId, prompt),
                 { history: true },

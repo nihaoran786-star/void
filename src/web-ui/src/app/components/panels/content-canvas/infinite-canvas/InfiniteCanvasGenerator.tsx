@@ -326,7 +326,7 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
   onOpenStyle,
 }) => {
   const { t } = useI18n('components');
-  const [draft, setDraft] = React.useState(target.prompt);
+  const [draft, setDraft] = React.useState(instructionTemplate ?? target.prompt);
   const targetNodeId = target.nodeId;
   const targetPrompt = target.prompt;
 
@@ -342,6 +342,30 @@ export const InfiniteCanvasGenerator: React.FC<InfiniteCanvasGeneratorProps> = (
     setDraft(targetPrompt);
     reportDraft.current?.(targetPrompt);
   }, [targetNodeId, targetPrompt]);
+
+  /**
+   * Adversarial review C3: a prefilled tool instruction is a DRAFT, never the
+   * card's prompt.
+   *
+   * It used to be written into the document the moment the tool was pressed,
+   * so pressing a tool destroyed whatever the user had written — Escape did
+   * not bring it back, and a later plain send spent money generating the
+   * template itself. The template now lives here, as the controlled initial
+   * value of the box, and withdrawing the intent puts the card's own prompt
+   * straight back. Nothing about it is ever persisted.
+   *
+   * The ref starts empty so a box that mounts with a template already set
+   * (pressing a tool on a card that was not selected) adopts it too, and it
+   * runs after the effect above so the card's prompt cannot clobber it.
+   */
+  const appliedTemplate = React.useRef<string | undefined>(undefined);
+  React.useEffect(() => {
+    if (appliedTemplate.current === instructionTemplate) return;
+    appliedTemplate.current = instructionTemplate;
+    const next = instructionTemplate ?? targetPrompt;
+    setDraft(next);
+    reportDraft.current?.(next);
+  }, [instructionTemplate, targetPrompt]);
 
   const pending = target.pending;
   /**
