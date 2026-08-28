@@ -20,6 +20,13 @@ const LOCAL_WORKSPACE = {
   backend: 'local',
 } as const;
 
+const DOMAIN_REF = {
+  moduleId: 'short-drama',
+  kind: 'character',
+  id: 'artifact-1',
+  role: 'refine',
+} as const;
+
 function activate() {
   const surfaces = new CanvasSurfaceRegistry<CanvasSurfaceDefinition>();
   const renderers = new CanvasSurfaceRendererRegistry();
@@ -57,10 +64,26 @@ describe('infinite-canvas Canvas surface', () => {
     expect(surfaces.resolve(INFINITE_CANVAS_SURFACE_ID)?.legacyContentType).toBeUndefined();
   });
 
-  it('rejects a non-empty input payload: phase 1 has one default document', async () => {
+  it('rejects every input shape other than empty or a short-drama handoff', async () => {
     const { service } = activate();
 
-    for (const [index, input] of [[1, 2], { documentId: 'doc-1' }, 'doc'].entries()) {
+    const rejected = [
+      [1, 2],
+      { documentId: 'doc-1' },
+      'doc',
+      // A handoff without its idempotency key would import twice on restore.
+      { domainRef: DOMAIN_REF },
+      // A key without a reference says nothing about what to import.
+      { requestId: 'req-1' },
+      // Only the short-drama module may write a domainRef (contract §5.1.2).
+      { domainRef: { ...DOMAIN_REF, moduleId: 'agent-studio' }, requestId: 'req-1' },
+      // Scripts and videos are not refinable on the board.
+      { domainRef: { ...DOMAIN_REF, kind: 'script' }, requestId: 'req-1' },
+      { domainRef: { ...DOMAIN_REF, id: '   ' }, requestId: 'req-1' },
+      { domainRef: { ...DOMAIN_REF, role: 'reference' }, requestId: 'req-1' },
+      { domainRef: DOMAIN_REF, requestId: 'req-1', extra: true },
+    ];
+    for (const [index, input] of rejected.entries()) {
       await expect(service.open({
         surfaceId: INFINITE_CANVAS_SURFACE_ID,
         source: 'capability-rail',
@@ -70,6 +93,26 @@ describe('infinite-canvas Canvas surface', () => {
         idempotencyKey: `open-infinite-canvas-bad-${index}`,
       })).resolves.toMatchObject({ status: 'incompatible' });
     }
+  });
+
+  it('carries a validated short-drama handoff into the tab content, trimmed', async () => {
+    const { service } = activate();
+
+    await expect(service.open({
+      surfaceId: INFINITE_CANVAS_SURFACE_ID,
+      source: 'capability-rail',
+      workspace: LOCAL_WORKSPACE,
+      sourceSessionId: 'session-1',
+      input: {
+        domainRef: { ...DOMAIN_REF, id: '  artifact-1  ' },
+        requestId: '  req-1  ',
+      },
+      idempotencyKey: 'open-infinite-canvas-handoff',
+    })).resolves.toMatchObject({ status: 'opened' });
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs[0]?.content).toMatchObject({
+      data: { domainRef: DOMAIN_REF, requestId: 'req-1' },
+    });
   });
 
   it('opens one workspace-scoped instance keyed by the workspace id', async () => {
@@ -104,7 +147,12 @@ describe('infinite-canvas Canvas surface', () => {
     expect(renderers.resolve(content!)?.surfaceId).toBe(INFINITE_CANVAS_SURFACE_ID);
   });
 
-  it('focuses the existing instance when opened twice for the same workspace', async () => {
+  /**
+   * K3 §5.1.6: still one tab per workspace, but the second open now UPDATES
+   * that tab instead of merely focusing it — 'focus' left the content
+   * untouched, so a second handoff was silently swallowed.
+   */
+  it('updates the one workspace instance when opened twice, delivering the new payload', async () => {
     const { service } = activate();
 
     const first = await service.open({
@@ -119,16 +167,19 @@ describe('infinite-canvas Canvas surface', () => {
       surfaceId: INFINITE_CANVAS_SURFACE_ID,
       source: 'capability-rail',
       workspace: LOCAL_WORKSPACE,
-      sourceSessionId: 'session-2',
-      input: undefined,
+      sourceSessionId: 'session-1',
+      input: { domainRef: DOMAIN_REF, requestId: 'req-2' },
       idempotencyKey: 'open-infinite-canvas-same-2',
     });
 
     expect(first.status).toBe('opened');
-    expect(second.status).toBe('focused');
-    if (first.status !== 'opened' || second.status !== 'focused') return;
+    expect(second.status).toBe('updated');
+    if (first.status !== 'opened' || second.status !== 'updated') return;
     expect(second.instanceId).toBe(first.instanceId);
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs[0]?.content).toMatchObject({
+      data: { domainRef: DOMAIN_REF, requestId: 'req-2' },
+    });
   });
 
   it('is unavailable on a remote workspace, matching the media fail-closed rule', async () => {

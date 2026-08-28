@@ -14,6 +14,10 @@ import {
   SHORT_DRAMA_SURFACE_ID,
   WORKSPACE_MEDIA_SURFACE_ID,
 } from './CanvasSurfaceIds';
+import {
+  validateInfiniteCanvasSurfaceInput,
+  type InfiniteCanvasSurfaceInput,
+} from './infiniteCanvasCapabilityInput';
 import { AgentStudioCanvasSurfaceRenderer } from './AgentStudioCanvasSurfaceRenderer';
 import { InfiniteCanvasSurfaceRenderer } from './InfiniteCanvasSurfaceRenderer';
 import { ShortDramaCanvasSurfaceRenderer } from './ShortDramaCanvasSurfaceRenderer';
@@ -230,47 +234,51 @@ const infiniteCanvasSurfaceDefinition: CanvasSurfaceDefinition = {
   surfaceId: INFINITE_CANVAS_SURFACE_ID,
   pluginVersion: '1.0.0',
   registrationKey: 'builtin.infinite-canvas.surface.v1',
-  existingInstanceStrategy: 'focus',
+  // K3 §5.1.6: one workspace still means one canvas document, so the instance
+  // key stays workspace-only. But 'focus' merely switches tabs without
+  // touching content, which silently swallowed a second handoff — 'update'
+  // (the strategy the short-drama surface already uses) delivers the new
+  // payload to the mounted panel. The cost is idempotency, paid twice over in
+  // the panel: a handled-requestId ref plus a document-level domainRef dedupe.
+  existingInstanceStrategy: 'update',
   checkWorkspace: workspace => workspace.backend === 'remote'
     ? {
         status: 'unavailable',
         reason: 'Infinite Canvas remote workspace I/O routing is not available.',
       }
     : { status: 'available' },
-  // Phase 1 uses one default document per workspace, so no input payload is
-  // required; anything but an empty object or undefined is rejected.
-  validateInput: input => {
-    if (input === undefined || input === null) {
-      return { status: 'valid', value: {} };
-    }
-    if (typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length > 0) {
-      return {
-        status: 'invalid',
-        reason: 'Infinite Canvas surface input must be empty in phase 1.',
-      };
-    }
-    return { status: 'valid', value: {} };
-  },
+  // K3 §5.1.5: an empty payload still means "just open the board". The one
+  // other accepted shape brings a short-drama asset along; everything else is
+  // rejected with a reason.
+  validateInput: input => validateInfiniteCanvasSurfaceInput(input),
   createInstanceKey: context => (
     `${INFINITE_CANVAS_SURFACE_ID}:${context.workspace.workspaceId}`
   ),
-  createPresentation: context => ({
-    title: 'Infinite Canvas',
-    data: {
-      workspacePath: context.workspace.workspacePath,
-      // K2: the panel prefers the opening session as its dispatch target, so
-      // the presentation data carries it alongside the metadata echo.
-      ...(context.sourceSessionId
-        ? { sourceSessionId: context.sourceSessionId }
-        : {}),
-    },
-    metadata: {
-      duplicateCheckKey: `infinite-canvas:${context.workspace.workspaceId}`,
-      ...(context.sourceSessionId
-        ? { sourceSessionId: context.sourceSessionId }
-        : {}),
-    },
-  }),
+  createPresentation: context => {
+    const input = (context.input ?? {}) as InfiniteCanvasSurfaceInput;
+    return {
+      title: 'Infinite Canvas',
+      data: {
+        workspacePath: context.workspace.workspacePath,
+        // K2: the panel prefers the opening session as its dispatch target, so
+        // the presentation data carries it alongside the metadata echo.
+        ...(context.sourceSessionId
+          ? { sourceSessionId: context.sourceSessionId }
+          : {}),
+        // K3: the pending import travels in the tab content because 'update'
+        // is how a mounted panel hears about it at all.
+        ...(input.domainRef && input.requestId
+          ? { domainRef: input.domainRef, requestId: input.requestId }
+          : {}),
+      },
+      metadata: {
+        duplicateCheckKey: `infinite-canvas:${context.workspace.workspaceId}`,
+        ...(context.sourceSessionId
+          ? { sourceSessionId: context.sourceSessionId }
+          : {}),
+      },
+    };
+  },
 };
 
 export type FirstPartyCanvasSurfaceActivation =

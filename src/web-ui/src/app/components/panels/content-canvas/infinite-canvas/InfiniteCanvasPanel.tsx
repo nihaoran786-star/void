@@ -38,6 +38,7 @@ import type {
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasDocumentService,
+  InfiniteCanvasDomainRef,
   InfiniteCanvasMediaBridgeEventBus,
   InfiniteCanvasMutator,
   SessionImageGenerationInvocation,
@@ -463,6 +464,15 @@ export interface InfiniteCanvasPanelProps {
   isActive: boolean;
   /** Session that opened the canvas surface; preferred dispatch target. */
   sourceSessionId?: string;
+  /**
+   * K3 §5.1.5: "open the board and bring this short-drama asset with you".
+   * The surface re-validates it before handing it over, and the panel imports
+   * a given `requestId` at most once (§5.1.6).
+   */
+  pendingDomainImport?: {
+    domainRef: InfiniteCanvasDomainRef;
+    requestId: string;
+  };
   /** Injection seams for tests; production uses the shared singletons. */
   service?: InfiniteCanvasDocumentService;
   resolvePreviewUrl?: InfiniteCanvasImagePreviewResolver;
@@ -1174,11 +1184,29 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     // the results of the same intent pile up instead of scattering sibling
     // cards across the board. The five tools and crop still derive (they are
     // dispatched elsewhere, and their lineage has to stay visible).
-    await commit(current => (
-      node.mediaRef === undefined
+    //
+    // Adversarial review P1: the branch reads `current`, not the snapshot this
+    // callback closed over. `found` was taken before the await above, so a
+    // card whose first picture landed in between was still being registered as
+    // a blank-card first shot — a registration `beginSelfGenerationContent`
+    // refuses, leaving no pending state anywhere.
+    const next = await commit(current => {
+      const target = current.nodes.find(entry => entry.nodeId === nodeId);
+      return target?.mediaRef === undefined
         ? beginSelfGenerationContent(current, nodeId, operationId, { mediaKind })
-        : beginAccumulatingGenerationContent(current, nodeId, operationId, { mediaKind })
-    ));
+        : beginAccumulatingGenerationContent(current, nodeId, operationId, { mediaKind });
+    });
+    // P1: and the request is only paid for if it has somewhere to land. Every
+    // registration helper can decline (the card went away, another shot got
+    // there first), and submitting anyway spent money on a result no card was
+    // waiting for. Same guard `confirmCrop` already carries.
+    if (!next?.nodes.some(entry => entry.generation?.operationId === operationId)) {
+      setNotice({
+        messageKey: 'infiniteCanvas.generation.cardMissing',
+        errorKind: 'invalid-input',
+      });
+      return;
+    }
     await submitOperation({
       operationId,
       kind: 'generate',
@@ -1240,6 +1268,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   // —— P5: crop and the mask lane ————————————————————————————————————————————
 
+  /**
+   * Adversarial review P7: one press of a board-filling editor's send button
+   * is one submission.
+   *
+   * Each confirm below reads its request out of React state and clears it, but
+   * a second call in the SAME tick still sees the old value — a double click,
+   * a stuck key repeat or a re-entrant event handler therefore wrote the
+   * composite twice and, for mask and expand, submitted two paid operations
+   * for one press. A ref settles it before the render that would have.
+   *
+   * It is released when an editor OPENS rather than when a confirm finishes:
+   * the editor closes on confirm either way, so the only thing that can
+   * legitimately submit again is a fresh open.
+   */
+  const editorSubmittingRef = React.useRef(false);
+
   const assetWriter = React.useMemo(
     () => resolvePort(writeCanvasImage, () => getInfiniteCanvasAssetWriter()),
     [writeCanvasImage],
@@ -1268,6 +1312,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    * media bridge does it. The source card is not touched at all.
    */
   const confirmCrop = React.useCallback(async (base64Png: string) => {
+    // P7: one press, one crop. See `editorSubmittingRef`.
+    if (editorSubmittingRef.current) return;
+    editorSubmittingRef.current = true;
     const request = cropRequest;
     setCropRequest(null);
     if (!request) return;
@@ -1325,6 +1372,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     base64Png: string,
     instruction: string,
   ) => {
+    // P7: one press, one paid submission. See `editorSubmittingRef`.
+    if (editorSubmittingRef.current) return;
+    editorSubmittingRef.current = true;
     const request = maskRequest;
     setMaskRequest(null);
     if (!request) return;
@@ -1407,6 +1457,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     insets: CanvasExpandInsets,
     sceneDescription: string,
   ) => {
+    // P7: one press, one paid submission. See `editorSubmittingRef`.
+    if (editorSubmittingRef.current) return;
+    editorSubmittingRef.current = true;
     const request = expandRequest;
     setExpandRequest(null);
     if (!request) return;
@@ -1688,6 +1741,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           setToolIntent(null);
           setCropRequest(null);
           setExpandRequest(null);
+          editorSubmittingRef.current = false;
           setMaskRequest({ nodeId, toolId, mediaRef: found.node.mediaRef });
           return;
         }
@@ -1697,6 +1751,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           setToolIntent(null);
           setCropRequest(null);
           setMaskRequest(null);
+          editorSubmittingRef.current = false;
           setExpandRequest({ nodeId, mediaRef: found.node.mediaRef });
           return;
         }
@@ -1740,6 +1795,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         setToolIntent(null);
         setMaskRequest(null);
         setExpandRequest(null);
+        editorSubmittingRef.current = false;
         setCropRequest({ nodeId, mediaRef: found.node.mediaRef });
       },
       retry: nodeId => {
