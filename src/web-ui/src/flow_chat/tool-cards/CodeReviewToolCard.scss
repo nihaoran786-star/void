@@ -31,13 +31,13 @@
     height: 24px;
     padding: 0;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--size-radius-sm);
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
     transition:
-      background 160ms ease,
-      color 160ms ease;
+      background var(--motion-fast) var(--easing-standard),
+      color var(--motion-fast) var(--easing-standard);
 
     &:hover:not(:disabled) {
       background: var(--color-bg-hover, rgba(255, 255, 255, 0.08));
@@ -60,11 +60,13 @@
   height: 20px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--size-radius-sm);
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+      background var(--motion-fast) var(--easing-standard),
+      border-color var(--motion-fast) var(--easing-standard);
   flex-shrink: 0;
 
   &:hover {
@@ -106,7 +108,7 @@
     max-width: 100%;
     padding: 6px 8px;
     border-left: 2px solid var(--color-accent-500, #60a5fa);
-    border-radius: 4px;
+    border-radius: var(--size-radius-sm);
     background: color-mix(in srgb, var(--color-bg-elevated) 70%, transparent);
     color: var(--color-text-secondary);
     font-size: var(--flowchat-font-size-xs);
@@ -162,8 +164,7 @@
       flex-direction: column;
       gap: 0;
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
-      border: 1px solid var(--border-base);
-      border-radius: 6px;
+      border-radius: var(--size-radius-sm);
       overflow: hidden;
     }
 
@@ -220,8 +221,7 @@
 
   .review-report-section {
     overflow: hidden;
-    border: 1px solid var(--border-base);
-    border-radius: 8px;
+    border-radius: var(--size-radius-base);
     background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
   }
 
@@ -292,8 +292,8 @@
 
     li {
       padding: 2px 4px;
-      border-radius: 3px;
-      transition: background-color 0.15s ease;
+      border-radius: var(--size-radius-sm);
+      transition: background-color var(--motion-fast) var(--easing-standard);
 
       &.is-highlighted {
         animation: review-highlight-fade 2s ease-out forwards;
@@ -360,8 +360,7 @@
     gap: 3px;
     min-width: 0;
     padding: 8px;
-    border: 1px solid var(--border-base);
-    border-radius: 6px;
+    border-radius: var(--size-radius-sm);
     background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
 
     span {
@@ -405,8 +404,7 @@
     max-width: 100%;
     gap: 2px;
     padding: 6px 8px;
-    border: 1px solid var(--border-base);
-    border-radius: 6px;
+    border-radius: var(--size-radius-sm);
     background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
   }
 
@@ -441,8 +439,7 @@
       gap: 8px;
       min-width: 0;
       padding: 6px 8px;
-      border: 1px solid var(--border-base);
-      border-radius: 6px;
+      border-radius: var(--size-radius-sm);
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
       color: var(--color-text-secondary);
       font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
@@ -486,8 +483,7 @@
 
   .reviewer-item {
     padding: 10px;
-    border-radius: 6px;
-    border: 1px solid var(--border-base);
+    border-radius: var(--size-radius-sm);
     background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
   }
 
@@ -518,9 +514,8 @@
   .reviewer-issues {
     font-size: var(--flowchat-font-size-xxs);
     color: var(--color-text-muted);
-    border: 1px solid var(--border-base);
     background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
-    border-radius: 999px;
+    border-radius: var(--size-radius-full);
     padding: 2px 6px;
     white-space: nowrap;
   }
@@ -540,11 +535,13 @@
   .issues-list .review-issue-item {
     background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
     border: 1px solid var(--border-base);
-    border-radius: 6px;
+    border-radius: var(--size-radius-sm);
     padding: 10px;
     font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
     line-height: var(--flowchat-support-line-height, 1.45);
-    transition: all 0.2s ease;
+    transition:
+      background var(--motion-fast) var(--easing-standard),
+      border-color var(--motion-fast) var(--easing-standard);
     position: relative;
     overflow: hidden;
 
@@ -597,8 +594,7 @@
       font-size: var(--flowchat-font-size-xxs);
       padding: 1px 5px;
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
-      border-radius: 3px;
-      border: 1px solid var(--border-base);
+      border-radius: var(--size-radius-sm);
     }
 
     .issue-source {
@@ -606,7 +602,7 @@
       color: var(--color-accent-500, #60a5fa);
       border: 1px solid color-mix(in srgb, var(--color-accent-500, #60a5fa) 35%, transparent);
       background: color-mix(in srgb, var(--color-accent-500, #60a5fa) 10%, transparent);
-      border-radius: 999px;
+      border-radius: var(--size-radius-full);
       padding: 1px 6px;
       white-space: nowrap;
     }
@@ -625,10 +621,9 @@
       color: var(--color-text-muted);
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
       padding: 1px 6px;
-      border-radius: 3px;
+      border-radius: var(--size-radius-sm);
       white-space: nowrap;
       flex-shrink: 0;
-      border: 1px solid var(--border-base);
     }
 
     .issue-title {
@@ -648,16 +643,14 @@
       color: var(--color-text-muted);
       margin-bottom: 6px;
       padding: 6px 8px;
-      border-radius: 4px;
+      border-radius: var(--size-radius-sm);
       background: rgba(59, 130, 246, 0.08);
-      border: 1px solid rgba(59, 130, 246, 0.16);
       font-size: var(--flowchat-font-size-xs);
     }
 
     .issue-suggestion {
       background: rgba(34, 197, 94, 0.06);
-      border: 1px solid rgba(34, 197, 94, 0.15);
-      border-radius: 4px;
+      border-radius: var(--size-radius-sm);
       padding: 8px;
       display: flex;
       align-items: flex-start;
@@ -697,8 +690,7 @@
 
     .reviewer-item {
       padding: 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border-base);
+      border-radius: var(--size-radius-sm);
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
     }
 
@@ -729,9 +721,8 @@
     .reviewer-issues {
       font-size: var(--flowchat-font-size-xxs);
       color: var(--color-text-muted);
-      border: 1px solid var(--border-base);
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
-      border-radius: 999px;
+      border-radius: var(--size-radius-full);
       padding: 2px 6px;
       white-space: nowrap;
     }
@@ -764,11 +755,13 @@
       .review-issue-item {
         background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
         border: 1px solid var(--border-base);
-        border-radius: 6px;
+        border-radius: var(--size-radius-sm);
         padding: 10px;
         font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
         line-height: var(--flowchat-support-line-height, 1.45);
-        transition: all 0.2s ease;
+        transition:
+      background var(--motion-fast) var(--easing-standard),
+      border-color var(--motion-fast) var(--easing-standard);
         position: relative;
         overflow: hidden;
 
@@ -820,8 +813,7 @@
               font-size: var(--flowchat-font-size-xxs);
               padding: 1px 5px;
               background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
-              border-radius: 3px;
-              border: 1px solid var(--border-base);
+              border-radius: var(--size-radius-sm);
             }
 
             .issue-source {
@@ -829,7 +821,7 @@
               color: var(--color-accent-500, #60a5fa);
               border: 1px solid color-mix(in srgb, var(--color-accent-500, #60a5fa) 35%, transparent);
               background: color-mix(in srgb, var(--color-accent-500, #60a5fa) 10%, transparent);
-              border-radius: 999px;
+              border-radius: var(--size-radius-full);
               padding: 1px 6px;
               white-space: nowrap;
             }
@@ -849,10 +841,9 @@
             color: var(--color-text-muted);
             background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
             padding: 1px 6px;
-            border-radius: 3px;
+            border-radius: var(--size-radius-sm);
             white-space: nowrap;
             flex-shrink: 0;
-            border: 1px solid var(--border-base);
           }
         }
 
@@ -873,16 +864,14 @@
           color: var(--color-text-muted);
           margin-bottom: 6px;
           padding: 6px 8px;
-          border-radius: 4px;
+          border-radius: var(--size-radius-sm);
           background: rgba(59, 130, 246, 0.08);
-          border: 1px solid rgba(59, 130, 246, 0.16);
           font-size: var(--flowchat-font-size-xs);
         }
 
         .issue-suggestion {
           background: rgba(34, 197, 94, 0.06);
-          border: 1px solid rgba(34, 197, 94, 0.15);
-          border-radius: 4px;
+          border-radius: var(--size-radius-sm);
           padding: 8px;
           display: flex;
           align-items: flex-start;
@@ -946,7 +935,7 @@
       gap: 8px;
       padding: 10px;
       border: 1px solid var(--border-base);
-      border-radius: 10px;
+      border-radius: var(--size-radius-base);
       background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
       color: var(--color-text-primary);
       font-size: var(--tool-card-action-font-size, var(--flowchat-font-size-sm));
@@ -986,7 +975,7 @@
       justify-content: center;
       width: 18px;
       height: 18px;
-      border-radius: 999px;
+      border-radius: var(--size-radius-full);
       background: color-mix(in srgb, var(--color-accent-500, #60a5fa) 16%, transparent);
       color: var(--color-accent-500, #60a5fa);
       font-size: var(--flowchat-font-size-xxs);
@@ -1002,15 +991,15 @@
       flex-shrink: 0;
       padding: 3px 7px;
       border: 1px solid var(--border-subtle);
-      border-radius: 999px;
+      border-radius: var(--size-radius-full);
       background: transparent;
       color: var(--color-text-muted);
       font-size: var(--flowchat-font-size-xs);
       cursor: pointer;
       transition:
-        background 160ms ease,
-        border-color 160ms ease,
-        color 160ms ease;
+        background var(--motion-fast) var(--easing-standard),
+        border-color var(--motion-fast) var(--easing-standard),
+        color var(--motion-fast) var(--easing-standard);
 
       &:hover {
         background: var(--element-bg-hover);
@@ -1024,7 +1013,7 @@
       flex-direction: column;
       gap: 8px;
       padding: 10px;
-      border-radius: 8px;
+      border-radius: var(--size-radius-base);
       border: 1px solid color-mix(in srgb, var(--border-subtle) 84%, var(--color-accent-500, #60a5fa) 16%);
       background: color-mix(in srgb, var(--color-bg-primary) 72%, transparent);
       color: var(--color-text-secondary);
@@ -1063,7 +1052,7 @@
         gap: 2px;
         min-width: 0;
         padding: 7px 8px;
-        border-radius: 7px;
+        border-radius: var(--size-radius-sm);
         background: color-mix(in srgb, var(--color-bg-elevated) 78%, transparent);
       }
 
@@ -1085,7 +1074,7 @@
     .remediation-item__suggestion,
     .remediation-item__validation {
       padding: 8px;
-      border-radius: 7px;
+      border-radius: var(--size-radius-sm);
     }
 
     .remediation-item__suggestion {
@@ -1115,7 +1104,7 @@
     margin: 12px 0 2px;
     padding: 12px;
     border: 1px solid color-mix(in srgb, var(--color-accent-500, #60a5fa) 24%, var(--border-base));
-    border-radius: 12px;
+    border-radius: var(--size-radius-lg);
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--color-bg-elevated) 94%, transparent), color-mix(in srgb, var(--color-bg-primary) 90%, transparent)),
       color-mix(in srgb, var(--color-accent-500, #60a5fa) 8%, var(--color-bg-elevated, transparent));
@@ -1180,8 +1169,7 @@
         line-height: var(--flowchat-support-line-height, 1.45);
         padding: 6px 8px;
         background: var(--color-bg-elevated, rgba(255, 255, 255, 0.02));
-        border-radius: 4px;
-        border: 1px solid var(--border-base);
+        border-radius: var(--size-radius-sm);
       }
     }
   }

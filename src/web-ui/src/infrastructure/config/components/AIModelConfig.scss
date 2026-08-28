@@ -109,7 +109,7 @@
     min-width: 20px;
     height: 20px;
     padding: 0 6px;
-    border-radius: 999px;
+    border-radius: $size-radius-full;
     background: var(--element-bg-subtle);
     color: var(--color-text-muted);
     font-size: var(--font-size-2xs);
@@ -163,7 +163,7 @@
   &__status-dot {
     width: 7px;
     height: 7px;
-    border-radius: 999px;
+    border-radius: $size-radius-full;
     margin-left: 4px;
     flex-shrink: 0;
     background: var(--color-text-muted);
@@ -247,7 +247,6 @@
     align-items: center;
     padding: 1px 7px;
     border-radius: $size-radius-sm;
-    border: 1px solid var(--border-subtle);
     background: var(--element-bg-medium);
     font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
@@ -409,8 +408,8 @@
     border: 1px solid var(--border-base, rgba(255, 255, 255, 0.14));
     border-radius: var(--size-radius-sm, 6px);
     transition:
-      background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
-      border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     min-height: 36px;
 
     
@@ -428,7 +427,7 @@
     svg {
       color: var(--color-text-muted, #a0a0a0);
       flex-shrink: 0;
-      transition: color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+      transition: color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     }
 
     &:focus-within svg {
@@ -959,10 +958,10 @@
       font-size: var(--font-size-sm);
   font-family: var(--font-family-sans);
       transition:
-        background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
-        border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
-        color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
-        opacity var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+        background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+        border-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+        color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+        opacity var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
       min-height: 36px;
 
       
@@ -1504,8 +1503,8 @@
     border-radius: var(--size-radius-sm, 6px);
     border: 1px solid var(--border-base, rgba(255, 255, 255, 0.14));
     transition:
-      background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
-      border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
 
     &:hover {
       background: var(--element-bg-subtle, rgba(255, 255, 255, 0.05));
@@ -1545,7 +1544,7 @@
     justify-content: center;
     width: 18px;
     height: 18px;
-    border-radius: 999px;
+    border-radius: $size-radius-full;
     color: var(--color-text-muted);
     cursor: help;
     transition: color $motion-base $easing-standard, background-color $motion-base $easing-standard;

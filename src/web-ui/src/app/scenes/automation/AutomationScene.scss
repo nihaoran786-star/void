@@ -47,9 +47,9 @@
   --as-muted-18: color-mix(in srgb, var(--as-muted) 18%, transparent);
   --as-border-60: color-mix(in srgb, var(--as-border) 60%, transparent);
 
-  --as-radius-sm: 4px;
-  --as-radius: 6px;
-  --as-radius-lg: 10px;
+  --as-radius-sm: var(--size-radius-sm);
+  --as-radius: var(--size-radius-base);
+  --as-radius-lg: var(--size-radius-lg);
   --as-font-size-meta: 10px;
   --as-font-size-micro: calc(var(--as-font-size-meta) - 1px);
   --as-font-size-label: 11px;
