@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { InfiniteCanvasDocument } from '@/shared/services/infinite-canvas';
 import {
+  addDomainImportNodeContent,
   addImageNodeContent,
   addTextNodeContent,
   attachBatchToOperationContent,
@@ -9,6 +10,7 @@ import {
   connectNodesContent,
   createInfiniteCanvasId,
   failOperationContent,
+  findDomainImportNodeId,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   moveNodeContent,
@@ -468,6 +470,86 @@ describe('infiniteCanvasPanelModel', () => {
         derivedFrom: { sourceNodeId: 'src', toolId: 'expand', operationId: 'op-1' },
         generation: { operationId: 'op-1', status: 'pending', resultMode: 'derived' },
       });
+    });
+  });
+
+  /**
+   * K3 §5.1.6: a short-drama asset landing on the board. Behaviour only.
+   */
+  describe('short-drama import cards', () => {
+    const DOMAIN_REF = {
+      moduleId: 'short-drama',
+      kind: 'character',
+      id: 'artifact-1',
+      role: 'refine',
+    };
+    const MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/a.png' };
+
+    it('lands a plain picture card that remembers where it came from', () => {
+      const next = addDomainImportNodeContent(
+        makeDocument(), 'node-1', { x: 10, y: 20 }, MEDIA_REF, DOMAIN_REF,
+      );
+
+      expect(next.nodes).toHaveLength(1);
+      expect(next.nodes[0]).toEqual({
+        nodeId: 'node-1',
+        kind: 'image',
+        position: { x: 10, y: 20 },
+        mediaRef: MEDIA_REF,
+        domainRef: DOMAIN_REF,
+      });
+    });
+
+    it('finds the card an asset already has, whatever role brought it in', () => {
+      const document = makeDocument({
+        nodes: [{
+          nodeId: 'node-1',
+          kind: 'image',
+          position: { x: 0, y: 0 },
+          mediaRef: MEDIA_REF,
+          domainRef: DOMAIN_REF,
+        }],
+      });
+
+      expect(findDomainImportNodeId(document, DOMAIN_REF)).toBe('node-1');
+      expect(findDomainImportNodeId(document, { ...DOMAIN_REF, role: 'reference' }))
+        .toBe('node-1');
+    });
+
+    it('does not confuse one asset with another', () => {
+      const document = makeDocument({
+        nodes: [{
+          nodeId: 'node-1',
+          kind: 'image',
+          position: { x: 0, y: 0 },
+          mediaRef: MEDIA_REF,
+          domainRef: DOMAIN_REF,
+        }],
+      });
+
+      expect(findDomainImportNodeId(document, { ...DOMAIN_REF, id: 'artifact-2' }))
+        .toBeUndefined();
+      expect(findDomainImportNodeId(document, { ...DOMAIN_REF, kind: 'storyboard' }))
+        .toBeUndefined();
+      expect(findDomainImportNodeId(makeDocument(), DOMAIN_REF)).toBeUndefined();
+    });
+
+    it('projects the belonging so the card face can name it', () => {
+      const document = addDomainImportNodeContent(
+        makeDocument(), 'node-1', { x: 0, y: 0 }, MEDIA_REF, DOMAIN_REF,
+      );
+
+      expect(toFlowNodeViews(document.nodes)[0].data).toMatchObject({
+        domainRef: DOMAIN_REF,
+      });
+    });
+
+    it('leaves an ordinary card without one', () => {
+      const document = addImageNodeContent(
+        makeDocument(), 'node-1', { x: 0, y: 0 }, MEDIA_REF,
+      );
+
+      expect(toFlowNodeViews(document.nodes)[0].data.domainRef).toBeUndefined();
     });
   });
 });

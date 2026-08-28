@@ -322,6 +322,25 @@
   text-overflow: ellipsis;
 }
 
+// K3 §5.1.8: "from short drama · Character CHAR-001". It lives in the label
+// strip above the card, in the same faint grey as the type label and the
+// reference marks — §2 keeps the card face free of decoration, so a belonging
+// mark reads as one more word above the card, never as a pill on the picture.
+.infinite-canvas-node__domain-badge {
+  overflow: hidden;
+  flex: 0 1 auto;
+  color: var(--canvas-text-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// The asset is gone. The card and its picture stay; only the mark dims, and it
+// still says where the picture came from.
+.infinite-canvas-node__domain-badge[data-domain-state='dangling'] {
+  opacity: 0.6;
+}
+
 // The small accent dot after the label: this card holds a finished result.
 .infinite-canvas-node__label-done {
   width: 6px;

@@ -182,6 +182,37 @@ describe('infinite-canvas Canvas surface', () => {
     });
   });
 
+  /**
+   * K3 §5.1.6, the other half of the idempotency story: a reopen that carries
+   * no payload must CLEAR the previous one, not inherit it. Session restore
+   * reopens the board without input, and a stale handoff surviving that would
+   * make the same asset land again every time the tab came back.
+   */
+  it('clears a delivered handoff when the board is reopened without one', async () => {
+    const { service } = activate();
+
+    await service.open({
+      surfaceId: INFINITE_CANVAS_SURFACE_ID,
+      source: 'capability-rail',
+      workspace: LOCAL_WORKSPACE,
+      sourceSessionId: 'session-1',
+      input: { domainRef: DOMAIN_REF, requestId: 'req-1' },
+      idempotencyKey: 'open-infinite-canvas-handoff-1',
+    });
+    await service.open({
+      surfaceId: INFINITE_CANVAS_SURFACE_ID,
+      source: 'restore',
+      workspace: LOCAL_WORKSPACE,
+      sourceSessionId: 'session-1',
+      input: undefined,
+      idempotencyKey: 'restore-infinite-canvas',
+    });
+
+    const content = useAgentCanvasStore.getState().primaryGroup.tabs[0]?.content;
+    expect(content?.data).not.toHaveProperty('domainRef');
+    expect(content?.data).not.toHaveProperty('requestId');
+  });
+
   it('is unavailable on a remote workspace, matching the media fail-closed rule', async () => {
     const { service } = activate();
 

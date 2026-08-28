@@ -1126,6 +1126,20 @@
       "reference": "參考圖",
       "text": "文字"
     },
+    "domainRef": {
+      "kind": {
+        "character": "角色",
+        "location": "場景",
+        "storyboard": "分鏡"
+      },
+      "label": "來自短劇 · {{kind}} {{handle}}",
+      "labelPending": "來自短劇 · {{kind}}",
+      "labelMissing": "來自短劇 · {{kind}}（已不存在）"
+    },
+    "domainImport": {
+      "assetMissing": "目前工作區裡找不到這個短劇產物。",
+      "unusablePicture": "這個產物的圖暫時送不進畫布。"
+    },
     "status": {
       "ready": "已完成"
     },

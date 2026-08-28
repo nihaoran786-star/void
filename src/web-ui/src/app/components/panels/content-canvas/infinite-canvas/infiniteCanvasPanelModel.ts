@@ -9,6 +9,7 @@
 import type {
   ImageToolErrorKind,
   InfiniteCanvasDocument,
+  InfiniteCanvasDomainRef,
   InfiniteCanvasEdge,
   InfiniteCanvasGenerationParams,
   InfiniteCanvasNode,
@@ -16,6 +17,7 @@ import type {
 } from '@/shared/services/infinite-canvas';
 import {
   infiniteCanvasActiveVariantIndex,
+  infiniteCanvasDomainRefKey,
   infiniteCanvasGenerationAppendsToCard,
   infiniteCanvasNodeVariants,
   setInfiniteCanvasActiveVariant,
@@ -44,6 +46,8 @@ export interface InfiniteCanvasFlowNodeView {
     generationParams?: InfiniteCanvasGenerationParams;
     derivedFrom?: NonNullable<InfiniteCanvasNode['derivedFrom']>;
     generation?: NonNullable<InfiniteCanvasNode['generation']>;
+    /** K3: which short-drama asset this card belongs to, if any. Read-only. */
+    domainRef?: InfiniteCanvasDomainRef;
   };
 }
 
@@ -119,6 +123,7 @@ export function toFlowNodeViews(
           : { generationParams: { ...node.generationParams } }),
         ...(node.derivedFrom === undefined ? {} : { derivedFrom: { ...node.derivedFrom } }),
         ...(node.generation === undefined ? {} : { generation: { ...node.generation } }),
+        ...(node.domainRef === undefined ? {} : { domainRef: { ...node.domainRef } }),
       },
     });
   }
@@ -160,6 +165,48 @@ export function addImageNodeContent(
 ): InfiniteCanvasDocumentContent {
   const node: InfiniteCanvasNode = { nodeId, kind: 'image', position, mediaRef };
   return { ...content(document), nodes: [...document.nodes, node] };
+}
+
+/**
+ * K3 §5.1.6: land a short-drama asset on the board as an ordinary picture card
+ * that happens to remember where it came from.
+ *
+ * Three deliberate absences. No `prompt`, no `derivedFrom`, no `generation`:
+ * this card is a root, not a version of anything. And no file copy — the card
+ * points at the very same file the short-drama asset points at, the same way a
+ * pasted card shares a file rather than duplicating one. The board never
+ * writes the media domain.
+ *
+ * Deduping is not this function's job — see {@link findDomainImportNodeId},
+ * which the caller asks first. One asset has exactly one official refinement
+ * slot on the board: two cards claiming the same asset would leave the user
+ * with no way to tell which one is real, so a repeat send reveals the card
+ * that already exists instead of growing another.
+ */
+export function addDomainImportNodeContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  position: { x: number; y: number },
+  mediaRef: { workspacePath: string; relativePath: string },
+  domainRef: InfiniteCanvasDomainRef,
+): InfiniteCanvasDocumentContent {
+  const node: InfiniteCanvasNode = { nodeId, kind: 'image', position, mediaRef, domainRef };
+  return { ...content(document), nodes: [...document.nodes, node] };
+}
+
+/**
+ * The card that already speaks for this asset, if the board has one. Used both
+ * to keep a repeat send from creating a duplicate and to reveal the existing
+ * card instead, which is what the user actually wanted.
+ */
+export function findDomainImportNodeId(
+  document: Readonly<InfiniteCanvasDocument>,
+  domainRef: InfiniteCanvasDomainRef,
+): string | undefined {
+  const key = infiniteCanvasDomainRefKey(domainRef);
+  return document.nodes.find(node => (
+    node.domainRef !== undefined && infiniteCanvasDomainRefKey(node.domainRef) === key
+  ))?.nodeId;
 }
 
 export function setNodeTextContent(

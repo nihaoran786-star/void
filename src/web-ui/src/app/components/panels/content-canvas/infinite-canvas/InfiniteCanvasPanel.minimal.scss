@@ -34,6 +34,14 @@
     padding: var(--workspace-space-1) var(--workspace-space-2);
   }
 
+  // K3 belonging mark, minimal presentation. The overlay only adopts the
+  // workspace type scale and muted colour; the geometry stays in the classic
+  // sheet so the two sheets cannot drift.
+  .void-ui--minimal .infinite-canvas-node__domain-badge {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-label);
+  }
+
   .void-ui--minimal .infinite-canvas-editor__pill button,
   .void-ui--minimal .infinite-canvas-editor__note,
   .void-ui--minimal .infinite-canvas-viewer__name,

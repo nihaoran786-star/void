@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  infiniteCanvasDomainRefKey,
-  validateInfiniteCanvasSurfaceInput,
-} from './infiniteCanvasCapabilityInput';
+import { infiniteCanvasDomainRefKey } from '@/shared/services/infinite-canvas';
+import { validateInfiniteCanvasSurfaceInput } from './infiniteCanvasCapabilityInput';
 
 const DOMAIN_REF = {
   moduleId: 'short-drama',

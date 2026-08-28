@@ -1126,6 +1126,20 @@
       "reference": "Reference",
       "text": "Text"
     },
+    "domainRef": {
+      "kind": {
+        "character": "Character",
+        "location": "Location",
+        "storyboard": "Storyboard"
+      },
+      "label": "From short drama · {{kind}} {{handle}}",
+      "labelPending": "From short drama · {{kind}}",
+      "labelMissing": "From short drama · {{kind}} (no longer exists)"
+    },
+    "domainImport": {
+      "assetMissing": "That short drama asset could not be found in this workspace.",
+      "unusablePicture": "That asset's picture could not be brought onto the canvas."
+    },
     "status": {
       "ready": "Ready"
     },

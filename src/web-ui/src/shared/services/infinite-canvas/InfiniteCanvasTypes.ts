@@ -69,6 +69,23 @@ export const INFINITE_CANVAS_DOMAIN_KINDS = [
 export const INFINITE_CANVAS_DOMAIN_ROLES = ['refine'] as const;
 
 /**
+ * K3 §5.1.6: the document-level identity of a domain reference. Two references
+ * naming the same asset are the same "official refinement slot" whatever
+ * request brought them in, which is what keeps a second send of the same asset
+ * from growing a second card that would then fight the first one over which is
+ * the real one.
+ *
+ * `role` is deliberately not part of the key: the same asset in two roles is
+ * still the same asset. The separator is a NUL escape, not a literal NUL byte
+ * — a raw one in the source turns the whole file binary to git.
+ */
+export function infiniteCanvasDomainRefKey(
+  domainRef: InfiniteCanvasDomainRef,
+): string {
+  return [domainRef.moduleId, domainRef.kind, domainRef.id].join('\u0000');
+}
+
+/**
  * Node kinds. `'video'` is a P3 addition (schemaVersion stays '1'); known
  * trade-off recorded in the contract: pre-P3 parsers reject a document that
  * contains a video node as `invalid-document`, so the parser upgrade ships

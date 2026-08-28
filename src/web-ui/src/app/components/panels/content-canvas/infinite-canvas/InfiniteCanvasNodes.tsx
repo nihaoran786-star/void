@@ -41,9 +41,11 @@ import type {
   CanvasImageOperationKind,
   ImageToolErrorKind,
   ImageToolId,
+  InfiniteCanvasDomainRef,
   InfiniteCanvasGenerationParams,
 } from '@/shared/services/infinite-canvas';
 import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
+import { useInfiniteCanvasDomainOrigin } from './infiniteCanvasDomainOrigins';
 import { InfiniteCanvasVideoCard } from './InfiniteCanvasVideoCard';
 
 export interface InfiniteCanvasMediaRef {
@@ -131,6 +133,12 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
    * coordinates and this card lives inside reactflow's transformed pane.
    */
   onOpenOverflow?: (nodeId: string, anchor: HTMLElement) => void;
+  /**
+   * K3: which short-drama asset this card belongs to. Read-only on the card —
+   * the badge cannot be edited or dismissed, and deleting the card is the only
+   * way to undo the belonging.
+   */
+  domainRef?: InfiniteCanvasDomainRef;
 }
 
 export interface InfiniteCanvasImageNodeData extends InfiniteCanvasMediaNodeData {
@@ -211,6 +219,48 @@ function cardLabelKey(
 }
 
 /**
+ * K3 §5.1.8: "from short drama · Character CHAR-001".
+ *
+ * It rides in the label strip ABOVE the card rather than as a corner pill over
+ * the picture, because the visual language is explicit that the card face
+ * carries no decoration (§2) and that marks of this kind stay grey and stay at
+ * the same level as the type label (§2, §3.2 reference marks). A badge sitting
+ * on the picture would be the one thing the whole board is designed not to do.
+ *
+ * Read-only, always: there is no way to edit the belonging and no way to click
+ * it off. Deleting the card is the only way to undo it.
+ */
+const NodeDomainBadge: React.FC<{
+  domainRef?: InfiniteCanvasDomainRef;
+}> = ({ domainRef }) => {
+  const { t } = useI18n('components');
+  const origin = useInfiniteCanvasDomainOrigin(domainRef);
+  if (!domainRef || !origin) return null;
+
+  const kind = t(`infiniteCanvas.domainRef.kind.${domainRef.kind}`);
+  const label = origin.state === 'dangling'
+    ? t('infiniteCanvas.domainRef.labelMissing', { kind })
+    : origin.state === 'known' && origin.handle
+      ? t('infiniteCanvas.domainRef.label', { kind, handle: origin.handle })
+      // Still reading the project, or an asset with no handle yet: say where
+      // the card came from without claiming anything about what it is now.
+      : t('infiniteCanvas.domainRef.labelPending', { kind });
+
+  return (
+    <span
+      className="infinite-canvas-node__domain-badge"
+      data-testid="infinite-canvas-domain-badge"
+      data-domain-state={origin.state}
+      data-domain-kind={domainRef.kind}
+    >
+      {label}
+    </span>
+  );
+};
+
+NodeDomainBadge.displayName = 'InfiniteCanvasNodeDomainBadge';
+
+/**
  * The label strip that floats above the card: icon, one grey line, the
  * reference-order marks, and a small accent dot once the card holds a
  * finished result. No background, no pill — §2.
@@ -220,12 +270,14 @@ const NodeLabel: React.FC<{
   icon: React.ReactNode;
   referenceLabels?: readonly string[];
   done?: boolean;
-}> = ({ labelKey, icon, referenceLabels, done }) => {
+  domainRef?: InfiniteCanvasDomainRef;
+}> = ({ labelKey, icon, referenceLabels, done, domainRef }) => {
   const { t } = useI18n('components');
   return (
     <div className="infinite-canvas-node__label">
       <span className="infinite-canvas-node__label-icon" aria-hidden="true">{icon}</span>
       <span className="infinite-canvas-node__label-text">{t(labelKey)}</span>
+      <NodeDomainBadge domainRef={domainRef} />
       {(referenceLabels ?? []).length > 0 ? (
         <span
           className="infinite-canvas-node__reference-badges"
@@ -619,6 +671,7 @@ const InfiniteCanvasMediaCard: React.FC<
           : <ImageIcon size={12} aria-hidden="true" />}
         referenceLabels={referenceLabels}
         done={Boolean(mediaRef) && !pending && !failed}
+        domainRef={data.domainRef}
       />
       <div className="infinite-canvas-node__frame">
         {mediaRef ? (

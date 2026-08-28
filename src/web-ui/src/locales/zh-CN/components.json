@@ -1126,6 +1126,20 @@
       "reference": "参考图",
       "text": "文字"
     },
+    "domainRef": {
+      "kind": {
+        "character": "角色",
+        "location": "场景",
+        "storyboard": "分镜"
+      },
+      "label": "来自短剧 · {{kind}} {{handle}}",
+      "labelPending": "来自短剧 · {{kind}}",
+      "labelMissing": "来自短剧 · {{kind}}（已不存在）"
+    },
+    "domainImport": {
+      "assetMissing": "当前工作区里找不到这个短剧资产。",
+      "unusablePicture": "这个资产的图暂时送不进画布。"
+    },
     "status": {
       "ready": "已完成"
     },

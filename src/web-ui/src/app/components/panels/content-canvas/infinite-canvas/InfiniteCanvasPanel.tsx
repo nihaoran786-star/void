@@ -31,6 +31,14 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { useI18n } from '@/infrastructure/i18n';
+import { notificationService } from '@/shared/notification-system/services/NotificationService';
+import {
+  resolveShortDramaCanvasImport,
+  resolveShortDramaCanvasOrigin,
+  type ShortDramaCanvasOrigin,
+} from '@/shared/services/canvas-short-drama/shortDramaCanvasImport';
+import { readShortDramaProjectForCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasProjectReader';
+import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
 import type {
   ImageToolErrorKind,
   ImageToolId,
@@ -57,6 +65,7 @@ import {
   createInfiniteCanvasMediaBridge,
   createInfiniteCanvasOpsBridge,
   defaultInfiniteCanvasDocumentId,
+  infiniteCanvasDomainRefKey,
   reconcileInfiniteCanvasAgentOps,
   reconcilePendingInfiniteCanvasGenerations,
   referenceImageLabel,
@@ -91,6 +100,7 @@ import {
   type InfiniteCanvasGenerationRuntime,
 } from './infiniteCanvasGenerationRuntime';
 import {
+  addDomainImportNodeContent,
   addImageNodeContent,
   addTextNodeContent,
   applyLocalDerivedMedia,
@@ -100,6 +110,7 @@ import {
   connectNodesContent,
   createInfiniteCanvasId,
   failOperationContent,
+  findDomainImportNodeId,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   INFINITE_CANVAS_VIDEO_NODE_TYPE,
@@ -128,6 +139,10 @@ import {
   setNodeGenerationParamsContent,
   setNodePromptContent,
 } from './infiniteCanvasGenerationModel';
+import {
+  InfiniteCanvasDomainOriginProvider,
+  type InfiniteCanvasDomainOrigins,
+} from './infiniteCanvasDomainOrigins';
 import { InfiniteCanvasEdge } from './InfiniteCanvasEdge';
 import {
   InfiniteCanvasGenerator,
@@ -488,6 +503,14 @@ export interface InfiniteCanvasPanelProps {
     domainRef: InfiniteCanvasDomainRef;
     requestId: string;
   };
+  /**
+   * K3: the board's read-only window onto the short-drama project. Used to ask
+   * an asset for its current picture on import, and for the handle its badge
+   * shows. Injected in tests so no manifest file is ever touched.
+   */
+  readShortDramaProject?: (
+    workspacePath: string | undefined,
+  ) => Promise<ShortDramaProject | undefined>;
   /** Injection seams for tests; production uses the shared singletons. */
   service?: InfiniteCanvasDocumentService;
   resolvePreviewUrl?: InfiniteCanvasImagePreviewResolver;
@@ -527,6 +550,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   workspaceId,
   workspacePath,
   sourceSessionId,
+  pendingDomainImport,
+  readShortDramaProject = readShortDramaProjectForCanvas,
   service: injectedService,
   resolvePreviewUrl = defaultPreviewResolver,
   mediaLibrary = workspaceMediaLibraryService,
@@ -689,6 +714,34 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const selectedNodeIdsRef = React.useRef<string[]>([]);
   selectedNodeIdsRef.current = selectedNodeIds;
   /**
+   * K3 §5.1.6: the request ids this panel has already acted on.
+   *
+   * The surface uses the `'update'` strategy, so an already-open board really
+   * does receive each new payload — and it also keeps receiving the last one
+   * across re-mounts and session restores. Without this the same asset would
+   * quietly land again every time the tab came back.
+   */
+  const handledImportRequestIdsRef = React.useRef(new Set<string>());
+  /**
+   * The import runs at most once per request id, so it must NOT be abandoned
+   * just because the effect re-ran — `t` and a few callbacks change identity on
+   * ordinary re-renders, and a per-effect cancel flag would abort the one run
+   * the request ever gets. Unmounting is the only thing that should stop it.
+   */
+  const isMountedRef = React.useRef(true);
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+  /**
+   * K3 §5.1.8: handles for the "from short drama" badges, resolved at runtime.
+   * `undefined` means "not read yet" and is not the same as an empty map,
+   * which means "read, and this card's asset is gone".
+   */
+  const [domainOrigins, setDomainOrigins] = React.useState<
+    InfiniteCanvasDomainOrigins | undefined
+  >(undefined);
+  /**
    * Selected connections. Edges are not mirrored into React state the way
    * nodes are — nothing renders off them but the Delete key — so a ref is the
    * whole story and no extra re-render is provoked by clicking a wire.
@@ -824,6 +877,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             generation: view.data.generation,
             derivedFrom: view.data.derivedFrom,
             referenceLabels: referenceLabels.get(view.id) ?? [],
+            // K3: which short-drama asset this card belongs to. Read-only from
+            // here on — no card control can change or clear it.
+            ...(view.data.domainRef === undefined
+              ? {}
+              : { domainRef: view.data.domainRef }),
             resolvePreviewUrl,
             onCommitPrompt: (nodeId: string, prompt: string) => (
               nodeActionsRef.current.commitPrompt(nodeId, prompt)
@@ -2474,6 +2532,119 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     }, { history: true });
   }, [commit, imagePickerIntent, nextSpawnPosition, singleSelectedMediaNodeId]);
 
+  // —— K3: a short-drama asset arrives on the board ————————————————————————
+
+  /**
+   * §5.1.8: resolve the badge handles whenever the set of belonging cards
+   * changes. Keyed on the set, not on every commit, so moving a card or typing
+   * in one does not re-read the project.
+   */
+  const domainRefSignature = React.useMemo(() => {
+    const keys: string[] = [];
+    for (const node of flowNodes) {
+      const domainRef = (node.data as { domainRef?: InfiniteCanvasDomainRef }).domainRef;
+      if (domainRef) keys.push(infiniteCanvasDomainRefKey(domainRef));
+    }
+    return keys.sort().join('|');
+  }, [flowNodes]);
+
+  React.useEffect(() => {
+    if (!domainRefSignature) {
+      // Nothing belongs to anything: that is a complete answer, not a pending
+      // one, so the map is empty rather than absent.
+      setDomainOrigins(new Map());
+      return undefined;
+    }
+    let cancelled = false;
+    void (async () => {
+      const project = await readShortDramaProject(workspacePath);
+      if (cancelled) return;
+      if (!project) {
+        // Unreadable is not the same as "the asset is gone", and a badge must
+        // not accuse a project it could not open.
+        setDomainOrigins(undefined);
+        return;
+      }
+      const next = new Map<string, ShortDramaCanvasOrigin>();
+      for (const node of documentRef.current?.nodes ?? []) {
+        if (!node.domainRef) continue;
+        const origin = resolveShortDramaCanvasOrigin(project, node.domainRef);
+        if (origin) next.set(infiniteCanvasDomainRefKey(node.domainRef), origin);
+      }
+      setDomainOrigins(next);
+    })();
+    return () => { cancelled = true; };
+  }, [domainRefSignature, readShortDramaProject, workspacePath]);
+
+  /**
+   * §5.1.6: the import itself. One request id lands at most one card, and an
+   * asset that already has a card on this board reveals that card instead of
+   * growing a second one — one asset, one official refinement slot.
+   *
+   * The picture's path is resolved HERE, not carried in the payload, so an
+   * asset whose picture changed between the press and the open still lands
+   * with the picture it has now.
+   */
+  React.useEffect(() => {
+    const pending = pendingDomainImport;
+    if (!pending) return undefined;
+    if (handledImportRequestIdsRef.current.has(pending.requestId)) return undefined;
+    handledImportRequestIdsRef.current.add(pending.requestId);
+
+    const reveal = (nodeId: string) => {
+      selectedNodeIdsRef.current = [nodeId];
+      setSelectedNodeIds([nodeId]);
+    };
+
+    void (async () => {
+      const existing = documentRef.current
+        ? findDomainImportNodeId(documentRef.current, pending.domainRef)
+        : undefined;
+      if (existing) {
+        reveal(existing);
+        return;
+      }
+
+      const project = await readShortDramaProject(workspacePath);
+      if (!isMountedRef.current) return;
+      const resolved = project
+        ? resolveShortDramaCanvasImport(project, pending.domainRef, workspacePath)
+        : { status: 'refused', reason: 'asset-missing' } as const;
+      if (resolved.status !== 'ready') {
+        // Never silent: an open board with no new card would leave the user
+        // wondering whether the press registered at all.
+        notificationService.warning(
+          t(resolved.reason === 'unusable-picture'
+            ? 'infiniteCanvas.domainImport.unusablePicture'
+            : 'infiniteCanvas.domainImport.assetMissing'),
+          { duration: 4000 },
+        );
+        return;
+      }
+
+      const nodeId = createInfiniteCanvasId('node');
+      const position = nextSpawnPosition();
+      // The duplicate check runs again inside the mutator, where it is atomic
+      // against anything else committing to this document.
+      const document = await commit(current => (
+        findDomainImportNodeId(current, pending.domainRef)
+          ? { nodes: current.nodes, edges: current.edges, viewport: current.viewport }
+          : addDomainImportNodeContent(
+            current,
+            nodeId,
+            position,
+            resolved.mediaRef,
+            pending.domainRef,
+          )
+      ), { history: true });
+      if (!isMountedRef.current || !document) return;
+      const landed = findDomainImportNodeId(document, pending.domainRef);
+      if (landed) reveal(landed);
+    })();
+
+    return undefined;
+  }, [commit, nextSpawnPosition, pendingDomainImport, readShortDramaProject, t, workspacePath]);
+
   const onPickStyle = React.useCallback((presetId: string | undefined) => {
     const nodeId = stylePickerNodeId;
     setStylePickerNodeId(null);
@@ -3140,6 +3311,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         aria-label={t('infiniteCanvas.title')}
         ref={flowRef}
       >
+        {/*
+          K3: the badge handles reach the cards through a context rather than
+          the node data, so a lookup settling re-renders the badges and nothing
+          else — the projection, and every card's media, stay put.
+        */}
+        <InfiniteCanvasDomainOriginProvider origins={domainOrigins}>
         <ReactFlow
           nodes={flowNodes}
           edges={flowEdges}
@@ -3178,6 +3355,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         >
           <Background gap={CANVAS_DOT_GAP} size={CANVAS_DOT_SIZE} />
         </ReactFlow>
+        </InfiniteCanvasDomainOriginProvider>
         {/*
           §8.1: reactflow's stacked `+ − ⛶` control block is replaced by three
           hairline icon buttons in the corner — no background until hovered,
