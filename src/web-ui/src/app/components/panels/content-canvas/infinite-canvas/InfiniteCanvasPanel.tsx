@@ -239,6 +239,21 @@ const GENERATOR_MIN_WIDTH = 320;
 const CARD_FALLBACK_WIDTH = 280;
 const CARD_FALLBACK_HEIGHT = 200;
 
+/**
+ * The operations whose request carries a picture the front end BUILT, not the
+ * source card's own (adversarial review P2).
+ *
+ * Inpainting and erasing send the original with the red marks burnt in;
+ * outpainting sends it on a larger transparent canvas. That composite lives in
+ * the scratch directory and is not reachable from the failed card, so a retry
+ * would silently fall back to the bare original — a wrong result, paid for.
+ */
+const CANVAS_SCRATCH_COMPOSITE_TOOLS: ReadonlySet<string> = new Set([
+  'inpaint',
+  'erase',
+  'expand',
+]);
+
 /** §8.1: reactflow's own attribution watermark is not part of this language. */
 const FLOW_PRO_OPTIONS = { hideAttribution: true };
 
@@ -1677,6 +1692,25 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     }
     if (isDerived && generation.toolId !== 'generate' && !source?.mediaRef) {
       setNotice({ messageKey: 'infiniteCanvas.generation.errorKind.invalid-input' });
+      return;
+    }
+    /*
+      Adversarial review P2: the three lanes that submit a SCRATCH COMPOSITE
+      cannot be retried from here.
+
+      Inpainting, erasing and outpainting do not send the source picture — they
+      send a picture the front end built in the editor: the original with the
+      user's red marks burnt in, or the original sitting on a larger
+      transparent canvas. The retry below only knows about `source.mediaRef`,
+      so it re-ran the request against the bare original: the marks and the
+      frame were gone, the result was guaranteed to be wrong, and the user paid
+      for it. Saying "open it again" costs nothing and is the truth.
+    */
+    if (isDerived && CANVAS_SCRATCH_COMPOSITE_TOOLS.has(generation.toolId)) {
+      setNotice({
+        messageKey: 'infiniteCanvas.generation.retryNeedsEditor',
+        errorKind: 'invalid-input',
+      });
       return;
     }
 

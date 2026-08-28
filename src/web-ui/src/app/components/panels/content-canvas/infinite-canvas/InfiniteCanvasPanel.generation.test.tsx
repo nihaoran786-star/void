@@ -601,6 +601,49 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     });
   });
 
+  /**
+   * Adversarial review P2: a failed inpaint / erase / outpaint cannot be
+   * re-sent from the card.
+   *
+   * Those three send a picture the front end BUILT in the editor — the
+   * original with the user's red marks burnt in, or on a larger transparent
+   * canvas. The retry only knew about the source card's own picture, so it
+   * re-ran the request against the bare original: the marks and the frame were
+   * gone, the result was guaranteed wrong, and the user paid for it.
+   */
+  it('refuses to re-send a mask or outpaint result, and says why', async () => {
+    const sourceMediaRef = mediaRefOf('hero.png');
+    seedDocument(memory, {
+      nodes: [
+        imageNode('card-src', { mediaRef: sourceMediaRef }),
+        imageNode('card-derived', {
+          prompt: 'Repaint the selected region as a red door.',
+          derivedFrom: { sourceNodeId: 'card-src', toolId: 'inpaint', operationId: 'op-old' },
+          generation: {
+            operationId: 'op-old',
+            toolId: 'inpaint',
+            resultMode: 'derived',
+            status: 'failed',
+            errorKind: 'backend',
+          },
+        }),
+      ],
+    });
+    await renderPanel();
+
+    await clickButton(button => (
+      button.className.includes('infinite-canvas-node__generation-retry')
+    ));
+
+    // Nothing was sent and nothing was charged; the board says what to do.
+    expect(recording.invocations).toHaveLength(0);
+    expect(container.querySelector('.infinite-canvas-panel__tool-notice')).not.toBeNull();
+    await service.flushPendingWrites();
+    const derived = readDocument(memory).nodes
+      .find(node => node.nodeId === 'card-derived')!;
+    expect(derived.generation).toMatchObject({ status: 'failed', operationId: 'op-old' });
+  });
+
   it('rolls a throwing dispatch back to a retryable typed failure (no eternal pending)', async () => {
     seedDocument(memory, {
       nodes: [imageNode('card-blank', { prompt: 'a glacier' })],

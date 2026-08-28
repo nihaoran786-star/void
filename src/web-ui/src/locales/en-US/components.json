@@ -996,6 +996,7 @@
       "referenceNotReady": "A connected reference card has no image yet; wait for it or remove the connection.",
       "noSession": "Open the canvas from a session first.",
       "cardMissing": "This card is no longer waiting for a picture, so nothing was sent. Nothing was charged.",
+      "retryNeedsEditor": "This one used a picture you prepared in the editor, so it cannot be re-sent from here. Open the tool again on the original card.",
       "errorKind": {
         "unavailable": "The generation lane is not available yet.",
         "auth": "The image provider is not configured or its credentials are invalid.",
