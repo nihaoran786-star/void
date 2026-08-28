@@ -867,7 +867,8 @@
       "send": "在画布中精修「{{title}}」",
       "sendShort": "在画布中精修",
       "unavailable": "当前工作区无法打开画布。",
-      "unusablePicture": "这张图暂时送不进画布。"
+      "unusablePicture": "这张图暂时送不进画布。",
+      "originNote": "这张图是从无限画布送回来的。"
     }
   },
   "flexiblePanel": {

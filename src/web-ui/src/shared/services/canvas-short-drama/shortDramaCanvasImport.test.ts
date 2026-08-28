@@ -59,7 +59,7 @@ describe('resolveShortDramaCanvasImport', () => {
         workspacePath: WORKSPACE,
         relativePath: 'media/generated/batch-1/lin-xia.png',
       },
-      origin: { handle: 'CHAR-001', title: 'Lin Xia' },
+      origin: { handle: 'CHAR-001', title: 'Lin Xia', status: 'ready' },
     });
   });
 
@@ -102,14 +102,14 @@ describe('resolveShortDramaCanvasImport', () => {
 describe('resolveShortDramaCanvasOrigin', () => {
   it('finds the handle the badge shows', () => {
     expect(resolveShortDramaCanvasOrigin(project(), DOMAIN_REF))
-      .toEqual({ handle: 'CHAR-001', title: 'Lin Xia' });
+      .toEqual({ handle: 'CHAR-001', title: 'Lin Xia', status: 'ready' });
   });
 
   it('follows a rename, because the handle is looked up and never stored', () => {
     expect(resolveShortDramaCanvasOrigin(
       project([artifact({ handle: 'CHAR-007' })]),
       DOMAIN_REF,
-    )).toEqual({ handle: 'CHAR-007', title: 'Lin Xia' });
+    )).toEqual({ handle: 'CHAR-007', title: 'Lin Xia', status: 'ready' });
   });
 
   it('answers nothing for an asset that is gone', () => {
@@ -122,6 +122,6 @@ describe('resolveShortDramaCanvasOrigin', () => {
     expect(resolveShortDramaCanvasOrigin(
       project([artifact({ mediaReference: undefined })]),
       DOMAIN_REF,
-    )).toEqual({ handle: 'CHAR-001', title: 'Lin Xia' });
+    )).toEqual({ handle: 'CHAR-001', title: 'Lin Xia', status: 'ready' });
   });
 });

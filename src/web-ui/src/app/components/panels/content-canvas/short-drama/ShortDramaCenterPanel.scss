@@ -867,6 +867,14 @@
   padding-left: 8px;
 }
 
+// K3 §5.2: why this asset is waiting for review. One quiet line in the same
+// muted grey the summary uses — it explains, it does not announce, and it is
+// deliberately not a pill: a pill would read as a status the user can act on.
+.short-drama-card__canvas-origin {
+  color: var(--short-drama-muted);
+  font-size: var(--short-drama-font-size-ui-label);
+}
+
 .short-drama-card__meta {
   display: flex;
   flex-wrap: wrap;

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createShortDramaStaticProject } from '@/shared/services/short-drama/ShortDramaProjectViewModel';
+import {
+  createShortDramaManifestLibraryService,
+  createShortDramaStaticProject,
+} from '@/shared/services/short-drama/ShortDramaProjectViewModel';
+import { wasShortDramaArtifactRefinedOnCanvas } from './shortDramaCanvasRefBridge';
 import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
 import {
   canSendCanvasPictureBackToShortDrama,
@@ -247,5 +251,42 @@ describe('short drama canvas write-back', () => {
     expect(canSendCanvasPictureBackToShortDrama(PICTURE, WORKSPACE, 'remote')).toBe(false);
     expect(canSendCanvasPictureBackToShortDrama(PICTURE, 'D:/elsewhere')).toBe(false);
     expect(canSendCanvasPictureBackToShortDrama(undefined, WORKSPACE)).toBe(false);
+  });
+});
+
+describe('short drama canvas write-back, through a real manifest', () => {
+  it('survives the round trip, and the panel can then say where the picture came from', async () => {
+    const files = new Map<string, string>();
+    const adapter = {
+      kind: 'local' as const,
+      async read(key: string) { return files.get(key); },
+      async write(key: string, value: string) { files.set(key, value); },
+    };
+    const library = createShortDramaManifestLibraryService(adapter, 'static_short_drama_001');
+    const project = createShortDramaStaticProject();
+    const artifact = characterArtifact(project);
+
+    const result = await sendCanvasPictureBackToShortDrama(request(project), {
+      readProject: async () => project,
+      saveProject: async next => library.saveProject(next),
+      notifyProjectChanged: () => undefined,
+    });
+    expect(result.status).toBe('sent');
+
+    // Read it back the way the panel does. The two additive revision fields
+    // are what the origin note is inferred from, so they have to survive the
+    // manifest — and the manifest version must not have moved to carry them.
+    const reloaded = await library.loadProject(WORKSPACE);
+    expect(reloaded.status).toBe('ready');
+    const stored = reloaded.status === 'ready'
+      ? reloaded.project.artifacts.find(item => item.id === artifact.id)!
+      : undefined;
+    expect(stored?.status).toBe('reviewing');
+    expect(wasShortDramaArtifactRefinedOnCanvas(stored!)).toBe(true);
+    const latest = stored!.revisions[stored!.revisions.length - 1];
+    expect(latest.sourceCanvasNodeId).toBe('node-7');
+    expect(latest.sourceOperationId).toContain(artifact.id);
+    expect(JSON.parse(files.get([...files.keys()].find(key => key.includes('manifest'))!)!)
+      .manifestVersion).toBe(1);
   });
 });

@@ -646,4 +646,12 @@
     color: var(--workspace-text-primary);
   }
 
+  // K3 §5.2 origin line, minimal presentation. The overlay only adopts the
+  // workspace type scale and muted colour; the geometry stays in the classic
+  // sheet so the two sheets cannot drift.
+  .void-ui--minimal .short-drama-card__canvas-origin {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-label);
+  }
+
 }

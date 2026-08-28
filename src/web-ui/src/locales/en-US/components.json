@@ -867,7 +867,8 @@
       "send": "Refine {{title}} on the canvas",
       "sendShort": "Refine on the canvas",
       "unavailable": "The canvas could not be opened for this workspace.",
-      "unusablePicture": "This picture cannot be sent to the canvas yet."
+      "unusablePicture": "This picture cannot be sent to the canvas yet.",
+      "originNote": "This picture came back from the infinite canvas."
     }
   },
   "flexiblePanel": {

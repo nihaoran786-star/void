@@ -7,6 +7,7 @@ import {
   toShortDramaMediaItemId,
   toShortDramaMediaReference,
   toShortDramaRelativePath,
+  wasShortDramaArtifactRefinedOnCanvas,
 } from './shortDramaCanvasRefBridge';
 
 const WORKSPACE = 'C:/projects/demo';
@@ -172,5 +173,32 @@ describe('canvas picture -> short drama media reference', () => {
     ['something that is not a picture', { workspacePath: WORKSPACE, relativePath: 'media/generated/b/clip-1.mp4' }],
   ])('refuses %s', (_label, mediaRef) => {
     expect(toShortDramaMediaReference(mediaRef, WORKSPACE)).toBeNull();
+  });
+});
+
+describe('does this asset hold a picture that came back from the board?', () => {
+  const revision = (overrides: Record<string, unknown> = {}) => ({
+    id: 'r',
+    version: 1,
+    createdAt: 0,
+    summary: 'Something happened.',
+    ...overrides,
+  });
+
+  it('says yes when the newest revision names a card', () => {
+    expect(wasShortDramaArtifactRefinedOnCanvas({
+      revisions: [revision(), revision({ id: 'r2', sourceCanvasNodeId: 'node-7' })],
+    })).toBe(true);
+  });
+
+  it('says no once a later revision came from somewhere else', () => {
+    expect(wasShortDramaArtifactRefinedOnCanvas({
+      revisions: [revision({ id: 'r1', sourceCanvasNodeId: 'node-7' }), revision({ id: 'r2' })],
+    })).toBe(false);
+  });
+
+  it('says no for a project written before the board could write anything', () => {
+    expect(wasShortDramaArtifactRefinedOnCanvas({ revisions: [revision()] })).toBe(false);
+    expect(wasShortDramaArtifactRefinedOnCanvas({ revisions: [] })).toBe(false);
   });
 });

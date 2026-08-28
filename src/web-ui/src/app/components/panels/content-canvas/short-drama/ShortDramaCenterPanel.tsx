@@ -77,6 +77,7 @@ import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootst
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
 import { ArtifactSendToCanvasButton } from './ShortDramaCanvasHandoffContext';
+import { wasShortDramaArtifactRefinedOnCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasRefBridge';
 import { ShortDramaTopBar } from './ShortDramaTopBar';
 import { useRecoverableWorkspaceMediaUrl } from './useRecoverableWorkspaceMediaUrl';
 import {
@@ -2084,6 +2085,18 @@ function ArtifactCardBody({
       {(artifact.failureReason || artifact.statusReason) && (
         <p className="short-drama-card__notice">
           {artifact.failureReason || artifact.statusReason}
+        </p>
+      )}
+      {/*
+        K3 §5.2: a review nobody's agent started needs a reason. Without this
+        line the card just says "waiting for review" and the user has no way to
+        know the new picture came back from the canvas rather than from a run.
+        Read from the newest revision by a pure predicate that lives outside
+        this file; no new review UI, no new control.
+      */}
+      {wasShortDramaArtifactRefinedOnCanvas(artifact) && (
+        <p className="short-drama-card__canvas-origin">
+          {t('shortDrama.canvasHandoff.originNote')}
         </p>
       )}
       <div className="short-drama-card__meta">

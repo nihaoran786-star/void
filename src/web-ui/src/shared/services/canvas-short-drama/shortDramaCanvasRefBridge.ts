@@ -166,6 +166,26 @@ export function toShortDramaMediaItemId(relativePath: string): string {
 }
 
 /**
+ * K3 §5.2, the short-drama panel's one question about the board: is the
+ * picture this asset is holding right now one that came back from the canvas?
+ *
+ * Answered from the newest revision alone, and only from the two additive
+ * fields — a project written before K3 has neither, which reads as "no". The
+ * short-drama panel needs this to explain a review the user did not start from
+ * an agent run, and the predicate lives here so the panel (an orchestration
+ * hotspot) never has to know what a canvas card is.
+ *
+ * `revisions` is treated as ordered, oldest first, which is how every writer
+ * in the module appends to it.
+ */
+export function wasShortDramaArtifactRefinedOnCanvas(
+  artifact: Pick<ShortDramaArtifact, 'revisions'>,
+): boolean {
+  const latest = artifact.revisions[artifact.revisions.length - 1];
+  return latest?.sourceCanvasNodeId !== undefined;
+}
+
+/**
  * Canvas → short drama, the whole media reference (K3 §5.2).
  *
  * `null` for anything that is not a clean, in-workspace relative path, for the
