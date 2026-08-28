@@ -170,6 +170,33 @@ through its own Module Interface. Active contract:
     one door, the R1 `write_canvas_image_bytes` command, whose two-prefix
     allowlist is the only thing keeping it from being a write-anywhere hole —
     widening it is a new attack surface, not a convenience.
+- **Infinite Canvas P6 "one board language" (landed 2026-08-28, awaiting owner
+  acceptance).** Six owner instructions, all recorded in
+  [the visual language](docs/design/infinite-canvas-visual-language.md)
+  §7.4–§7.6 — that document is the contract for this panel's presentation and
+  supersedes earlier passages it marks as 作废. What future work must not undo:
+  - **One floating stage.** Full-screen viewing, inpaint/erase, crop and
+    outpainting are four assemblies of a single shell (blurred plate, floating
+    media, one pill whose leftmost item is `×`, the shared generator below).
+    Anything new that enlarges a picture reuses it rather than growing a fifth
+    variant.
+  - **Crop and outpainting are one editor with a direction.** State is four
+    edge offsets from the picture, positive outwards; inward is crop, outward
+    is outpainting. The picture never moves and the outward frame must always
+    contain it, so an off-centre frame is legal. Two implementations of this
+    geometry is the thing to avoid.
+  - **One input box on the whole board.** The tool-instruction dialog was
+    deleted: a tool that needs a sentence prefills the shared generator with its
+    template and waits for the round send button. Do not reintroduce a second
+    place to type.
+  - **Closing never asks.** `×`, Esc and the backdrop close immediately;
+    strokes and frames are scratch, and nothing in the document has changed yet.
+  - **A card holds many pictures.** `mediaVariants` + `activeVariantIndex` are
+    additive; `mediaRef` stays the active one and the two must never disagree.
+    Generation and regeneration (including `n > 1`) accumulate onto the card
+    behind a count badge and a four-up gallery; the five editing tools still
+    derive a new card, because a transformation's lineage should be visible.
+    Accumulation is append-only — the never-overwrite invariant still holds.
 - **Infinite Canvas visual language (reworked 2026-08-26, owner-driven).** The
   canvas was rebuilt against the owner's reference product, and the contract
   for how it looks and behaves is
