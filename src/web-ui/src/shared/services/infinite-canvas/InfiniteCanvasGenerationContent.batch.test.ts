@@ -393,3 +393,83 @@ describe('resolveOperationBatchContent — the five tools still derive (§7.6)',
     expect(third.edges).toBe(settled.edges);
   });
 });
+
+describe('resolveOperationBatchContent — the lane never disagrees with itself', () => {
+  /**
+   * Adversarial review C1: the AI may register `{mode:'derived',
+   * toolId:'generate'}`. That placeholder is a DERIVE-lane card — the lane
+   * predicate both landing sites use says so — but the batch resolver used to
+   * decide from `toolId` alone and swallowed all four pictures into the
+   * placeholder, so the three sibling cards and their three edges never grew.
+   */
+  it('grows siblings for a derived-mode generate placeholder', () => {
+    const document = documentWith([
+      { nodeId: 'card-source', kind: 'image', position: { x: 0, y: 0 }, mediaRef: ref('src.png') },
+      toolPlaceholder({
+        derivedFrom: { sourceNodeId: 'card-source', toolId: 'generate', operationId: 'op-1' },
+        generation: {
+          operationId: 'op-1',
+          toolId: 'generate',
+          resultMode: 'derived',
+          status: 'pending',
+        },
+      }),
+    ]);
+
+    const content = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(4));
+
+    expect(content.nodes.map(node => node.nodeId)).toEqual([
+      'card-source',
+      'card-anchor',
+      infiniteCanvasBatchNodeId('op-1', 2),
+      infiniteCanvasBatchNodeId('op-1', 3),
+      infiniteCanvasBatchNodeId('op-1', 4),
+    ]);
+    const placeholder = content.nodes[1];
+    expect(placeholder.mediaRef).toEqual(ref('image-001.png'));
+    // The whole batch must NOT have piled onto the placeholder.
+    expect(placeholder.mediaVariants).toBeUndefined();
+    expect(placeholder.generation).toBeUndefined();
+    expect(content.edges.map(edge => edge.edgeId)).toEqual([
+      infiniteCanvasBatchEdgeId('op-1', 2),
+      infiniteCanvasBatchEdgeId('op-1', 3),
+      infiniteCanvasBatchEdgeId('op-1', 4),
+    ]);
+  });
+
+  /**
+   * Adversarial review C2: a card born from CROP keeps `derivedFrom.toolId:
+   * 'crop'` forever. Regenerating n=4 from it accumulates on the first event;
+   * the second event of the same batch used to read that stale 'crop' and
+   * switch to the sibling lane, scattering three of the four pictures.
+   */
+  it('keeps accumulating on the second event of a crop-born card', () => {
+    const cropped = anchorCard({
+      derivedFrom: { sourceNodeId: 'card-source', toolId: 'crop', operationId: 'op-crop' },
+    });
+    const document = documentWith([cropped]);
+
+    const first = resolveOperationBatchContent(document, 'op-1', WORKSPACE_PATH, items(1));
+    expect(first.nodes[0].mediaRef).toEqual(ref('image-001.png'));
+    expect(first.nodes[0].generation).toBeUndefined();
+
+    const landed = { ...document, ...first };
+    const second = resolveOperationBatchContent(landed, 'op-1', WORKSPACE_PATH, items(4));
+
+    expect(second.nodes).toHaveLength(1);
+    expect(second.edges).toEqual([]);
+    expect(second.nodes[0].mediaVariants).toEqual([
+      ref('image-001.png'),
+      ref('image-002.png'),
+      ref('image-003.png'),
+      ref('image-004.png'),
+    ]);
+    // Lineage of the card itself is untouched — only the lane guess changed.
+    expect(second.nodes[0].derivedFrom).toEqual(cropped.derivedFrom);
+
+    // Replaying the completed event writes nothing at all.
+    const settled = { ...documentWith([]), ...second };
+    const third = resolveOperationBatchContent(settled, 'op-1', WORKSPACE_PATH, items(4));
+    expect(third.nodes).toBe(settled.nodes);
+  });
+});

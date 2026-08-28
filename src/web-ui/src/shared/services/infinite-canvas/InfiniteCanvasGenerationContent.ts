@@ -25,8 +25,8 @@ import type {
 } from './InfiniteCanvasTypes';
 import {
   appendInfiniteCanvasVariants,
+  infiniteCanvasGenerationAppendsToCard,
   infiniteCanvasNodeVariants,
-  infiniteCanvasOperationAccumulates,
 } from './InfiniteCanvasMediaVariants';
 
 /** Horizontal offset used to place a derived placeholder beside its source. */
@@ -309,35 +309,57 @@ function batchSiblingIdPrefix(operationId: string): string {
  *
  * Returns undefined when none of that holds — then nothing is written, exactly
  * as before.
+ *
+ * Adversarial review C2: the recovery also decides the LANE, because the lane
+ * is a fact about the earlier landing and must never be re-guessed from
+ * `derivedFrom.toolId` (which describes how the card itself was born — a card
+ * cut out by crop keeps `toolId: 'crop'` forever, and reading it made the
+ * second event of a regenerate batch grow siblings while the first event had
+ * accumulated). Each recovery route carries the lane it implies:
+ *
+ * - route 1 — deterministic siblings exist: siblings only ever grow in the
+ *   derive lane, so the batch is a derive batch;
+ * - route 2 — the card is this operation's own derived placeholder: derive lane
+ *   by construction;
+ * - route 3 — the card merely carries one of this batch's pictures with no
+ *   lineage for this operation at all: that is what a self-mode landing leaves
+ *   behind, i.e. the accumulate lane.
  */
+interface RecoveredBatchAnchor {
+  node: InfiniteCanvasNode;
+  /** Whether the earlier landing of this batch accumulated onto the card. */
+  accumulates: boolean;
+}
+
 function recoverBatchAnchor(
   document: Readonly<InfiniteCanvasDocument>,
   operationId: string,
   workspacePath: string,
   items: readonly InfiniteCanvasBatchOutputItem[],
-): InfiniteCanvasNode | undefined {
+): RecoveredBatchAnchor | undefined {
   const siblingPrefix = batchSiblingIdPrefix(operationId);
   const byId = new Map(document.nodes.map(node => [node.nodeId, node]));
   for (const node of document.nodes) {
     if (!node.nodeId.startsWith(siblingPrefix)) continue;
     const sourceNodeId = node.derivedFrom?.sourceNodeId;
     const anchor = sourceNodeId ? byId.get(sourceNodeId) : undefined;
-    if (anchor) return anchor;
+    if (anchor) return { node: anchor, accumulates: false };
   }
   const derivedAnchor = document.nodes.find(node => (
     node.derivedFrom?.operationId === operationId
     && !node.nodeId.startsWith(siblingPrefix)
   ));
-  if (derivedAnchor) return derivedAnchor;
+  if (derivedAnchor) return { node: derivedAnchor, accumulates: false };
   const paths = new Set(items.map(item => item.relativePath));
-  return document.nodes.find(node => infiniteCanvasNodeVariants(node).some(variant => (
+  const carrier = document.nodes.find(node => infiniteCanvasNodeVariants(node).some(variant => (
     // §7.6: the earlier landing may have gone into the card's picture LIST,
     // so the lookup has to scan every picture, not just the current one.
     variant.workspacePath === workspacePath && paths.has(variant.relativePath)
   )));
+  return carrier ? { node: carrier, accumulates: true } : undefined;
 }
 
-/** The operation kind a card's landing rule is decided by (§7.6). */
+/** The operation kind a batch's sibling cards record as their lineage (§7.6). */
 function anchorToolId(anchor: InfiniteCanvasNode): CanvasImageOperationKind {
   return anchor.generation?.toolId ?? anchor.derivedFrom?.toolId ?? 'generate';
 }
@@ -416,7 +438,12 @@ export function resolveOperationBatchContent(
     // fired from. This branch sits BEFORE the never-overwrite guard on
     // purpose — appending is not overwriting, and the guard below is what
     // still protects every other operation kind.
-    if (infiniteCanvasOperationAccumulates(anchorToolId(registered))) {
+    // Adversarial review C1: the lane is the REGISTRATION's own shape, exactly
+    // the predicate both landing lanes elsewhere use. Reading `toolId` alone
+    // made an AI-registered `{mode:'derived', toolId:'generate'}` placeholder
+    // swallow the whole batch, so the sibling cards and edges it was supposed
+    // to grow never appeared.
+    if (infiniteCanvasGenerationAppendsToCard(registered.generation)) {
       return accumulateBatchOntoAnchor(document, registered, ordered, workspacePath, true);
     }
     // A still-registered anchor that already carries media is the
@@ -425,9 +452,14 @@ export function resolveOperationBatchContent(
   }
   // P2: with the registration already cleared the batch may still be landing
   // its later items; recover the anchor and fill only the missing siblings.
-  const anchor = registered ?? recoverBatchAnchor(document, operationId, workspacePath, ordered);
+  const recovered = registered
+    ? undefined
+    : recoverBatchAnchor(document, operationId, workspacePath, ordered);
+  const anchor = registered ?? recovered?.node;
   if (!anchor) return content(document);
-  if (!registered && infiniteCanvasOperationAccumulates(anchorToolId(anchor))) {
+  // C2: the lane of a recovered anchor comes from HOW it was recovered, never
+  // from `derivedFrom.toolId` — see `recoverBatchAnchor`.
+  if (recovered?.accumulates) {
     return accumulateBatchOntoAnchor(document, anchor, ordered, workspacePath, false);
   }
 
