@@ -186,7 +186,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       justify-content: space-between;
       gap: var(--spacing-3, 12px);
       padding: var(--spacing-3, 12px) var(--spacing-4, 16px);
-      border-radius: var(--radius-lg, 12px);
+      border-radius: var(--size-radius-lg);
       background: color-mix(in srgb, var(--color-bg-secondary, #1c1c1f) 82%, transparent);
       border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
       box-shadow: var(--shadow-xs, 0 1px 2px rgba(0, 0, 0, 0.4));
@@ -233,7 +233,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       gap: var(--spacing-3, 12px);
       width: 100%;
       padding: var(--spacing-4, 16px);
-      border-radius: var(--radius-lg, 12px);
+      border-radius: var(--size-radius-lg);
       background: var(--color-bg-secondary, #1c1c1f);
       border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
       box-shadow: var(--shadow-sm, 0 2px 4px rgba(0, 0, 0, 0.4));
@@ -250,7 +250,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       box-shadow:
         0 0 0 4px color-mix(in srgb, var(--color-accent-500, #60a5fa) 18%, transparent),
         0 10px 24px color-mix(in srgb, var(--color-accent-500, #60a5fa) 14%, transparent);
-      border-radius: min(var(--radius-base, 8px), 12px);
+      border-radius: min(var(--size-radius-base), 12px);
       transition: outline-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
       transform: translateY(-1px);
     }
@@ -271,7 +271,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       gap: 6px;
       min-width: 0;
       padding: var(--spacing-3, 12px);
-      border-radius: var(--radius-base, 8px);
+      border-radius: var(--size-radius-base);
       background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
       border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
     }
@@ -336,7 +336,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       max-width: 100%;
       padding: 0 12px;
       border: 1px solid var(--border-base, rgba(255, 255, 255, 0.16));
-      border-radius: var(--radius-sm, 6px);
+      border-radius: var(--size-radius-sm);
       background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
       color: var(--color-text-secondary, #b0b0b0);
       text-decoration: none;
@@ -366,7 +366,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       max-width: 100%;
       min-width: 0;
       padding: 0 12px;
-      border-radius: var(--radius-sm, 6px);
+      border-radius: var(--size-radius-sm);
       border: 1px solid var(--border-base, rgba(255, 255, 255, 0.16));
       background: var(--element-bg-subtle, rgba(255, 255, 255, 0.05));
       color: var(--color-text-primary, #e8e8e8);
@@ -405,7 +405,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       justify-content: space-between;
       gap: var(--spacing-3, 12px);
       padding: var(--spacing-3, 12px);
-      border-radius: var(--radius-base, 8px);
+      border-radius: var(--size-radius-base);
       background: var(--element-bg-subtle, rgba(255, 255, 255, 0.05));
       border: 1px solid transparent;
     }
@@ -420,7 +420,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       width: 100%;
       overflow-x: auto;
       border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
-      border-radius: var(--radius-base, 8px);
+      border-radius: var(--size-radius-base);
       background: var(--color-bg-secondary, #1c1c1f);
     }
     .bf-table {
@@ -453,7 +453,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       gap: 8px;
       min-height: 140px;
       padding: var(--spacing-5, 20px);
-      border-radius: var(--radius-lg, 12px);
+      border-radius: var(--size-radius-lg);
       border: 1px dashed var(--border-base, rgba(255, 255, 255, 0.16));
       background: color-mix(in srgb, var(--element-bg-subtle, rgba(255, 255, 255, 0.05)) 80%, transparent);
       color: var(--color-text-muted, #858585);

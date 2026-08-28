@@ -33,7 +33,7 @@
       height: 28px;
       padding-inline: 8px;
       gap: 4px;
-      border-radius: var(--radius-sm);
+      border-radius: var(--size-radius-sm);
       box-shadow: none;
       font-size: var(--font-size-xs);
     }
@@ -55,7 +55,7 @@
       padding: 4px 6px;
       margin: 0;
       border: 1px solid transparent;
-      border-radius: var(--radius-sm);
+      border-radius: var(--size-radius-sm);
 
       &--current,
       &--selected {
@@ -103,7 +103,7 @@
 
     &__commit {
       margin: 0;
-      border-radius: var(--radius-sm);
+      border-radius: var(--size-radius-sm);
 
       &--expanded {
         border-color: var(--border-subtle);

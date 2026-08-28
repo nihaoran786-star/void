@@ -167,7 +167,7 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   min-height: 76px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--size-radius-md, 10px);
+  border-radius: var(--size-radius-base);
   background: color-mix(in srgb, var(--element-bg-subtle) 62%, transparent);
 }
 
