@@ -4,6 +4,8 @@ import type { ShortDramaMediaReference } from '@/shared/services/short-drama/Sho
 import {
   canRefineShortDramaArtifactOnCanvas,
   toCanvasMediaRef,
+  toShortDramaMediaItemId,
+  toShortDramaMediaReference,
   toShortDramaRelativePath,
 } from './shortDramaCanvasRefBridge';
 
@@ -129,5 +131,46 @@ describe('canRefineShortDramaArtifactOnCanvas', () => {
       type: 'video',
       mediaReference: media(),
     })).toBe(false);
+  });
+});
+
+describe('canvas picture -> short drama media reference', () => {
+  it('reuses the identity the media job already stamped into the path', () => {
+    expect(toShortDramaMediaItemId('media/generated/batch-9/image-3.png'))
+      .toBe('batch-9-3');
+  });
+
+  it('names a picture no job produced after its own path, and says so', () => {
+    expect(toShortDramaMediaItemId('media/input/hand-drawn.png'))
+      .toBe('canvas-refine:media/input/hand-drawn.png');
+  });
+
+  it('builds a reference short drama can actually draw', () => {
+    const reference = toShortDramaMediaReference(
+      { workspacePath: WORKSPACE, relativePath: 'media/generated/batch-1/item-1.png' },
+      WORKSPACE,
+      'local',
+      { timestamp: 42 },
+    );
+
+    expect(reference).toEqual({
+      mediaItemId: 'batch-1-1',
+      kind: 'image',
+      relativePath: 'media/generated/batch-1/item-1.png',
+      localPath: `${WORKSPACE}/media/generated/batch-1/item-1.png`,
+      filePath: `${WORKSPACE}/media/generated/batch-1/item-1.png`,
+      modifiedAt: 42,
+      source: 'generated',
+    });
+  });
+
+  it.each([
+    ['a foreign workspace', { workspacePath: 'D:/other', relativePath: 'media/a.png' }],
+    ['a traversal', { workspacePath: WORKSPACE, relativePath: '../a.png' }],
+    ['an absolute path', { workspacePath: WORKSPACE, relativePath: 'C:/a.png' }],
+    ['a blank path', { workspacePath: WORKSPACE, relativePath: '   ' }],
+    ['something that is not a picture', { workspacePath: WORKSPACE, relativePath: 'media/generated/b/clip-1.mp4' }],
+  ])('refuses %s', (_label, mediaRef) => {
+    expect(toShortDramaMediaReference(mediaRef, WORKSPACE)).toBeNull();
   });
 });

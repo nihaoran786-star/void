@@ -2553,20 +2553,23 @@ export function applyShortDramaCanvasRefinement(
   project: ShortDramaProject,
   refinement: ShortDramaCanvasRefinement,
 ): ShortDramaProject {
-  if (!project.artifacts.some(artifact => artifact.id === refinement.artifactId)) {
+  const target = project.artifacts.find(artifact => artifact.id === refinement.artifactId);
+  if (!target) {
+    return project;
+  }
+  const alreadyRecorded = target.revisions.some(revision => (
+    revision.sourceOperationId === refinement.operationId
+    || (revision.mediaItemId !== undefined
+      && revision.mediaItemId === refinement.mediaReference.mediaItemId)
+  ));
+  // The project object itself is returned, not a copy of it: a caller can then
+  // tell "nothing to do" from "something changed" by identity, and skip a save
+  // that would only churn the manifest's timestamps.
+  if (alreadyRecorded) {
     return project;
   }
 
   return updateArtifact(project, refinement.artifactId, artifact => {
-    const alreadyRecorded = artifact.revisions.some(revision => (
-      revision.sourceOperationId === refinement.operationId
-      || (revision.mediaItemId !== undefined
-        && revision.mediaItemId === refinement.mediaReference.mediaItemId)
-    ));
-    if (alreadyRecorded) {
-      return artifact;
-    }
-
     const revisions: ShortDramaArtifactRevision[] = [
       ...artifact.revisions,
       {

@@ -1699,6 +1699,7 @@ describe('short drama canvas refinement (K3 return leg)', () => {
     });
     const updated = twice.artifacts.find(item => item.id === artifact.id)!;
 
+    expect(twice).toBe(once);
     expect(updated.revisions).toHaveLength(artifact.revisions.length + 1);
     expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-1');
   });
@@ -1715,6 +1716,7 @@ describe('short drama canvas refinement (K3 return leg)', () => {
     });
     const updated = twice.artifacts.find(item => item.id === artifact.id)!;
 
+    expect(twice).toBe(once);
     expect(updated.revisions).toHaveLength(artifact.revisions.length + 1);
   });
 

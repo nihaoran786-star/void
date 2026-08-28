@@ -26,6 +26,7 @@ import type {
   ShortDramaArtifact,
   ShortDramaMediaReference,
 } from '@/shared/services/short-drama/ShortDramaTypes';
+import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
 
 export interface CanvasMediaRef {
   workspacePath: string;
@@ -124,4 +125,82 @@ export function toShortDramaRelativePath(
     return null;
   }
   return relativePath;
+}
+
+/**
+ * The name short drama will file this picture under.
+ *
+ * A `mediaItemId` is an opaque key to short drama — it displays a label, not
+ * this — but it is one half of the write-back's idempotency, so it has to be
+ * the SAME string for the same file every time, and ideally the same string
+ * the backend would have chosen.
+ *
+ * So: a picture that a media job produced already carries its job's identity
+ * in its own path (`media/generated/<batchId>/<name>-<index>.<ext>`), and
+ * `<batchId>-<index>` is character-for-character what the backend writes for
+ * that file. Reading it back means a picture delivered by the board and the
+ * same picture delivered by a future generation-with-coordinates collapse onto
+ * one revision instead of two.
+ *
+ * Anything else — a crop, an imported reference — has no job identity to read,
+ * so its key is its own path behind a prefix. Deterministic, unique per file,
+ * and honest about not being a job id. This is a naming rule, not path
+ * arithmetic: the string is never handed to a filesystem.
+ */
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif'];
+
+function isImageRelativePath(relativePath: string): boolean {
+  const extension = relativePath.split('.').pop()?.toLowerCase() ?? '';
+  return IMAGE_EXTENSIONS.includes(extension);
+}
+
+const GENERATED_BATCH_PATTERN = /^(?:media\/generated|\.void\/media\/generated)\/([^/]+)\/[^/]+-(\d+)\.[^/.]+$/i;
+
+export function toShortDramaMediaItemId(relativePath: string): string {
+  const match = relativePath.match(GENERATED_BATCH_PATTERN);
+  const itemIndex = match ? Number.parseInt(match[2], 10) : Number.NaN;
+  if (match && Number.isFinite(itemIndex) && itemIndex > 0) {
+    return `${match[1]}-${itemIndex}`;
+  }
+  return `canvas-refine:${relativePath}`;
+}
+
+/**
+ * Canvas → short drama, the whole media reference (K3 §5.2).
+ *
+ * `null` for anything that is not a clean, in-workspace relative path, for the
+ * same reason as everywhere else in this file: a guess here writes the wrong
+ * file into someone's project.
+ *
+ * The absolute path IS produced, through the workspace-media join helper the
+ * canvas preview resolver already uses — not by string surgery here. It has to
+ * be: the short-drama card reads `localPath ?? filePath` to draw a picture, so
+ * a reference without one would come home invisible. What is deliberately NOT
+ * carried over is `previewUrl` / `thumbnailUrl`: those are `convertFileSrc`
+ * output this app's webview refuses, and leaving them absent makes the card
+ * resolve the file itself, which works.
+ */
+export function toShortDramaMediaReference(
+  mediaRef: Partial<CanvasMediaRef> | undefined,
+  expectedWorkspacePath: string,
+  backend: 'local' | 'remote' = 'local',
+  options: { label?: string; timestamp?: number } = {},
+): ShortDramaMediaReference | null {
+  const relativePath = toShortDramaRelativePath(mediaRef, expectedWorkspacePath, backend);
+  if (relativePath === null) return null;
+  // The refinement pipeline is an image pipeline on both sides. A card holding
+  // something else has nothing to send home, and mislabelling it `image` would
+  // hand the short-drama card a file it cannot draw.
+  if (!isImageRelativePath(relativePath)) return null;
+  const filePath = joinWorkspaceMediaPath(expectedWorkspacePath.trim(), relativePath);
+  return {
+    mediaItemId: toShortDramaMediaItemId(relativePath),
+    kind: 'image',
+    ...(options.label === undefined ? {} : { label: options.label }),
+    relativePath,
+    localPath: filePath,
+    filePath,
+    ...(options.timestamp === undefined ? {} : { modifiedAt: options.timestamp }),
+    source: 'generated',
+  };
 }
