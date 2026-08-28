@@ -758,7 +758,7 @@ interface InfiniteCanvasNode {
   mediaVariants?: { workspacePath: string; relativePath: string }[]; // 本卡全部图
   activeVariantIndex?: number;   // 当前项；恒有 mediaRef === mediaVariants[此下标]
   stylePresetId?: string;      // 只挂 ID，渲染时经目录服务解析
-  domainRef?: InfiniteCanvasDomainRef; // K3 保留字段，本期恒为 undefined
+  domainRef?: InfiniteCanvasDomainRef; // K3 起可写，唯一写入方见 §5.1
 
   // —— K2 加法字段（schemaVersion 保持 '1'，解析器容错读取，旧文档无损）——
   /** 图片卡的生成提示词（空卡文生图与再生成共用），持久化。 */
@@ -830,7 +830,8 @@ P4 `generationParams` 语义（加法字段）：
   与 `mediaRef`（**同一 workspacePath + relativePath，不复制媒体文件**，
   符合本节"节点内嵌媒体是引用"的既定条款）；**不带** `generation`
   （一个 operationId 只能有一个落点）、`derivedFrom`（血缘属于原卡）、
-  `domainRef`（K3 保留字段，任何路径不得赋值）。删卡只删卡，不删媒体文件。
+  `domainRef`（K3 起可写，但**故意**不随复制走，理由见 §5.1.3）。删卡只删卡，
+  不删媒体文件。
 
 P3 视频卡语义（与图片卡同一套规则）：
 
@@ -867,11 +868,174 @@ interface InfiniteCanvasDomainRef {   // 思路来自 kunpeng workshopRef
   损坏 JSON 返回 typed error，不抛异常。
 - 节点内嵌媒体是对 Workspace Media 的**引用**（`mediaRef` 相对路径），不复制
   媒体真相，也不写 Media 领域数据。
-- `domainRef` 是 K3（画布 ↔ 领域互引）的保留字段，本期任何写入路径不得赋值。
+- `domainRef` 是 K3（画布 ↔ 领域互引）字段。自 K3 第一步起它**可写可读**，
+  但只开一条缝：唯一写入方是"从短剧送过来"这一个动作，AI 的三道门保持关闭。
+  完整规则见 §5.1。
 - **P3 操作日志文件**：`.void/infinite-canvas/<documentId>.ops.json`——
   Rust CanvasOp 原子追加、200 批次环形裁剪、前端只读对账（§3.6.3）。
   **两文件各有唯一 writer**：画布文档 = 前端 DocumentService（CAS），
   ops 日志 = Rust CanvasOp；任何交叉写入都是缺陷。
+
+## 5.1 K3 画布 ↔ AI 短剧中心归属契约（`domainRef` 开门）
+
+实施计划：[K3 打通计划](../plans/2026-08-28-canvas-short-drama-bridge.md)。
+本节是契约面，分三步走：**第一步只送出去**（短剧 → 画布，单向，短剧领域模块
+零改动）；**第二步回流**（画布精修图 → 短剧"修订 + 待审阅"）；**第三步归属
+生成**。下文标注了各条款归属哪一步。
+
+### 5.1.1 `domainRef` 的形状与语义
+
+```ts
+interface InfiniteCanvasDomainRef {
+  moduleId: string;   // 白名单当前只有 'short-drama'
+  kind: string;       // 短剧资产类型：'character' | 'location' | 'storyboard'
+  id: string;         // ShortDramaArtifact.id（稳定主键，不是可改名的 handle）
+  role: string;       // 当前只有 'refine'；'reference' 为将来预留
+}
+```
+
+- **四字段定长契约。** 不加第五个字段。展示用的 handle（`CHAR-001`）
+  **不进 `domainRef`**，由面板在运行时用 `domainRef.id` 反查；查不到就降级
+  显示（见 §5.1.4）。
+- **`domainRef` 里不放路径、不放 `mediaItemId`。** 它回答"这张卡属于哪个资产"，
+  不回答"这张卡是哪张图"。图由 `mediaRef` 表达，两者分离，资产换了图不会让
+  `domainRef` 失效。
+- **一 workspace 一项目（已知限制）**：`domainRef` 没有项目字段，因为一个
+  workspace 只有一份 `.void/short-drama/manifest.json`。将来若支持多项目，
+  需另行立项加字段。
+
+### 5.1.2 谁能写 `domainRef`（开门规则表）
+
+| 通道 | K3 前 | K3 起 | 理由 |
+| --- | --- | --- | --- |
+| 短剧 → 画布打通链路 | 不存在 | **✅ 唯一写入方** | 本期目的 |
+| 文档解析器读回 | ❌ 不读回 | **✅ 读回 + 结构校验 + 白名单** | 不读回等于存了也丢 |
+| 剪贴板复制/粘贴 | ❌ 丢弃 | **❌ 保持丢弃** | §5.1.3 |
+| AI `update_node` 白名单 | ❌ 排除 | **❌ 保持排除** | AI 不得改归属 |
+| AI 建卡（`add_node` 等） | ❌ 无此字段 | **❌ 保持无** | 同上 |
+| Rust `canvas_tools` 校验 | ❌ 拒绝 | **❌ 保持拒绝** | 同上 |
+| 用户手工编辑 | ❌ 无入口 | **❌ 保持无入口** | 归属不是可编辑属性 |
+
+一句话：**只有"从短剧送过来"这一个动作能写 `domainRef`；写完就是只读的；
+删卡是唯一的解除方式。** AI 侧的三道门一行不改，测试断言从"恒为
+`undefined`"**加强**为"一张已带 `domainRef` 的卡，任何 agent op 之后
+`domainRef` 原封不动"。
+
+### 5.1.3 复制卡片不带归属
+
+`infiniteCanvasClipboard` 继续丢弃 `domainRef`，与它丢弃 `generation` /
+`derivedFrom` 同构：**一个短剧资产在画布上只应有一个"官方精修位"**。复制出
+第二张带同样归属的卡，就会有两张卡争着送回短剧，用户无从判断哪张是真的。
+粘贴出来的是一张干净的新卡（图还在，归属没了）；要归属就从短剧再送一次。
+
+### 5.1.4 解析器读回规则与悬空引用
+
+`parseInfiniteCanvasDocument` 读回 `domainRef`，全部 fail-open 到"字段不存在"，
+**永远不把文档判成 `invalid-document`**——一条坏标签不该毁掉整张画布：
+
+- 不是对象 / 四字段缺一 / 非字符串 / 空串 → 整个 `domainRef` 视为不存在，
+  节点其余部分照常解析。
+- `moduleId` 不在白名单（当前只有 `'short-drama'`）→ 同样视为不存在。
+  向前兼容代价：将来别的模块写进来的标签，在旧版本里被静默丢弃而不是炸掉。
+- 结构合法就**原样保留**。解析器**不**校验"这个 artifact 是否还存在"——那是
+  运行时的事，解析器不得依赖短剧域。
+
+**悬空引用**（图还在、短剧资产被删了或查不到）：
+
+- 画布**不删卡、不清 `domainRef`**。用户的图还在，凭什么删。
+- 徽标降级为灰色的"来自短剧 · 角色（已不存在）"。
+- "送回短剧"按钮**禁用**（第二步），并给出明确原因。
+- 解析时不做任何清理、不写回文档——避免"打开一次画布就静默改一次文档"。
+- 反向悬空（短剧还在、画布卡被删）：短剧完全无感，这是单向依赖的红利。
+
+### 5.1.5 Surface 输入契约（`InfiniteCanvasSurfaceInput`）
+
+无限画布 surface 自 K3 起接受 typed input（此前明确拒绝任何非空 input）：
+
+```ts
+interface InfiniteCanvasSurfaceInput {
+  /** 缺省 = 只开画布，等价于 K3 之前的行为 */
+  domainRef?: InfiniteCanvasDomainRef;
+  /** 一次性导入的幂等键；同一个 requestId 只导入一次 */
+  requestId?: string;
+}
+```
+
+`validateInput` 全部 fail-closed：
+
+| 输入 | 结果 |
+| --- | --- |
+| `undefined` / `null` / `{}` | valid，`value: {}`（保留既有行为）|
+| `{ domainRef, requestId }` 且两者都合法 | valid，`value` 为 trim 后的规范化对象 |
+| 其它任何形状 | invalid，理由字符串明确说明 |
+
+- `domainRef.moduleId` 必须严格等于 `'short-drama'`。
+- `kind` 必须在 `['character','location','storyboard']` 白名单内。
+- `id`、`role` 是非空字符串，trim 后再存；`role` 必须是 `'refine'`。
+- 有 `domainRef` 就**必须**有 `requestId`；只有 `requestId` 没有 `domainRef`
+  视为无效；多余的键一律无效。
+- `checkWorkspace` 的远程 workspace fail-closed **保持不变**。
+
+**图的路径不进 input。** 画布收到 `domainRef` 后自己去读短剧当前那张图的
+`relativePath`；input 里带路径 = 两处真相，资产在打开前刚换了图就会送错。
+
+### 5.1.6 实例键与 `'focus' → 'update'` 策略变更
+
+- 实例键仍是 `infinite-canvas:${workspaceId}`：**一个 workspace 一张画布文档**
+  是画布的地基假设，按 artifact 开 N 个标签页会造出 N 个指向同一份文档的标签。
+- `existingInstanceStrategy` 从 `'focus'` 改为 `'update'`（短剧自己的 surface
+  早已在用）。`'focus'` 只切标签、不更新 content，第二次送资产会**静默丢失**。
+- **幂等是这次变更的成本**，两层保险，缺一不可：
+  1. 面板用 `handledImportRequestIdRef` 记住已处理的 `requestId`，重复的忽略；
+  2. 文档级去重：若已有一张卡带着同一个 `domainRef`（`moduleId` + `kind` +
+     `id` 三元组相同），**不再建第二张卡**，只选中既有那张。这一层保证会话
+     恢复重新挂载面板时也不会重复导入。
+- 会话恢复路径不得携带 pending import：恢复造出来的 open 请求不带 input。
+
+### 5.1.7 `relativePath ↔ mediaRef` 换算
+
+换算只存在于一处：`shared/services/canvas-short-drama/shortDramaCanvasRefBridge.ts`，
+一个两边都不属于的薄适配层（纯函数，不 import React / Tauri / 任一侧面板）。
+
+- **只读 `relativePath`。** `ShortDramaMediaReference` 的 `localPath` /
+  `filePath` 是冗余字段，不参与换算；`mediaItemId` 是短剧域主键，画布不认识
+  也不存。
+- **绝不拼路径。** 不 `join`、不 `resolve`、不 `replace(workspacePath, '')`。
+  拿不到干净的 `relativePath`（缺失 / 空串 / 含 `..` / 绝对路径 / 反斜杠盘符）
+  就返回 `null`，上层报"这张图暂时不能送进画布"。
+- 反向换算（第二步用）额外要求 `workspacePath` 经
+  `areCanvasWorkspacePathsEquivalent` 等价，否则 `null`。
+
+### 5.1.8 落卡与预览纪律
+
+- 送进来的卡是一张**普通图片卡**：`kind:'image'` +
+  `mediaRef`（与短剧**共享同一个文件**，画布永不写媒体域）+ `domainRef`。
+  不写 `prompt`、不写 `derivedFrom`、不写 `generation`——它是根，不是任何
+  东西的版本。
+- 预览一律走 `resolveInfiniteCanvasMediaPreviewUrl`（`forceDataUrl: true`）。
+  **严禁**把短剧的 `mediaReference.thumbnailUrl` / `previewUrl` 搬过来当图源：
+  那是 `convertFileSrc` 产物，webview 拒载，结果是黑图。
+- 徽标是**只读展示**，不可编辑、不可点掉；视觉遵守
+  [无限画布视觉与交互语言](../design/infinite-canvas-visual-language.md)，
+  与 §7.6 的数量徽标同一套克制灰。
+
+### 5.1.9 第二步（回流）的契约预告
+
+以下条款在第二步落地，此处先立契约，第一步不实现：
+
+- 短剧域新增**一个导出纯函数** `applyShortDramaCanvasRefinement`，
+  append 一条 revision + 覆盖 `mediaReference` + 置 `status:'reviewing'`。
+  既有的 `approveShortDramaArtifactReview` 一行不改。
+- revision 新增两个**可选**字段 `sourceOperationId`、`sourceCanvasNodeId`
+  （additive，manifest schema 版本不动；老 manifest 读不到这两个字段等价于
+  "不是画布来的"）。
+- **有意差异：不 append `attempt`。** 画布精修不是一次代理运行，塞进
+  `attempts` 会污染重试计数与 `needs_intervention` 阈值判定。这是与
+  `jobs.rs` 既有 `attach_short_drama_media_result` 链路的刻意分岔。
+- **幂等键双保险**：`operationId` 与 `mediaItemId`，谁先到算谁，第二个静默
+  跳过。这是第三步（生成时带短剧坐标，A 路径自动回挂）能安全落地的前提。
+- 三道闸全部 fail-closed，做在适配层而不进 ViewModel：workspace 等价、
+  项目一致（由"一 workspace 一项目"蕴含）、资产存在且 `type === domainRef.kind`。
 
 ## 6. 阶段边界
 
@@ -903,6 +1067,13 @@ Provider、渠道或密钥。
 `infinite_canvas_asset_api.rs` 内），`media_tools.rs` / `capabilities.rs` /
 `jobs.rs` / `analyze_image_tool.rs` / `image_analysis/` / `modes/media.rs`
 与短剧任何路径零改动。
+
+**K3 第一步（见 [K3 打通计划](../plans/2026-08-28-canvas-short-drama-bridge.md)）
+覆盖**：短剧资产"在画布中精修"单向送出——surface typed input（§5.1.5）、
+`domainRef` 开门（§5.1.2/§5.1.4）、`relativePath` 换算适配层（§5.1.7）、
+短剧侧一个可见入口按钮、画布落卡与归属徽标（§5.1.8）。
+**短剧领域模块（`shared/services/short-drama/**`）零改动**，Rust 侧零改动，
+不引入新 Provider、渠道或密钥。回流（第二步）与归属生成（第三步）不在本批。
 
 **P5 实测数字（2026-08-27 一次真实 `build:web`）**：缩略图 161 张、
 2,126,328 字节（2.03 MiB），位于 `dist/style-presets/`；JS 原始
