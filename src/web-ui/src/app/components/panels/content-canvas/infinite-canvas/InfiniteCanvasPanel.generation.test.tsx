@@ -256,6 +256,64 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
     return generateFromCanvasGenerator(container, flow, nodeId);
   }
 
+  /**
+   * Adversarial review P1: the registration branch reads the document as it is
+   * AT COMMIT TIME, not the snapshot taken before the awaits.
+   *
+   * A card whose first picture landed while the send was in flight was still
+   * being registered as a blank-card first shot — a registration the never-
+   * overwrite rule refuses — so nothing was pending anywhere and the request
+   * was paid for with nowhere to land.
+   */
+  it('registers against the document as it is when the mutation runs', async () => {
+    seedDocument(memory, {
+      nodes: [imageNode('card-blank', { prompt: 'a lighthouse at dusk' })],
+    });
+
+    let race = false;
+    const landed = mediaRefOf('arrived-first.png');
+    const raced = new Proxy(service, {
+      get(target, property, _receiver) {
+        if (property === 'mutateDefaultDocument') {
+          return async (ref: never, mutator: never) => {
+            if (race) {
+              race = false;
+              // Somebody else's result lands on the card between the panel
+              // reading it and the panel's own mutation running.
+              await service.mutateDefaultDocument(ref, current => ({
+                nodes: current.nodes.map(node => (
+                  node.nodeId === 'card-blank' ? { ...node, mediaRef: landed } : node
+                )),
+                edges: current.edges,
+                viewport: current.viewport,
+              }));
+            }
+            return service.mutateDefaultDocument(ref, mutator);
+          };
+        }
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as InfiniteCanvasDocumentService;
+
+    await renderPanel({ service: raced });
+    race = true;
+    await generateCard('card-blank');
+
+    // One paid request, and a card that is genuinely waiting for it.
+    expect(recording.invocations).toHaveLength(1);
+    await service.flushPendingWrites();
+    const card = readDocument(memory).nodes.find(node => node.nodeId === 'card-blank')!;
+    expect(card.generation).toMatchObject({
+      operationId: recording.invocations[0].operationId,
+      status: 'pending',
+      resultMode: 'self',
+      toolId: 'generate',
+    });
+    // The picture that arrived first is untouched — never-overwrite holds.
+    expect(card.mediaRef).toEqual(landed);
+  });
+
   it('registers a self pending state and dispatches when a blank card generates', async () => {
     seedDocument(memory, {
       nodes: [imageNode('card-blank', { prompt: 'a lighthouse at dusk' })],

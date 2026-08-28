@@ -678,6 +678,44 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
       ?.getAttribute('data-blocked-reason')).toBe('frame');
   });
 
+  /**
+   * Adversarial review P7: two presses in one tick were two paid submissions.
+   *
+   * Each confirm read its request out of React state and cleared it, but a
+   * second call before the next render still saw the old value — so a double
+   * click wrote the composite twice and billed the user twice for one frame.
+   */
+  it('bills one outpainting for a double press of the send button', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-action="more"]');
+    await openEditor('[data-tool-id="expand"]');
+    act(() => {
+      Simulate.mouseDown(
+        container.querySelector('[data-canvas-frame-handle="e"]')!,
+        { clientX: 0, clientY: 0 } as never,
+      );
+    });
+    act(() => {
+      Simulate.mouseMove(
+        container.querySelector('[data-canvas-frame-stage="true"]')!,
+        { clientX: 200, clientY: 0 } as never,
+      );
+    });
+
+    const send = container.querySelector('[data-canvas-generator-action="send"]')!;
+    await act(async () => {
+      // Both presses land before React can re-render the editor away.
+      Simulate.click(send);
+      Simulate.click(send);
+    });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(writeCanvasImage).toHaveBeenCalledTimes(1);
+    expect(stubRuntime.gateway.invoke).toHaveBeenCalledTimes(1);
+  });
+
   it('writes the outpainting composite to scratch and submits it once', async () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();

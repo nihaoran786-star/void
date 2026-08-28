@@ -255,15 +255,21 @@ export function buildExpandInstruction(
   const definition = IMAGE_TOOL_DEFINITIONS.find(entry => entry.toolId === 'expand');
   const template = definition?.instructionTemplate ?? '';
   const [directionToken, sceneToken] = instructionPlaceholders(template);
+  // Adversarial review P4: the replacement is a FUNCTION, never a string.
+  // `String.replace` reads `$&`, `$'`, `` $` `` and `$1` in a string
+  // replacement, so a user who typed a `$` into the outpainting box had their
+  // own sentence silently rewritten — "a $5 note" would have duplicated a
+  // slice of the template into the prompt that reaches the model.
+  const insert = (value: string) => () => value;
   let filled = template;
   if (directionToken) {
-    filled = filled.replace(directionToken, expandInstructionDirection(insets));
+    filled = filled.replace(directionToken, insert(expandInstructionDirection(insets)));
   }
   // The user's own sentence when there is one; the fallback otherwise. Either
   // way the placeholder is gone, so the template can never reach a model with
   // a bracket still in it.
   const scene = sceneDescription.trim() || EXPAND_SCENE_DESCRIPTION;
-  if (sceneToken) filled = filled.replace(sceneToken, scene);
+  if (sceneToken) filled = filled.replace(sceneToken, insert(scene));
   // The same joiner the mask lane uses — one "directive then instruction"
   // shape for every lane that prepends a machine-facing sentence.
   return buildMaskInstruction(directive, filled);

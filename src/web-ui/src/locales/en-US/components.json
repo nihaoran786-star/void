@@ -995,6 +995,7 @@
       "promptRequired": "Write a prompt on the card first.",
       "referenceNotReady": "A connected reference card has no image yet; wait for it or remove the connection.",
       "noSession": "Open the canvas from a session first.",
+      "cardMissing": "This card is no longer waiting for a picture, so nothing was sent. Nothing was charged.",
       "errorKind": {
         "unavailable": "The generation lane is not available yet.",
         "auth": "The image provider is not configured or its credentials are invalid.",

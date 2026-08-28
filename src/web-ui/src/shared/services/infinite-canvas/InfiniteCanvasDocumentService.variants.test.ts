@@ -76,32 +76,89 @@ describe('infinite canvas document parser — media variants (§7.6)', () => {
     expect(node.mediaRef).toEqual({ workspacePath: WS, relativePath: 'c.png' });
   });
 
-  it('drops a list that does not contain the current picture', () => {
+  /**
+   * Adversarial review P3: parsing must repair, never delete.
+   *
+   * The next save writes back whatever the parser produced, so a list the
+   * parser drops is a list the user loses for good. Every readable picture
+   * has to survive.
+   */
+  it('merges a current picture the list has lost, instead of dropping the list', () => {
     const node = parseNodeOf({
       mediaRef: { workspacePath: WS, relativePath: 'z.png' },
       mediaVariants: [{ workspacePath: WS, relativePath: 'a.png' }],
       activeVariantIndex: 0,
     });
-    expect(node.mediaVariants).toBeUndefined();
+    expect(node.mediaVariants).toEqual([
+      { workspacePath: WS, relativePath: 'a.png' },
+      { workspacePath: WS, relativePath: 'z.png' },
+    ]);
+    // mediaRef is immutable and still points at what the card was showing.
     expect(node.mediaRef).toEqual({ workspacePath: WS, relativePath: 'z.png' });
+    expect(node.activeVariantIndex).toBe(1);
   });
 
-  it('drops a corrupted list whole instead of failing the document', () => {
+  it('keeps every readable picture when one entry is corrupted', () => {
     const node = parseNodeOf({
       mediaRef: { workspacePath: WS, relativePath: 'a.png' },
-      mediaVariants: [{ workspacePath: WS, relativePath: 'a.png' }, { workspacePath: WS }],
+      mediaVariants: [
+        { workspacePath: WS, relativePath: 'a.png' },
+        { workspacePath: WS },
+        { workspacePath: WS, relativePath: 'b.png' },
+        'nonsense',
+        { workspacePath: WS, relativePath: 'c.png' },
+      ],
       activeVariantIndex: 0,
     });
-    expect(node.mediaVariants).toBeUndefined();
+    expect(node.mediaVariants).toEqual([
+      { workspacePath: WS, relativePath: 'a.png' },
+      { workspacePath: WS, relativePath: 'b.png' },
+      { workspacePath: WS, relativePath: 'c.png' },
+    ]);
+    expect(node.activeVariantIndex).toBe(0);
     expect(node.mediaRef).toEqual({ workspacePath: WS, relativePath: 'a.png' });
   });
 
-  it('ignores a list on a card that carries no picture at all', () => {
+  it('drops a duplicate entry rather than the list, keeping append-only true', () => {
+    const node = parseNodeOf({
+      mediaRef: { workspacePath: WS, relativePath: 'b.png' },
+      mediaVariants: [
+        { workspacePath: WS, relativePath: 'a.png' },
+        { workspacePath: WS, relativePath: 'b.png' },
+        { workspacePath: WS, relativePath: 'a.png' },
+      ],
+      activeVariantIndex: 1,
+    });
+    expect(node.mediaVariants).toEqual([
+      { workspacePath: WS, relativePath: 'a.png' },
+      { workspacePath: WS, relativePath: 'b.png' },
+    ]);
+    expect(node.activeVariantIndex).toBe(1);
+  });
+
+  it('rebuilds a lost current picture from the list rather than losing the card', () => {
+    const node = parseNodeOf({
+      mediaVariants: [
+        { workspacePath: WS, relativePath: 'a.png' },
+        { workspacePath: WS, relativePath: 'b.png' },
+      ],
+      activeVariantIndex: 1,
+    });
+    expect(node.mediaRef).toEqual({ workspacePath: WS, relativePath: 'b.png' });
+    expect(node.mediaVariants).toEqual([
+      { workspacePath: WS, relativePath: 'a.png' },
+      { workspacePath: WS, relativePath: 'b.png' },
+    ]);
+    expect(node.activeVariantIndex).toBe(1);
+  });
+
+  it('reads a list of one as the single-picture card it already is', () => {
     const node = parseNodeOf({
       mediaVariants: [{ workspacePath: WS, relativePath: 'a.png' }],
       activeVariantIndex: 0,
     });
+    expect(node.mediaRef).toEqual({ workspacePath: WS, relativePath: 'a.png' });
     expect(node.mediaVariants).toBeUndefined();
-    expect(node.mediaRef).toBeUndefined();
+    expect(node.activeVariantIndex).toBeUndefined();
   });
 });

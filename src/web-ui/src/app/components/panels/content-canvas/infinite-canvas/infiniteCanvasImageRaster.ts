@@ -382,13 +382,48 @@ export const CANVAS_EXPAND_NO_INSETS: CanvasExpandInsets = {
   bottom: 0,
 };
 
-/** The furthest each side may be dragged, in natural pixels. */
+/**
+ * How many pixels the outpainting composite may cover, whatever the ratio
+ * allows.
+ *
+ * Adversarial review P5: `CANVAS_EXPAND_MAX_RATIO` is a per-axis multiple, so
+ * on both axes at once it is a NINEFOLD area. A 4096² picture could be dragged
+ * to 12288² — 151 million pixels — and the editor would allocate that canvas
+ * before `exportCanvasPngBase64` told the user it was too big. A ratio cannot
+ * express "how much memory this costs"; only an area budget can, so the two
+ * caps are applied together and the tighter one wins.
+ *
+ * 64 Mpx is one 8192² picture: comfortably inside every browser's maximum
+ * canvas area, and small enough that the base64 PNG has a chance of clearing
+ * the 32 MB write ceiling.
+ */
+export const CANVAS_EXPAND_MAX_PIXELS = 64 * 1024 * 1024;
+
+/**
+ * The furthest each side may be dragged, in natural pixels.
+ *
+ * Two caps, tighter one wins: `ratio` per axis, and
+ * `CANVAS_EXPAND_MAX_PIXELS` over the finished area. The area cap is turned
+ * into a per-axis one by asking how far BOTH axes may grow together —
+ * `(1 + 2r)² × w × h ≤ budget` — which is what makes the frame stop at a size
+ * that can actually be rasterised instead of at a ratio that cannot.
+ */
 export function canvasExpandMaxInsets(
   natural: CanvasSize,
   ratio: number = CANVAS_EXPAND_MAX_RATIO,
+  maxPixels: number = CANVAS_EXPAND_MAX_PIXELS,
 ): CanvasExpandInsets {
-  const horizontal = Math.max(0, Math.round(Math.max(0, natural.width) * ratio));
-  const vertical = Math.max(0, Math.round(Math.max(0, natural.height) * ratio));
+  const width = Math.max(0, natural.width);
+  const height = Math.max(0, natural.height);
+  const area = width * height;
+  // Growth factor per axis: 1 + 2 × ratio, held down to what the area budget
+  // can pay for. Never below 1 — a budget too small for the picture itself
+  // simply means "no expansion at all", not a negative inset.
+  const wanted = 1 + 2 * Math.max(0, ratio);
+  const affordable = area > 0 ? Math.sqrt(Math.max(0, maxPixels) / area) : wanted;
+  const growth = Math.max(1, Math.min(wanted, affordable));
+  const horizontal = Math.max(0, Math.round(width * (growth - 1) / 2));
+  const vertical = Math.max(0, Math.round(height * (growth - 1) / 2));
   return { left: horizontal, right: horizontal, top: vertical, bottom: vertical };
 }
 
@@ -403,8 +438,9 @@ export function clampExpandInsets(
   insets: CanvasExpandInsets,
   natural: CanvasSize,
   ratio: number = CANVAS_EXPAND_MAX_RATIO,
+  maxPixels: number = CANVAS_EXPAND_MAX_PIXELS,
 ): CanvasExpandInsets {
-  const max = canvasExpandMaxInsets(natural, ratio);
+  const max = canvasExpandMaxInsets(natural, ratio, maxPixels);
   const clamp = (value: number, limit: number) => (
     Math.round(Math.min(Math.max(Number.isFinite(value) ? value : 0, 0), limit))
   );

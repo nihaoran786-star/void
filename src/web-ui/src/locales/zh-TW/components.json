@@ -995,6 +995,7 @@
       "promptRequired": "請先在卡片上寫提示詞。",
       "referenceNotReady": "參考卡還沒有圖，先等它完成或斷開連線。",
       "noSession": "請先在會話中打開畫布。",
+      "cardMissing": "這張卡已經不在等待出圖了，所以沒有發送，也沒有扣費。",
       "errorKind": {
         "unavailable": "出圖通道暫不可用。",
         "auth": "出圖渠道未設定或憑證失效。",

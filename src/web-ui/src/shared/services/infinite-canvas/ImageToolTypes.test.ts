@@ -109,6 +109,25 @@ describe('buildExpandInstruction', () => {
     expect(instructionBlockReason(instruction, EXPAND.instructionTemplate)).toBeUndefined();
   });
 
+  /**
+   * Adversarial review P4: `String.replace` reads `$&`, `` $` ``, `$'` and
+   * `$1` inside a STRING replacement, so a user who typed a dollar sign had
+   * their own sentence silently rewritten before it reached the model.
+   */
+  it('takes a dollar sign in the user sentence literally', () => {
+    const written = "a $5 note on the table, $& $' $` $1 $$";
+    const instruction = buildExpandInstruction(
+      'DIRECTIVE',
+      { left: 0, top: 30, right: 0, bottom: 0 },
+      written,
+    );
+
+    expect(instruction).toContain(written);
+    // Nothing from the template leaked in through a replacement pattern.
+    expect(instruction).not.toContain('【');
+    expect(instruction.match(/Expand the canvas/g)).toHaveLength(1);
+  });
+
   it('keeps the directive first, the way the mask lane does', () => {
     const instruction = buildExpandInstruction('DIRECTIVE', {
       left: 5, top: 0, right: 0, bottom: 0,

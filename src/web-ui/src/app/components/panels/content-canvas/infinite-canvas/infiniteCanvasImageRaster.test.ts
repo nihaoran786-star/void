@@ -13,6 +13,7 @@ import { JSDOM } from 'jsdom';
 import {
   CANVAS_CROP_MIN_SIZE,
   CANVAS_CROP_PREFIX,
+  CANVAS_EXPAND_MAX_PIXELS,
   CANVAS_EXPAND_MAX_RATIO,
   CANVAS_MARK_UNDO_BUDGET_BYTES,
   CANVAS_MARK_UNDO_LIMIT,
@@ -371,6 +372,45 @@ describe('outpainting geometry', () => {
     // At the cap the canvas is 3x on each axis, which is what the 32 MB write
     // ceiling was sized against.
     expect(expandedCanvasSize(NATURAL, clamped)).toEqual({ width: 1200, height: 600 });
+  });
+
+  /**
+   * Adversarial review P5: a per-axis ratio is a NINEFOLD area on both axes at
+   * once. A 4096² picture could be dragged to 12288² — 151 million pixels —
+   * and the editor allocated that canvas before the export told the user it
+   * was too big. The area budget clamps the frame where it can be felt.
+   */
+  it('holds the frame to a pixel budget, not just to a ratio', () => {
+    const big = { width: 4096, height: 4096 };
+    const clamped = clampExpandInsets(
+      { left: 99_999, top: 99_999, right: 99_999, bottom: 99_999 },
+      big,
+    );
+    const size = expandedCanvasSize(big, clamped);
+
+    expect(size.width * size.height).toBeLessThanOrEqual(CANVAS_EXPAND_MAX_PIXELS);
+    // The ratio alone would have allowed 12288² = 151 Mpx.
+    expect(size.width).toBeLessThan(big.width * (1 + 2 * CANVAS_EXPAND_MAX_RATIO));
+
+    // An ordinary picture is untouched: the ratio is still the tighter cap.
+    const ordinary = { width: 1024, height: 1024 };
+    expect(clampExpandInsets(
+      { left: 99_999, top: 99_999, right: 99_999, bottom: 99_999 },
+      ordinary,
+    )).toEqual({
+      left: ordinary.width * CANVAS_EXPAND_MAX_RATIO,
+      right: ordinary.width * CANVAS_EXPAND_MAX_RATIO,
+      top: ordinary.height * CANVAS_EXPAND_MAX_RATIO,
+      bottom: ordinary.height * CANVAS_EXPAND_MAX_RATIO,
+    });
+  });
+
+  it('offers no expansion at all on a picture the budget cannot hold', () => {
+    const enormous = { width: 16_384, height: 16_384 };
+    expect(clampExpandInsets(
+      { left: 500, top: 500, right: 500, bottom: 500 },
+      enormous,
+    )).toEqual({ left: 0, top: 0, right: 0, bottom: 0 });
   });
 
   it('rounds to whole pixels and keeps sub-pixel drags honest', () => {
