@@ -41,6 +41,7 @@ import { useI18n } from '@/infrastructure/i18n';
 import type { CanvasExpandInsets } from '@/shared/services/infinite-canvas';
 import {
   CanvasTooLargeError,
+  closeCanvasImageBitmap,
   cropBitmap,
   expandBitmap,
   exportCanvasPngBase64,
@@ -165,6 +166,7 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
 
   React.useEffect(() => {
     let cancelled = false;
+    let owned: ImageBitmap | undefined;
     setBitmap(undefined);
     setEdges(undefined);
     setFailed(false);
@@ -179,7 +181,12 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
         setPreviewUrl(url);
         // The one decode lane (see infiniteCanvasImageRaster): never <img>.
         const decoded = await loadCanvasImageBitmap(url);
-        if (cancelled) return;
+        // C5: a bitmap nobody will show is a bitmap nobody would ever free.
+        if (cancelled) {
+          closeCanvasImageBitmap(decoded);
+          return;
+        }
+        owned = decoded;
         setBitmap(decoded);
         setEdges(initialCanvasFrameEdges(direction, decoded));
       } catch {
@@ -188,6 +195,9 @@ export const InfiniteCanvasFrameEditor: React.FC<InfiniteCanvasFrameEditorProps>
     })();
     return () => {
       cancelled = true;
+      // C5: `ImageBitmap` holds native memory the collector does not see, so
+      // the decode has exactly one owner and this is where it lets go.
+      closeCanvasImageBitmap(owned);
     };
   }, [direction, mediaRef, resolvePreviewUrl]);
 

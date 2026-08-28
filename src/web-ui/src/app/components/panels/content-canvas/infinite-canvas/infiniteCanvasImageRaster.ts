@@ -69,19 +69,29 @@ export const CANVAS_MARK_UNDO_LIMIT = 30;
  */
 export const CANVAS_MARK_UNDO_BUDGET_BYTES = 192 * 1024 * 1024;
 
-/** Never fewer than this, however large the picture — one stroke back is a floor. */
-export const CANVAS_MARK_UNDO_MIN = 4;
-
 /**
  * Undo depth for a mark layer of the given natural size: `CANVAS_MARK_UNDO_LIMIT`
- * for ordinary pictures, shrinking towards `CANVAS_MARK_UNDO_MIN` as one
- * snapshot (`width × height × 4` bytes of RGBA) grows.
+ * for ordinary pictures, shrinking as one snapshot (`width × height × 4` bytes
+ * of RGBA) grows, and **0** for a picture so large that the budget cannot pay
+ * for even a single snapshot.
+ *
+ * Adversarial review C6: there used to be a hard floor of four entries that
+ * won over the budget (`Math.max(4, affordable)`), which made the "budget" a
+ * suggestion. An 8192² mark layer costs 268 MB a snapshot, so the floor alone
+ * reserved 1.07 GB — 5.6× what this file says it will spend, on exactly the
+ * pictures where the webview has least room to spare. The budget is now
+ * absolute: it is the only thing that decides the depth.
+ *
+ * Zero means "undo is off for this picture", and the editor says so rather
+ * than showing a button that cannot work: a silently dead control is the one
+ * outcome worse than an honest absence.
  */
 export function canvasMarkUndoLimit(size: CanvasSize): number {
   const pixels = Math.max(1, Math.round(size.width)) * Math.max(1, Math.round(size.height));
   const perEntry = Math.max(1, pixels * 4);
   const affordable = Math.floor(CANVAS_MARK_UNDO_BUDGET_BYTES / perEntry);
-  return Math.max(CANVAS_MARK_UNDO_MIN, Math.min(CANVAS_MARK_UNDO_LIMIT, affordable));
+  if (affordable < 1) return 0;
+  return Math.min(CANVAS_MARK_UNDO_LIMIT, affordable);
 }
 
 /** Smallest crop the editor will accept, in natural pixels. */
@@ -157,6 +167,29 @@ export async function loadCanvasImageBitmap(dataUrl: string): Promise<ImageBitma
     throw new Error('createImageBitmap is unavailable in this environment.');
   }
   return createImageBitmap(dataUrlToBlob(dataUrl));
+}
+
+/**
+ * Adversarial review C5: hands a decoded bitmap back to the browser.
+ *
+ * An `ImageBitmap` holds native memory the JavaScript garbage collector does
+ * not account for, and the two board-filling editors never released theirs: a
+ * 4096² picture cost ~64 MB per open, and closing the editor gave none of it
+ * back. Every decode in the editors now has exactly one owner, and this is how
+ * the owner lets go.
+ *
+ * Tolerant of an environment (or a test double) whose bitmaps have no `close`,
+ * and of being called twice on the same bitmap.
+ */
+export function closeCanvasImageBitmap(bitmap: ImageBitmap | undefined | null): void {
+  if (!bitmap) return;
+  const close = (bitmap as Partial<ImageBitmap>).close;
+  if (typeof close !== 'function') return;
+  try {
+    close.call(bitmap);
+  } catch {
+    // An already-closed bitmap is not an error worth surfacing.
+  }
 }
 
 // —— Surfaces ————————————————————————————————————————————————————————————————

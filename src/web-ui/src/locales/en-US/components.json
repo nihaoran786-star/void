@@ -1203,6 +1203,7 @@
       "brushSize": "Brush size",
       "undo": "Undo mark",
       "redo": "Redo mark",
+      "undoUnaffordable": "This picture is too large for a mark history; marks can still be cleared.",
       "clear": "Clear all marks",
       "hint": "Paint over the area you want changed, then say what should happen there. The marked area guides the model; it is not a pixel-exact selection.",
       "instructionLabel": "What should change",

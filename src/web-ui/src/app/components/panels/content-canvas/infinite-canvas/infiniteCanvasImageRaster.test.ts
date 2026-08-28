@@ -16,11 +16,11 @@ import {
   CANVAS_EXPAND_MAX_RATIO,
   CANVAS_MARK_UNDO_BUDGET_BYTES,
   CANVAS_MARK_UNDO_LIMIT,
-  CANVAS_MARK_UNDO_MIN,
   CANVAS_SCRATCH_PREFIX,
   canvasCropRelativePath,
   canvasMarkUndoLimit,
   CanvasTooLargeError,
+  closeCanvasImageBitmap,
   canvasScratchRelativePath,
   clampCropRect,
   compositeMarkLayer,
@@ -214,28 +214,69 @@ describe('infiniteCanvasImageRaster', () => {
       const limit = canvasMarkUndoLimit(size);
 
       expect(limit).toBeLessThan(CANVAS_MARK_UNDO_LIMIT);
-      expect(limit).toBeGreaterThan(CANVAS_MARK_UNDO_MIN);
+      expect(limit).toBeGreaterThan(1);
       expect(limit * size.width * size.height * 4)
         .toBeLessThanOrEqual(CANVAS_MARK_UNDO_BUDGET_BYTES);
     });
 
     /**
-     * The floor wins over the budget, deliberately: one undo has to work even
-     * on a picture where a single snapshot is enormous. It is still a tenth of
-     * the ~2 GB the flat thirty-entry cap used to reach at this size.
+     * Adversarial review C6: the budget is absolute.
+     *
+     * A hard floor of four entries used to win over it, so the number this
+     * file calls a budget was really "four snapshots, whatever they cost".
      */
-    it('keeps the floor on a 4096² layer, an order of magnitude under the old cap', () => {
-      const size = { width: 4096, height: 4096 };
-      const perEntry = size.width * size.height * 4;
-
-      expect(canvasMarkUndoLimit(size)).toBe(CANVAS_MARK_UNDO_MIN);
-      expect(CANVAS_MARK_UNDO_MIN * perEntry)
-        .toBeLessThan(CANVAS_MARK_UNDO_LIMIT * perEntry / 5);
+    it('never reserves more than the budget, at any size', () => {
+      for (const edge of [2048, 4096, 6000, 8192, 20000, 60000]) {
+        const size = { width: edge, height: edge };
+        const limit = canvasMarkUndoLimit(size);
+        expect(limit * size.width * size.height * 4)
+          .toBeLessThanOrEqual(CANVAS_MARK_UNDO_BUDGET_BYTES);
+      }
     });
 
-    it('never drops below one useful step, however absurd the picture', () => {
-      expect(canvasMarkUndoLimit({ width: 60000, height: 60000 }))
-        .toBe(CANVAS_MARK_UNDO_MIN);
+    /**
+     * C6: past the point where even ONE snapshot is unaffordable the answer is
+     * an honest zero — the editor turns the history off and says why, rather
+     * than reserving a gigabyte for a button nobody can afford.
+     */
+    it('turns the history off when a single snapshot blows the budget', () => {
+      // 8192² RGBA is 268 MB a snapshot against a 192 MB budget.
+      expect(canvasMarkUndoLimit({ width: 8192, height: 8192 })).toBe(0);
+      expect(canvasMarkUndoLimit({ width: 60000, height: 60000 })).toBe(0);
+    });
+  });
+
+  /**
+   * Adversarial review C5: an `ImageBitmap` holds native memory the collector
+   * does not account for, so the editors need one honest way to hand it back.
+   */
+  describe('releasing a decoded bitmap', () => {
+    it('closes a bitmap exactly once per call and survives a second call', () => {
+      const close = vi.fn();
+      const bitmap = { width: 4, height: 4, close } as unknown as ImageBitmap;
+
+      closeCanvasImageBitmap(bitmap);
+      closeCanvasImageBitmap(bitmap);
+
+      expect(close).toHaveBeenCalledTimes(2);
+    });
+
+    it('tolerates nothing to close and an environment without close()', () => {
+      expect(() => closeCanvasImageBitmap(undefined)).not.toThrow();
+      expect(() => closeCanvasImageBitmap(null)).not.toThrow();
+      expect(() => closeCanvasImageBitmap(
+        { width: 1, height: 1 } as unknown as ImageBitmap,
+      )).not.toThrow();
+    });
+
+    it('swallows a throwing close so a cleanup pass can never break a teardown', () => {
+      const bitmap = {
+        width: 1,
+        height: 1,
+        close: () => { throw new Error('already detached'); },
+      } as unknown as ImageBitmap;
+
+      expect(() => closeCanvasImageBitmap(bitmap)).not.toThrow();
     });
   });
 

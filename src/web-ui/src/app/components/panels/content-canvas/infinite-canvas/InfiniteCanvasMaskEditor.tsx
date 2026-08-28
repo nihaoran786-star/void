@@ -53,6 +53,7 @@ import {
   CANVAS_MARK_STROKE_WIDTH,
   canvasMarkUndoLimit,
   CanvasTooLargeError,
+  closeCanvasImageBitmap,
   compositeMarkLayer,
   exportCanvasPngBase64,
   loadCanvasImageBitmap,
@@ -174,6 +175,7 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
   // Decoding is the one lane: data URL → createImageBitmap. Never an <img>.
   React.useEffect(() => {
     let cancelled = false;
+    let owned: ImageBitmap | undefined;
     setBitmap(undefined);
     setFailed(false);
     void (async () => {
@@ -186,7 +188,12 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
         }
         setPreviewUrl(url);
         const decoded = await loadCanvasImageBitmap(url);
-        if (cancelled) return;
+        // C5: a bitmap nobody will show is a bitmap nobody would ever free.
+        if (cancelled) {
+          closeCanvasImageBitmap(decoded);
+          return;
+        }
+        owned = decoded;
         setBitmap(decoded);
       } catch {
         if (!cancelled) setFailed(true);
@@ -194,6 +201,9 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     })();
     return () => {
       cancelled = true;
+      // C5: `ImageBitmap` holds native memory the collector does not see, so
+      // the decode has exactly one owner and this is where it lets go.
+      closeCanvasImageBitmap(owned);
     };
   }, [mediaRef, resolvePreviewUrl]);
 
@@ -259,40 +269,49 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
     { image: snapshot(), marked: markedRef.current }
   ), [snapshot]);
 
+  /**
+   * Adversarial review C6: both stacks are capped, and by the SAME budget.
+   *
+   * The undo stack was capped and the redo stack was not, so a long
+   * undo-redo-undo session could park an unbounded number of full-resolution
+   * `ImageData` in redo while undo stayed politely within its budget. Every
+   * push goes through here now.
+   */
+  const capStack = React.useCallback((stack: readonly MarkLayerSnapshot[]) => (
+    stack.length > undoLimit ? stack.slice(stack.length - undoLimit) : [...stack]
+  ), [undoLimit]);
+
   /** Pushes the pre-change state; the stack is capped, oldest entry drops. */
   const pushUndo = React.useCallback((entry: MarkLayerSnapshot) => {
-    const next = [...undoStackRef.current, entry];
-    undoStackRef.current = next.length > undoLimit
-      ? next.slice(next.length - undoLimit)
-      : next;
+    undoStackRef.current = capStack([...undoStackRef.current, entry]);
     redoStackRef.current = [];
     setUndoDepth(undoStackRef.current.length);
     setRedoDepth(0);
-  }, [undoLimit]);
+  }, [capStack]);
 
   const undo = React.useCallback(() => {
     const stack = undoStackRef.current;
     if (stack.length === 0) return;
     const entry = stack[stack.length - 1];
     undoStackRef.current = stack.slice(0, -1);
-    redoStackRef.current = [...redoStackRef.current, captureNow()];
+    redoStackRef.current = capStack([...redoStackRef.current, captureNow()]);
     restore(entry.image);
     setUndoDepth(undoStackRef.current.length);
     setRedoDepth(redoStackRef.current.length);
     setMarked(entry.marked);
-  }, [captureNow, restore]);
+  }, [capStack, captureNow, restore]);
 
   const redo = React.useCallback(() => {
     const stack = redoStackRef.current;
     if (stack.length === 0) return;
     const entry = stack[stack.length - 1];
     redoStackRef.current = stack.slice(0, -1);
-    undoStackRef.current = [...undoStackRef.current, captureNow()];
+    undoStackRef.current = capStack([...undoStackRef.current, captureNow()]);
     restore(entry.image);
     setUndoDepth(undoStackRef.current.length);
     setRedoDepth(redoStackRef.current.length);
     setMarked(entry.marked);
-  }, [captureNow, restore]);
+  }, [capStack, captureNow, restore]);
 
   const clearMarks = React.useCallback(() => {
     if (!marked) return;
@@ -534,9 +553,17 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
             type="button"
             className="infinite-canvas-mask__tool"
             data-mask-action="undo"
+            // C6: a picture whose single snapshot blows the memory budget gets
+            // no history at all — and the button says why rather than sitting
+            // there greyed out for no visible reason.
+            data-mask-history={undoLimit === 0 ? 'unaffordable' : undefined}
             disabled={undoDepth === 0}
-            aria-label={t('infiniteCanvas.mask.undo')}
-            title={t('infiniteCanvas.mask.undo')}
+            aria-label={undoLimit === 0
+              ? t('infiniteCanvas.mask.undoUnaffordable')
+              : t('infiniteCanvas.mask.undo')}
+            title={undoLimit === 0
+              ? t('infiniteCanvas.mask.undoUnaffordable')
+              : t('infiniteCanvas.mask.undo')}
             onClick={undo}
           >
             <RotateCcw size={14} aria-hidden="true" />
@@ -545,9 +572,14 @@ export const InfiniteCanvasMaskEditor: React.FC<InfiniteCanvasMaskEditorProps> =
             type="button"
             className="infinite-canvas-mask__tool"
             data-mask-action="redo"
+            data-mask-history={undoLimit === 0 ? 'unaffordable' : undefined}
             disabled={redoDepth === 0}
-            aria-label={t('infiniteCanvas.mask.redo')}
-            title={t('infiniteCanvas.mask.redo')}
+            aria-label={undoLimit === 0
+              ? t('infiniteCanvas.mask.undoUnaffordable')
+              : t('infiniteCanvas.mask.redo')}
+            title={undoLimit === 0
+              ? t('infiniteCanvas.mask.undoUnaffordable')
+              : t('infiniteCanvas.mask.redo')}
             onClick={redo}
           >
             <RotateCw size={14} aria-hidden="true" />

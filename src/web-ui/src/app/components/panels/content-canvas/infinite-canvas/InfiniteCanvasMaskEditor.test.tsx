@@ -533,6 +533,70 @@ describe('InfiniteCanvasMaskEditor', () => {
     expect(undo.disabled).toBe(true);
   });
 
+  /**
+   * Adversarial review C6: the redo stack had no cap of its own, so an
+   * undo-redo-undo session could park an unbounded number of full-resolution
+   * `ImageData` in it while undo stayed politely within budget.
+   */
+  it('caps the redo stack by the same budget as the undo stack', async () => {
+    await renderEditor();
+    const limit = canvasMarkUndoLimit({ width: 1600, height: 1200 });
+
+    for (let index = 0; index < limit; index += 1) {
+      paintStroke({ clientX: index, clientY: index }, { clientX: index + 5, clientY: index + 5 });
+    }
+    const undo = undoButton();
+    const redo = container.querySelector('[data-mask-action="redo"]') as HTMLButtonElement;
+
+    // Undo everything: redo now holds `limit` entries and cannot hold more.
+    for (let index = 0; index < limit; index += 1) act(() => Simulate.click(undo));
+    expect(undo.disabled).toBe(true);
+    expect(redo.disabled).toBe(false);
+
+    // Walking the whole stack back and forth must not grow either side.
+    for (let index = 0; index < limit; index += 1) act(() => Simulate.click(redo));
+    expect(redo.disabled).toBe(true);
+    for (let index = 0; index < limit; index += 1) act(() => Simulate.click(undo));
+    expect(undo.disabled).toBe(true);
+  });
+
+  /**
+   * C6: a picture whose single snapshot blows the whole budget gets no history
+   * at all — and the buttons say why instead of sitting there greyed out.
+   */
+  it('turns the history off, with a reason, on a picture the budget cannot hold', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => (
+      { width: 8192, height: 8192, close: () => undefined } as unknown as ImageBitmap
+    )));
+    await renderEditor();
+
+    paintStroke();
+    const undo = undoButton();
+    expect(undo.disabled).toBe(true);
+    expect(undo.getAttribute('data-mask-history')).toBe('unaffordable');
+    expect(undo.getAttribute('title')).toBe('infiniteCanvas.mask.undoUnaffordable');
+    // Clearing the marks is still offered: it needs no history to work.
+    expect(clearButton().disabled).toBe(false);
+  });
+
+  /**
+   * Adversarial review C5: the decoded picture is native memory the collector
+   * cannot see; the editor used to leak one per open.
+   */
+  it('releases the decoded bitmap when it closes', async () => {
+    const close = vi.fn();
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => (
+      { width: 1600, height: 1200, close } as unknown as ImageBitmap
+    )));
+
+    await renderEditor();
+    expect(close).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('clears every mark in one undoable step', async () => {
     await renderEditor();
     paintStroke();

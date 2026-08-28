@@ -204,6 +204,46 @@ describe('InfiniteCanvasFrameEditor', () => {
     expect(cropConfirm()).toBeNull();
   });
 
+  /**
+   * Adversarial review C5: the decoded picture is native memory the collector
+   * cannot see. A 4096² image costs ~64 MB, and the editor used to give none
+   * of it back — every open and close leaked another one.
+   */
+  it('releases the decoded bitmap when it closes', async () => {
+    const close = vi.fn();
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => (
+      { ...NATURAL, close } as unknown as ImageBitmap
+    )));
+
+    await renderEditor('outward');
+    expect(close).not.toHaveBeenCalled();
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases a decode that finished after the editor was already gone', async () => {
+    const close = vi.fn();
+    let settle: ((bitmap: ImageBitmap) => void) | undefined;
+    vi.stubGlobal('createImageBitmap', vi.fn(
+      () => new Promise<ImageBitmap>(resolve => { settle = resolve; }),
+    ));
+
+    await renderEditor('outward');
+    await act(async () => root.unmount());
+    root = createRoot(container);
+
+    // The decode lands with nowhere to go; it must still be handed back.
+    await act(async () => {
+      settle!({ ...NATURAL, close } as unknown as ImageBitmap);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   it('gives both directions the same eight grips', async () => {
     await renderEditor('inward');
     expect(container.querySelectorAll('[data-canvas-frame-handle]')).toHaveLength(8);
