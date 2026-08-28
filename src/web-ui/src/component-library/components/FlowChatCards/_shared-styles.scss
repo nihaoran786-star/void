@@ -8,7 +8,10 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: tokens.$size-radius-lg;
-  transition: all tokens.$motion-base tokens.$easing-standard;
+  transition:
+    background tokens.$motion-fast tokens.$easing-standard,
+    border-color tokens.$motion-fast tokens.$easing-standard,
+    transform tokens.$motion-fast tokens.$easing-standard;
   position: relative;
 }
 
@@ -49,11 +52,14 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: tokens.$size-radius-base;
   padding: tokens.$size-gap-2;
-  transition: all tokens.$motion-base tokens.$easing-standard;
+  transition:
+    background tokens.$motion-fast tokens.$easing-standard,
+    border-color tokens.$motion-fast tokens.$easing-standard,
+    transform tokens.$motion-instant tokens.$easing-standard;
 
   svg {
     color: rgba(255, 255, 255, 0.75);
-    transition: all tokens.$motion-base;
+    transition: color tokens.$motion-fast tokens.$easing-standard;
   }
 
   &:hover {
@@ -63,6 +69,10 @@
     svg {
       color: rgba(255, 255, 255, 0.95);
     }
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 }
 
@@ -74,7 +84,11 @@
   font-size: var(--font-size-sm);
   font-weight: tokens.$font-weight-medium;
   cursor: pointer;
-  transition: all tokens.$motion-base tokens.$easing-standard;
+  transition:
+    background tokens.$motion-fast tokens.$easing-standard,
+    border-color tokens.$motion-fast tokens.$easing-standard,
+    color tokens.$motion-fast tokens.$easing-standard,
+    transform tokens.$motion-instant tokens.$easing-standard;
 
   @if $variant == 'success' {
     background: rgba(52, 211, 153, 0.10);
@@ -113,6 +127,10 @@
       border-color: tokens.$border-medium;
       color: tokens.$color-text-primary;
     }
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   &:disabled {

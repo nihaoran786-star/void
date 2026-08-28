@@ -44,8 +44,8 @@
   flex-direction: column;
   transform: translateY(0);
   transition:
-    max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width $motion-base $easing-standard,
+    transform $motion-base $easing-standard;
 
   // ─── Single-line capsule mode ─────────────────────────────────────────────
   &--capsule {
@@ -246,9 +246,9 @@
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       transition:
-        background-color 0.25s ease,
-        border-color 0.25s ease,
-        box-shadow 0.25s ease;
+        background-color $motion-base $easing-standard,
+        border-color $motion-base $easing-standard,
+        box-shadow $motion-base $easing-standard;
 
       &:hover {
         background: var(--color-bg-tertiary);
@@ -270,7 +270,7 @@
     .void-chat-input__actions,
     .void-chat-input__recommendations {
       opacity: 0.25;
-      transition: opacity 0.25s ease;
+      transition: opacity $motion-base $easing-standard;
     }
 
     &:hover,
@@ -337,12 +337,12 @@
     backdrop-filter: blur(16px) saturate(1.2);
     -webkit-backdrop-filter: blur(16px) saturate(1.2);
     transition:
-      border-radius 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      min-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      border-color 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius $motion-base $easing-standard,
+      padding $motion-base $easing-standard,
+      min-height $motion-base $easing-standard,
+      max-height $motion-base $easing-standard,
+      box-shadow $motion-base $easing-standard,
+      border-color $motion-base $easing-standard;
     box-shadow: 
       0 8px 24px rgba(0, 0, 0, 0.35),
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -503,7 +503,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
     opacity: 0;
     transform: scale(0.85);
-    transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    transition: opacity $motion-fast $easing-standard, transform $motion-fast $easing-standard, background $motion-fast $easing-standard;
 
     &:hover {
       background: var(--color-bg-elevated-hover, #374151);
@@ -529,10 +529,10 @@
     justify-content: center;
     cursor: pointer;
     transition:
-      background-color 0.2s ease,
-      color 0.2s ease,
-      opacity 0.2s ease,
-      transform 0.2s ease;
+      background-color $motion-fast $easing-standard,
+      color $motion-fast $easing-standard,
+      opacity $motion-fast $easing-standard,
+      transform $motion-fast $easing-standard;
     padding: 0;
     opacity: 0.3;
     
@@ -626,7 +626,7 @@
     color: inherit;
     cursor: pointer;
     opacity: 0.9;
-    transition: opacity 0.15s ease, background 0.15s ease;
+    transition: opacity $motion-fast $easing-standard, background $motion-fast $easing-standard;
 
     &:hover {
       opacity: 1;
@@ -670,7 +670,7 @@
     cursor: pointer;
     user-select: none;
     border-radius: 4px;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background $motion-fast $easing-standard, color $motion-fast $easing-standard;
 
     &:hover {
       background: var(--element-bg-medium);
@@ -687,7 +687,7 @@
   &__boost-submenu-host {
     position: relative;
     border-radius: 4px;
-    transition: background 0.15s ease;
+    transition: background $motion-fast $easing-standard;
 
     &:hover {
       background: var(--element-bg-medium);
@@ -718,7 +718,7 @@
     cursor: pointer;
     text-align: left;
     user-select: none;
-    transition: color 0.15s ease;
+    transition: color $motion-fast $easing-standard;
   }
 
   &__boost-submenu-trigger-main {
@@ -732,7 +732,7 @@
     flex-shrink: 0;
     opacity: 0.45;
     color: var(--color-text-muted);
-    transition: opacity 0.15s ease, transform 0.15s ease;
+    transition: opacity $motion-fast $easing-standard, transform $motion-fast $easing-standard;
   }
 
   // Shell: absolute from host, padding-left/right acts as mouse bridge over the gap
@@ -746,8 +746,8 @@
     visibility: hidden;
     pointer-events: none;
     transition:
-      opacity 0.12s ease,
-      visibility 0.12s ease;
+      opacity $motion-instant $easing-standard,
+      visibility $motion-instant $easing-standard;
 
     &--open {
       opacity: 1;
@@ -839,7 +839,7 @@
     cursor: pointer;
     text-align: left;
     user-select: none;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background $motion-fast $easing-standard, color $motion-fast $easing-standard;
 
     &:hover {
       background: var(--element-bg-medium);
@@ -877,7 +877,7 @@
     cursor: pointer;
     text-align: center;
     user-select: none;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background $motion-fast $easing-standard, color $motion-fast $easing-standard;
 
     &:hover {
       background: var(--element-bg-medium);
@@ -1088,7 +1088,7 @@
       0 0 1px rgba(255, 255, 255, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
     z-index: $z-dropdown;
-    animation: mode-dropdown-fade-in 0.15s ease-out;
+    animation: mode-dropdown-fade-in $motion-fast $easing-decelerate;
 
     &--agent-boost {
       min-width: 228px;
@@ -1104,8 +1104,8 @@
     color: var(--color-text-secondary);
     cursor: pointer;
     transition:
-      background-color 0.15s ease,
-      color 0.15s ease;
+      background-color $motion-fast $easing-standard,
+      color $motion-fast $easing-standard;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1178,8 +1178,8 @@
     color: var(--color-text-secondary);
     cursor: pointer;
     transition:
-      background-color 0.15s ease,
-      color 0.15s ease;
+      background-color $motion-fast $easing-standard,
+      color $motion-fast $easing-standard;
     display: flex;
     align-items: center;
     gap: var(--flowchat-inline-gap, 0.35rem);
@@ -1293,7 +1293,7 @@
       0 0 1px rgba(255, 255, 255, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
     z-index: $z-dropdown;
-    animation: mode-dropdown-fade-in 0.15s ease-out;
+    animation: mode-dropdown-fade-in $motion-fast $easing-decelerate;
   }
   
   &__slash-command-header {
@@ -1346,7 +1346,7 @@
     gap: var(--flowchat-control-gap, 0.5rem);
     padding: var(--flowchat-inline-gap, 0.35rem) var(--flowchat-card-expanded-pad-x, 0.625rem);
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color $motion-fast $easing-standard;
     
     &:hover {
       background: var(--element-bg-soft);
@@ -1456,7 +1456,7 @@
     display: flex;
     align-items: center;
     gap: $size-gap-1;
-    animation: void-stacked-reveal 0.28s cubic-bezier(0.4, 0, 0.2, 1) 0.17s both;
+    animation: void-stacked-reveal $motion-base $easing-standard 0.17s both;
   }
 
   &__model-usage-group {
@@ -1471,7 +1471,7 @@
     align-items: center;
     gap: $size-gap-1;
     height: 100%;
-    animation: void-stacked-reveal 0.24s cubic-bezier(0.4, 0, 0.2, 1) 0.22s both;
+    animation: void-stacked-reveal $motion-base $easing-standard 0.22s both;
   }
 
   &__split-actions {
@@ -1496,12 +1496,12 @@
     justify-content: center;
     cursor: pointer;
     transition:
-      transform 0.18s ease,
-      filter 0.18s ease,
-      box-shadow 0.18s ease,
-      border-color 0.18s ease,
-      background 0.18s ease,
-      color 0.18s ease;
+      transform $motion-fast $easing-standard,
+      filter $motion-fast $easing-standard,
+      box-shadow $motion-fast $easing-standard,
+      border-color $motion-fast $easing-standard,
+      background $motion-fast $easing-standard,
+      color $motion-fast $easing-standard;
     flex-shrink: 0;
     
     &:not(:disabled) {
@@ -1629,11 +1629,11 @@
     align-items: center;
     justify-content: center;
     transition:
-      transform 0.18s ease,
-      filter 0.18s ease,
-      box-shadow 0.18s ease,
-      background 0.18s ease,
-      border-color 0.18s ease;
+      transform $motion-fast $easing-standard,
+      filter $motion-fast $easing-standard,
+      box-shadow $motion-fast $easing-standard,
+      background $motion-fast $easing-standard,
+      border-color $motion-fast $easing-standard;
     background: rgba(239, 241, 248, 0.96);
     border: 1px solid transparent;
     box-shadow: none;
@@ -1646,8 +1646,8 @@
       background: #111116;
       box-shadow: none;
       transition:
-        background 0.18s ease,
-        box-shadow 0.18s ease;
+        background $motion-fast $easing-standard,
+        box-shadow $motion-fast $easing-standard;
     }
   }
 
@@ -1722,8 +1722,8 @@
         );
         box-shadow: none;
         transition:
-          background 0.18s ease,
-          box-shadow 0.18s ease;
+          background $motion-fast $easing-standard,
+          box-shadow $motion-fast $easing-standard;
       }
     }
 
