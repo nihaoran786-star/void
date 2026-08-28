@@ -81,6 +81,22 @@ function isNode(value: EventTarget | null): value is Node {
 }
 
 /**
+ * Adversarial review C4: Escape closes ONE thing — the last one opened.
+ *
+ * An outside press picks its own victim (everything else contains the press),
+ * but a key press has no such geometry: every mounted surface used to see the
+ * same Escape and dismiss itself. Opening a parameter popover inside the
+ * outpainting or mask editor and pressing Escape therefore closed both, and
+ * the frame the user had spent a minute dragging — or the marks they had spent
+ * a minute painting — went with it, silently.
+ *
+ * So the hooks keep a registration stack and only its top handles Escape. The
+ * top is the most recently mounted surface, which is exactly "the last thing
+ * the user opened"; the next press reaches the one underneath.
+ */
+const escapeStack: object[] = [];
+
+/**
  * Returns the ref to put on the surface. Everything outside it (and outside
  * `inside` / `ignore`) dismisses on press; Escape always dismisses.
  */
@@ -90,6 +106,8 @@ export function useInfiniteCanvasDismiss<T extends Element = HTMLElement>(
   const surfaceRef = React.useRef<T | null>(null);
   const latest = React.useRef(options);
   latest.current = options;
+  /** This surface's identity in the Escape stack; stable for its lifetime. */
+  const token = React.useRef({}).current;
 
   const enabled = options.enabled !== false;
 
@@ -125,17 +143,37 @@ export function useInfiniteCanvasDismiss<T extends Element = HTMLElement>(
     };
     const onKeyDown = (event: Event) => {
       if ((event as KeyboardEvent).key !== 'Escape') return;
+      // Somebody outside this hook already took the press.
+      if (event.defaultPrevented) return;
+      // Only the top of the stack answers, so one Escape closes one surface.
+      if (escapeStack[escapeStack.length - 1] !== token) return;
+      // A press landing inside another registered surface belongs to that
+      // surface, never to this one.
+      const { insideSelectors } = latest.current;
+      const target = event.target;
+      if (insideSelectors?.length && isNode(target)) {
+        const element = (target as Partial<Element>).closest
+          ? (target as Element)
+          : (target as Node).parentElement;
+        if (element?.closest && !surfaceRef.current?.contains(target)
+          && insideSelectors.some(selector => element.closest(selector))) {
+          return;
+        }
+      }
       event.preventDefault();
       latest.current.onDismiss();
     };
 
+    escapeStack.push(token);
     ownerDocument.addEventListener('mousedown', onPress, true);
     ownerDocument.addEventListener('keydown', onKeyDown, true);
     return () => {
+      const index = escapeStack.lastIndexOf(token);
+      if (index >= 0) escapeStack.splice(index, 1);
       ownerDocument.removeEventListener('mousedown', onPress, true);
       ownerDocument.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [enabled]);
+  }, [enabled, token]);
 
   return surfaceRef;
 }

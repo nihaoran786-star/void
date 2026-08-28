@@ -575,6 +575,45 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
   });
 
   /**
+   * Adversarial review C4: Escape closes ONE thing.
+   *
+   * Every mounted surface used to see the same Escape, so a parameter popover
+   * opened inside the outpainting editor took the editor down with it — and a
+   * frame that had been dragged for a minute vanished with no warning and no
+   * way back.
+   */
+  it('closes only the top surface on Escape inside the expand editor', async () => {
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    await renderPanel();
+    await openEditor('[data-node-action="more"]');
+    await openEditor('[data-tool-id="expand"]');
+    expect(container.querySelector('[data-canvas-editor="expand"]')).not.toBeNull();
+
+    // The editor's own shared input opens the ordinary canvas popovers.
+    await openEditor('[data-canvas-generator-action="params"]');
+    expect(container.querySelector('[data-canvas-popover="params"]')).not.toBeNull();
+
+    const pressEscape = async () => {
+      await act(async () => {
+        dom.window.document.body.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+          key: 'Escape',
+          bubbles: true,
+          cancelable: true,
+        }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    };
+
+    await pressEscape();
+    expect(container.querySelector('[data-canvas-popover="params"]')).toBeNull();
+    // The editor — and the frame the user dragged — is still standing.
+    expect(container.querySelector('[data-canvas-editor="expand"]')).not.toBeNull();
+
+    await pressEscape();
+    expect(container.querySelector('[data-canvas-editor="expand"]')).toBeNull();
+  });
+
+  /**
    * P6: the outpainting flow, end to end through the panel.
    *
    * Same shape as `runMaskFlow` on purpose — that is the point of the lane:
