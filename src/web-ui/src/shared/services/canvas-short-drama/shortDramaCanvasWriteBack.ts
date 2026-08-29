@@ -26,9 +26,11 @@
  *
  * Idempotency has two layers, and both matter. Here, the operation id is
  * derived from the asset and the picture, so pressing twice on an unchanged
- * card produces the same key. In the view model, the same key — or the same
- * `mediaItemId` from any other path — is recognised and the project is
- * returned untouched. Sending a *different* picture is never blocked.
+ * card produces the same key. In the view model, the same key — or the picture
+ * the asset is already holding — is recognised and the project is returned
+ * untouched; the caller learns which happened from `outcome`. Sending a
+ * *different* picture is never blocked, and neither is going back to a picture
+ * this asset held earlier.
  *
  * The board never writes short drama's lifecycle: no status other than the
  * review it is asking for, no attempts, no deletes, no files.
@@ -82,8 +84,28 @@ export type ShortDramaCanvasWriteBackRefusal =
   | 'unusable-picture'
   | 'save-failed';
 
+/**
+ * What actually happened, so the caller can say something true.
+ *
+ *  - `recorded` — a new revision was written and the asset is now in review.
+ *  - `already-recorded` — nothing was written, because the asset is already
+ *    holding this exact picture (or this exact press was already handled).
+ *
+ * The distinction matters to the user: both are "not a failure", but only the
+ * first is "sent". Reporting a green "sent home" for the second is what made
+ * "send A, send B, go back to A" look like it worked while doing nothing.
+ * `alreadyRecorded` is kept as the boolean form of the same fact.
+ */
+export type ShortDramaCanvasWriteBackOutcome = 'recorded' | 'already-recorded';
+
 export type ShortDramaCanvasWriteBackResult =
-  | { status: 'sent'; artifactId: string; mediaItemId: string; alreadyRecorded: boolean }
+  | {
+      status: 'sent';
+      artifactId: string;
+      mediaItemId: string;
+      alreadyRecorded: boolean;
+      outcome: ShortDramaCanvasWriteBackOutcome;
+    }
   | { status: 'refused'; reason: ShortDramaCanvasWriteBackRefusal };
 
 /**
@@ -197,6 +219,7 @@ export async function sendCanvasPictureBackToShortDrama(
       artifactId: resolved.artifact.id,
       mediaItemId: mediaReference.mediaItemId,
       alreadyRecorded: true,
+      outcome: 'already-recorded',
     };
   }
 
@@ -213,6 +236,7 @@ export async function sendCanvasPictureBackToShortDrama(
     artifactId: resolved.artifact.id,
     mediaItemId: mediaReference.mediaItemId,
     alreadyRecorded: false,
+    outcome: 'recorded',
   };
 }
 

@@ -109,10 +109,41 @@ describe('short drama canvas write-back', () => {
       readProject: vi.fn(async () => saved[0]),
     });
 
-    expect(first).toMatchObject({ status: 'sent', alreadyRecorded: false });
-    expect(second).toMatchObject({ status: 'sent', alreadyRecorded: true });
+    expect(first).toMatchObject({ status: 'sent', alreadyRecorded: false, outcome: 'recorded' });
+    expect(second).toMatchObject({
+      status: 'sent',
+      alreadyRecorded: true,
+      outcome: 'already-recorded',
+    });
     expect(saved).toHaveLength(1);
     expect(changed).toEqual([WORKSPACE]);
+  });
+
+  it('lets the user go back to a picture this asset held earlier', async () => {
+    // A2: the third press used to hit the whole-history scan, do nothing, and
+    // still report success. Going back is a choice, not a repeat.
+    const { project, deps, saved } = harness();
+    const artifact = characterArtifact(project);
+    const secondPicture = {
+      workspacePath: WORKSPACE,
+      relativePath: 'media/generated/batch-refined/image-2.png',
+    };
+
+    await sendCanvasPictureBackToShortDrama(request(project), deps);
+    await sendCanvasPictureBackToShortDrama(
+      request(project, { mediaRef: secondPicture }),
+      { ...deps, readProject: vi.fn(async () => saved[0]) },
+    );
+    const back = await sendCanvasPictureBackToShortDrama(
+      request(project),
+      { ...deps, readProject: vi.fn(async () => saved[1]) },
+    );
+
+    expect(back).toMatchObject({ status: 'sent', alreadyRecorded: false, outcome: 'recorded' });
+    expect(saved).toHaveLength(3);
+    const updated = saved[2].artifacts.find(item => item.id === artifact.id)!;
+    expect(updated.mediaReference?.relativePath)
+      .toBe('media/generated/batch-refined/image-1.png');
   });
 
   it('lets a different picture through', async () => {
