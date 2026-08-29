@@ -9,6 +9,16 @@
 //! InfiniteCanvasMediaBridge already listens to. The session tool path
 //! (GenerateImage / GenerateVideo with an `infinite_canvas` binding) stays
 //! untouched for "user asks the AI in chat" flows.
+//!
+//! K3 §6.2 (2026-08-29): the request may additionally carry a `shortDrama`
+//! binding when the source card owns a short-drama asset. Nothing about the
+//! pipeline changes — the coordinates ride the same opaque-payload lane the
+//! `infinite_canvas` binding already uses, and the existing
+//! `attach_short_drama_media_result` in `agentic/media/jobs.rs` files the
+//! result exactly as it does for AssetAI / SplitAI. The two bindings never
+//! interfere: they are attached under different result keys by different
+//! functions, and the front end de-duplicates the two possible return legs on
+//! the media item id (see `shortDramaCanvasWriteBack.ts`).
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -66,6 +76,23 @@ pub struct SubmitInfiniteCanvasMediaJobRequest {
     /// The §3.2 binding object; passed through verbatim so completed media
     /// flows back to the right canvas card.
     pub infinite_canvas: Value,
+    /// K3 §6.2 additive: the short-drama coordinates of the asset the source
+    /// card belongs to (`projectId` / `stage` / `artifactId`, plus the
+    /// optional `artifactHandle` / `outputMediaLabel` the fixed stage-agent
+    /// prompt already sends).
+    ///
+    /// It sits BESIDE `infinite_canvas`, never instead of it, and is passed
+    /// through with exactly the same "opaque payload" discipline: this command
+    /// does not read it, does not rewrite it, and the pipeline behind it is
+    /// the one AssetAI / SplitAI have always used
+    /// (`jobs.rs` `attach_short_drama_media_result`). No new parameter and no
+    /// new attach rule were invented — a canvas card that owns short-drama
+    /// data simply files its result in the same ledger a stage agent would.
+    ///
+    /// Absent (the ordinary board card) reproduces the pre-K3 request and the
+    /// pre-K3 submission input byte for byte.
+    #[serde(default)]
+    pub short_drama: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -154,6 +181,26 @@ fn validate_request(
             )));
         }
     }
+    // K3 §6.2: a short-drama binding is optional, but a malformed one is not
+    // tolerated. Half a coordinate would submit a paid job whose result the
+    // runtime cannot file anywhere, so it is rejected before the money is
+    // spent rather than discovered when the picture has nowhere to go.
+    if let Some(short_drama) = request.short_drama.as_ref() {
+        let Some(binding) = short_drama.as_object() else {
+            return Err(invalid_input("shortDrama binding must be an object"));
+        };
+        for required in ["projectId", "stage", "artifactId"] {
+            if binding
+                .get(required)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .is_none()
+            {
+                return Err(invalid_input(format!("shortDrama.{required} is required")));
+            }
+        }
+    }
     for path in &request.local_reference_paths {
         let candidate = std::path::Path::new(path);
         if candidate.is_absolute()
@@ -208,6 +255,14 @@ fn build_submission_input(
         "infinite_canvas".to_string(),
         request.infinite_canvas.clone(),
     );
+    // K3 §6.2: only inserted when the card actually owns short-drama data, so
+    // an ordinary board card produces the exact pre-K3 input object. The two
+    // bindings are independent all the way down — `finalize_media_job_result`
+    // attaches each one separately, and neither attach function reads the
+    // other's key.
+    if let Some(short_drama) = request.short_drama.as_ref() {
+        input.insert("short_drama".to_string(), short_drama.clone());
+    }
     Value::Object(input)
 }
 
@@ -375,7 +430,18 @@ mod tests {
                 "toolId": "generate",
                 "operationId": "op-1"
             }),
+            short_drama: None,
         }
+    }
+
+    fn short_drama_binding() -> Value {
+        json!({
+            "projectId": "static_short_drama_001",
+            "stage": "assets",
+            "artifactId": "artifact-1",
+            "artifactHandle": "CHAR-001",
+            "outputMediaLabel": "Generated on the infinite canvas"
+        })
     }
 
     #[test]
@@ -520,6 +586,82 @@ mod tests {
         let input = build_submission_input(&request, &[]);
         assert!(input.get("resolution").is_none());
         assert_eq!(input["n"], Value::Null);
+    }
+
+    // —— K3 §6.2: the short-drama coordinates of an owned card ——————————————
+
+    #[test]
+    fn a_card_without_short_drama_data_sends_the_pre_k3_input() {
+        // The guard that keeps this feature invisible to every ordinary card:
+        // no key is added, so the object is the one the pre-K3 tests assert.
+        let input = build_submission_input(&sample_request(), &[]);
+        assert!(input.get("short_drama").is_none());
+    }
+
+    #[test]
+    fn an_owned_card_passes_its_short_drama_coordinates_through_verbatim() {
+        let mut request = sample_request();
+        request.short_drama = Some(short_drama_binding());
+        assert!(validate_request(&request).is_ok());
+        let input = build_submission_input(&request, &[]);
+        // Verbatim: this command is a courier, not an editor.
+        assert_eq!(input["short_drama"], short_drama_binding());
+        // And the canvas binding is untouched beside it — both return legs
+        // stay available, neither replaces the other.
+        assert_eq!(input["infinite_canvas"], request.infinite_canvas);
+    }
+
+    #[test]
+    fn rejects_a_half_written_short_drama_binding() {
+        for binding in [
+            json!("not-an-object"),
+            json!({}),
+            json!({ "projectId": "p", "stage": "assets" }),
+            json!({ "projectId": "p", "stage": "assets", "artifactId": "   " }),
+        ] {
+            let mut request = sample_request();
+            request.short_drama = Some(binding.clone());
+            let response = validate_request(&request).expect_err("must reject");
+            assert_eq!(response.error.expect("typed error").code, "invalid_input");
+        }
+    }
+
+    #[test]
+    fn the_short_drama_binding_is_optional_on_the_wire() {
+        let request: SubmitInfiniteCanvasMediaJobRequest = serde_json::from_value(json!({
+            "workspaceId": "workspace-1",
+            "workspacePath": if cfg!(windows) { "C:\\workspace" } else { "/workspace" },
+            "kind": "image",
+            "prompt": "a red fox",
+            "infiniteCanvas": {
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-1"
+            }
+        }))
+        .expect("request without a short-drama binding must deserialize");
+        assert!(request.short_drama.is_none());
+
+        let request: SubmitInfiniteCanvasMediaJobRequest = serde_json::from_value(json!({
+            "workspaceId": "workspace-1",
+            "workspacePath": if cfg!(windows) { "C:\\workspace" } else { "/workspace" },
+            "kind": "image",
+            "prompt": "a red fox",
+            "infiniteCanvas": {
+                "workspaceId": "workspace-1",
+                "documentId": "doc-1",
+                "nodeId": "node-1",
+                "resultMode": "self",
+                "toolId": "generate",
+                "operationId": "op-1"
+            },
+            "shortDrama": short_drama_binding(),
+        }))
+        .expect("camelCase shortDrama must deserialize");
+        assert_eq!(request.short_drama, Some(short_drama_binding()));
     }
 
     #[test]
