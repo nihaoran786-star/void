@@ -215,6 +215,44 @@ export function findDomainImportNodeId(
   ))?.nodeId;
 }
 
+/**
+ * A5: the largest batch a generation on an OWNED card may ask for and still
+ * file itself into the short-drama asset.
+ *
+ * The reason is on the other side of the wire. `attach_short_drama_media_result`
+ * reads `assets[0]` / `items[0]` and nothing else, so a batch of four puts the
+ * FIRST picture into review the instant it lands — while the board is still
+ * laying out all four as candidates and the user has not chosen yet. The asset
+ * ends up holding a picture nobody picked.
+ *
+ * Two ways out were on the table: force owned cards to n = 1, or keep the
+ * batch and stop filing it. This is the second. Batch exploration is the point
+ * of an owned card — trying four looks for CHAR-001 is exactly the work — and
+ * taking it away to protect a backend limitation would cost the user more than
+ * it saves them. What the batch loses is the automatic filing, and the board
+ * already has an explicit, better way to do that: pick the good one, press
+ * "send back to short drama". The card SAYS this before the press (the badge
+ * weakens as soon as the count goes above one), so nobody pays for four
+ * pictures expecting a filing they will not get.
+ */
+export const INFINITE_CANVAS_AUTO_FILE_BATCH_LIMIT = 1;
+
+/**
+ * A5: will a generation on this card file itself into its short-drama asset?
+ *
+ * `false` for a card that belongs to nothing (there is nowhere to file), and
+ * `false` for an owned card asking for more than one picture. Pure, so the
+ * card projection and the dispatch path answer the question the same way
+ * rather than each carrying half of it.
+ */
+export function infiniteCanvasWillAutoFile(node: {
+  domainRef?: InfiniteCanvasDomainRef;
+  generationParams?: InfiniteCanvasGenerationParams;
+}): boolean {
+  if (!node.domainRef) return false;
+  return (node.generationParams?.n ?? 1) <= INFINITE_CANVAS_AUTO_FILE_BATCH_LIMIT;
+}
+
 export function setNodeTextContent(
   document: Readonly<InfiniteCanvasDocument>,
   nodeId: string,

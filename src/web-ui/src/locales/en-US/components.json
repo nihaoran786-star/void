@@ -1147,7 +1147,9 @@
       "label": "From short drama · {{kind}} {{handle}}",
       "labelPending": "From short drama · {{kind}}",
       "labelMissing": "From short drama · {{kind}} (no longer exists)",
-      "labelReviewing": "{{origin}} · Waiting for review"
+      "labelReviewing": "{{origin}} · Waiting for review",
+      "manualReturn": "This one will stay on the canvas. Pick the picture you want and press \"Send back to short drama\".",
+      "manualReturnMark": "· manual return"
     },
     "domainImport": {
       "assetMissing": "That short drama asset could not be found in this workspace.",

@@ -357,6 +357,19 @@
   opacity: 0.6;
 }
 
+// A5 / C1: the belonging is real, but the next result will not walk home by
+// itself. Dimmed and dotted-underlined rather than recoloured, so the mark
+// reads the same in both themes and stays inside §2's "marks are grey" rule.
+.infinite-canvas-node__domain-badge[data-domain-autofile='manual'] {
+  border-bottom: 1px dotted currentcolor;
+  opacity: 0.65;
+}
+
+.infinite-canvas-node__domain-badge-manual {
+  margin-left: 4px;
+  opacity: 0.9;
+}
+
 // The small accent dot after the label: this card holds a finished result.
 .infinite-canvas-node__label-done {
   width: 6px;

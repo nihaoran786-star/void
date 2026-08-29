@@ -539,5 +539,65 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
       expect(invocations).toHaveLength(1);
       expect(invocations[0].shortDrama).toBeUndefined();
     });
+
+    function notice(): string | undefined {
+      return container.querySelector<HTMLElement>(
+        '.infinite-canvas-panel__tool-notice span',
+      )?.textContent ?? undefined;
+    }
+
+    /**
+     * A5: `attach_short_drama_media_result` reads the first result and files
+     * it. Ask for four and the asset would go into review holding a candidate
+     * nobody chose, while the other three were still landing on the board.
+     *
+     * The batch is kept — trying four looks for one character is the work —
+     * and the automatic filing is what gives way. The card says so before the
+     * press, so nobody pays for four pictures expecting something else.
+     */
+    it('files a single picture, and says nothing was filed when a batch is asked for', async () => {
+      seed([{ ...ownedCard, generationParams: { n: 4 } }]);
+      const invocations: Record<string, unknown>[] = [];
+      await renderPanel({ onInvoke: invocation => { invocations.push(invocation); } });
+      await settle();
+
+      // Before the press: the badge already reads "you will have to send this
+      // one back yourself".
+      expect(badges()[0]?.getAttribute('data-domain-autofile')).toBe('manual');
+
+      await pressRegenerate();
+
+      expect(invocations).toHaveLength(1);
+      expect(invocations[0].shortDrama).toBeUndefined();
+      expect(notice()).toBe('infiniteCanvas.domainRef.manualReturn');
+    });
+
+    it('keeps the badge plain, and files, on an owned card asking for one picture', async () => {
+      seed([{ ...ownedCard, generationParams: { n: 1 } }]);
+      const invocations: Record<string, unknown>[] = [];
+      await renderPanel({ onInvoke: invocation => { invocations.push(invocation); } });
+      await settle();
+      await pressRegenerate();
+
+      expect(badges()[0]?.getAttribute('data-domain-autofile')).toBe('auto');
+      expect(invocations[0].shortDrama).toBeDefined();
+      expect(notice()).toBeUndefined();
+    });
+
+    /**
+     * C1: this used to be completely invisible. The coordinates failed to
+     * resolve, the picture was generated and paid for anyway, and the badge
+     * went on reading exactly as it does when the filing WILL happen.
+     */
+    it('says the picture will stay put when the asset coordinates cannot be read', async () => {
+      seed([ownedCard]);
+      await renderPanel({ readShortDramaProject: async () => undefined });
+      await settle();
+      await pressRegenerate();
+
+      expect(notice()).toBe('infiniteCanvas.domainRef.manualReturn');
+      // The same weakening A5 uses — one fact, one mark, one sentence.
+      expect(badges()[0]?.getAttribute('data-domain-autofile')).toBe('manual');
+    });
   });
 });

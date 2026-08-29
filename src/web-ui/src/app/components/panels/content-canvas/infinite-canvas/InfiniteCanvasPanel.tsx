@@ -124,6 +124,7 @@ import {
   createInfiniteCanvasId,
   failOperationContent,
   findDomainImportNodeId,
+  infiniteCanvasWillAutoFile,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   INFINITE_CANVAS_VIDEO_NODE_TYPE,
@@ -826,6 +827,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    */
   const [domainOriginsRefreshKey, setDomainOriginsRefreshKey] = React.useState(0);
   /**
+   * A5 / C1: owned cards whose LAST dispatch did not carry short-drama
+   * coordinates, so whatever it produces will stay on the board until the user
+   * presses "send back" themselves.
+   *
+   * This is the durable half of one shared idea — "this one does not file
+   * itself" — whose other half is derived live from the card's batch size (see
+   * {@link infiniteCanvasWillAutoFile}). Both drive the same badge weakening
+   * and the same sentence, because to the user they are the same fact.
+   *
+   * Deliberately panel state, not document state: it describes the last press,
+   * not the picture, and a fact about a press has no business surviving a
+   * restart or travelling to another machine.
+   */
+  const manualReturnNodeIdsRef = React.useRef(new Set<string>());
+  /**
    * Selected connections. Edges are not mirrored into React state the way
    * nodes are — nothing renders off them but the Delete key — so a ref is the
    * whole story and no extra re-render is provoked by clicking a wire.
@@ -1020,7 +1036,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             // here on — no card control can change or clear it.
             ...(view.data.domainRef === undefined
               ? {}
-              : { domainRef: view.data.domainRef }),
+              : {
+                  domainRef: view.data.domainRef,
+                  // C1: the sticky half of "this one does not file itself" —
+                  // the last press on this card could not resolve the asset's
+                  // coordinates. The other half (a batch bigger than one) the
+                  // card derives from `generationParams` itself, live, so the
+                  // badge answers before the press as well as after it.
+                  ...(manualReturnNodeIdsRef.current.has(view.id)
+                    ? { domainManualReturn: true }
+                    : {}),
+                }),
             // K3 §5.2: the way home. Only a card that belongs to an asset AND
             // holds a picture has one to offer.
             ...(view.data.domainRef && view.data.mediaRef
@@ -1386,6 +1412,37 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, [commit, runtime]);
 
   /**
+   * A5 / C1: one sentence, one mark, two causes.
+   *
+   * Whenever a press on an owned card is NOT going to file its result into the
+   * short-drama asset — because the batch is bigger than one (A5), or because
+   * the asset's coordinates could not be read (C1) — the user is told once, in
+   * the board's own notice line, and the card's badge is weakened so the state
+   * is still legible after the line is dismissed.
+   *
+   * Before this, C1 was completely invisible: the coordinates silently failed
+   * to resolve, the picture was generated and paid for anyway, and the badge
+   * went on saying "from short drama · CHAR-001" exactly as it does when
+   * filing WILL happen. There was no way to tell the two apart.
+   */
+  const noteManualReturn = React.useCallback((nodeId: string, manual: boolean) => {
+    const known = manualReturnNodeIdsRef.current.has(nodeId);
+    if (manual) manualReturnNodeIdsRef.current.add(nodeId);
+    else manualReturnNodeIdsRef.current.delete(nodeId);
+    if (known === manual) return;
+    setFlowNodes(nodes => nodes.map(node => (
+      node.id === nodeId
+        ? {
+            ...node,
+            data: manual
+              ? { ...node.data, domainManualReturn: true }
+              : { ...node.data, domainManualReturn: undefined },
+          }
+        : node
+    )));
+  }, []);
+
+  /**
    * K3 §6.2: the short-drama coordinates a generation on an owned card should
    * be filed under, or `undefined` for every other card.
    *
@@ -1488,7 +1545,27 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     // as a review request would flood the short-drama panel; those still go
     // home through the explicit "send back" button, which is the user's own
     // decision about which attempt was the good one.
-    const shortDrama = await resolveGenerationOwnership(node.domainRef);
+    //
+    // A5: ...but only one picture at a time. The backend attach reads the
+    // first result and files it, so a batch would put an unchosen candidate
+    // into review while the other three were still arriving. A batch on an
+    // owned card therefore travels WITHOUT coordinates and the user picks the
+    // good one and sends it back themselves — which is the decision they were
+    // asking for by requesting four in the first place.
+    //
+    // C1: and a card whose coordinates cannot be read is the same situation
+    // arrived at by a different road, so it gets the same sentence and the
+    // same weakened badge rather than a second vocabulary.
+    const willAutoFile = infiniteCanvasWillAutoFile(node);
+    const shortDrama = willAutoFile
+      ? await resolveGenerationOwnership(node.domainRef)
+      : undefined;
+    if (node.domainRef && !shortDrama) {
+      noteManualReturn(nodeId, true);
+      setNotice({ messageKey: 'infiniteCanvas.domainRef.manualReturn' });
+    } else if (node.domainRef) {
+      noteManualReturn(nodeId, false);
+    }
     await submitOperation({
       operationId,
       kind: 'generate',
@@ -1501,7 +1578,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       ...(generationParams ? { generationParams } : {}),
       ...(shortDrama ? { shortDrama } : {}),
     });
-  }, [commit, findMediaNode, prepareDispatch, resolveGenerationOwnership, submitOperation]);
+  }, [
+    commit,
+    findMediaNode,
+    noteManualReturn,
+    prepareDispatch,
+    resolveGenerationOwnership,
+    submitOperation,
+  ]);
 
   /**
    * Send a five-tool action from the shared input (§7.4.3).

@@ -11,6 +11,7 @@ import {
   createInfiniteCanvasId,
   failOperationContent,
   findDomainImportNodeId,
+  infiniteCanvasWillAutoFile,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   moveNodeContent,
@@ -550,6 +551,36 @@ describe('infiniteCanvasPanelModel', () => {
       );
 
       expect(toFlowNodeViews(document.nodes)[0].data.domainRef).toBeUndefined();
+    });
+  });
+  /**
+   * A5: the pure answer the panel and the card both read, kept here
+   * so neither can drift into its own version of them.
+   */
+  describe('short-drama coupling rules', () => {
+    const OWNED = {
+      moduleId: 'short-drama',
+      kind: 'character',
+      id: 'artifact-1',
+      role: 'refine',
+    } as const;
+
+    it('files a single picture on an owned card, and nothing bigger', () => {
+      expect(infiniteCanvasWillAutoFile({ domainRef: OWNED })).toBe(true);
+      expect(infiniteCanvasWillAutoFile({
+        domainRef: OWNED,
+        generationParams: { n: 1 },
+      })).toBe(true);
+      // A batch would put an unchosen candidate into review; the user picks.
+      expect(infiniteCanvasWillAutoFile({
+        domainRef: OWNED,
+        generationParams: { n: 2 },
+      })).toBe(false);
+    });
+
+    it('files nothing from a card that belongs to nothing', () => {
+      expect(infiniteCanvasWillAutoFile({})).toBe(false);
+      expect(infiniteCanvasWillAutoFile({ generationParams: { n: 1 } })).toBe(false);
     });
   });
 });

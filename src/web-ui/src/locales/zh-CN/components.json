@@ -1147,7 +1147,9 @@
       "label": "来自短剧 · {{kind}} {{handle}}",
       "labelPending": "来自短剧 · {{kind}}",
       "labelMissing": "来自短剧 · {{kind}}（已不存在）",
-      "labelReviewing": "{{origin}} · 待审阅"
+      "labelReviewing": "{{origin}} · 待审阅",
+      "manualReturn": "这张会留在画布上。挑好之后按“送回短剧”。",
+      "manualReturnMark": "· 需手动送回"
     },
     "domainImport": {
       "assetMissing": "当前工作区里找不到这个短剧资产。",

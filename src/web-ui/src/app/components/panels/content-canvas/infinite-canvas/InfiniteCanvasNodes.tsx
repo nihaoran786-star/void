@@ -47,6 +47,7 @@ import type {
 } from '@/shared/services/infinite-canvas';
 import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
 import { useInfiniteCanvasDomainOrigin } from './infiniteCanvasDomainOrigins';
+import { infiniteCanvasWillAutoFile } from './infiniteCanvasPanelModel';
 import { InfiniteCanvasVideoCard } from './InfiniteCanvasVideoCard';
 
 export interface InfiniteCanvasMediaRef {
@@ -140,6 +141,12 @@ export interface InfiniteCanvasMediaNodeData extends Record<string, unknown> {
    * way to undo the belonging.
    */
   domainRef?: InfiniteCanvasDomainRef;
+  /**
+   * C1: the last press on this card could not resolve its asset's coordinates,
+   * so whatever it produces will stay on the board. Set by the panel after the
+   * fact; the batch-size half of the same story the card works out itself.
+   */
+  domainManualReturn?: boolean;
   /**
    * K3 §5.2: "send back to short drama". Present only on a card that belongs
    * to an asset; the panel supplies it, the card only presses it.
@@ -240,7 +247,14 @@ function cardLabelKey(
  */
 const NodeDomainBadge: React.FC<{
   domainRef?: InfiniteCanvasDomainRef;
-}> = ({ domainRef }) => {
+  /**
+   * A5 / C1: `'manual'` means the next result will NOT file itself into the
+   * asset. The badge has to carry this, because it is the one thing on the
+   * card that claims a link to short drama — and a badge that reads the same
+   * whether the link is live or not is worse than no badge at all.
+   */
+  autoFile?: 'auto' | 'manual';
+}> = ({ domainRef, autoFile }) => {
   const { t } = useI18n('components');
   const origin = useInfiniteCanvasDomainOrigin(domainRef);
   if (!domainRef || !origin) return null;
@@ -259,6 +273,10 @@ const NodeDomainBadge: React.FC<{
   const label = reviewing
     ? t('infiniteCanvas.domainRef.labelReviewing', { origin: origin_ })
     : origin_;
+  // A5 / C1: dimmed, and it says why on hover. Not hidden and not reworded —
+  // the card really did come from short drama, and that stays true. What
+  // changes is only whether the next picture walks home by itself.
+  const manual = autoFile === 'manual';
 
   return (
     <span
@@ -267,8 +285,15 @@ const NodeDomainBadge: React.FC<{
       data-domain-state={origin.state}
       data-domain-kind={domainRef.kind}
       data-domain-reviewing={reviewing ? 'true' : undefined}
+      data-domain-autofile={autoFile}
+      title={manual ? t('infiniteCanvas.domainRef.manualReturn') : undefined}
     >
       {label}
+      {manual ? (
+        <span className="infinite-canvas-node__domain-badge-manual">
+          {t('infiniteCanvas.domainRef.manualReturnMark')}
+        </span>
+      ) : null}
     </span>
   );
 };
@@ -286,13 +311,14 @@ const NodeLabel: React.FC<{
   referenceLabels?: readonly string[];
   done?: boolean;
   domainRef?: InfiniteCanvasDomainRef;
-}> = ({ labelKey, icon, referenceLabels, done, domainRef }) => {
+  domainAutoFile?: 'auto' | 'manual';
+}> = ({ labelKey, icon, referenceLabels, done, domainRef, domainAutoFile }) => {
   const { t } = useI18n('components');
   return (
     <div className="infinite-canvas-node__label">
       <span className="infinite-canvas-node__label-icon" aria-hidden="true">{icon}</span>
       <span className="infinite-canvas-node__label-text">{t(labelKey)}</span>
-      <NodeDomainBadge domainRef={domainRef} />
+      <NodeDomainBadge domainRef={domainRef} autoFile={domainAutoFile} />
       {(referenceLabels ?? []).length > 0 ? (
         <span
           className="infinite-canvas-node__reference-badges"
@@ -680,6 +706,19 @@ const InfiniteCanvasMediaCard: React.FC<
   // asset this card belongs to still there?
   const domainOrigin = useInfiniteCanvasDomainOrigin(data.domainRef);
   const domainDangling = domainOrigin?.state === 'dangling';
+  /**
+   * A5 / C1: will the next press file its result into the asset by itself?
+   *
+   * Two causes, one answer. The batch size is on the card, so this is live —
+   * turning the count up to four weakens the badge BEFORE anything is paid
+   * for. The other cause (coordinates that could not be read) only becomes
+   * known when a press tries, so the panel sets it afterwards.
+   */
+  const domainAutoFile = data.domainRef
+    ? (infiniteCanvasWillAutoFile(data) && !data.domainManualReturn
+        ? 'auto' as const
+        : 'manual' as const)
+    : undefined;
   React.useEffect(() => {
     if (!hasGallery) setGalleryOpen(false);
   }, [hasGallery]);
@@ -704,6 +743,7 @@ const InfiniteCanvasMediaCard: React.FC<
         referenceLabels={referenceLabels}
         done={Boolean(mediaRef) && !pending && !failed}
         domainRef={data.domainRef}
+        domainAutoFile={domainAutoFile}
       />
       <div className="infinite-canvas-node__frame">
         {mediaRef ? (
