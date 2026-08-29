@@ -17,12 +17,12 @@ export * from './ShortDramaProjectChangedEvent';
 export * from './ShortDramaProjectLoadCoordinator';
 export * from './ShortDramaRemoteSupport';
 export * from './ShortDramaRuntimeBridge';
-export {
-  connectShortDramaRuntimeBridgeToWorkspace,
-  ensureShortDramaRuntimeBridgeSubscription,
-  resetShortDramaRuntimeBridgeSubscription,
-  type ShortDramaRuntimeBridgeSubscriptionOptions,
-} from './ShortDramaRuntimeBridgeSubscription';
+// ShortDramaRuntimeBridgeSubscription is deliberately NOT re-exported here.
+// It is installed by the deferred startup step through a dynamic import,
+// and re-exporting it from this barrel gives the entry graph a static edge
+// to the whole short-drama module: the shared ShortDramaProjectChangedEvent
+// and ShortDramaWorkspaceManifestAdapter chunks (86 kB raw) get folded into
+// the entry bundle and the web performance budget fails. Import it by path.
 export * from './ShortDramaRuntimeFocus';
 export * from './ShortDramaRealStageAgentSessionResolver';
 export * from './ShortDramaToolPolicy';
