@@ -161,22 +161,34 @@ export interface DirectMediaJobEventTarget {
  * The short-drama runtime bridge reads `result.shortDrama` and treats a
  * Completed event as an agent run that finished, so either one would put the
  * asset into review over nothing and, worse, replace its picture with a
- * reference that has no file behind it. So the block is stripped unless the
- * batch has a saved asset with a real local path.
+ * reference that has no file behind it. So the block is stripped unless a
+ * picture really did come home.
  *
- * It is done here, on the board's own lane, deliberately: `jobs.rs`'s
+ * "Really did come home" is read off the short-drama block itself, not off the
+ * batch. `attach_short_drama_media_result` in `jobs.rs` describes exactly ONE
+ * picture — `assets[0]`, falling back to `items[0]` — and only writes
+ * `outputMediaPath` / `outputMediaRelativePath` when that one asset has a
+ * saved file. Scanning the whole asset array instead would disagree with the
+ * backend on a partly successful batch: asset 0 failed and asset 1 saved would
+ * read as "delivered" here while the backend attached the failed asset 0, and
+ * the asset's picture would be replaced by a reference with no path behind it.
+ * So the gate reads the same field the backend wrote, from the same block.
+ *
+ * It is done here, on the board's own lane, deliberately:
  * `attach_short_drama_media_result` is shared with the stage agents and is not
  * touched. Nothing about their behaviour changes.
  */
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 export function withShortDramaBindingOnlyWhenDelivered(payload: unknown): unknown {
   if (!isRecord(payload)) return payload;
   const result = payload.result;
   if (!isRecord(result) || !isRecord(result.shortDrama)) return payload;
-  const batch = isRecord(result.batch) ? result.batch : undefined;
-  const assets = Array.isArray(batch?.assets) ? batch.assets : [];
-  const delivered = assets.some(asset => isRecord(asset)
-    && typeof asset.local_path === 'string'
-    && asset.local_path.trim().length > 0);
+  const shortDrama = result.shortDrama;
+  const delivered = isNonEmptyString(shortDrama.outputMediaRelativePath)
+    || isNonEmptyString(shortDrama.outputMediaPath);
   if (delivered) return payload;
   const { shortDrama: _dropped, ...rest } = result;
   return { ...payload, result: rest };

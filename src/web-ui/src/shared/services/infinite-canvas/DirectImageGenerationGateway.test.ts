@@ -518,7 +518,12 @@ describe('K3 §6.2 generation with short-drama coordinates', () => {
       eventType: 'Completed',
       result: {
         batch: { batch_id: 'media_batch_1', assets: [{ local_path: '/w/media/generated/b/i-001.png' }] },
-        shortDrama: { ...OWNED_CARD_BINDING, outputMediaItemId: 'media_batch_1-1' },
+        shortDrama: {
+          ...OWNED_CARD_BINDING,
+          outputMediaItemId: 'media_batch_1-1',
+          outputMediaPath: '/w/media/generated/b/i-001.png',
+          outputMediaRelativePath: 'media/generated/b/i-001.png',
+        },
       },
     };
     expect(forwarded(delivered)).toBe(delivered);
@@ -539,6 +544,49 @@ describe('K3 §6.2 generation with short-drama coordinates', () => {
       // The canvas half is untouched: the card still settles its own failure.
       expect(next.result.infiniteCanvas).toEqual({ operationId: 'op-1' });
     }
+  });
+
+  it('drops the coordinates when the asset the backend read failed to save', () => {
+    // Partly successful batch: `jobs.rs` describes `assets[0]` and nothing
+    // else, so a failed first asset means no `outputMediaPath` was written —
+    // even though a later asset in the same batch did save. Reading the array
+    // instead would let a reference with no file behind it replace the
+    // asset's current picture and put the card into review over an empty
+    // image.
+    const payload = {
+      eventType: 'Completed',
+      result: {
+        batch: {
+          batch_id: 'media_batch_1',
+          assets: [
+            { item_index: 1, save_status: 'failed', save_error: 'download refused' },
+            { item_index: 2, save_status: 'saved', local_path: '/w/media/generated/b/i-002.png' },
+          ],
+        },
+        // What the backend actually attached: coordinates, an item id, and no
+        // path at all.
+        shortDrama: { ...OWNED_CARD_BINDING, outputMediaItemId: 'media_batch_1-1' },
+        infiniteCanvas: { operationId: 'op-1' },
+      },
+    };
+    const next = forwarded(payload) as { result: Record<string, unknown> };
+    expect(next.result.shortDrama).toBeUndefined();
+    expect(next.result.infiniteCanvas).toEqual({ operationId: 'op-1' });
+  });
+
+  it('accepts a delivery described by the relative path alone', () => {
+    const payload = {
+      eventType: 'Completed',
+      result: {
+        batch: { batch_id: 'media_batch_1', assets: [{ item_index: 1 }] },
+        shortDrama: {
+          ...OWNED_CARD_BINDING,
+          outputMediaItemId: 'media_batch_1-1',
+          outputMediaRelativePath: 'media/generated/b/i-001.png',
+        },
+      },
+    };
+    expect(forwarded(payload)).toBe(payload);
   });
 
   it('leaves a payload with no short-drama block exactly as it was', () => {
