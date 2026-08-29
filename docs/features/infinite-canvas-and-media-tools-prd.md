@@ -1037,6 +1037,61 @@ interface InfiniteCanvasSurfaceInput {
 - 三道闸全部 fail-closed，做在适配层而不进 ViewModel：workspace 等价、
   项目一致（由"一 workspace 一项目"蕴含）、资产存在且 `type === domainRef.kind`。
 
+### 5.1.10 第三步（S10 / S11）：带归属的生成
+
+**落地形态**（业主拍板，计划 §6.1 结论 3）：不给短剧的阶段代理增加任何能力，
+归属靠**数据**表达。带 `domainRef` 的卡在画布上点生成，照旧走画布自己的直连
+出图管线（`submit_infinite_canvas_media_job`，无 AI 参与），只是**提交时附上
+`short_drama` 坐标**，复用 `jobs.rs` 里 AssetAI / SplitAI 一直在走的
+`attach_short_drama_media_result`。一个新参数、一条新链路都没有发明。
+
+**S10 实测结论**：`finalize_media_job_result` 已经**无条件**同时调用
+`attach_short_drama_media_result` 与 `attach_infinite_canvas_media_result`，
+两者互不干扰（`jobs.rs` 已有专门用例
+`keeps_short_drama_and_infinite_canvas_bindings_isolated_on_the_same_batch`
+钉死）。缺的只有一段透传：桌面命令
+`SubmitInfiniteCanvasMediaJobRequest` 当时没有 `short_drama` 字段。因此 S10
+**不是零代码**，而是计划里预留的"最小加法"：新增一个可选字段 + 与
+`infinite_canvas` 并列写进 submission input + 半截坐标 fail-closed 拒收。
+短剧既有 attach 逻辑一行未动。
+
+**S11 的作用域：只有 self 模式的生成**。生成 / 再生成落在拥有归属的那张卡
+自己身上，所以卡面上的图就是资产最终拿到的图。五件套与裁剪派生的是一张
+**不带归属的新卡**，把每次探索都自动记成待审阅会淹掉短剧面板——它们仍然走
+用户手动的"送回短剧"，由用户决定哪一版是好的。
+
+**坐标从哪来**：按下时用 `domainRef.id` 现查项目（`projectId` / `stage` /
+`artifactId` / `artifactHandle`），不存在卡上——`domainRef` 是四字段定长契约，
+资产改名或换阶段后不得按旧副本归档。`stage` 以资产记录自身的 `stage` 为准，
+`kind → stage` 映射表只作为记录缺 stage 时的兜底。
+**这是 K3 里唯一一处 fail-open**：查不到项目就不带坐标照常出图——用户按了
+生成，读不到 manifest 不是不给他画图的理由；手动"送回短剧"仍在，且 fail-closed。
+
+**两条回流不得重复记修订**。一次生成可能同时走：
+- A 路径：`short_drama` 绑定 → `attach_short_drama_media_result` →
+  `ShortDramaRuntimeBridge` → `applyShortDramaAgentEvent`（记 revision + attempt）；
+- B 路径：用户按"送回短剧" → `applyShortDramaCanvasRefinement`（只记 revision）。
+
+收敛点是**两条路给同一张图起同一个名字**：后端写
+`<batchId>-<itemIndex>`，适配层 `toShortDramaMediaItemId` 从文件自己的
+`media/generated/<batchId>/<name>-<index>.<ext>` 路径里原样读回同一串。
+后到的那条据此认出"这张图已经记过了"，原样返回项目、不落盘、不通知。
+实际次序恒为 A→B（B 需要图已经在卡上，而图要等 A 完成才存在）。
+用例见 `shortDramaCanvasWriteBack.test.ts` 的
+"K3 §6.2 both return legs of one picture"，其中单独钉死了两侧命名一致这条
+命脉——它一旦漂移，图就会被记两次，而别的用例都看不出来。
+
+**只有真出了图才带坐标回来（画布直连专用闸）**。这条车道上所有载荷的
+`eventType` 都是 `'Completed'`（媒体桥要靠它挂批次），但"completed"在这里
+只表示请求结束，不表示有图。两种载荷会带着坐标却没有图：提交回执
+（按下的瞬间就发），以及失败 / 超时 / 空批次的完成事件。短剧运行时桥读
+`result.shortDrama` 并把 Completed 当作代理跑完，任何一种都会凭空把资产推进
+待审阅，还会把它的图换成一个**背后没有文件**的引用。因此
+`withShortDramaBindingOnlyWhenDelivered` 在画布**自己**的转发口上把坐标摘掉，
+除非批次里确有落盘资产。做在这里而不是 `jobs.rs`，是因为那条 attach 与阶段
+代理共用，**不得改**；阶段代理的行为一字未变。
+
+
 ## 6. 阶段边界
 
 **K2（业主已批准，见 [K2 实施计划](../plans/2026-08-23-infinite-canvas-k2-image-tools.md)）
