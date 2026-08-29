@@ -26,6 +26,22 @@ export interface DeferredStartupSystemsDependencies {
   initializeMcpServers?: () => Promise<void>;
   initializeAcpClients?: () => Promise<void>;
   probeAcpClientRequirements?: () => Promise<void>;
+  installShortDramaRuntimeBridge?: () => Promise<void>;
+}
+
+/**
+ * The short-drama return leg has to be listening whether or not the
+ * short-drama tab is open — a picture generated from the canvas tab arrives
+ * with that panel unmounted, and used to be dropped on the floor. Installed
+ * here rather than from a component for the same reason
+ * `ensureInfiniteCanvasDirectMediaJobEventForwarder` is: it is one
+ * application-wide subscription, not a piece of a view.
+ */
+async function installShortDramaRuntimeBridgeDefault(): Promise<void> {
+  const { ensureShortDramaRuntimeBridgeSubscription } = await import(
+    '@/shared/services/short-drama/ShortDramaRuntimeBridgeSubscription'
+  );
+  ensureShortDramaRuntimeBridgeSubscription();
 }
 
 async function initializeIdeControlDefault(): Promise<void> {
@@ -59,6 +75,8 @@ export function scheduleDeferredStartupSystems(
   const initializeAcpClients = dependencies.initializeAcpClients ?? initializeAcpClientsDefault;
   const probeAcpClientRequirements =
     dependencies.probeAcpClientRequirements ?? probeAcpClientRequirementsDefault;
+  const installShortDramaRuntimeBridge =
+    dependencies.installShortDramaRuntimeBridge ?? installShortDramaRuntimeBridgeDefault;
 
   return scheduler.schedule(async signal => {
     if (signal.aborted) {
@@ -83,6 +101,7 @@ export function scheduleDeferredStartupSystems(
     await runStep('mcp_servers', initializeMcpServers);
     await runStep('acp_clients', initializeAcpClients);
     await runStep('acp_client_requirements', probeAcpClientRequirements);
+    await runStep('short_drama_runtime_bridge', installShortDramaRuntimeBridge);
 
     if (!signal.aborted) {
       trace.markPhase('deferred_startup_systems_end');

@@ -8,7 +8,6 @@ import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import type { Session } from '@/flow_chat/types/flow-chat';
 import { useContextStore } from '@/shared/context-system';
 import {
-  connectShortDramaRuntimeBridgeToEventBus,
   createShortDramaDefaultLibraryService,
   createShortDramaAssetAnchorViewModel,
   createShortDramaArtifactCardViewModel,
@@ -19,7 +18,6 @@ import {
   createShortDramaProjectWithRecoveredMediaReferences,
   createShortDramaProjectLoadCoordinator,
   createShortDramaRecoveryGuidance,
-  createShortDramaRuntimeBridge,
   createShortDramaStageWorkspaces,
   createShortDramaWorkspaceMismatchState,
   connectShortDramaProjectChangedEventsToToolRunBus,
@@ -481,23 +479,15 @@ export function ShortDramaCenterPanel({
     };
   }, [isActive, libraryService, state.status, workspacePath]);
 
-  useEffect(() => {
-    if (state.status !== 'ready') {
-      return undefined;
-    }
-
-    const bridge = createShortDramaRuntimeBridge({
-      project: state.project,
-      saveProject: libraryService.saveProject,
-      onProjectChange(nextProject) {
-        setState(current => current.status === 'ready'
-          ? { ...current, project: nextProject }
-          : current);
-      },
-    });
-
-    return connectShortDramaRuntimeBridgeToEventBus(bridge);
-  }, [libraryService, state]);
+  // The runtime bridge used to be subscribed here, from an effect. That tied
+  // the whole automatic return leg to this panel being mounted — and the
+  // commonest way an owned asset gets a new picture is the user pressing
+  // generate on the CANVAS tab, with this panel unmounted. The finished event
+  // arrived with nobody listening and the picture never came home. It is now
+  // an application-level subscription
+  // (`ensureShortDramaRuntimeBridgeSubscription`, installed at startup); this
+  // panel picks the write up through the reload it already does on
+  // `short-drama:project-changed`.
 
   const mediaRefreshToken = useWorkspaceMediaRefreshStore(state => state.token);
 

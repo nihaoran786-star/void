@@ -142,36 +142,72 @@ export function connectShortDramaRuntimeBridgeToEventBus(
 ): () => void {
   const unsubscribers = [
     eventBus.on('agent:subagent-session-linked', event => {
-      const payload = event as Record<string, unknown> | undefined;
-      if (!payload) {
-        return;
-      }
-      const shortDrama = extractShortDramaMetadata(payload);
-
-      void bridge.handleSubagentSessionLinked({
-        childSessionId: typeof payload.childSessionId === 'string' ? payload.childSessionId : undefined,
-        sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
-        parentSessionId: typeof payload.parentSessionId === 'string' ? payload.parentSessionId : undefined,
-        parentToolCallId: typeof payload.parentToolCallId === 'string' ? payload.parentToolCallId : getString(shortDrama, 'parentToolCallId'),
-        agentType: typeof payload.agentType === 'string' ? payload.agentType : undefined,
-        artifactId: typeof payload.artifactId === 'string' ? payload.artifactId : getString(shortDrama, 'artifactId'),
-        shortDrama: createSubagentSessionMetadata(shortDrama),
-      });
+      void handleShortDramaSubagentSessionLinkedPayload(bridge, event);
     }),
     eventBus.on('agent:tool-run-event', event => {
-      const mapped = mapToolRunObserverEventToAgentEvent(bridge.getProject(), event);
-      if (mapped.status === 'ignored') {
-        options.onIgnoredEvent?.(mapped);
-        return;
-      }
-
-      void bridge.handleAgentEvent(mapped.event);
+      void handleShortDramaToolRunPayload(bridge, event, options.onIgnoredEvent);
     }),
   ];
 
   return () => {
     unsubscribers.forEach(unsubscribe => unsubscribe());
   };
+}
+
+/**
+ * The two payload handlers, exported so a subscription that is not built
+ * around one already-loaded project can reuse them verbatim (see
+ * {@link file://./ShortDramaRuntimeBridgeSubscription.ts}). Splitting them out
+ * changes nothing about what either one does.
+ */
+export async function handleShortDramaSubagentSessionLinkedPayload(
+  bridge: ShortDramaRuntimeBridge,
+  event: unknown,
+): Promise<ShortDramaSubagentSessionLinkedResult | undefined> {
+  const payload = event as Record<string, unknown> | undefined;
+  if (!payload) {
+    return undefined;
+  }
+  const shortDrama = extractShortDramaMetadata(payload);
+
+  return bridge.handleSubagentSessionLinked({
+    childSessionId: typeof payload.childSessionId === 'string' ? payload.childSessionId : undefined,
+    sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
+    parentSessionId: typeof payload.parentSessionId === 'string' ? payload.parentSessionId : undefined,
+    parentToolCallId: typeof payload.parentToolCallId === 'string' ? payload.parentToolCallId : getString(shortDrama, 'parentToolCallId'),
+    agentType: typeof payload.agentType === 'string' ? payload.agentType : undefined,
+    artifactId: typeof payload.artifactId === 'string' ? payload.artifactId : getString(shortDrama, 'artifactId'),
+    shortDrama: createSubagentSessionMetadata(shortDrama),
+  });
+}
+
+export async function handleShortDramaToolRunPayload(
+  bridge: ShortDramaRuntimeBridge,
+  event: unknown,
+  onIgnoredEvent?: (event: ShortDramaRuntimeIgnoredEvent) => void,
+): Promise<ShortDramaRuntimeAgentEventResult | ShortDramaRuntimeIgnoredEvent> {
+  const mapped = mapToolRunObserverEventToAgentEvent(bridge.getProject(), event);
+  if (mapped.status === 'ignored') {
+    onIgnoredEvent?.(mapped);
+    return mapped;
+  }
+
+  return bridge.handleAgentEvent(mapped.event);
+}
+
+/**
+ * Does this payload carry short-drama coordinates at all?
+ *
+ * A cheap, synchronous pre-filter. The application-level subscription has to
+ * decide whether an event is worth reading the project off disk for, and the
+ * tool-run lane carries every tool run in the app.
+ */
+export function payloadCarriesShortDramaMetadata(event: unknown): boolean {
+  const payload = event as Record<string, unknown> | undefined;
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+  return hasShortDramaMetadata(extractShortDramaMetadata(payload));
 }
 
 function mapToolRunObserverEventToAgentEvent(

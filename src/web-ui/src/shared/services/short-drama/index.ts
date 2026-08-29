@@ -17,6 +17,12 @@ export * from './ShortDramaProjectChangedEvent';
 export * from './ShortDramaProjectLoadCoordinator';
 export * from './ShortDramaRemoteSupport';
 export * from './ShortDramaRuntimeBridge';
+export {
+  connectShortDramaRuntimeBridgeToWorkspace,
+  ensureShortDramaRuntimeBridgeSubscription,
+  resetShortDramaRuntimeBridgeSubscription,
+  type ShortDramaRuntimeBridgeSubscriptionOptions,
+} from './ShortDramaRuntimeBridgeSubscription';
 export * from './ShortDramaRuntimeFocus';
 export * from './ShortDramaRealStageAgentSessionResolver';
 export * from './ShortDramaToolPolicy';
