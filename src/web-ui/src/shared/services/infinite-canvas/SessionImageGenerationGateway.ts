@@ -33,6 +33,7 @@ import type {
   InfiniteCanvasAgentTaskSessionSender,
   InfiniteCanvasImageBinding,
   InfiniteCanvasMediaRef,
+  InfiniteCanvasShortDramaBinding,
 } from './InfiniteCanvasAgentTaskTypes';
 
 /** One reference (垫图) image, in authoritative connection order (1-based). */
@@ -76,6 +77,15 @@ export interface SessionImageGenerationInvocation {
    * FIRST in image_urls. Never set for 'generate'.
    */
   editTargetMediaRef?: InfiniteCanvasMediaRef;
+  /**
+   * K3 §6.2: the short-drama asset this generation belongs to, when the card
+   * it lands on is the one that came from short drama.
+   *
+   * Only the direct desktop-command gateway sends it; the session (AI) lane
+   * ignores it and keeps its K2 message byte for byte. Absent — which is every
+   * ordinary card and every derived card — reproduces the pre-K3 request.
+   */
+  shortDrama?: InfiniteCanvasShortDramaBinding;
 }
 
 export interface SessionImageGenerationGateway {

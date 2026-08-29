@@ -8,6 +8,7 @@ import {
   createDirectImageGenerationGateway,
   INFINITE_CANVAS_MEDIA_JOB_EVENT,
   SUBMIT_INFINITE_CANVAS_MEDIA_JOB_COMMAND,
+  withShortDramaBindingOnlyWhenDelivered,
   type SubmitInfiniteCanvasMediaJobArgs,
   type SubmitInfiniteCanvasMediaJobResponse,
 } from './DirectImageGenerationGateway';
@@ -460,5 +461,89 @@ describe('connectInfiniteCanvasDirectMediaJobEvents', () => {
 
     dispose();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+});
+
+// —— K3 §6.2: a card that owns short-drama data ————————————————————————————
+
+const OWNED_CARD_BINDING = {
+  projectId: 'static_short_drama_001',
+  stage: 'assets',
+  artifactId: 'artifact-1',
+  artifactHandle: 'CHAR-001',
+  outputMediaLabel: 'Generated on the infinite canvas',
+};
+
+function forwarded(payload: unknown): unknown {
+  return withShortDramaBindingOnlyWhenDelivered(payload);
+}
+
+describe('K3 §6.2 generation with short-drama coordinates', () => {
+  it('sends both bindings when the card owns a short-drama asset', async () => {
+    const { gateway, calls } = createGateway();
+    await gateway.invoke({ ...BLANK_CARD_INVOCATION, shortDrama: OWNED_CARD_BINDING });
+    expect(calls[0].request.shortDrama).toEqual(OWNED_CARD_BINDING);
+    // Beside, never instead of: the picture still comes home to the card.
+    expect(calls[0].request.infiniteCanvas.operationId).toBe('op-self-1');
+  });
+
+  it('sends no short-drama key at all for an ordinary card', async () => {
+    const { gateway, calls } = createGateway();
+    await gateway.invoke(BLANK_CARD_INVOCATION);
+    expect('shortDrama' in calls[0].request).toBe(false);
+  });
+
+  it('strips the coordinates off the submission receipt', async () => {
+    // The receipt is republished as `Completed` so the media bridge can attach
+    // the batch, but nothing has been drawn yet. Leaving the coordinates on it
+    // would put the asset into review the instant the button was pressed.
+    const { gateway, events } = createGateway({
+      status: 'submitted',
+      batchId: 'media_batch_1',
+      receipt: {
+        status: 'polling',
+        batch_id: 'media_batch_1',
+        infiniteCanvas: { operationId: 'op-self-1' },
+        shortDrama: OWNED_CARD_BINDING,
+      },
+    });
+    await gateway.invoke({ ...BLANK_CARD_INVOCATION, shortDrama: OWNED_CARD_BINDING });
+    const result = events[0].result as Record<string, unknown>;
+    expect(result.shortDrama).toBeUndefined();
+    expect(result.infiniteCanvas).toEqual({ operationId: 'op-self-1' });
+  });
+
+  it('lets the coordinates through only once a picture is actually on disk', () => {
+    const delivered = {
+      eventType: 'Completed',
+      result: {
+        batch: { batch_id: 'media_batch_1', assets: [{ local_path: '/w/media/generated/b/i-001.png' }] },
+        shortDrama: { ...OWNED_CARD_BINDING, outputMediaItemId: 'media_batch_1-1' },
+      },
+    };
+    expect(forwarded(delivered)).toBe(delivered);
+  });
+
+  it('drops the coordinates from a batch that delivered nothing', () => {
+    for (const batch of [
+      { batch_id: 'media_batch_1', assets: [] },
+      { batch_id: 'media_batch_1', assets: [{ local_path: '   ' }] },
+      { batch_id: 'media_batch_1' },
+    ]) {
+      const payload = {
+        eventType: 'Completed',
+        result: { batch, shortDrama: OWNED_CARD_BINDING, infiniteCanvas: { operationId: 'op-1' } },
+      };
+      const next = forwarded(payload) as { result: Record<string, unknown> };
+      expect(next.result.shortDrama).toBeUndefined();
+      // The canvas half is untouched: the card still settles its own failure.
+      expect(next.result.infiniteCanvas).toEqual({ operationId: 'op-1' });
+    }
+  });
+
+  it('leaves a payload with no short-drama block exactly as it was', () => {
+    const payload = { eventType: 'Completed', result: { batch: { assets: [] } } };
+    expect(forwarded(payload)).toBe(payload);
+    expect(forwarded(undefined)).toBeUndefined();
   });
 });

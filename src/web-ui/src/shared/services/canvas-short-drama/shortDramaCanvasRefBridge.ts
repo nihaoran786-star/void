@@ -25,6 +25,7 @@ import { INFINITE_CANVAS_DOMAIN_KINDS } from '@/shared/services/infinite-canvas/
 import type {
   ShortDramaArtifact,
   ShortDramaMediaReference,
+  ShortDramaStage,
 } from '@/shared/services/short-drama/ShortDramaTypes';
 import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
 
@@ -163,6 +164,24 @@ export function toShortDramaMediaItemId(relativePath: string): string {
     return `${match[1]}-${itemIndex}`;
   }
   return `canvas-refine:${relativePath}`;
+}
+
+/**
+ * K3 §6.2: which stage of the project an asset kind belongs to.
+ *
+ * A fallback only. When the project can be read, the asset's own `stage` is
+ * used — it is the truth, and a character asset parked somewhere unusual
+ * should not be filed under a guess. This table exists for the one case where
+ * the reference resolves but the record carries no stage.
+ */
+const SHORT_DRAMA_STAGE_BY_KIND: Record<string, ShortDramaStage> = {
+  character: 'assets',
+  location: 'assets',
+  storyboard: 'storyboards',
+};
+
+export function shortDramaStageForCanvasKind(kind: string): ShortDramaStage | undefined {
+  return SHORT_DRAMA_STAGE_BY_KIND[kind];
 }
 
 /**

@@ -225,6 +225,7 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
   async function renderPanel(options: {
     pendingDomainImport?: { domainRef: typeof DOMAIN_REF; requestId: string };
     readShortDramaProject?: () => Promise<ShortDramaProject | undefined>;
+    onInvoke?: (invocation: Record<string, unknown>) => void;
   } = {}): Promise<void> {
     const read = options.readShortDramaProject ?? (async () => project());
     await act(async () => {
@@ -242,7 +243,12 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
           }}
           mediaEventBus={createFakeEventBus()}
           generationRuntime={{
-            gateway: { invoke: async () => ({ operationId: 'x', status: 'succeeded' as const }) },
+            gateway: {
+              invoke: async (invocation: Record<string, unknown>) => {
+                options.onInvoke?.(invocation);
+                return { operationId: 'x', status: 'succeeded' as const };
+              },
+            },
             hasTargetSession: () => true,
           } as never}
         />,
@@ -452,5 +458,86 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
     await settle();
 
     expect(badges()).toHaveLength(0);
+  });
+  /**
+   * S11 (K3 §6.2): "whoever owns the data is responsible for generating it".
+   *
+   * The board's own direct pipeline still draws the picture — no stage agent
+   * gained a capability — but a card that owns a short-drama asset ships that
+   * asset's coordinates with the request, so the result is filed in the same
+   * ledger AssetAI's own generations are.
+   */
+  describe('generation on a card that owns short-drama data', () => {
+    const ownedCard = {
+      nodeId: 'node-1',
+      kind: 'image' as const,
+      position: { x: 0, y: 0 },
+      mediaRef: { workspacePath: WORKSPACE.workspacePath, relativePath: RELATIVE_PATH },
+      domainRef: { ...DOMAIN_REF },
+      prompt: 'warmer light',
+    };
+
+    function regenerate(): HTMLButtonElement | null {
+      return container.querySelector<HTMLButtonElement>(
+        'button[data-node-action="regenerate"]',
+      );
+    }
+
+    async function pressRegenerate(): Promise<void> {
+      const button = regenerate();
+      expect(button).not.toBeNull();
+      await act(async () => {
+        button!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 10));
+      });
+    }
+
+    it('ships the coordinates of its asset alongside the ordinary request', async () => {
+      seed([ownedCard]);
+      const invocations: Record<string, unknown>[] = [];
+      await renderPanel({ onInvoke: invocation => { invocations.push(invocation); } });
+      await settle();
+      await pressRegenerate();
+
+      expect(invocations).toHaveLength(1);
+      expect(invocations[0].shortDrama).toEqual({
+        projectId: 'project-1',
+        stage: 'assets',
+        artifactId: 'artifact-1',
+        artifactHandle: 'CHAR-001',
+        outputMediaLabel: 'Generated on the infinite canvas',
+      });
+      // The card is still the landing place; the second binding is additional.
+      expect(invocations[0].resultMode).toBe('self');
+      expect(invocations[0].nodeId).toBe('node-1');
+    });
+
+    it('sends no coordinates from an ordinary card', async () => {
+      seed([{ ...ownedCard, domainRef: undefined }]);
+      const invocations: Record<string, unknown>[] = [];
+      await renderPanel({ onInvoke: invocation => { invocations.push(invocation); } });
+      await settle();
+      await pressRegenerate();
+
+      expect(invocations).toHaveLength(1);
+      expect('shortDrama' in invocations[0]).toBe(false);
+    });
+
+    it('still draws the picture when the asset can no longer be found', async () => {
+      // Fail-open, and the only one in K3: the user pressed generate, and an
+      // unreadable manifest is no reason to refuse to draw for them. The
+      // explicit "send back" button remains, and it fails closed.
+      seed([ownedCard]);
+      const invocations: Record<string, unknown>[] = [];
+      await renderPanel({
+        readShortDramaProject: async () => undefined,
+        onInvoke: invocation => { invocations.push(invocation); },
+      });
+      await settle();
+      await pressRegenerate();
+
+      expect(invocations).toHaveLength(1);
+      expect(invocations[0].shortDrama).toBeUndefined();
+    });
   });
 });

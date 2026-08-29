@@ -21,7 +21,21 @@ import type {
   ShortDramaArtifactStatus,
   ShortDramaProject,
 } from '@/shared/services/short-drama/ShortDramaTypes';
-import { toCanvasMediaRef, type CanvasMediaRef } from './shortDramaCanvasRefBridge';
+import type { InfiniteCanvasShortDramaBinding } from '@/shared/services/infinite-canvas/InfiniteCanvasAgentTaskTypes';
+import {
+  shortDramaStageForCanvasKind,
+  toCanvasMediaRef,
+  type CanvasMediaRef,
+} from './shortDramaCanvasRefBridge';
+
+/**
+ * The English fact string the asset's media slot is labelled with when a
+ * board generation files a picture there.
+ *
+ * English on purpose: it goes into `manifest.json`, where every other
+ * runtime-written fact is stored in English and translated at display time.
+ */
+export const SHORT_DRAMA_CANVAS_GENERATION_LABEL = 'Generated on the infinite canvas';
 
 /**
  * What the card face needs to say where it came from: the asset's display
@@ -78,6 +92,44 @@ export function resolveShortDramaCanvasImport(
       title: resolved.artifact.title,
       status: resolved.artifact.status,
     },
+  };
+}
+
+/**
+ * K3 §6.2: the coordinates a generation started on an owned card should be
+ * filed under — "whoever owns the data is responsible for generating it",
+ * expressed as data rather than as a new permission for anybody.
+ *
+ * Same two-part check as everywhere else in this file (id AND type), for the
+ * same reason: coordinates that name the wrong asset would file a picture into
+ * someone else's project record, and that is the one mistake that cannot be
+ * undone by deleting a card.
+ *
+ * `undefined` means "generate without coordinates". That is a deliberate
+ * fail-OPEN, and the only one in K3: the user pressed generate, and a project
+ * that cannot be read is no reason to refuse to draw their picture. They keep
+ * the manual "send back to short drama" button, which fails closed and tells
+ * them why.
+ *
+ * The asset's own `stage` wins over the kind→stage table; the table is only
+ * consulted for a record that carries no stage at all.
+ */
+export function resolveShortDramaCanvasGenerationBinding(
+  project: ShortDramaProject,
+  domainRef: InfiniteCanvasDomainRef,
+): InfiniteCanvasShortDramaBinding | undefined {
+  const resolved = resolveShortDramaArtifactReference(project, domainRef.id);
+  if (resolved.status !== 'ready' || resolved.artifact.type !== domainRef.kind) {
+    return undefined;
+  }
+  const stage = resolved.artifact.stage ?? shortDramaStageForCanvasKind(domainRef.kind);
+  if (!stage) return undefined;
+  return {
+    projectId: project.projectId,
+    stage,
+    artifactId: resolved.artifact.id,
+    ...(resolved.entry.handle ? { artifactHandle: resolved.entry.handle } : {}),
+    outputMediaLabel: SHORT_DRAMA_CANVAS_GENERATION_LABEL,
   };
 }
 

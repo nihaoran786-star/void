@@ -46,6 +46,30 @@ export interface InfiniteCanvasImageBinding {
   referenceNodeIds?: string[];
 }
 
+/**
+ * K3 §6.2: the second return address a generation can carry — the short-drama
+ * asset that owns the card.
+ *
+ * "Whoever owns the data is responsible for generating it" lands as *data*,
+ * not as a new permission: a card that came from short drama generates on the
+ * board's own direct pipeline exactly as before, and simply files the result
+ * in the asset's ledger by shipping these coordinates alongside the canvas
+ * binding. The backend route they take is the one AssetAI and SplitAI have
+ * always used, so no stage agent gained a capability and no fixed policy moved.
+ *
+ * The fields are the ones the existing lane already consumes — nothing here is
+ * invented. `stage` is typed as a plain string on purpose: the canvas must not
+ * import the short-drama stage union, and the neutral adapter that builds this
+ * object is the only thing that knows the real values.
+ */
+export interface InfiniteCanvasShortDramaBinding {
+  projectId: string;
+  stage: string;
+  artifactId: string;
+  artifactHandle?: string;
+  outputMediaLabel?: string;
+}
+
 export interface InfiniteCanvasAgentTaskSendRequest {
   targetSessionId: string;
   /** Full task message (instruction + image list + constraints + binding JSON). */

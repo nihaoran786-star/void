@@ -33,6 +33,7 @@ import '@xyflow/react/dist/style.css';
 import { useI18n } from '@/infrastructure/i18n';
 import { notificationService } from '@/shared/notification-system/services/NotificationService';
 import {
+  resolveShortDramaCanvasGenerationBinding,
   resolveShortDramaCanvasImport,
   resolveShortDramaCanvasOrigin,
   type ShortDramaCanvasOrigin,
@@ -55,6 +56,7 @@ import type {
   InfiniteCanvasDomainRef,
   InfiniteCanvasMediaBridgeEventBus,
   InfiniteCanvasMutator,
+  InfiniteCanvasShortDramaBinding,
   SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import type {
@@ -1255,6 +1257,29 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     }
   }, [commit, runtime]);
 
+  /**
+   * K3 §6.2: the short-drama coordinates a generation on an owned card should
+   * be filed under, or `undefined` for every other card.
+   *
+   * Resolved at press time rather than stored on the card, for the same reason
+   * the badge's handle is: `domainRef` is a four-field contract, and an asset
+   * that moved stage or was renamed must not be filed under a stale copy.
+   *
+   * Every failure — no reference, no project, no such asset — is `undefined`,
+   * i.e. generate anyway without coordinates. Refusing to draw the picture
+   * because a manifest could not be read would be the wrong trade: the user
+   * still has the explicit "send back to short drama" button afterwards.
+   */
+  const resolveGenerationOwnership = React.useCallback(async (
+    domainRef: InfiniteCanvasDomainRef | undefined,
+  ): Promise<InfiniteCanvasShortDramaBinding | undefined> => {
+    if (!domainRef) return undefined;
+    const project = await Promise.resolve(readShortDramaProject(workspacePath))
+      .catch(() => undefined);
+    if (!project) return undefined;
+    return resolveShortDramaCanvasGenerationBinding(project, domainRef);
+  }, [readShortDramaProject, workspacePath]);
+
   /** Shared pre-dispatch gate: prompt, ordered references, target session. */
   const prepareDispatch = React.useCallback((
     document: Readonly<InfiniteCanvasDocument>,
@@ -1327,6 +1352,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       });
       return;
     }
+    // K3 §6.2: a card that came from short drama files its result in that
+    // asset's ledger too. Only this lane does — a generation in self mode
+    // lands on the owned card itself, so the picture the asset ends up
+    // holding is the picture the user sees on it. The five tools and crop
+    // derive a NEW card that owns nothing, and auto-filing every exploration
+    // as a review request would flood the short-drama panel; those still go
+    // home through the explicit "send back" button, which is the user's own
+    // decision about which attempt was the good one.
+    const shortDrama = await resolveGenerationOwnership(node.domainRef);
     await submitOperation({
       operationId,
       kind: 'generate',
@@ -1337,8 +1371,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       stylePresetId: node.stylePresetId,
       references,
       ...(generationParams ? { generationParams } : {}),
+      ...(shortDrama ? { shortDrama } : {}),
     });
-  }, [commit, findMediaNode, prepareDispatch, submitOperation]);
+  }, [commit, findMediaNode, prepareDispatch, resolveGenerationOwnership, submitOperation]);
 
   /**
    * Send a five-tool action from the shared input (§7.4.3).

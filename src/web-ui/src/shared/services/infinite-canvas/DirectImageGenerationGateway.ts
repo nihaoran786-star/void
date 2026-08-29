@@ -31,7 +31,10 @@ import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
 
 import type { ImageToolErrorKind, ImageToolResult } from './ImageToolTypes';
-import type { InfiniteCanvasImageBinding } from './InfiniteCanvasAgentTaskTypes';
+import type {
+  InfiniteCanvasImageBinding,
+  InfiniteCanvasShortDramaBinding,
+} from './InfiniteCanvasAgentTaskTypes';
 import type { InfiniteCanvasGenerationParams } from './InfiniteCanvasTypes';
 import {
   normalizeInfiniteCanvasGenerationParams,
@@ -73,6 +76,12 @@ export interface SubmitInfiniteCanvasMediaJobArgs {
   /** P4-R1 additive: video aspect ratio (images use `size`). */
   aspectRatio?: string;
   infiniteCanvas: InfiniteCanvasImageBinding;
+  /**
+   * K3 §6.2: the short-drama coordinates of an owned card. Omitted for every
+   * ordinary card, which is what keeps the request identical to the pre-K3
+   * one.
+   */
+  shortDrama?: InfiniteCanvasShortDramaBinding;
 }
 
 export interface SubmitInfiniteCanvasMediaJobResponse {
@@ -137,16 +146,61 @@ export interface DirectMediaJobEventTarget {
 }
 
 /**
+ * K3 §6.2, the one rule that keeps the second return leg honest: a
+ * `shortDrama` block only travels on an event that really did deliver a
+ * picture.
+ *
+ * This lane labels every payload `eventType: 'Completed'` — the media bridge
+ * needs that to attach a batch — but "completed" here means "the request
+ * finished", not "there is a picture". Two payloads on this lane carry the
+ * short-drama coordinates while carrying no picture at all:
+ *
+ *  1. the submission receipt, republished the moment the job is accepted, and
+ *  2. a finished batch that failed, timed out, or came back empty.
+ *
+ * The short-drama runtime bridge reads `result.shortDrama` and treats a
+ * Completed event as an agent run that finished, so either one would put the
+ * asset into review over nothing and, worse, replace its picture with a
+ * reference that has no file behind it. So the block is stripped unless the
+ * batch has a saved asset with a real local path.
+ *
+ * It is done here, on the board's own lane, deliberately: `jobs.rs`'s
+ * `attach_short_drama_media_result` is shared with the stage agents and is not
+ * touched. Nothing about their behaviour changes.
+ */
+export function withShortDramaBindingOnlyWhenDelivered(payload: unknown): unknown {
+  if (!isRecord(payload)) return payload;
+  const result = payload.result;
+  if (!isRecord(result) || !isRecord(result.shortDrama)) return payload;
+  const batch = isRecord(result.batch) ? result.batch : undefined;
+  const assets = Array.isArray(batch?.assets) ? batch.assets : [];
+  const delivered = assets.some(asset => isRecord(asset)
+    && typeof asset.local_path === 'string'
+    && asset.local_path.trim().length > 0);
+  if (delivered) return payload;
+  const { shortDrama: _dropped, ...rest } = result;
+  return { ...payload, result: rest };
+}
+
+/**
  * Relays `infinite-canvas://media-job-event` payloads (already shaped like
  * agent tool-run observer events) onto the front-end event bus, where the
  * InfiniteCanvasMediaBridge picks them up unchanged.
+ *
+ * "Unchanged" still holds for everything the canvas reads: only a short-drama
+ * block on an empty batch is removed (see above), and the `infiniteCanvas`
+ * binding is never touched.
  */
 export function connectInfiniteCanvasDirectMediaJobEvents(
   source: DirectMediaJobEventSource = api,
   target: DirectMediaJobEventTarget = globalEventBus,
 ): () => void {
   return source.listen(INFINITE_CANVAS_MEDIA_JOB_EVENT, payload => {
-    target.emit(AGENT_TOOL_RUN_OBSERVER_EVENT, payload, 'InfiniteCanvasDirectGateway');
+    target.emit(
+      AGENT_TOOL_RUN_OBSERVER_EVENT,
+      withShortDramaBindingOnlyWhenDelivered(payload),
+      'InfiniteCanvasDirectGateway',
+    );
   });
 }
 
@@ -308,6 +362,10 @@ export function createDirectImageGenerationGateway(
           : {}),
         ...buildGenerationParamFields(invocation.generationParams, kind),
         infiniteCanvas: binding,
+        // K3 §6.2: an owned card files its result in its asset's ledger as
+        // well as on the board. Both bindings ride the same request and are
+        // attached independently by the backend; see the module note above.
+        ...(invocation.shortDrama ? { shortDrama: invocation.shortDrama } : {}),
       };
 
       let response: SubmitInfiniteCanvasMediaJobResponse;
@@ -341,13 +399,17 @@ export function createDirectImageGenerationGateway(
       // media bridge attaches the batch to the pending operation (the same
       // attach-batch behaviour the session tool receipt produced).
       if (isRecord(response.receipt)) {
-        emitToolRunEvent({
+        emitToolRunEvent(withShortDramaBindingOnlyWhenDelivered({
           sessionId: '',
           eventType: 'Completed',
           toolId: `infinite-canvas-direct:${invocation.operationId}`,
           toolName: kind === 'video' ? 'GenerateVideo' : 'GenerateImage',
+          // The receipt echoes the short-drama coordinates back; a submission
+          // has no picture, so the guard above removes them here too. Without
+          // it, pressing generate would put the asset into review before the
+          // provider had drawn a single pixel.
           result: response.receipt,
-        });
+        }) as Record<string, unknown>);
       }
 
       return record({

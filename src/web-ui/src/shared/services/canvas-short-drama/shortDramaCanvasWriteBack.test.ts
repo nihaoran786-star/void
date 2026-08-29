@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  applyShortDramaAgentEvent,
   createShortDramaManifestLibraryService,
   createShortDramaStaticProject,
 } from '@/shared/services/short-drama/ShortDramaProjectViewModel';
-import { wasShortDramaArtifactRefinedOnCanvas } from './shortDramaCanvasRefBridge';
+import {
+  toShortDramaMediaItemId,
+  wasShortDramaArtifactRefinedOnCanvas,
+} from './shortDramaCanvasRefBridge';
 import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
 import {
   canSendCanvasPictureBackToShortDrama,
@@ -288,5 +292,108 @@ describe('short drama canvas write-back, through a real manifest', () => {
     expect(latest.sourceOperationId).toContain(artifact.id);
     expect(JSON.parse(files.get([...files.keys()].find(key => key.includes('manifest'))!)!)
       .manifestVersion).toBe(1);
+  });
+});
+
+/**
+ * K3 §6.2: the two return legs of one picture.
+ *
+ * A generation started on an owned card carries the asset's coordinates, so
+ * the backend files the result through the runtime lane that AssetAI has
+ * always used (leg A). The same card still shows a "send back" button, and
+ * the user may press it (leg B). Both must land on ONE revision.
+ *
+ * What makes that work is not a lock or an ordering rule — it is that both
+ * legs name the picture the same way. The backend calls it
+ * `<batchId>-<itemIndex>`, and the path adapter reads exactly that back out of
+ * the file's own generated path. So whichever leg arrives second recognises
+ * the picture as already recorded and does nothing at all.
+ */
+describe('K3 §6.2 both return legs of one picture', () => {
+  const GENERATED = {
+    workspacePath: WORKSPACE,
+    relativePath: 'media/generated/media_batch_9/image-001.png',
+  };
+
+  it('a press after the generation already came home records nothing twice', async () => {
+    const base = createShortDramaStaticProject();
+    const artifact = characterArtifact(base);
+    // Leg A: the runtime path, exactly as a stage-agent generation arrives.
+    const afterRuntime = applyShortDramaAgentEvent(base, {
+      type: 'completed',
+      artifactId: artifact.id,
+      runId: 'infinite-canvas-direct:op-1',
+      timestamp: 1_700_000_000_000,
+      source: 'tool',
+      outputMediaItemId: 'media_batch_9-1',
+      outputMediaReference: {
+        mediaItemId: 'media_batch_9-1',
+        kind: 'image',
+        relativePath: GENERATED.relativePath,
+        localPath: `${WORKSPACE}/${GENERATED.relativePath}`,
+        source: 'generated',
+      },
+    });
+    const revisionsAfterA = afterRuntime.artifacts.find(item => item.id === artifact.id)!.revisions;
+    expect(revisionsAfterA).toHaveLength(artifact.revisions.length + 1);
+
+    // Leg B: the user presses "send back" on the very same picture.
+    const { deps, saved, changed } = harness({ project: afterRuntime });
+    const result = await sendCanvasPictureBackToShortDrama(
+      request(afterRuntime, { mediaRef: GENERATED }),
+      deps,
+    );
+
+    expect(result).toMatchObject({
+      status: 'sent',
+      mediaItemId: 'media_batch_9-1',
+      alreadyRecorded: true,
+    });
+    // Nothing written, nothing announced: a no-op is a no-op all the way down.
+    expect(saved).toHaveLength(0);
+    expect(changed).toHaveLength(0);
+    expect(afterRuntime.artifacts.find(item => item.id === artifact.id)!.revisions)
+      .toHaveLength(artifact.revisions.length + 1);
+  });
+
+  it('the two legs agree on the picture\'s name, which is what makes them one', () => {
+    // The linchpin, asserted on its own so it cannot drift silently: the
+    // backend writes `<batchId>-<itemIndex>` and the adapter reads the same
+    // string back out of the path. If this ever diverges, a picture would be
+    // recorded twice and nothing else in the suite would notice.
+    expect(toShortDramaMediaItemId(GENERATED.relativePath)).toBe('media_batch_9-1');
+  });
+
+  it('a different picture is still a new proposal, not a blocked repeat', async () => {
+    const base = createShortDramaStaticProject();
+    const artifact = characterArtifact(base);
+    const afterRuntime = applyShortDramaAgentEvent(base, {
+      type: 'completed',
+      artifactId: artifact.id,
+      runId: 'infinite-canvas-direct:op-1',
+      timestamp: 1_700_000_000_000,
+      source: 'tool',
+      outputMediaItemId: 'media_batch_9-1',
+      outputMediaReference: {
+        mediaItemId: 'media_batch_9-1',
+        kind: 'image',
+        relativePath: GENERATED.relativePath,
+        source: 'generated',
+      },
+    });
+
+    const { deps, saved } = harness({ project: afterRuntime });
+    const result = await sendCanvasPictureBackToShortDrama(
+      request(afterRuntime, { mediaRef: PICTURE }),
+      deps,
+    );
+
+    expect(result).toMatchObject({ status: 'sent', alreadyRecorded: false });
+    expect(saved).toHaveLength(1);
+    const updated = saved[0].artifacts.find(item => item.id === artifact.id)!;
+    expect(updated.revisions).toHaveLength(artifact.revisions.length + 2);
+    // The generation's own revision is still there — nothing is overwritten.
+    expect(updated.revisions.at(-2)?.mediaItemId).toBe('media_batch_9-1');
+    expect(updated.revisions.at(-1)?.mediaItemId).toBe('batch-refined-1');
   });
 });

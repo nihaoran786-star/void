@@ -5,9 +5,12 @@ import type {
   ShortDramaProject,
 } from '@/shared/services/short-drama/ShortDramaTypes';
 import {
+  resolveShortDramaCanvasGenerationBinding,
   resolveShortDramaCanvasImport,
   resolveShortDramaCanvasOrigin,
+  SHORT_DRAMA_CANVAS_GENERATION_LABEL,
 } from './shortDramaCanvasImport';
+import { shortDramaStageForCanvasKind } from './shortDramaCanvasRefBridge';
 
 const WORKSPACE = 'C:/projects/demo';
 const DOMAIN_REF = {
@@ -123,5 +126,55 @@ describe('resolveShortDramaCanvasOrigin', () => {
       project([artifact({ mediaReference: undefined })]),
       DOMAIN_REF,
     )).toEqual({ handle: 'CHAR-001', title: 'Lin Xia', status: 'ready' });
+  });
+});
+
+describe('resolveShortDramaCanvasGenerationBinding (K3 §6.2)', () => {
+  it('names the project, the stage and the asset a generation belongs to', () => {
+    expect(resolveShortDramaCanvasGenerationBinding(project(), DOMAIN_REF)).toEqual({
+      projectId: 'project-1',
+      stage: 'assets',
+      artifactId: 'artifact-1',
+      artifactHandle: 'CHAR-001',
+      outputMediaLabel: SHORT_DRAMA_CANVAS_GENERATION_LABEL,
+    });
+  });
+
+  it('uses the asset\'s own stage rather than a guess from its kind', () => {
+    const moved = resolveShortDramaCanvasGenerationBinding(
+      project([artifact({ stage: 'storyboards' })]),
+      DOMAIN_REF,
+    );
+    expect(moved?.stage).toBe('storyboards');
+  });
+
+  it('falls back to the kind table only when the record carries no stage', () => {
+    const kindless = resolveShortDramaCanvasGenerationBinding(
+      project([artifact({ stage: undefined as never })]),
+      DOMAIN_REF,
+    );
+    expect(kindless?.stage).toBe('assets');
+    const storyboard = resolveShortDramaCanvasGenerationBinding(
+      project([artifact({ type: 'storyboard', stage: undefined as never })]),
+      { ...DOMAIN_REF, kind: 'storyboard' },
+    );
+    expect(storyboard?.stage).toBe('storyboards');
+  });
+
+  it('refuses coordinates for a missing asset or a mismatched type', () => {
+    expect(resolveShortDramaCanvasGenerationBinding(project([]), DOMAIN_REF)).toBeUndefined();
+    expect(resolveShortDramaCanvasGenerationBinding(
+      project([artifact({ type: 'location' })]),
+      DOMAIN_REF,
+    )).toBeUndefined();
+  });
+});
+
+describe('shortDramaStageForCanvasKind', () => {
+  it('maps only the three kinds the board knows, and nothing else', () => {
+    expect(shortDramaStageForCanvasKind('character')).toBe('assets');
+    expect(shortDramaStageForCanvasKind('location')).toBe('assets');
+    expect(shortDramaStageForCanvasKind('storyboard')).toBe('storyboards');
+    expect(shortDramaStageForCanvasKind('script')).toBeUndefined();
   });
 });
