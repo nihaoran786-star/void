@@ -5,10 +5,8 @@ import {
   createShortDramaManifestLibraryService,
   createShortDramaStaticProject,
 } from '@/shared/services/short-drama/ShortDramaProjectViewModel';
-import {
-  toShortDramaMediaItemId,
-  wasShortDramaArtifactRefinedOnCanvas,
-} from './shortDramaCanvasRefBridge';
+import { wasShortDramaArtifactRefinedOnCanvas } from './shortDramaCanvasPredicates';
+import { toShortDramaMediaItemId } from './shortDramaCanvasRefBridge';
 import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
 import {
   canSendCanvasPictureBackToShortDrama,

@@ -19,11 +19,16 @@
  *    user the wrong file.
  *
  * Pure: no React, no Tauri, no panel imports.
+ *
+ * It does import one canvas value — the workspace-equivalence helper — by its
+ * own module rather than through `@/shared/services/canvas`, whose barrel also
+ * re-exports the canvas surface services and their singletons. The two pure
+ * predicates the short-drama panel asks about the board live in
+ * `shortDramaCanvasPredicates` for the same reason: nothing that only needs a
+ * boolean should end up holding the surface registry.
  */
-import { areCanvasWorkspacePathsEquivalent } from '@/shared/services/canvas';
-import { INFINITE_CANVAS_DOMAIN_KINDS } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+import { areCanvasWorkspacePathsEquivalent } from '@/shared/services/canvas/CanvasWorkspaceFacts';
 import type {
-  ShortDramaArtifact,
   ShortDramaMediaReference,
   ShortDramaStage,
 } from '@/shared/services/short-drama/ShortDramaTypes';
@@ -61,30 +66,6 @@ function cleanRelativePath(value: unknown): string | undefined {
   // resolving it here is exactly the path arithmetic this file refuses to do.
   if (normalized.split('/').some(segment => segment === '..')) return undefined;
   return normalized;
-}
-
-/**
- * K3 §5.1.5: may this asset be refined on the board at all?
- *
- * It lives here, not in the panel and not next to the surface call, for one
- * reason: this is the only question the short-drama panel is allowed to ask,
- * and answering it must not drag a canvas service into the panel's import
- * graph. `ShortDramaCenterPanel.tsx` is an orchestration hotspot; the predicate
- * it calls has to be a pure function over two plain shapes.
- *
- * Two conditions, both narrow on purpose:
- *  - the asset type is one the board knows how to own a reference to, and
- *  - the picture is a picture. Video and audio assets are out of scope: the
- *    board can render a video card, but the refinement pipeline behind it is
- *    an image pipeline, so a video sent there would have nothing to do.
- */
-export function canRefineShortDramaArtifactOnCanvas(
-  artifact: Pick<ShortDramaArtifact, 'type' | 'mediaReference'>,
-): boolean {
-  if (!(INFINITE_CANVAS_DOMAIN_KINDS as readonly string[]).includes(artifact.type)) {
-    return false;
-  }
-  return artifact.mediaReference?.kind === 'image';
 }
 
 /**
@@ -182,26 +163,6 @@ const SHORT_DRAMA_STAGE_BY_KIND: Record<string, ShortDramaStage> = {
 
 export function shortDramaStageForCanvasKind(kind: string): ShortDramaStage | undefined {
   return SHORT_DRAMA_STAGE_BY_KIND[kind];
-}
-
-/**
- * K3 §5.2, the short-drama panel's one question about the board: is the
- * picture this asset is holding right now one that came back from the canvas?
- *
- * Answered from the newest revision alone, and only from the two additive
- * fields — a project written before K3 has neither, which reads as "no". The
- * short-drama panel needs this to explain a review the user did not start from
- * an agent run, and the predicate lives here so the panel (an orchestration
- * hotspot) never has to know what a canvas card is.
- *
- * `revisions` is treated as ordered, oldest first, which is how every writer
- * in the module appends to it.
- */
-export function wasShortDramaArtifactRefinedOnCanvas(
-  artifact: Pick<ShortDramaArtifact, 'revisions'>,
-): boolean {
-  const latest = artifact.revisions[artifact.revisions.length - 1];
-  return latest?.sourceCanvasNodeId !== undefined;
 }
 
 /**

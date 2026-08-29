@@ -77,7 +77,7 @@ import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootst
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
 import { ArtifactSendToCanvasButton } from './ShortDramaCanvasHandoffContext';
-import { wasShortDramaArtifactRefinedOnCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasRefBridge';
+import { wasShortDramaArtifactRefinedOnCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasPredicates';
 import { ShortDramaTopBar } from './ShortDramaTopBar';
 import { useRecoverableWorkspaceMediaUrl } from './useRecoverableWorkspaceMediaUrl';
 import {

@@ -15,10 +15,8 @@
 import type { CanvasWorkspaceFacts } from '@/shared/services/canvas';
 import { canvasSurfaceCommandService } from '../registry/CanvasSurfaceCommandRuntime';
 import type { ShortDramaArtifact } from '@/shared/services/short-drama/ShortDramaTypes';
-import {
-  canRefineShortDramaArtifactOnCanvas,
-  toCanvasMediaRef,
-} from '@/shared/services/canvas-short-drama/shortDramaCanvasRefBridge';
+import { canRefineShortDramaArtifactOnCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasPredicates';
+import { toCanvasMediaRef } from '@/shared/services/canvas-short-drama/shortDramaCanvasRefBridge';
 import {
   INFINITE_CANVAS_DOMAIN_MODULE_IDS,
   INFINITE_CANVAS_DOMAIN_ROLES,

@@ -15,7 +15,7 @@ import { LayoutGrid } from 'lucide-react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import { notificationService } from '@/shared/notification-system/services/NotificationService';
-import { canRefineShortDramaArtifactOnCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasRefBridge';
+import { canRefineShortDramaArtifactOnCanvas } from '@/shared/services/canvas-short-drama/shortDramaCanvasPredicates';
 import type { ShortDramaArtifact } from '@/shared/services/short-drama/ShortDramaTypes';
 // Type-only, so the hotspot's import graph never reaches the canvas surface
 // service: the module that does call it is loaded lazily by the container.

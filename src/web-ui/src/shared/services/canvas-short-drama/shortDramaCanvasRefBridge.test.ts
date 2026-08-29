@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { ShortDramaMediaReference } from '@/shared/services/short-drama/ShortDramaTypes';
 import {
   canRefineShortDramaArtifactOnCanvas,
+  wasShortDramaArtifactRefinedOnCanvas,
+} from './shortDramaCanvasPredicates';
+import {
   toCanvasMediaRef,
   toShortDramaMediaItemId,
   toShortDramaMediaReference,
   toShortDramaRelativePath,
-  wasShortDramaArtifactRefinedOnCanvas,
 } from './shortDramaCanvasRefBridge';
 
 const WORKSPACE = 'C:/projects/demo';
