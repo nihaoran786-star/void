@@ -121,10 +121,12 @@ import {
   classifyDeletionTargets,
   collectGenerationTasks,
   connectNodesContent,
+  consumeImportRequestContent,
   createInfiniteCanvasId,
   failOperationContent,
   findDomainImportNodeId,
   infiniteCanvasWillAutoFile,
+  isImportRequestConsumed,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   INFINITE_CANVAS_VIDEO_NODE_TYPE,
@@ -2927,6 +2929,32 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    * The picture's path is resolved HERE, not carried in the payload, so an
    * asset whose picture changed between the press and the open still lands
    * with the picture it has now.
+   *
+   * E4 — three guards, not two, and the third is the one that matters:
+   *
+   *  1. `handledImportRequestIdsRef` — per-mount, cheap, stops a re-render
+   *     from re-running the effect.
+   *  2. `findDomainImportNodeId` — one asset, one card.
+   *  3. `consumedImportRequestIds` in the DOCUMENT — durable.
+   *
+   * Guards 1 and 2 both evaporate in the exact sequence the user is most
+   * likely to hit: land a card, delete it (the documented undo), switch tabs
+   * and back. The surface's tab content is persisted and its strategy is
+   * 'update', so the same payload arrives again at a fresh mount with an empty
+   * ref and no card to find — and the deleted card grew back. Guard 3 is what
+   * makes "delete the card" stick.
+   *
+   * Guard 3 is CLAIMED FIRST, before the project is read and before anything
+   * is warned about, in its own mutation. It cannot be checked off the panel's
+   * in-memory document: on a fresh mount the load is still in flight when this
+   * effect runs, so the only place the answer is reliable is inside a mutator,
+   * where the document service has already resolved the document and holds the
+   * per-path queue. Claiming first also means every terminal path — landed,
+   * revealed, refused — is covered by one write instead of three.
+   *
+   * The failure direction of claim-first is deliberate: a crash between the
+   * claim and the card loses the import, and the user presses again. The other
+   * order loses the user's deletion, permanently, on every tab switch.
    */
   React.useEffect(() => {
     const pending = pendingDomainImport;
@@ -2940,9 +2968,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     };
 
     void (async () => {
-      const existing = documentRef.current
-        ? findDomainImportNodeId(documentRef.current, pending.domainRef)
-        : undefined;
+      // Never `history: true`: claiming a request is bookkeeping, not the
+      // user's edit, and undo must not re-open the door.
+      let alreadyConsumed = false;
+      const claimed = await commit(current => {
+        alreadyConsumed = isImportRequestConsumed(current, pending.requestId);
+        return alreadyConsumed
+          ? { nodes: current.nodes, edges: current.edges, viewport: current.viewport }
+          : consumeImportRequestContent(current, pending.requestId);
+      });
+      if (!isMountedRef.current || !claimed || alreadyConsumed) return;
+
+      const existing = findDomainImportNodeId(claimed, pending.domainRef);
       if (existing) {
         reveal(existing);
         return;

@@ -6,12 +6,14 @@ import {
   addImageNodeContent,
   addTextNodeContent,
   attachBatchToOperationContent,
+  consumeImportRequestContent,
   beginDerivedOperationContent,
   connectNodesContent,
   createInfiniteCanvasId,
   failOperationContent,
   findDomainImportNodeId,
   infiniteCanvasWillAutoFile,
+  isImportRequestConsumed,
   INFINITE_CANVAS_IMAGE_NODE_TYPE,
   INFINITE_CANVAS_TEXT_NODE_TYPE,
   moveNodeContent,
@@ -554,7 +556,7 @@ describe('infiniteCanvasPanelModel', () => {
     });
   });
   /**
-   * A5: the pure answer the panel and the card both read, kept here
+   * A5 / E4: the two pure answers the panel and the card both read, kept here
    * so neither can drift into its own version of them.
    */
   describe('short-drama coupling rules', () => {
@@ -581,6 +583,27 @@ describe('infiniteCanvasPanelModel', () => {
     it('files nothing from a card that belongs to nothing', () => {
       expect(infiniteCanvasWillAutoFile({})).toBe(false);
       expect(infiniteCanvasWillAutoFile({ generationParams: { n: 1 } })).toBe(false);
+    });
+
+    it('records a consumed import request without touching the content', () => {
+      const document = makeDocument({
+        nodes: [{ nodeId: 'n-1', kind: 'text', position: { x: 0, y: 0 }, text: 'hi' }],
+      });
+
+      expect(isImportRequestConsumed(document, 'req-1')).toBe(false);
+      const next = consumeImportRequestContent(document, 'req-1');
+      expect(next.consumedImportRequestIds).toEqual(['req-1']);
+      expect(next.nodes).toEqual(document.nodes);
+    });
+
+    it('never records the same request twice', () => {
+      const document = makeDocument({ consumedImportRequestIds: ['req-1'] });
+
+      expect(isImportRequestConsumed(document, 'req-1')).toBe(true);
+      expect(consumeImportRequestContent(document, 'req-1').consumedImportRequestIds)
+        .toEqual(['req-1']);
+      expect(consumeImportRequestContent(document, 'req-2').consumedImportRequestIds)
+        .toEqual(['req-1', 'req-2']);
     });
   });
 });

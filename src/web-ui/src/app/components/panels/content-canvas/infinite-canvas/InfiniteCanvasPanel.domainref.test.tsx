@@ -321,6 +321,60 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
     expect(imported()).toHaveLength(1);
   });
 
+  /**
+   * E4: deleting the card is the documented — and only — way to undo an
+   * import. It used to hold only until the next time the tab was activated:
+   * the surface re-delivers its persisted payload on every mount, the
+   * per-mount request-id guard was empty again, and with the card gone there
+   * was nothing left to dedupe against. The board grew it straight back.
+   */
+  it('does not grow a deleted import card back when the board is reopened', async () => {
+    seed([]);
+    const pending = { domainRef: DOMAIN_REF, requestId: 'req-1' };
+    await renderPanel({ pendingDomainImport: pending });
+    await settle();
+    expect(imported()).toHaveLength(1);
+    // The record of the consumed request lives in the document, so it outlives
+    // the panel that wrote it.
+    expect(persisted().consumedImportRequestIds).toContain('req-1');
+
+    // The user deletes the card.
+    const afterImport = persisted();
+    memory.files.set(documentPath(), JSON.stringify({
+      ...afterImport,
+      nodes: afterImport.nodes.filter(node => node.domainRef === undefined),
+    }));
+
+    // The tab is closed and reopened: brand-new mount, brand-new service
+    // cache, and the same stale payload arriving all over again.
+    act(() => root.unmount());
+    service.dispose();
+    service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
+    root = createRoot(container);
+    await renderPanel({ pendingDomainImport: pending });
+    await settle();
+
+    expect(imported()).toHaveLength(0);
+  });
+
+  it('remembers a refused import too, so the same warning is not repeated forever', async () => {
+    seed([]);
+    const pending = { domainRef: DOMAIN_REF, requestId: 'req-1' };
+    const noAsset = async () => project([]);
+    await renderPanel({ pendingDomainImport: pending, readShortDramaProject: noAsset });
+    await settle();
+    expect(warning).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    service.dispose();
+    service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
+    root = createRoot(container);
+    await renderPanel({ pendingDomainImport: pending, readShortDramaProject: noAsset });
+    await settle();
+
+    expect(warning).toHaveBeenCalledTimes(1);
+  });
+
   it('reveals the card an asset already has instead of growing a second one', async () => {
     seed([]);
     await renderPanel({ pendingDomainImport: { domainRef: DOMAIN_REF, requestId: 'req-1' } });

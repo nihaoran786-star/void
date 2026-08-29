@@ -25,6 +25,7 @@ import {
   INFINITE_CANVAS_DOMAIN_KINDS,
   INFINITE_CANVAS_DOMAIN_MODULE_IDS,
   INFINITE_CANVAS_DOMAIN_ROLES,
+  INFINITE_CANVAS_CONSUMED_IMPORT_LIMIT,
   INFINITE_CANVAS_SCHEMA_VERSION,
 } from './InfiniteCanvasTypes';
 import type { InfiniteCanvasPersistencePort } from './InfiniteCanvasPersistencePort';
@@ -207,6 +208,27 @@ function parseAgentOps(value: unknown): InfiniteCanvasDocument['agentOps'] {
     return undefined;
   }
   return { appliedSeq };
+}
+
+/**
+ * K3 E4 additive document field; same tolerance rule as
+ * {@link parseAgentOps} and {@link parseMediaVariants} — unusable entries are
+ * skipped, everything readable survives, and an empty result reads as absent.
+ *
+ * A dropped id is not data loss, it is one extra chance for a stale payload to
+ * replay; a dropped list would be. So this never rejects the document.
+ */
+function parseConsumedImportRequestIds(
+  value: unknown,
+): InfiniteCanvasDocument['consumedImportRequestIds'] {
+  if (!Array.isArray(value)) return undefined;
+  const ids: string[] = [];
+  for (const entry of value) {
+    if (!isNonEmptyString(entry) || ids.includes(entry)) continue;
+    ids.push(entry);
+  }
+  if (ids.length === 0) return undefined;
+  return ids.slice(-INFINITE_CANVAS_CONSUMED_IMPORT_LIMIT);
 }
 
 /**
@@ -466,6 +488,12 @@ export function parseInfiniteCanvasDocument(raw: string): InfiniteCanvasParseRes
   };
   const agentOps = parseAgentOps(parsed.agentOps);
   if (agentOps) document.agentOps = agentOps;
+  const consumedImportRequestIds = parseConsumedImportRequestIds(
+    parsed.consumedImportRequestIds,
+  );
+  if (consumedImportRequestIds) {
+    document.consumedImportRequestIds = consumedImportRequestIds;
+  }
   return { status: 'ok', document, skippedNodes, skippedEdges };
 }
 
@@ -755,6 +783,15 @@ export class InfiniteCanvasDocumentService {
       // P3: the agent-ops watermark only moves when the mutator explicitly
       // returns it (applying a journal batch); plain mutations keep it as-is.
       ...(mutated.agentOps !== undefined ? { agentOps: mutated.agentOps } : {}),
+      // K3 E4: same rule — the consumed-import record only moves when a
+      // mutator explicitly returns it, and it is capped here so no caller has
+      // to remember the bound.
+      ...(mutated.consumedImportRequestIds !== undefined
+        ? {
+            consumedImportRequestIds: mutated.consumedImportRequestIds
+              .slice(-INFINITE_CANVAS_CONSUMED_IMPORT_LIMIT),
+          }
+        : {}),
       // One coalesced flush produces one revision bump; keep the in-memory
       // revision at the base until the CAS write assigns the next one.
       revision: pending.baseRevision,

@@ -231,7 +231,37 @@ export interface InfiniteCanvasDocument {
    * document service.
    */
   agentOps?: { appliedSeq: number };
+
+  // —— K3 additive field (schemaVersion stays '1'; tolerant parsing keeps
+  //    pre-K3 documents loading unchanged). ——
+  /**
+   * K3 §5.1.6 (E4): short-drama import request ids this board has already
+   * acted on, oldest first.
+   *
+   * The surface's tab content is PERSISTED and its delivery strategy is
+   * 'update', so the same `{domainRef, requestId}` payload arrives again on
+   * every remount of a restored tab. The panel's in-memory ref guard is
+   * per-mount, and the "does a card already claim this asset?" dedupe stops
+   * working the moment the user deletes that card — which is the documented
+   * way to undo an import. Without a durable record, a deleted import card
+   * grew back on the next tab switch.
+   *
+   * Durable, additive, and deliberately OUTSIDE the content slice: undo/redo
+   * replays content only, so undoing the import mutation cannot un-consume the
+   * request and re-open the door.
+   *
+   * Bounded — see `INFINITE_CANVAS_CONSUMED_IMPORT_LIMIT` — because a board
+   * that lived for years must not carry an unbounded id list on disk.
+   */
+  consumedImportRequestIds?: string[];
 }
+
+/**
+ * How many consumed import request ids a document keeps. Oldest entries fall
+ * off first. A stale payload older than this many imports replaying is not a
+ * scenario that survives a tab's lifetime.
+ */
+export const INFINITE_CANVAS_CONSUMED_IMPORT_LIMIT = 64;
 
 /** Workspace facts the document service needs; remote is always fail-closed. */
 export interface InfiniteCanvasWorkspaceRef {
@@ -300,7 +330,12 @@ export type InfiniteCanvasDocumentContent = Pick<
  * P3: a mutator may additionally advance the `agentOps` watermark in the same
  * mutation that applies an agent ops batch (plan §2.2 — watermark and content
  * move together or not at all); omitting it keeps the current value.
+ *
+ * K3 E4: the same door, for the same reason, is open to
+ * `consumedImportRequestIds` — the import card and the record that its request
+ * was consumed land in ONE mutation, so a crash between them is impossible.
  */
 export type InfiniteCanvasMutator = (
   current: Readonly<InfiniteCanvasDocument>,
-) => InfiniteCanvasDocumentContent & Partial<Pick<InfiniteCanvasDocument, 'agentOps'>>;
+) => InfiniteCanvasDocumentContent
+  & Partial<Pick<InfiniteCanvasDocument, 'agentOps' | 'consumedImportRequestIds'>>;

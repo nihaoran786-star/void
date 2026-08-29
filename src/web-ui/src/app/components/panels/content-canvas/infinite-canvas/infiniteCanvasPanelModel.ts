@@ -253,6 +253,46 @@ export function infiniteCanvasWillAutoFile(node: {
   return (node.generationParams?.n ?? 1) <= INFINITE_CANVAS_AUTO_FILE_BATCH_LIMIT;
 }
 
+/**
+ * K3 §5.1.6 (E4): has this board already acted on this import request?
+ *
+ * The panel asks this INSTEAD of relying on "is there already a card for this
+ * asset?", because deleting that card is the documented way to undo an import
+ * — and the surface keeps re-delivering the same persisted payload on every
+ * remount. Without a durable record the deleted card grew straight back.
+ */
+export function isImportRequestConsumed(
+  document: Readonly<InfiniteCanvasDocument>,
+  requestId: string,
+): boolean {
+  return (document.consumedImportRequestIds ?? []).includes(requestId);
+}
+
+/**
+ * K3 §5.1.6 (E4): record that this import request has been dealt with —
+ * whether it landed a card, revealed the one that already existed, or was
+ * refused because the asset is gone. All three are "handled"; replaying any of
+ * them would be noise at best and a resurrected card at worst.
+ *
+ * Content is passed through untouched, so this composes with the mutation that
+ * actually adds the card: one commit, one revision, no window in which the
+ * card exists and the request is still open. The record itself sits outside
+ * the content slice, so undo cannot roll it back.
+ */
+export function consumeImportRequestContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  requestId: string,
+  base?: InfiniteCanvasDocumentContent,
+): InfiniteCanvasDocumentContent & { consumedImportRequestIds: string[] } {
+  const previous = document.consumedImportRequestIds ?? [];
+  return {
+    ...(base ?? content(document)),
+    consumedImportRequestIds: previous.includes(requestId)
+      ? [...previous]
+      : [...previous, requestId],
+  };
+}
+
 export function setNodeTextContent(
   document: Readonly<InfiniteCanvasDocument>,
   nodeId: string,

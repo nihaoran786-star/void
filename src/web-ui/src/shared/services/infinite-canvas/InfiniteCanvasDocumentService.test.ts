@@ -830,6 +830,84 @@ describe('InfiniteCanvasDocumentService', () => {
     expect(persisted.document.viewport).toEqual({ x: 3, y: 3, zoom: 1 });
   });
 
+  /**
+   * E4: the consumed-import record is what makes "delete the imported card"
+   * stick across a tab switch, so it has to survive the round trip — and a
+   * document written before it existed has to load exactly as it did before.
+   */
+  it('round-trips consumedImportRequestIds through mutate and save', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 2,
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+      consumedImportRequestIds: ['req-1'],
+    }));
+    const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 1 });
+
+    const loaded = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    if (loaded.status !== 'loaded') throw new Error('expected a loaded document');
+    expect(loaded.document.consumedImportRequestIds).toEqual(['req-1']);
+
+    // A plain content mutation must not drop it...
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: current.nodes,
+      edges: current.edges,
+      viewport: { x: 5, y: 5, zoom: 1 },
+    }));
+    // ...and a mutation that returns it appends.
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: current.nodes,
+      edges: current.edges,
+      viewport: current.viewport,
+      consumedImportRequestIds: [...(current.consumedImportRequestIds ?? []), 'req-2'],
+    }));
+    await service.flushPendingWrites();
+
+    const persisted = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    if (persisted.status !== 'ok') throw new Error('expected persisted document');
+    expect(persisted.document.consumedImportRequestIds).toEqual(['req-1', 'req-2']);
+  });
+
+  it('keeps a document with no consumedImportRequestIds field exactly as it was', () => {
+    const parsed = parseInfiniteCanvasDocument(JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 1,
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+    if (parsed.status !== 'ok') throw new Error('expected an ok parse');
+    expect('consumedImportRequestIds' in parsed.document).toBe(false);
+  });
+
+  it('skips unusable consumed-import entries rather than rejecting the document', () => {
+    const parsed = parseInfiniteCanvasDocument(JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 1,
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+      // A number, a blank, a duplicate, and one good id.
+      consumedImportRequestIds: [7, '', 'req-1', 'req-1'],
+    }));
+    if (parsed.status !== 'ok') throw new Error('expected an ok parse');
+    expect(parsed.document.consumedImportRequestIds).toEqual(['req-1']);
+  });
+
   it('drops broken P3 mediaKind and agentOps values as absent, keeping the document', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
     const service = new InfiniteCanvasDocumentService(store.port);
