@@ -930,7 +930,13 @@
     "title": "Infinite Canvas",
     "skeleton": "Canvas is loading...",
     "unavailable": "Infinite Canvas is not available in this workspace.",
-    "loadFailed": "The canvas module failed to load. Close the tab and try again.",
+    "loadFailed": "The canvas module failed to load.",
+    "loadRetry": "Try again",
+    "commitFailed": "That change could not be saved. The board is unchanged on disk \u2014 try again.",
+    "recovered": {
+      "skippedCards": "Some cards on this board could not be read and were left out. Everything else opened normally.",
+      "fromBackup": "This board\u2019s file could not be read. It was kept as a .bak copy next to it and an empty board was opened."
+    },
     "persistence": {
       "conflict": "This board changed somewhere else, so your latest edits are not saved yet. They are still here and will be retried.",
       "retrying": "Saving the board failed. Your edits are kept and will be retried.",

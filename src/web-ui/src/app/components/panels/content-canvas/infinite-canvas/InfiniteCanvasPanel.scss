@@ -126,6 +126,22 @@
   color: var(--infinite-canvas-error-text);
 }
 
+// H2: the way out of the error page, so it is not a dead end.
+.infinite-canvas-panel__error-retry {
+  margin-top: 4px;
+  padding: 4px 14px;
+  border: 1px solid var(--infinite-canvas-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--infinite-canvas-text);
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover {
+    background: var(--infinite-canvas-hover);
+  }
+}
+
 // ── Flow viewport ──────────────────────────────────────────────────────────
 
 .infinite-canvas-panel__flow {

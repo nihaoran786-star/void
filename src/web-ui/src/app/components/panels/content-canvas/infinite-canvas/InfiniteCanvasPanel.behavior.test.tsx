@@ -326,19 +326,65 @@ describe('InfiniteCanvasPanel', () => {
     expect(flow.props.nodes).toHaveLength(1);
   });
 
-  it('shows a typed error state for a corrupted document instead of overwriting it', async () => {
+  // H2: the corrupted file used to strand the board on a static error page
+  // with no way back, and every later save failed for the same reason. It is
+  // now kept beside the document as a `.bak`, the board opens empty, and the
+  // panel says what happened instead of pretending nothing did.
+  it('opens an empty board and says so when the document file is unreadable', async () => {
     memory.files.set(
       documentPath(WORKSPACE.workspacePath, WORKSPACE.workspaceId),
       '{not json',
     );
     await renderPanel();
 
+    expect(container.querySelector('[data-canvas-surface-state="error"]')).toBeNull();
+    expect(container.querySelector('[data-canvas-surface-state="ready"]')).not.toBeNull();
+    expect(flow.props.nodes).toHaveLength(0);
+    expect(container.textContent).toContain('infiniteCanvas.recovered.fromBackup');
+    // Nothing was deleted: the original bytes are kept next to the document.
+    const backup = [...memory.files.entries()].find(([path]) => path.endsWith('.bak'));
+    expect(backup?.[1]).toBe('{not json');
+  });
+
+  // H2: a runtime edit that cannot be written must not unmount the board.
+  it('keeps the rendered board when an edit fails and shows a dismissible line', async () => {
+    await renderPanel();
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
+    expect(flow.props.nodes).toHaveLength(1);
+
+    vi.spyOn(service, 'mutateDefaultDocument').mockRejectedValueOnce(
+      new Error('the disk went away'),
+    );
+    await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
+
+    // The board is still on screen with the card the user already made.
+    expect(container.querySelector('[data-canvas-surface-state="error"]')).toBeNull();
+    expect(container.querySelector('[data-canvas-surface-state="ready"]')).not.toBeNull();
+    expect(flow.props.nodes).toHaveLength(1);
+    expect(container.textContent).toContain('infiniteCanvas.commitFailed');
+  });
+
+  // H2: a load that fails is offered a second try, not just "close the tab".
+  it('offers a retry on the load error page and reloads the board', async () => {
+    const failing = vi.spyOn(service, 'loadDefaultDocument').mockResolvedValueOnce({
+      status: 'failed',
+      error: { kind: 'io', reason: 'transient' },
+    });
+    await renderPanel();
+
     const error = container.querySelector('[data-canvas-surface-state="error"]');
     expect(error).not.toBeNull();
-    expect(error!.getAttribute('data-error-kind')).toBe('corrupted');
-    // The corrupted file is left untouched for inspection, never overwritten.
-    expect(memory.files.get(
-      documentPath(WORKSPACE.workspacePath, WORKSPACE.workspaceId),
-    )).toBe('{not json');
+    const retry = container.querySelector<HTMLButtonElement>(
+      '.infinite-canvas-panel__error-retry',
+    );
+    expect(retry).not.toBeNull();
+
+    failing.mockRestore();
+    await act(async () => {
+      Simulate.click(retry!);
+    });
+
+    expect(container.querySelector('[data-canvas-surface-state="error"]')).toBeNull();
+    expect(container.querySelector('[data-canvas-surface-state="ready"]')).not.toBeNull();
   });
 });

@@ -31,6 +31,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { useI18n } from '@/infrastructure/i18n';
+import { createLogger } from '@/shared/utils/logger';
 import { notificationService } from '@/shared/notification-system/services/NotificationService';
 import {
   resolveShortDramaCanvasGenerationBinding,
@@ -55,6 +56,7 @@ import type {
   InfiniteCanvasDocumentService,
   InfiniteCanvasDomainRef,
   InfiniteCanvasMediaBridgeEventBus,
+  InfiniteCanvasMutateResult,
   InfiniteCanvasMutator,
   InfiniteCanvasShortDramaBinding,
   SessionImageGenerationInvocation,
@@ -276,6 +278,8 @@ const CANVAS_SCRATCH_COMPOSITE_TOOLS: ReadonlySet<string> = new Set([
   'erase',
   'expand',
 ]);
+
+const log = createLogger('InfiniteCanvasPanel');
 
 /** §8.1: reactflow's own attribution watermark is not part of this language. */
 const FLOW_PRO_OPTIONS = { hideAttribution: true };
@@ -622,6 +626,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   );
 
   const [state, setState] = React.useState<PanelState>({ phase: 'loading' });
+  /**
+   * H2: bumping this re-runs the load effect. A board that failed to open is
+   * usually a transient disk or IPC hiccup, and "close the tab and try again"
+   * was the only exit — from a page that had already thrown the panel away.
+   */
+  const [loadAttempt, setLoadAttempt] = React.useState(0);
   const documentRef = React.useRef<InfiniteCanvasDocument | undefined>(undefined);
   const [flowNodes, setFlowNodes] = React.useState<Node[]>([]);
   const [flowEdges, setFlowEdges] = React.useState<Edge[]>([]);
@@ -1027,13 +1037,25 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     options: { history?: boolean } = {},
   ) => {
     let entry: InfiniteCanvasHistoryEntry | undefined;
-    const result = await service.mutateDefaultDocument(workspaceRef, current => {
-      const next = mutator(current);
-      // Diffed inside the mutator, i.e. inside the document service's
-      // per-path queue, so the entry describes the edit as it really landed.
-      if (options.history) entry = captureUserEdit(current, next);
-      return next;
-    });
+    let result: InfiniteCanvasMutateResult;
+    try {
+      result = await service.mutateDefaultDocument(workspaceRef, current => {
+        const next = mutator(current);
+        // Diffed inside the mutator, i.e. inside the document service's
+        // per-path queue, so the entry describes the edit as it really landed.
+        if (options.history) entry = captureUserEdit(current, next);
+        return next;
+      });
+    } catch (cause) {
+      // H2: ~30 call sites fire this as `void commit(...)`. A mutator that
+      // throws used to become an unhandled rejection nobody saw; commit now
+      // absorbs it into the same visible notice as any other edit failure.
+      log.error('Canvas edit threw while being applied', cause);
+      result = {
+        status: 'failed',
+        error: { kind: 'io', reason: 'The canvas edit could not be applied.', cause },
+      };
+    }
     if (result.status === 'applied') {
       if (entry) applyHistoryState(state => pushHistoryEntry(state, entry!));
       projectDocument(result.document);
@@ -1042,7 +1064,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       // caller ignores it, exactly as before.
       return result.document;
     }
-    setState({ phase: 'failed', error: result.error });
+    // H2: a failed edit is NOT a failed panel. This used to swap the whole
+    // board for a static error page, unmounting every rendered card and
+    // taking any unsaved work with it — one transient I/O hiccup was enough.
+    // The board stays; the failure becomes a line the user can dismiss.
+    log.warn('Canvas edit was not applied', result.error);
+    setNotice({
+      messageKey: 'infiniteCanvas.commitFailed',
+      errorKind: 'backend',
+    });
     return undefined;
   }, [applyHistoryState, projectDocument, service, workspaceRef]);
 
@@ -1064,26 +1094,37 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       ? { undo: [...state.undo, entry], redo: state.redo }
       : { undo: state.undo, redo: [...state.redo, entry] }));
     let stale = false;
-    const result = await service.mutateDefaultDocument(workspaceRef, current => {
-      const applied = applyHistoryEntryContent(current, entry, direction);
-      stale = applied.status === 'stale';
-      if (applied.status !== 'applied') {
-        return { nodes: current.nodes, edges: current.edges, viewport: current.viewport };
-      }
-      // P4 review P4: an undone deletion can bring a card back that was still
-      // generating when it went. Its completion event was discarded long ago,
-      // so it would spin forever; settle the resurrected ones instead.
-      const before = new Set(current.nodes.map(node => node.nodeId));
-      return settleResurrectedPendingContent(
-        applied.content,
-        applied.content.nodes
-          .filter(node => !before.has(node.nodeId))
-          .map(node => node.nodeId),
-      );
-    });
+    let result: InfiniteCanvasMutateResult;
+    try {
+      result = await service.mutateDefaultDocument(workspaceRef, current => {
+        const applied = applyHistoryEntryContent(current, entry, direction);
+        stale = applied.status === 'stale';
+        if (applied.status !== 'applied') {
+          return { nodes: current.nodes, edges: current.edges, viewport: current.viewport };
+        }
+        // P4 review P4: an undone deletion can bring a card back that was
+        // still generating when it went. Its completion event was discarded
+        // long ago, so it would spin forever; settle the resurrected ones.
+        const before = new Set(current.nodes.map(node => node.nodeId));
+        return settleResurrectedPendingContent(
+          applied.content,
+          applied.content.nodes
+            .filter(node => !before.has(node.nodeId))
+            .map(node => node.nodeId),
+        );
+      });
+    } catch (cause) {
+      result = {
+        status: 'failed',
+        error: { kind: 'io', reason: 'The canvas history step could not be applied.', cause },
+      };
+    }
     if (result.status === 'failed') {
       giveBack();
-      setState({ phase: 'failed', error: result.error });
+      // H2: undo/redo is a runtime edit like any other — it gives the entry
+      // back and says so, instead of tearing the board down.
+      log.warn('Canvas undo/redo was not applied', result.error);
+      setNotice({ messageKey: 'infiniteCanvas.commitFailed', errorKind: 'backend' });
       return;
     }
     if (stale) {
@@ -1103,8 +1144,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   /** Re-projects the shared in-memory truth after bridge-side mutations. */
   const refreshFromService = React.useCallback(async () => {
-    const result = await service.loadDefaultDocument(workspaceRef);
-    if (result.status !== 'failed') projectDocument(result.document);
+    // H2: every caller fires this as `void refreshFromService()`. A re-read
+    // that throws is a stale projection, never an unhandled rejection.
+    try {
+      const result = await service.loadDefaultDocument(workspaceRef);
+      if (result.status !== 'failed') projectDocument(result.document);
+    } catch (cause) {
+      log.warn('Canvas re-projection after a bridge mutation failed', cause);
+    }
   }, [projectDocument, service, workspaceRef]);
 
   // —— P4 W6: the single deletion gate ——————————————————————————————————————
@@ -2129,6 +2176,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         setState({ phase: 'failed', error: result.error });
         return;
       }
+      // H2: the loader repairs rather than refuses now — a card it could not
+      // read is skipped, and a file it could not read at all is moved aside
+      // to a `.bak`. Neither may happen quietly.
+      if (result.repair) {
+        log.warn('Canvas document was repaired while loading', result.repair);
+        setNotice({
+          messageKey: result.repair.backupPath
+            ? 'infiniteCanvas.recovered.fromBackup'
+            : 'infiniteCanvas.recovered.skippedCards',
+          errorKind: 'invalid-input',
+        });
+      }
       // P3: replay agent CanvasOp batches journaled while the panel was
       // closed (ops reconciliation runs BEFORE the W7 pending reconciliation,
       // plan §2.2 — a journaled begin_generation must land its pending node
@@ -2159,11 +2218,20 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       viewportRef.current = document.viewport;
       setViewportTransform(document.viewport);
       setState({ phase: 'ready' });
+    }).catch((cause: unknown) => {
+      // H2: neither reconcile pass had a `.catch`. A rejection left the panel
+      // stuck on the loading skeleton forever, with no way out and no words.
+      if (cancelled) return;
+      log.error('Canvas document failed to load', cause);
+      setState({
+        phase: 'failed',
+        error: { kind: 'io', reason: 'Failed to open the canvas document.', cause },
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [mediaJobReader, projectDocument, service, workspaceRef]);
+  }, [loadAttempt, mediaJobReader, projectDocument, service, workspaceRef]);
 
   // The media bridge listens only while the panel is mounted (same trade-off
   // as the short-drama runtime bridge); W7 reconciliation covers the gap.
@@ -2205,6 +2273,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           documentService: service,
         }).then(result => {
           if (result.status === 'applied') void refreshFromService();
+        }).catch((cause: unknown) => {
+          log.warn('Canvas agent-ops replay failed', cause);
         });
       },
     });
@@ -3353,6 +3423,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       >
         <h3>{t('infiniteCanvas.title')}</h3>
         <p>{t('infiniteCanvas.loadFailed')}</p>
+        {/*
+          * H2: the only exit used to be closing the tab. Opening the board is
+          * a read that usually succeeds on the second try, so offer the second
+          * try here instead of asking the user to throw the panel away.
+          */}
+        <button
+          type="button"
+          className="infinite-canvas-panel__error-retry"
+          onClick={() => setLoadAttempt(attempt => attempt + 1)}
+        >
+          {t('infiniteCanvas.loadRetry')}
+        </button>
       </div>
     );
   }

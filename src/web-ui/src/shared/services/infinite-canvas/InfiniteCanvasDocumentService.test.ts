@@ -272,17 +272,28 @@ describe('InfiniteCanvasDocumentService', () => {
     });
   });
 
-  it('returns a typed corrupted error for unparseable JSON instead of throwing', async () => {
+  // H2: an unreadable file used to fail the load AND every later save (the
+  // CAS write re-parses it), so the board was permanently stuck with nothing
+  // on screen saying why. It is now kept as a `.bak` and the board reopens.
+  it('keeps an unparseable file as a .bak and opens an empty board', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
     const service = new InfiniteCanvasDocumentService(store.port);
     store.files.set(defaultFilePath(LOCAL_WORKSPACE), '{ not json');
 
     const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
 
-    expect(result).toMatchObject({
-      status: 'failed',
-      error: { kind: 'corrupted' },
-    });
+    expect(result.status).toBe('created');
+    if (result.status !== 'created') return;
+    expect(result.document.nodes).toEqual([]);
+    const backupPath = result.repair?.backupPath;
+    expect(backupPath).toBeDefined();
+    // Nothing was deleted: the original bytes are still on disk to inspect.
+    expect(store.files.get(backupPath!)).toBe('{ not json');
+    // And the board is writable again.
+    const reparsed = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    expect(reparsed.status).toBe('ok');
   });
 
   it('refuses to overwrite a corrupted file on save', async () => {
@@ -326,30 +337,14 @@ describe('InfiniteCanvasDocumentService', () => {
     expect(result.error.reason).toContain('99');
   });
 
-  it('rejects structurally invalid documents with a typed error', async () => {
+  it('recovers a document whose identity fields are unusable', async () => {
     const store = createInMemoryInfiniteCanvasPersistence();
-    const service = new InfiniteCanvasDocumentService(store.port);
 
     const invalidDocuments = [
       // Missing viewport.
       {
         documentId: 'doc', schemaVersion: '1', workspaceId: 'w', revision: 1,
         nodes: [], edges: [],
-      },
-      // Node with an unknown kind ('video' became valid in P3; 'audio' is not).
-      // This is also the recorded P3 trade-off: a parser without a kind in its
-      // whitelist rejects the whole document, so pre-P3 builds refuse documents
-      // that contain video nodes.
-      {
-        documentId: 'doc', schemaVersion: '1', workspaceId: 'w', revision: 1,
-        nodes: [{ nodeId: 'n1', kind: 'audio', position: { x: 0, y: 0 } }],
-        edges: [], viewport: { x: 0, y: 0, zoom: 1 },
-      },
-      // Edge missing its target.
-      {
-        documentId: 'doc', schemaVersion: '1', workspaceId: 'w', revision: 1,
-        nodes: [], edges: [{ edgeId: 'e1', sourceNodeId: 'n1' }],
-        viewport: { x: 0, y: 0, zoom: 1 },
       },
       // Negative revision.
       {
@@ -359,13 +354,51 @@ describe('InfiniteCanvasDocumentService', () => {
     ];
 
     for (const invalid of invalidDocuments) {
-      store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify(invalid));
+      // A fresh service per case: the recovery writes a valid file, and the
+      // pending cache would otherwise answer the next load from memory.
+      const service = new InfiniteCanvasDocumentService(store.port);
+      const raw = JSON.stringify(invalid);
+      store.files.set(defaultFilePath(LOCAL_WORKSPACE), raw);
       const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
-      expect(result).toMatchObject({
-        status: 'failed',
-        error: { kind: 'invalid-document' },
-      });
+      // H2: the whole document is unusable, so it is moved aside rather than
+      // leaving the board permanently unloadable and unwritable.
+      expect(result.status).toBe('created');
+      if (result.status !== 'created') return;
+      expect(store.files.get(result.repair!.backupPath!)).toBe(raw);
     }
+  });
+
+  // H2: a single bad card must not cost the user the whole board. This is the
+  // same tolerance rule the additive fields already followed, one level up.
+  it('skips an unreadable node and counts it instead of rejecting the file', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port);
+    store.files.set(defaultFilePath(LOCAL_WORKSPACE), JSON.stringify({
+      documentId: defaultInfiniteCanvasDocumentId(LOCAL_WORKSPACE.workspaceId),
+      schemaVersion: '1',
+      workspaceId: LOCAL_WORKSPACE.workspaceId,
+      revision: 3,
+      nodes: [
+        { nodeId: 'good-1', kind: 'text', position: { x: 0, y: 0 }, text: 'kept' },
+        // 'audio' is not a kind this build knows; pre-H2 it killed the file.
+        { nodeId: 'bad-1', kind: 'audio', position: { x: 1, y: 1 } },
+        { nodeId: 'good-2', kind: 'image', position: { x: 2, y: 2 } },
+      ],
+      // Edge missing its target: unreadable, skipped, counted.
+      edges: [{ edgeId: 'e1', sourceNodeId: 'good-1' }],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: new Date(0).toISOString(),
+    }));
+
+    const result = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+
+    expect(result.status).toBe('loaded');
+    if (result.status !== 'loaded') return;
+    expect(result.document.nodes.map(node => node.nodeId)).toEqual(['good-1', 'good-2']);
+    expect(result.document.edges).toEqual([]);
+    expect(result.repair).toEqual({ skippedNodes: 1, skippedEdges: 1 });
+    // The file is untouched until the user edits: recovery is not a rewrite.
+    expect(store.files.get(defaultFilePath(LOCAL_WORKSPACE))).toContain('audio');
   });
 
   it('round-trips node payloads including media and style preset references', async () => {

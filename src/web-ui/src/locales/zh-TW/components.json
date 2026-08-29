@@ -930,7 +930,13 @@
     "title": "無限畫布",
     "skeleton": "畫布載入中…",
     "unavailable": "目前工作區無法使用無限畫布。",
-    "loadFailed": "畫布模組載入失敗，請關閉頁籤後重試。",
+    "loadFailed": "畫布模組載入失敗。",
+    "loadRetry": "重試",
+    "commitFailed": "這次修改沒能儲存。磁碟上的畫板未變，請重試。",
+    "recovered": {
+      "skippedCards": "這塊畫板上有部分卡片讀不出來，已跳過。其餘內容正常開啟。",
+      "fromBackup": "這塊畫板的檔案讀不出來，已在旁邊保留一份 .bak 副本，並開啟了一塊空畫板。"
+    },
     "persistence": {
       "conflict": "這塊畫板在別處被改過，你最新的修改還沒儲存。內容仍在，稍後會重試。",
       "retrying": "畫板儲存失敗。你的修改已保留，稍後會重試。",

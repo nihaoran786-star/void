@@ -252,10 +252,31 @@ export type InfiniteCanvasDocumentError =
   /** Persistence port I/O failure. */
   | { kind: 'io'; reason: string; cause?: unknown };
 
+/**
+ * H2: what the loader had to leave behind to open the board at all.
+ *
+ * Both fields are additive and optional; absent means "nothing was lost".
+ * They exist so the panel can say so out loud — a repair the user cannot see
+ * is indistinguishable from data that quietly disappeared.
+ */
+export interface InfiniteCanvasLoadRepair {
+  /** Nodes the parser could not read and skipped. */
+  skippedNodes?: number;
+  /** Edges the parser could not read and skipped. */
+  skippedEdges?: number;
+  /**
+   * The whole file was unreadable: it was moved aside to this path and the
+   * board opened empty rather than staying permanently unwritable.
+   */
+  backupPath?: string;
+  /** Why the file was moved aside, for the log. */
+  backupReason?: string;
+}
+
 export type InfiniteCanvasLoadResult =
-  | { status: 'loaded'; document: InfiniteCanvasDocument }
+  | { status: 'loaded'; document: InfiniteCanvasDocument; repair?: InfiniteCanvasLoadRepair }
   /** No document existed yet; a default one was created and persisted. */
-  | { status: 'created'; document: InfiniteCanvasDocument }
+  | { status: 'created'; document: InfiniteCanvasDocument; repair?: InfiniteCanvasLoadRepair }
   | { status: 'failed'; error: InfiniteCanvasDocumentError };
 
 export type InfiniteCanvasSaveResult =

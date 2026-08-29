@@ -930,7 +930,13 @@
     "title": "无限画布",
     "skeleton": "画布加载中…",
     "unavailable": "当前工作区无法使用无限画布。",
-    "loadFailed": "画布模块加载失败，请关闭页签后重试。",
+    "loadFailed": "画布模块加载失败。",
+    "loadRetry": "重试",
+    "commitFailed": "这次修改没能保存。磁盘上的画板未变，请重试。",
+    "recovered": {
+      "skippedCards": "这块画板上有部分卡片读不出来，已跳过。其余内容正常打开。",
+      "fromBackup": "这块画板的文件读不出来，已在旁边保留一份 .bak 副本，并打开了一块空画板。"
+    },
     "persistence": {
       "conflict": "这块画板在别处被改过，你最新的修改还没保存。内容仍在，稍后会重试。",
       "retrying": "画板保存失败。你的修改已保留，稍后会重试。",

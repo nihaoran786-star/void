@@ -351,7 +351,21 @@ function parseViewport(value: unknown): InfiniteCanvasViewport | undefined {
 }
 
 export type InfiniteCanvasParseResult =
-  | { status: 'ok'; document: InfiniteCanvasDocument }
+  | {
+    status: 'ok';
+    document: InfiniteCanvasDocument;
+    /**
+     * H2: unreadable nodes and edges are SKIPPED and counted, not fatal.
+     *
+     * One malformed node used to reject the whole file, and because
+     * `writeWithCas` re-parses before every save the rejection was sticky:
+     * from then on no edit could ever be written and nothing said why. A
+     * board with one broken card is still the user's board; the count is
+     * what lets the panel admit that something was left behind.
+     */
+    skippedNodes: number;
+    skippedEdges: number;
+  }
   | { status: 'error'; error: InfiniteCanvasDocumentError };
 
 /**
@@ -413,26 +427,29 @@ export function parseInfiniteCanvasDocument(raw: string): InfiniteCanvasParseRes
       error: { kind: 'invalid-document', reason: 'Document nodes/edges must be arrays.' },
     };
   }
+  // H2: same rule the additive fields already follow, applied one level up.
+  // An unreadable node is dropped and counted; the rest of the board loads.
   const nodes: InfiniteCanvasNode[] = [];
+  let skippedNodes = 0;
   for (const rawNode of parsed.nodes) {
     const node = parseNode(rawNode);
     if (!node) {
-      return {
-        status: 'error',
-        error: { kind: 'invalid-document', reason: 'Document contains an invalid node.' },
-      };
+      skippedNodes += 1;
+      continue;
     }
     nodes.push(node);
   }
   const edges: InfiniteCanvasEdge[] = [];
+  let skippedEdges = 0;
   for (const rawEdge of parsed.edges) {
     const edge = parseEdge(rawEdge);
     if (!edge) {
-      return {
-        status: 'error',
-        error: { kind: 'invalid-document', reason: 'Document contains an invalid edge.' },
-      };
+      skippedEdges += 1;
+      continue;
     }
+    // A wire whose card did not survive is deliberately KEPT: reactflow
+    // simply does not draw it, and dropping it here would turn one broken
+    // card into a permanent loss of the connections around it.
     edges.push(edge);
   }
   const document: InfiniteCanvasDocument = {
@@ -449,7 +466,7 @@ export function parseInfiniteCanvasDocument(raw: string): InfiniteCanvasParseRes
   };
   const agentOps = parseAgentOps(parsed.agentOps);
   if (agentOps) document.agentOps = agentOps;
-  return { status: 'ok', document };
+  return { status: 'ok', document, skippedNodes, skippedEdges };
 }
 
 interface PendingWrite {
@@ -574,33 +591,85 @@ export class InfiniteCanvasDocumentService {
     }
 
     if (raw === null) {
-      const document: InfiniteCanvasDocument = {
-        documentId,
-        schemaVersion: INFINITE_CANVAS_SCHEMA_VERSION,
-        workspaceId: workspace.workspaceId,
-        revision: 1,
-        nodes: [],
-        edges: [],
-        viewport: { x: 0, y: 0, zoom: 1 },
-        updatedAt: this.now().toISOString(),
-      };
-      try {
-        await this.port.ensureDirectory(infiniteCanvasDirectoryPath(workspace.workspacePath));
-        await this.port.writeTextFileAtomic(filePath, serializeDocument(document));
-      } catch (cause) {
-        return {
-          status: 'failed',
-          error: { kind: 'io', reason: 'Failed to create the canvas document.', cause },
-        };
-      }
-      return { status: 'created', document };
+      return this.createDefaultDocument(workspace, documentId, filePath);
     }
 
     const parsed = parseInfiniteCanvasDocument(raw);
     if (parsed.status === 'error') {
+      // H2: an unreadable or incompatible file used to fail the load forever,
+      // and `writeWithCas` re-read it before every save, so the board also
+      // became permanently unwritable. Move it aside — nothing is deleted —
+      // and open an empty board that can be edited and saved again. The
+      // backup path travels back so the panel can say where the file went.
+      if (parsed.error.kind === 'corrupted' || parsed.error.kind === 'invalid-document') {
+        const backupPath = await this.moveAside(filePath, raw);
+        const created = await this.createDefaultDocument(workspace, documentId, filePath);
+        if (created.status === 'failed') return created;
+        return {
+          ...created,
+          repair: {
+            ...(backupPath ? { backupPath } : {}),
+            backupReason: parsed.error.reason,
+          },
+        };
+      }
+      // `incompatible` is a future schema. Overwriting it would destroy work a
+      // newer build can still read, so it stays a hard failure.
       return { status: 'failed', error: parsed.error };
     }
-    return { status: 'loaded', document: parsed.document };
+    const repair = parsed.skippedNodes > 0 || parsed.skippedEdges > 0
+      ? { skippedNodes: parsed.skippedNodes, skippedEdges: parsed.skippedEdges }
+      : undefined;
+    return {
+      status: 'loaded',
+      document: parsed.document,
+      ...(repair ? { repair } : {}),
+    };
+  }
+
+  private async createDefaultDocument(
+    workspace: InfiniteCanvasWorkspaceRef,
+    documentId: string,
+    filePath: string,
+  ): Promise<InfiniteCanvasLoadResult> {
+    const document: InfiniteCanvasDocument = {
+      documentId,
+      schemaVersion: INFINITE_CANVAS_SCHEMA_VERSION,
+      workspaceId: workspace.workspaceId,
+      revision: 1,
+      nodes: [],
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      updatedAt: this.now().toISOString(),
+    };
+    try {
+      await this.port.ensureDirectory(infiniteCanvasDirectoryPath(workspace.workspacePath));
+      await this.port.writeTextFileAtomic(filePath, serializeDocument(document));
+    } catch (cause) {
+      return {
+        status: 'failed',
+        error: { kind: 'io', reason: 'Failed to create the canvas document.', cause },
+      };
+    }
+    return { status: 'created', document };
+  }
+
+  /**
+   * Copies an unreadable file to a timestamped `.bak` next to it.
+   *
+   * A copy, not a rename: the port has no rename, and the caller overwrites
+   * the original immediately afterwards. Best effort by design — failing to
+   * take a backup must not also block the recovery.
+   */
+  private async moveAside(filePath: string, raw: string): Promise<string | undefined> {
+    const stamp = this.now().toISOString().replace(/[:.]/g, '-');
+    const backupPath = `${filePath}.${stamp}.bak`;
+    try {
+      await this.port.writeTextFileAtomic(backupPath, raw);
+      return backupPath;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
