@@ -46,6 +46,9 @@ export function createShortDramaWorkspaceManifestAdapter(
 
   return {
     kind: 'local',
+    // Two adapters built for the same workspace are different objects writing
+    // the same file; the save queue keys on this so they share one lock.
+    scope: root,
     read(key: string) {
       return fileOps.readTextFile(resolvePath(key));
     },

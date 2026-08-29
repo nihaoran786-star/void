@@ -982,6 +982,13 @@ export interface ShortDramaManifest {
 
 export interface ShortDramaManifestAdapter {
   kind: 'local' | 'remote';
+  /**
+   * Which store this adapter writes into — the workspace root, for the
+   * workspace adapter. Not part of the manifest and never persisted: the save
+   * queue needs to tell "the same file" from "a different file" when two
+   * adapter objects were built for the same workspace.
+   */
+  scope?: string;
   read(key: string): Promise<string | undefined>;
   write(key: string, value: string): Promise<void>;
 }

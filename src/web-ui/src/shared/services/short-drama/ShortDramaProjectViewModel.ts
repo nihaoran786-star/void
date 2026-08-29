@@ -14,6 +14,10 @@ import {
 import { createShortDramaStaticProject } from './ShortDramaStaticProject';
 import { createShortDramaToolPolicy } from './ShortDramaToolPolicy';
 import { createShortDramaProjectAuditLog } from './ShortDramaAuditLog';
+import {
+  shortDramaProjectLockKey,
+  withShortDramaProjectLock,
+} from './ShortDramaProjectSaveQueue';
 import recoveredMediaLexicon from './ShortDramaRecoveredMediaLexicon.json';
 import type { WorkspaceMediaItem, WorkspaceMediaPendingGeneration } from '@/shared/services/workspace-media';
 import {
@@ -1321,6 +1325,12 @@ export function createShortDramaRecoveryGuidance(error?: ShortDramaError): Short
   return recoveryGuidance('loadFailed');
 }
 
+/**
+ * Every writer of `.void/short-drama/manifest.json` funnels through here, and
+ * the whole body runs inside the project's save lock: the file is overwritten
+ * wholesale, so two writers interleaving means one of them silently loses its
+ * revision. See {@link withShortDramaProjectLock}.
+ */
 export async function writeShortDramaManifest(
   adapter: ShortDramaManifestAdapter,
   project: ShortDramaProject,
@@ -1333,6 +1343,16 @@ export async function writeShortDramaManifest(
     };
   }
 
+  return withShortDramaProjectLock(
+    shortDramaProjectLockKey(adapter, project.projectId),
+    () => writeShortDramaManifestUnlocked(adapter, project),
+  );
+}
+
+async function writeShortDramaManifestUnlocked(
+  adapter: ShortDramaManifestAdapter,
+  project: ShortDramaProject,
+): Promise<ShortDramaManifestState> {
   const now = Date.now();
   const manifest: ShortDramaManifest = {
     manifestVersion: SHORT_DRAMA_MANIFEST_VERSION,

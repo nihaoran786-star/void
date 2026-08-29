@@ -51,6 +51,10 @@ import {
 import type {
   ShortDramaProject,
 } from '@/shared/services/short-drama/ShortDramaTypes';
+import {
+  shortDramaProjectLockKey,
+  withShortDramaProjectLock,
+} from '@/shared/services/short-drama/ShortDramaProjectSaveQueue';
 import { createShortDramaWorkspaceManifestAdapter } from '@/shared/services/short-drama/ShortDramaWorkspaceManifestAdapter';
 import { readShortDramaProjectForCanvas } from './shortDramaCanvasProjectReader';
 import {
@@ -186,6 +190,34 @@ export async function sendCanvasPictureBackToShortDrama(
     return { status: 'refused', reason: 'unusable-picture' };
   }
 
+  // Read, append, write — three steps with awaits between them, and the
+  // manifest is overwritten wholesale by whoever writes last. Held under the
+  // project's save lock so the short-drama panel cannot save its own in-memory
+  // copy in the middle and have this write put the pre-panel project back.
+  // The manifest writer takes the same lock and recognises the re-entry.
+  return withShortDramaProjectLock(
+    shortDramaProjectLockKey(
+      { kind: 'local', scope: workspacePath.replace(/[\\/]+$/, '') },
+      SHORT_DRAMA_CANVAS_PROJECT_ID,
+    ),
+    () => writeRefinementUnderLock(request, deps, {
+      backend,
+      workspacePath,
+      mediaReference,
+    }),
+  );
+}
+
+async function writeRefinementUnderLock(
+  request: ShortDramaCanvasWriteBackRequest,
+  deps: ShortDramaCanvasWriteBackDeps,
+  context: {
+    backend: 'local' | 'remote';
+    workspacePath: string;
+    mediaReference: NonNullable<ReturnType<typeof toShortDramaMediaReference>>;
+  },
+): Promise<ShortDramaCanvasWriteBackResult> {
+  const { workspacePath, mediaReference } = context;
   const readProject = deps.readProject ?? readShortDramaProjectForCanvas;
   const project = await readProject(workspacePath);
   if (!project) {

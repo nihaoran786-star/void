@@ -426,3 +426,65 @@ describe('K3 §6.2 both return legs of one picture', () => {
     expect(updated.revisions.at(-1)?.mediaItemId).toBe('batch-refined-1');
   });
 });
+
+describe('short drama canvas write-back concurrency (F1)', () => {
+  it('does not let another writer land between the read and the write', async () => {
+    // The write-back is read -> append -> write, and the manifest is
+    // overwritten wholesale. A short-drama panel save landing in that window
+    // used to be read after this call had already read, and this call's write
+    // then put the pre-panel project back on disk — the panel's revision was
+    // gone with no trace.
+    const project = createShortDramaStaticProject();
+    const order: string[] = [];
+    let releaseRead: () => void = () => {};
+    const readStarted = new Promise<void>(resolve => {
+      releaseRead = resolve;
+    });
+    let firstRead = true;
+
+    const deps = {
+      readProject: vi.fn(async () => {
+        order.push('canvas:read');
+        if (firstRead) {
+          firstRead = false;
+          await readStarted;
+        }
+        return project;
+      }),
+      saveProject: vi.fn(async () => {
+        order.push('canvas:write');
+        return { status: 'ready' };
+      }),
+      notifyProjectChanged: () => {},
+    };
+
+    const canvas = sendCanvasPictureBackToShortDrama(request(project), deps);
+    // A second writer for the same workspace, pressed while the first is still
+    // reading. Under the project save lock it may not begin until the first
+    // one has written.
+    const other = sendCanvasPictureBackToShortDrama(
+      request(project, {
+        mediaRef: {
+          workspacePath: WORKSPACE,
+          relativePath: 'media/generated/batch-refined/image-2.png',
+        },
+      }),
+      {
+        ...deps,
+        readProject: vi.fn(async () => {
+          order.push('other:read');
+          return project;
+        }),
+        saveProject: vi.fn(async () => {
+          order.push('other:write');
+          return { status: 'ready' };
+        }),
+      },
+    );
+
+    releaseRead();
+    await Promise.all([canvas, other]);
+
+    expect(order).toEqual(['canvas:read', 'canvas:write', 'other:read', 'other:write']);
+  });
+});
