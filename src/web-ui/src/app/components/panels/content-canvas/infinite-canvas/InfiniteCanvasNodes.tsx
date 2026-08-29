@@ -380,11 +380,24 @@ const NodeMedia: React.FC<{
   // click on the card, both handled by the card body — so the media itself
   // carries no click surface of its own.
 
+  /**
+   * H3: the effect keys on WHICH FILE this is, not on the object that names
+   * it. Keyed on the object, a projection that handed down an equal-but-new
+   * `mediaRef` re-ran the effect, and its first line blanks the preview — so
+   * scrolling the board turned every picture into a placeholder and then made
+   * it re-read, re-base64 and re-decode the same bytes off disk.
+   */
+  const mediaKey = `${mediaRef.workspacePath}|${mediaRef.relativePath}`;
+  // Read inside the effect without being part of its identity: the key above
+  // already changes whenever the ref names a different file.
+  const mediaRefRef = React.useRef(mediaRef);
+  mediaRefRef.current = mediaRef;
+
   React.useEffect(() => {
     let cancelled = false;
     setPreviewUrl(undefined);
     setFailed(false);
-    void resolvePreviewUrl(mediaRef, mediaKind).then(url => {
+    void resolvePreviewUrl(mediaRefRef.current, mediaKind).then(url => {
       if (cancelled) return;
       if (url) {
         setPreviewUrl(url);
@@ -395,7 +408,7 @@ const NodeMedia: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [mediaKind, mediaRef, resolvePreviewUrl]);
+  }, [mediaKey, mediaKind, resolvePreviewUrl]);
 
   // A resolved URL that fails to load (deleted file, revoked asset scope)
   // falls back to the previewUnavailable state instead of a broken icon.

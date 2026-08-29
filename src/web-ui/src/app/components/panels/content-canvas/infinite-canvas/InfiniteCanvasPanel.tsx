@@ -66,7 +66,10 @@ import type {
   InfiniteCanvasGenerationParams,
   InfiniteCanvasMediaJobReader,
 } from '@/shared/services/infinite-canvas';
-import type { InfiniteCanvasGenerationTask } from './infiniteCanvasPanelModel';
+import type {
+  InfiniteCanvasFlowNodeView,
+  InfiniteCanvasGenerationTask,
+} from './infiniteCanvasPanelModel';
 import {
   summarizeInfiniteCanvasGenerationParams,
   defaultInfiniteCanvasModelId,
@@ -280,6 +283,38 @@ const CANVAS_SCRATCH_COMPOSITE_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 const log = createLogger('InfiniteCanvasPanel');
+
+/** Shared empty list so a card with no references keeps one stable identity. */
+const EMPTY_REFERENCE_LABELS: readonly string[] = [];
+
+/**
+ * H3: what the last projection produced for one card, so the next one can
+ * hand back the same `data` object when nothing about the card changed.
+ */
+interface ProjectionCacheEntry {
+  /** Structural fingerprint of everything `data` is built from. */
+  key: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Why a fingerprint and not object identity: a commit that lands after the
+ * coalescing window has already flushed re-reads and re-parses the file, so
+ * every document node is a new object even when not one byte changed. The
+ * projected view data is small, plain and built in a fixed field order, so
+ * serializing it is a sound "is this the same card" test — and it is nothing
+ * next to the cost this avoids, which is re-reading and re-decoding the
+ * card's picture from disk.
+ */
+const PROJECTION_KEY_SEPARATOR = String.fromCharCode(31);
+
+function projectionKeyFor(
+  view: InfiniteCanvasFlowNodeView,
+  labels: readonly string[],
+): string {
+  return [view.type, JSON.stringify(view.data), ...labels]
+    .join(PROJECTION_KEY_SEPARATOR);
+}
 
 /** §8.1: reactflow's own attribution watermark is not part of this language. */
 const FLOW_PRO_OPTIONS = { hideAttribution: true };
@@ -900,21 +935,75 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setStylePickerNodeId(current => (current === nodeId ? null : nodeId));
   }, []);
 
+  /**
+   * H3: the previous projection's per-card `data`, keyed by node id.
+   *
+   * `owner` is the set of inputs the cached objects closed over. A cached
+   * `data` holds the callbacks and the style catalog of the projection that
+   * built it, so the whole cache is void the moment any of them changes.
+   */
+  const projectionCache = React.useRef<{
+    owner: readonly unknown[];
+    entries: Map<string, ProjectionCacheEntry>;
+  }>({ owner: [], entries: new Map() });
+
   const projectDocument = React.useCallback((document: InfiniteCanvasDocument) => {
     documentRef.current = document;
     setTasks(collectGenerationTasks(document));
     const referenceLabels = referenceLabelsByNode(document);
     const selectedIds = new Set(selectedNodeIdsRef.current);
-    setFlowNodes(toFlowNodeViews(document.nodes).map(view => ({
-      id: view.id,
-      type: view.type,
-      position: view.position,
-      // The projection is rebuilt on every commit, and reactflow's node list
-      // is controlled here — so a re-projection that dropped `selected` would
-      // silently deselect the card mid-edit and take its generator (§6) with
-      // it. Selection is panel state; carry it across.
-      selected: selectedIds.has(view.id),
-      data: view.type === INFINITE_CANVAS_TEXT_NODE_TYPE
+    const owner: readonly unknown[] = [
+      catalog, openOverflow, openStylePicker, resolvePreviewUrl,
+    ];
+    const cache = projectionCache.current;
+    const previousData = owner.length === cache.owner.length
+      && owner.every((input, index) => input === cache.owner[index])
+      ? cache.entries
+      : new Map<string, ProjectionCacheEntry>();
+    const nextData = new Map<string, ProjectionCacheEntry>();
+    setFlowNodes(toFlowNodeViews(document.nodes).map(view => {
+      const labels = referenceLabels.get(view.id) ?? EMPTY_REFERENCE_LABELS;
+      /**
+       * H3: an unchanged card keeps the very same `data` object.
+       *
+       * This runs after EVERY commit — pan/zoom end, a card drag, a prompt
+       * edit, and once per media event (a batch of four re-projects four
+       * times). Handing every card a brand-new `data` on each of those made
+       * each one re-run its media effect and re-decode its picture from disk.
+       */
+      const key = projectionKeyFor(view, labels);
+      const cached = previousData.get(view.id);
+      const data = cached && cached.key === key
+        ? cached.data
+        : buildFlowNodeData(view, labels);
+      nextData.set(view.id, { key, data });
+      return {
+        id: view.id,
+        type: view.type,
+        position: view.position,
+        // The projection is rebuilt on every commit, and reactflow's node list
+        // is controlled here — so a re-projection that dropped `selected` would
+        // silently deselect the card mid-edit and take its generator (§6) with
+        // it. Selection is panel state; carry it across.
+        selected: selectedIds.has(view.id),
+        data,
+      };
+    }));
+    projectionCache.current = { owner, entries: nextData };
+    setFlowEdges(toFlowEdgeViews(document.edges).map(view => ({
+      ...view,
+      type: INFINITE_CANVAS_EDGE_TYPE,
+      data: {
+        onInsertCard: (edgeId: string) => nodeActionsRef.current.insertOnEdge(edgeId),
+        onDisconnect: (edgeId: string) => edgeActionsRef.current.disconnect(edgeId),
+      },
+    })));
+
+    function buildFlowNodeData(
+      view: InfiniteCanvasFlowNodeView,
+      referenceLabelsForNode: readonly string[],
+    ): Record<string, unknown> {
+      return view.type === INFINITE_CANVAS_TEXT_NODE_TYPE
         ? {
             text: view.data.text ?? '',
             onCommitText: (nodeId: string, text: string) => (
@@ -926,7 +1015,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
             prompt: view.data.prompt,
             generation: view.data.generation,
             derivedFrom: view.data.derivedFrom,
-            referenceLabels: referenceLabels.get(view.id) ?? [],
+            referenceLabels: referenceLabelsForNode,
             // K3: which short-drama asset this card belongs to. Read-only from
             // here on — no card control can change or clear it.
             ...(view.data.domainRef === undefined
@@ -1014,16 +1103,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
                     : {}),
                 }
               : {}),
-          },
-    })));
-    setFlowEdges(toFlowEdgeViews(document.edges).map(view => ({
-      ...view,
-      type: INFINITE_CANVAS_EDGE_TYPE,
-      data: {
-        onInsertCard: (edgeId: string) => nodeActionsRef.current.insertOnEdge(edgeId),
-        onDisconnect: (edgeId: string) => edgeActionsRef.current.disconnect(edgeId),
-      },
-    })));
+          };
+    }
   }, [catalog, openOverflow, openStylePicker, resolvePreviewUrl]);
 
   /**

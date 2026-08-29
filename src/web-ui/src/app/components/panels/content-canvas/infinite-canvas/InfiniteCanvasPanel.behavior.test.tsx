@@ -346,6 +346,80 @@ describe('InfiniteCanvasPanel', () => {
     expect(backup?.[1]).toBe('{not json');
   });
 
+  // —— H3: an unchanged card must not be rebuilt, re-read and re-decoded ——
+
+  it('reuses the data object of an unchanged card across commits', async () => {
+    seedDocument(memory, {
+      nodes: [
+        {
+          nodeId: 'img-1',
+          kind: 'image',
+          position: { x: 0, y: 0 },
+          mediaRef: { workspacePath: WORKSPACE.workspacePath, relativePath: 'media/a.png' },
+        },
+        {
+          nodeId: 'img-2',
+          kind: 'image',
+          position: { x: 200, y: 0 },
+          mediaRef: { workspacePath: WORKSPACE.workspacePath, relativePath: 'media/b.png' },
+        },
+      ],
+    });
+    const resolvePreviewUrl = vi.fn(async () => 'data:image/png;base64,AAAA');
+    await renderPanel({ resolvePreviewUrl });
+
+    expect(flow.props.nodes).toHaveLength(2);
+    // One resolve per card, and no more: this is the whole point.
+    expect(resolvePreviewUrl).toHaveBeenCalledTimes(2);
+
+    // Two commits nothing about the cards depends on — a wheel-zoom settling
+    // and then a pan settling. Both re-project the whole board.
+    await act(async () => {
+      flow.props.onMoveEnd(undefined, { x: 4, y: 4, zoom: 1.5 });
+    });
+    const before = flow.props.nodes.map((node: any) => node.data);
+    await act(async () => {
+      flow.props.onMoveEnd(undefined, { x: 9, y: 9, zoom: 1.5 });
+    });
+
+    const after = flow.props.nodes.map((node: any) => node.data);
+    expect(after[0]).toBe(before[0]);
+    expect(after[1]).toBe(before[1]);
+    // The media effect keys on the file, so nothing was read or decoded again.
+    expect(resolvePreviewUrl).toHaveBeenCalledTimes(2);
+  });
+
+  it('rebuilds only the card that actually changed', async () => {
+    seedDocument(memory, {
+      nodes: [
+        { nodeId: 'n-1', kind: 'text', position: { x: 0, y: 0 }, text: 'one' },
+        { nodeId: 'n-2', kind: 'text', position: { x: 50, y: 0 }, text: 'two' },
+      ],
+    });
+    await renderPanel();
+
+    // One warm-up commit: the first mutation re-reads the file, so the
+    // document nodes it projects are new objects by construction.
+    await act(async () => {
+      flow.props.onMoveEnd(undefined, { x: 1, y: 1, zoom: 1 });
+    });
+    const before = new Map<string, unknown>(
+      flow.props.nodes.map((node: any) => [node.id, node.data]),
+    );
+
+    await act(async () => {
+      flow.props.onNodesChange([
+        { type: 'position', id: 'n-1', position: { x: 30, y: 40 }, dragging: false },
+      ]);
+    });
+
+    const after = new Map<string, unknown>(
+      flow.props.nodes.map((node: any) => [node.id, node.data]),
+    );
+    // The moved card is rebuilt; its neighbour keeps the object it had.
+    expect(after.get('n-2')).toBe(before.get('n-2'));
+  });
+
   // H2: a runtime edit that cannot be written must not unmount the board.
   it('keeps the rendered board when an edit fails and shows a dismissible line', async () => {
     await renderPanel();

@@ -107,13 +107,19 @@ export function toFlowNodeViews(
       position: { ...node.position },
       data: {
         ...(node.text === undefined ? {} : { text: node.text }),
-        ...(node.mediaRef === undefined ? {} : { mediaRef: { ...node.mediaRef } }),
+        // H3: passed by REFERENCE, not copied. Document nodes are immutable —
+        // every mutation builds new ones — so a copy buys no safety, and it
+        // cost the board dearly: `NodeMedia`'s effect keys on this object, so
+        // a fresh identity on every projection blanked the preview and made
+        // each card re-read, re-base64 and re-decode its file. A commit fires
+        // on pan/zoom end, on drag, and once per media event.
+        ...(node.mediaRef === undefined ? {} : { mediaRef: node.mediaRef }),
         // §7.6: the gallery reads one list whatever the document shape is —
         // a pre-§7.6 card simply projects a list of one.
         ...(node.mediaRef === undefined
           ? {}
           : {
-            mediaVariants: infiniteCanvasNodeVariants(node).map(variant => ({ ...variant })),
+            mediaVariants: infiniteCanvasNodeVariants(node),
             activeVariantIndex: infiniteCanvasActiveVariantIndex(node),
           }),
         ...(node.stylePresetId === undefined ? {} : { stylePresetId: node.stylePresetId }),
