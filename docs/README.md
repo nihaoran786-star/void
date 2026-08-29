@@ -31,6 +31,15 @@ the area you are changing.
   [phase-1 plan](plans/2026-08-22-infinite-canvas-plugin-phase1.md), the
   [phase-2 K2 plan](plans/2026-08-23-infinite-canvas-k2-image-tools.md), and the
   [phase-3 P3 plan](plans/2026-08-24-infinite-canvas-p3-agent-canvas.md)
+- [Infinite Canvas visual language](design/infinite-canvas-visual-language.md) —
+  the presentation contract for the canvas panel: cards are the media, the
+  generator is anchored to the selected card, one floating stage for every
+  enlarged picture, compact anchored popovers, and a card that holds many
+  pictures. Code references its section numbers directly; read it before
+  touching this panel's presentation. Later phases are staged by the
+  [phase-4 P4 plan](plans/2026-08-25-infinite-canvas-p4-workbench.md), the
+  [phase-5 P5 plan](plans/2026-08-26-infinite-canvas-p5-creation.md), and the
+  [short-drama bridge plan](plans/2026-08-28-canvas-short-drama-bridge.md)
 - [Infinite Canvas capability gap](features/infinite-canvas-capability-gap.md) —
   what the shipped canvas can and cannot do measured against the kunpeng
   reference product, the P1/P2/P3 and explicitly-rejected backlog, the proposed
