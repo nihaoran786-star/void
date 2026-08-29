@@ -36,6 +36,12 @@ describe('scheduleDeferredStartupSystems', () => {
       probeAcpClientRequirements: async () => {
         order.push('acp-probe');
       },
+      // The short-drama return leg is subscribed here so it keeps listening
+      // with the short-drama tab closed; stubbed so the test does not wire the
+      // real global event bus.
+      installShortDramaRuntimeBridge: async () => {
+        order.push('short-drama-bridge');
+      },
     });
 
     expect(schedule).toHaveBeenCalledTimes(1);
@@ -48,7 +54,7 @@ describe('scheduleDeferredStartupSystems', () => {
 
     await scheduledTask?.(new AbortController().signal);
 
-    expect(order).toEqual(['ide', 'mcp', 'acp', 'acp-probe']);
+    expect(order).toEqual(['ide', 'mcp', 'acp', 'acp-probe', 'short-drama-bridge']);
   });
 
   it('skips deferred startup systems when cancelled before execution', async () => {
@@ -77,6 +83,7 @@ describe('scheduleDeferredStartupSystems', () => {
       initializeMcpServers: vi.fn(),
       initializeAcpClients: vi.fn(),
       probeAcpClientRequirements: vi.fn(),
+      installShortDramaRuntimeBridge: vi.fn(),
     });
 
     controller.abort();
