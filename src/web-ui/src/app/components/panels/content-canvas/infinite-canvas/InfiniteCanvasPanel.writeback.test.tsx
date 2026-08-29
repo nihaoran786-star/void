@@ -56,10 +56,12 @@ vi.mock('@/infrastructure/i18n', () => ({
 
 const warning = vi.fn();
 const success = vi.fn();
+const info = vi.fn();
 vi.mock('@/shared/notification-system/services/NotificationService', () => ({
   notificationService: {
     warning: (...args: unknown[]) => warning(...args),
     success: (...args: unknown[]) => success(...args),
+    info: (...args: unknown[]) => info(...args),
   },
 }));
 
@@ -224,6 +226,7 @@ describe('InfiniteCanvasPanel K3 send back to short drama', () => {
     requests = [];
     warning.mockReset();
     success.mockReset();
+    info.mockReset();
     flow.props = null;
   });
 
@@ -327,6 +330,49 @@ describe('InfiniteCanvasPanel K3 send back to short drama', () => {
       backend: 'local',
     }]);
     expect(success).toHaveBeenCalledTimes(1);
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A2: `sent` covers two different things. The service has said which is
+   * which since S7; the panel used to paint both green, so "send A, send B,
+   * go back to A" looked like it worked while writing nothing at all.
+   */
+  it('says a new revision was recorded in the affirmative', async () => {
+    seed([belongingCard]);
+    await renderPanel({
+      send: async () => ({
+        status: 'sent' as const,
+        artifactId: 'artifact-1',
+        mediaItemId: 'batch-1-1',
+        alreadyRecorded: false,
+        outcome: 'recorded' as const,
+      }),
+    });
+    await settle();
+    await press(sendButtons()[0]);
+
+    expect(success).toHaveBeenCalledWith('infiniteCanvas.writeBack.sent', expect.anything());
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it('says nothing was written, neutrally, when the asset already holds this picture', async () => {
+    seed([belongingCard]);
+    await renderPanel({
+      send: async () => ({
+        status: 'sent' as const,
+        artifactId: 'artifact-1',
+        mediaItemId: 'batch-1-1',
+        alreadyRecorded: true,
+        outcome: 'already-recorded' as const,
+      }),
+    });
+    await settle();
+    await press(sendButtons()[0]);
+
+    expect(info).toHaveBeenCalledWith('infiniteCanvas.writeBack.alreadySent', expect.anything());
+    // Not a success, and not a failure either.
+    expect(success).not.toHaveBeenCalled();
     expect(warning).not.toHaveBeenCalled();
   });
 

@@ -2945,8 +2945,21 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     })
       .then(result => {
         if (result.status === 'sent') {
-          notificationService.success(t('infiniteCanvas.writeBack.sent'), { duration: 4000 });
-          // The asset is in review now; the badge should say so.
+          // A2: `sent` covers two different things and only one of them is
+          // news. `already-recorded` means the asset is holding this exact
+          // picture already and nothing was written — a green "sent home" for
+          // that is what made "send A, send B, go back to A" look like it
+          // worked while doing nothing. Neutral wording, neutral colour.
+          if (result.outcome === 'already-recorded') {
+            notificationService.info(
+              t('infiniteCanvas.writeBack.alreadySent'),
+              { duration: 4000 },
+            );
+          } else {
+            notificationService.success(t('infiniteCanvas.writeBack.sent'), { duration: 4000 });
+          }
+          // Either way the asset's state on the short-drama side may differ
+          // from what the badge last read; re-read it.
           setDomainOriginsRefreshKey(key => key + 1);
           return;
         }

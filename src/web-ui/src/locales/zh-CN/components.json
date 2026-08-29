@@ -1289,7 +1289,8 @@
     "writeBack": {
       "button": "送回短剧",
       "assetMissing": "这张卡来自的短剧资产已被删除。",
-      "sent": "已送回短剧，等你在短剧里确认。",
+      "sent": "已送回短剧，等待你在那边审阅。",
+      "alreadySent": "这张之前已经送过，短剧那边没有变化。",
       "refused": {
         "remoteWorkspace": "远程工作区暂不支持送回短剧。",
         "foreignWorkspace": "这张图不属于当前工作区。",

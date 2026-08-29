@@ -1289,7 +1289,8 @@
     "writeBack": {
       "button": "送回短劇",
       "assetMissing": "這張卡來自的短劇素材已被刪除。",
-      "sent": "已送回短劇，等你在短劇裡確認。",
+      "sent": "已送回短劇，等待你在那邊審閱。",
+      "alreadySent": "這張之前已經送過，短劇那邊沒有變化。",
       "refused": {
         "remoteWorkspace": "遠端工作區暫不支援送回短劇。",
         "foreignWorkspace": "這張圖不屬於目前的工作區。",

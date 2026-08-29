@@ -1290,6 +1290,7 @@
       "button": "Send back to short drama",
       "assetMissing": "The short drama asset this card came from has been deleted.",
       "sent": "Sent back to short drama. The asset is waiting for your review there.",
+      "alreadySent": "This picture was already sent. Nothing changed on the short drama side.",
       "refused": {
         "remoteWorkspace": "Sending back is not available on a remote workspace.",
         "foreignWorkspace": "This picture does not belong to the current workspace.",
