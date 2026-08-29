@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  applyShortDramaAgentEvent,
   applyShortDramaCanvasRefinement,
   approveShortDramaArtifactReview,
   createShortDramaArtifactChatContext,
@@ -1736,6 +1737,76 @@ describe('short drama canvas refinement (K3 return leg)', () => {
     expect(updated.revisions).toHaveLength(artifact.revisions.length + 2);
     expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-2');
     expect(updated.status).toBe('reviewing');
+  });
+
+  it('lets an earlier picture be sent home again', () => {
+    // A2: send A, send B, change your mind and send A again. The third press
+    // has to do something — a scan of the whole history made it a silent
+    // no-op while the board reported a cheerful success.
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const sentA = applyShortDramaCanvasRefinement(project, refinement);
+    const sentB = applyShortDramaCanvasRefinement(sentA, {
+      ...refinement,
+      operationId: 'op-canvas-2',
+      mediaReference: refinedPicture('batch-refined-2'),
+      timestamp: refinement.timestamp + 1000,
+    });
+    const backToA = applyShortDramaCanvasRefinement(sentB, {
+      ...refinement,
+      operationId: 'op-canvas-3',
+      timestamp: refinement.timestamp + 2000,
+    });
+    const updated = backToA.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(backToA).not.toBe(sentB);
+    expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-1');
+    expect(updated.revisions).toHaveLength(artifact.revisions.length + 3);
+    expect(updated.status).toBe('reviewing');
+  });
+
+  it('ignores a completed run that only re-delivers the picture the board just sent', () => {
+    // A1: the two legs now share one idempotency judgement. A manual send back
+    // followed by the same batch's Completed event used to write a second
+    // revision, invent an attempt, and overwrite the picture with itself.
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const sentByHand = applyShortDramaCanvasRefinement(project, refinement);
+    const beforeEvent = sentByHand.artifacts.find(item => item.id === artifact.id)!;
+    const afterEvent = applyShortDramaAgentEvent(sentByHand, {
+      type: 'completed',
+      artifactId: artifact.id,
+      runId: 'run-same-batch',
+      timestamp: refinement.timestamp + 500,
+      outputMediaReference: refinedPicture(),
+    });
+    const updated = afterEvent.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.revisions).toEqual(beforeEvent.revisions);
+    expect(updated.attempts).toEqual(beforeEvent.attempts);
+    expect(updated.attemptCount).toBe(beforeEvent.attemptCount);
+    expect(updated.mediaReference).toEqual(beforeEvent.mediaReference);
+  });
+
+  it('still records a completed run that delivers a different picture', () => {
+    const project = createShortDramaStaticProject();
+    const { artifact, refinement } = refinementFor(project);
+
+    const sentByHand = applyShortDramaCanvasRefinement(project, refinement);
+    const beforeEvent = sentByHand.artifacts.find(item => item.id === artifact.id)!;
+    const afterEvent = applyShortDramaAgentEvent(sentByHand, {
+      type: 'completed',
+      artifactId: artifact.id,
+      runId: 'run-other-batch',
+      timestamp: refinement.timestamp + 500,
+      outputMediaReference: refinedPicture('batch-refined-9'),
+    });
+    const updated = afterEvent.artifacts.find(item => item.id === artifact.id)!;
+
+    expect(updated.revisions).toHaveLength(beforeEvent.revisions.length + 1);
+    expect(updated.mediaReference?.mediaItemId).toBe('batch-refined-9');
   });
 
   it('returns the project untouched when the artifact is gone', () => {

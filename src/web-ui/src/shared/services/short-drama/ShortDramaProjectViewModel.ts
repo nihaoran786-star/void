@@ -2394,6 +2394,20 @@ export function applyShortDramaAgentEvent(
     }
 
     if (event.type === 'completed') {
+      const completedRevisionId = `revision-${event.runId}`;
+      // A picture that already came home by another route — typically the
+      // board's own "send back" press, landing before this batch's Completed
+      // event — is not a second delivery. Recording one anyway wrote a
+      // duplicate revision, invented an attempt for a run the user did not
+      // start, and overwrote `mediaReference` with what it already held.
+      if (isShortDramaMediaAlreadyRecorded(artifact, {
+        mediaItemId: event.outputMediaReference?.mediaItemId ?? event.outputMediaItemId,
+        ignoreRevisionId: completedRevisionId,
+        onlyOtherDeliveryPaths: true,
+      })) {
+        return artifact;
+      }
+
       if (attemptIndex >= 0) {
         attempts[attemptIndex] = applyAgentEventAttemptOwner({
           ...attempts[attemptIndex],
@@ -2410,7 +2424,7 @@ export function applyShortDramaAgentEvent(
         }, event));
       }
 
-      const revisionId = `revision-${event.runId}`;
+      const revisionId = completedRevisionId;
       const mediaItemId = event.outputMediaReference?.mediaItemId ?? event.outputMediaItemId;
       const reviewRevision: ShortDramaArtifactRevision = {
         id: revisionId,
@@ -2510,6 +2524,72 @@ function createRuntimeRevisionReason(event: ShortDramaAgentEvent) {
  * conversion); this function only decides what the project looks like
  * afterwards.
  */
+/**
+ * "Is this picture already the one this asset is holding?" — the single
+ * question both delivery legs ask before writing a revision.
+ *
+ * Two paths can deliver the same file: the board's own "send back" press and a
+ * generation that carried the asset's coordinates and came home through the
+ * runtime. Whichever lands first wins; the second must be a silent no-op, or
+ * the asset collects a duplicate revision, a phantom attempt, and a second
+ * overwrite of its `mediaReference`. Before this existed the guard was
+ * one-sided — the canvas leg checked both keys, the runtime leg checked only
+ * its own run id — so "sent back by hand, then the same batch completes" wrote
+ * everything twice.
+ *
+ * Both keys are read off the NEWEST revision only. The question is "is the
+ * asset already holding this?", not "has this ever appeared in this asset's
+ * history" — and the difference is not academic, because the board's operation
+ * id is DERIVED from the asset and the picture rather than minted per press.
+ * Scanning the whole history therefore froze the asset: send picture A, send
+ * picture B, change your mind and ask for A again, and the third press matched
+ * the first one's row and did nothing at all.
+ *
+ * `ignoreRevisionId` excludes a revision the caller is itself about to write
+ * or refresh, so re-delivering one event does not read as a conflict with the
+ * row it created last time.
+ *
+ * `onlyOtherDeliveryPaths` narrows the `mediaItemId` match to revisions some
+ * OTHER path wrote — the ones carrying a `sourceOperationId`. The runtime leg
+ * needs it: two of its own runs may legitimately describe the same media id
+ * (a re-run over the same output), and treating that as a repeat would freeze
+ * the asset. A revision the board wrote can never be one of its runs.
+ *
+ * `revisions` is treated as ordered, oldest first, which is how every writer
+ * in this module appends to it.
+ */
+export interface ShortDramaMediaRecordIdentity {
+  mediaItemId?: string;
+  sourceOperationId?: string;
+  ignoreRevisionId?: string;
+  onlyOtherDeliveryPaths?: boolean;
+}
+
+export function isShortDramaMediaAlreadyRecorded(
+  artifact: Pick<ShortDramaArtifact, 'revisions'>,
+  identity: ShortDramaMediaRecordIdentity,
+): boolean {
+  const candidates = identity.ignoreRevisionId === undefined
+    ? artifact.revisions
+    : artifact.revisions.filter(revision => revision.id !== identity.ignoreRevisionId);
+  const latest = candidates[candidates.length - 1];
+  if (!latest) {
+    return false;
+  }
+
+  if (
+    identity.sourceOperationId !== undefined
+    && latest.sourceOperationId === identity.sourceOperationId
+  ) {
+    return true;
+  }
+
+  if (identity.mediaItemId === undefined || latest.mediaItemId !== identity.mediaItemId) {
+    return false;
+  }
+  return identity.onlyOtherDeliveryPaths !== true || latest.sourceOperationId !== undefined;
+}
+
 export interface ShortDramaCanvasRefinement {
   artifactId: string;
   mediaReference: ShortDramaMediaReference;
@@ -2538,13 +2618,12 @@ export interface ShortDramaCanvasRefinement {
  * 3. **Nothing is overwritten.** The previous picture keeps its own revision
  *    and its own file; the board never deletes media and neither does this.
  *
- * Idempotent on two keys, because two paths can deliver the same picture: the
- * board's own press (this one) and, later, a generation that carried the
- * asset's coordinates and came back through the runtime. Same `operationId`
- * or same `mediaItemId` means the picture is already recorded, so the project
- * is returned untouched — whichever arrived first wins and the second is a
- * silent no-op. Sending a *different* picture is not blocked: that is a new
- * proposal and gets its own revision.
+ * Idempotency is delegated to {@link isShortDramaMediaAlreadyRecorded}, which
+ * the runtime leg uses too: if the asset's newest revision is already this
+ * press or already this picture, there is nothing to do and the project is
+ * returned untouched. Sending a *different* picture is not blocked, and
+ * neither is going back to one the asset held earlier — both are new proposals
+ * and get their own revision.
  *
  * A missing artifact returns the project unchanged rather than throwing; the
  * caller checks existence itself and has a better message for the user.
@@ -2557,11 +2636,10 @@ export function applyShortDramaCanvasRefinement(
   if (!target) {
     return project;
   }
-  const alreadyRecorded = target.revisions.some(revision => (
-    revision.sourceOperationId === refinement.operationId
-    || (revision.mediaItemId !== undefined
-      && revision.mediaItemId === refinement.mediaReference.mediaItemId)
-  ));
+  const alreadyRecorded = isShortDramaMediaAlreadyRecorded(target, {
+    sourceOperationId: refinement.operationId,
+    mediaItemId: refinement.mediaReference.mediaItemId,
+  });
   // The project object itself is returned, not a copy of it: a caller can then
   // tell "nothing to do" from "something changed" by identity, and skip a save
   // that would only churn the manifest's timestamps.
