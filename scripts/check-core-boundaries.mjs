@@ -9185,6 +9185,164 @@ function checkForbiddenContentUnder(repoDir, patterns, reason) {
   });
 }
 
+// —— Front-end module boundaries ————————————————————————————————————————————
+//
+// The Rust side of this gate has been enforced for a long time; the front end
+// had nothing, and it showed. The canvas <-> short-drama seam was designed as
+// two modules that never import each other, with one neutral adapter layer
+// between them, and the design held only for as long as everyone remembered
+// it. A single value import through a barrel three files away was enough to
+// pull the canvas surface services into the short-drama panel's module graph.
+//
+// The rules below pin the parts that are cheap to state and expensive to lose.
+// They judge IMPORTS, not mentions: a comment naming the other side is fine, a
+// `import type` is fine (it is erased at build time and creates no runtime
+// edge), and a value import is not.
+
+const TS_IMPORT_PATTERN = /(?:^|\n)[ \t]*(?:import|export)\b([\s\S]*?)from[ \t]*['"]([^'"]+)['"]/g;
+const TS_DYNAMIC_IMPORT_PATTERN = /\bimport\([ \t]*['"]([^'"]+)['"]/g;
+
+/**
+ * Is this import erased at build time? `import type ...`, and the form where
+ * every named binding carries its own `type` keyword, create no runtime edge.
+ */
+function isTypeOnlyImportClause(clause) {
+  const trimmed = clause.trim();
+  if (/^type\b/.test(trimmed)) {
+    return true;
+  }
+  const braces = trimmed.match(/^\{([\s\S]*)\}$/);
+  if (!braces) {
+    return false;
+  }
+  const specifiers = braces[1].split(',').map((part) => part.trim()).filter(Boolean);
+  return specifiers.length > 0 && specifiers.every((part) => /^type\b/.test(part));
+}
+
+function lineNumberAt(text, index) {
+  return text.slice(0, index).split('\n').length;
+}
+
+function checkForbiddenModuleImportsUnder(repoDir, rule) {
+  const dir = join(ROOT, ...repoDir.split('/'));
+  // A rule may guard a tree that has not been created or has moved. Not a
+  // violation, and it must not take the whole gate down either.
+  if (!existsSync(dir)) {
+    return;
+  }
+  walkFiles(dir, (path) => {
+    if (!path.endsWith('.ts') && !path.endsWith('.tsx')) {
+      return;
+    }
+    const repoPath = toRepoPath(path);
+    if (rule.allowPaths?.includes(repoPath)) {
+      return;
+    }
+    const text = readText(path);
+
+    TS_IMPORT_PATTERN.lastIndex = 0;
+    let match = TS_IMPORT_PATTERN.exec(text);
+    while (match !== null) {
+      const [, clause, specifier] = match;
+      if (rule.forbidden.test(specifier) && !isTypeOnlyImportClause(clause)) {
+        failures.push({
+          path,
+          line: lineNumberAt(text, match.index + 1),
+          message: `${rule.reason}; forbidden import: ${specifier}`,
+        });
+      }
+      match = TS_IMPORT_PATTERN.exec(text);
+    }
+
+    TS_DYNAMIC_IMPORT_PATTERN.lastIndex = 0;
+    let dynamic = TS_DYNAMIC_IMPORT_PATTERN.exec(text);
+    while (dynamic !== null) {
+      if (rule.forbidden.test(dynamic[1])) {
+        failures.push({
+          path,
+          line: lineNumberAt(text, dynamic.index),
+          message: `${rule.reason}; forbidden dynamic import: ${dynamic[1]}`,
+        });
+      }
+      dynamic = TS_DYNAMIC_IMPORT_PATTERN.exec(text);
+    }
+  });
+}
+
+// `canvas-short-drama` is the neutral layer that exists precisely so these two
+// can stay apart, so it is not the short-drama module for this purpose.
+const SHORT_DRAMA_MODULE_SPECIFIER = /(?:^|\/)short-drama(?:\/|$)/;
+const INFINITE_CANVAS_MODULE_SPECIFIER = /(?:^|\/)infinite-canvas(?:\/|$)/;
+
+const webUiModuleBoundaryRules = [
+  {
+    paths: [
+      'src/web-ui/src/shared/services/short-drama',
+      'src/web-ui/src/app/components/panels/content-canvas/short-drama',
+    ],
+    forbidden: INFINITE_CANVAS_MODULE_SPECIFIER,
+    reason:
+      'short drama must not depend on the infinite canvas; the neutral canvas-short-drama layer exists for everything the two need to say to each other',
+    allowPaths: [
+      // The "send this asset to the board" handoff. It is the seam itself —
+      // its whole job is to speak both languages — and it reads two frozen
+      // domain constants to build the reference the board will own. Filed
+      // under the panel folder rather than the neutral layer because it also
+      // drives the canvas surface command; moving it is a separate change.
+      'src/web-ui/src/app/components/panels/content-canvas/short-drama/shortDramaCanvasHandoff.ts',
+    ],
+  },
+  {
+    paths: [
+      'src/web-ui/src/shared/services/infinite-canvas',
+      'src/web-ui/src/app/components/panels/content-canvas/infinite-canvas',
+    ],
+    forbidden: SHORT_DRAMA_MODULE_SPECIFIER,
+    reason:
+      'the infinite canvas must not depend on short drama; short-drama coordinates travel as an opaque binding and the write-back lives in the neutral canvas-short-drama layer',
+    allowPaths: [],
+  },
+];
+
+const webUiComponentTransportRules = [
+  {
+    path: 'src/web-ui/src/app/components',
+    reason:
+      'app components render; they do not talk to the desktop backend directly, or the same command grows a second caller with no typed service in front of it',
+    patterns: [
+      {
+        regex: /\bapi\.invoke\(/,
+        message: 'call a typed service in shared/services instead of api.invoke',
+        allowPaths: [
+          // Canvas scratch pruning: a document-lifecycle command with one
+          // caller, invoked from the gateway that owns the document. Pending a
+          // move into shared/services with the rest of the canvas document
+          // service.
+          'src/web-ui/src/app/components/panels/content-canvas/infinite-canvas/infiniteCanvasDocumentGateway.ts',
+        ],
+      },
+      {
+        regex: /['"]@tauri-apps\//,
+        message: 'reach the desktop runtime through the API layer, not @tauri-apps directly',
+        allowPaths: [
+          // Window chrome and native pickers: these are the desktop shell
+          // itself, and there is no service to route them through — the window
+          // handle and the OS file dialog have no other representation.
+          'src/web-ui/src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx',
+          'src/web-ui/src/app/components/NavBar/NavBar.tsx',
+          'src/web-ui/src/app/components/NavPanel/MainNav.tsx',
+          'src/web-ui/src/app/components/NavPanel/sections/workspaces/WorkspaceRelatedPathsDialog.tsx',
+          'src/web-ui/src/app/components/NewProjectDialog/NewProjectDialog.tsx',
+          'src/web-ui/src/app/components/SceneBar/SceneBar.tsx',
+          'src/web-ui/src/app/components/TeamWorkspaceDesktopWindow/TeamWorkspaceDesktopWindow.tsx',
+          // Its test, which mocks the window module the component above uses.
+          'src/web-ui/src/app/components/TeamWorkspaceDesktopWindow/TeamWorkspaceDesktopWindow.test.tsx',
+        ],
+      },
+    ],
+  },
+];
+
 if (process.env.VOID_BOUNDARY_CHECK_SELF_TEST === '1') {
   runManifestParserSelfTest();
   console.log('Core boundary check self-test passed.');
@@ -9240,6 +9398,16 @@ for (const rule of forbiddenContentUnderRules) {
 
 for (const rule of requiredContentRules) {
   checkRequiredContent(rule.path, rule.patterns, rule.reason);
+}
+
+for (const rule of webUiModuleBoundaryRules) {
+  for (const path of rule.paths) {
+    checkForbiddenModuleImportsUnder(path, rule);
+  }
+}
+
+for (const rule of webUiComponentTransportRules) {
+  checkForbiddenContentUnder(rule.path, rule.patterns, rule.reason);
 }
 
 if (failures.length > 0) {
