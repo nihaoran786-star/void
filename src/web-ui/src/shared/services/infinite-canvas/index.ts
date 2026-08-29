@@ -50,4 +50,6 @@ export {
   parseInfiniteCanvasDocument,
   type InfiniteCanvasDocumentServiceOptions,
   type InfiniteCanvasParseResult,
+  type InfiniteCanvasPersistenceFailure,
+  type InfiniteCanvasPersistenceFailureListener,
 } from './InfiniteCanvasDocumentService';

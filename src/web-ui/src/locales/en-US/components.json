@@ -931,6 +931,11 @@
     "skeleton": "Canvas is loading...",
     "unavailable": "Infinite Canvas is not available in this workspace.",
     "loadFailed": "The canvas module failed to load. Close the tab and try again.",
+    "persistence": {
+      "conflict": "This board changed somewhere else, so your latest edits are not saved yet. They are still here and will be retried.",
+      "retrying": "Saving the board failed. Your edits are kept and will be retried.",
+      "failed": "Saving the board keeps failing. Your edits are still on screen, so copy anything you cannot lose."
+    },
     "toolbar": {
       "addText": "Add text",
       "addImage": "Add image",

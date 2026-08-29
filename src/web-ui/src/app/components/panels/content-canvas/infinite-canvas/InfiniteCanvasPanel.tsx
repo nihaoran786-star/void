@@ -2226,6 +2226,32 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, [service]);
 
   /**
+   * H1: a coalesced write that did not reach the disk says so.
+   *
+   * The debounced flush has no caller, so before this every conflict and
+   * every I/O failure died inside a `void` expression while the pending
+   * document was already gone — the one silent data-loss path on the board.
+   * The service now keeps the edits and retries; this turns the same event
+   * into a line the owner can actually see.
+   */
+  React.useEffect(() => {
+    // Tests may inject a hand-rolled stand-in for the service; a missing
+    // subscription must degrade to "no notice", never to a crashed board.
+    if (typeof service.onPersistenceFailure !== 'function') return undefined;
+    return service.onPersistenceFailure(failure => {
+      if (failure.workspaceId !== workspaceId) return;
+      setNotice({
+        messageKey: failure.outcome.status === 'conflict'
+          ? 'infiniteCanvas.persistence.conflict'
+          : failure.retrying
+            ? 'infiniteCanvas.persistence.retrying'
+            : 'infiniteCanvas.persistence.failed',
+        errorKind: 'backend',
+      });
+    });
+  }, [service, workspaceId]);
+
+  /**
    * Owner feedback 2026-08-26: breaking a connection.
    *
    * One implementation behind three entry points — the `×` on the edge's

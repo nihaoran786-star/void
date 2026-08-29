@@ -1039,4 +1039,160 @@ describe('InfiniteCanvasDocumentService', () => {
 
     expect(store.writeCount()).toBe(writesAfterCreate);
   });
+
+  // —— H1: a coalesced write that fails must not take the edits with it ——
+
+  it('keeps the pending document and retries after a failed flush write', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    let failNextWrite = true;
+    const flakyPort = {
+      ...store.port,
+      writeTextFileAtomic: async (path: string, content: string) => {
+        if (failNextWrite && path === defaultFilePath(LOCAL_WORKSPACE)
+          && content.includes('node-keepme')) {
+          failNextWrite = false;
+          throw new Error('disk went away');
+        }
+        return store.port.writeTextFileAtomic(path, content);
+      },
+    };
+    const service = new InfiniteCanvasDocumentService(flakyPort, { debounceMs: 20 });
+    const failures: unknown[] = [];
+    service.onPersistenceFailure(failure => failures.push(failure));
+
+    await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [...current.nodes, {
+        nodeId: 'node-keepme',
+        kind: 'text' as const,
+        position: { x: 1, y: 2 },
+        text: 'keep me',
+      }],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+
+    await vi.advanceTimersByTimeAsync(30);
+
+    // The write threw, so the edits are still owned by the service and the
+    // failure was reported rather than swallowed.
+    expect(service.hasPendingWrites(LOCAL_WORKSPACE)).toBe(true);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ retrying: true, outcome: { status: 'failed' } });
+
+    // The scheduled backoff retry lands the same edits without a new mutation.
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(service.hasPendingWrites(LOCAL_WORKSPACE)).toBe(false);
+    const persisted = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    if (persisted.status !== 'ok') throw new Error('expected persisted document');
+    expect(persisted.document.nodes.map(node => node.nodeId)).toEqual(['node-keepme']);
+  });
+
+  it('reports a flush conflict instead of dropping the edits silently', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    const service = new InfiniteCanvasDocumentService(store.port, { debounceMs: 20 });
+    const failures: { retrying: boolean; outcome: { status: string } }[] = [];
+    service.onPersistenceFailure(failure => failures.push(failure));
+
+    await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [...current.nodes, {
+        nodeId: 'node-conflict',
+        kind: 'text' as const,
+        position: { x: 0, y: 0 },
+        text: 'mine',
+      }],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+
+    // Somebody else advanced the file underneath the coalescing window.
+    const onDisk = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    if (onDisk.status !== 'ok') throw new Error('expected a readable document');
+    store.files.set(
+      defaultFilePath(LOCAL_WORKSPACE),
+      JSON.stringify({ ...onDisk.document, revision: 9 }, null, 2),
+    );
+
+    await vi.advanceTimersByTimeAsync(30);
+
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      retrying: true,
+      outcome: { status: 'conflict', expectedRevision: 1, actualRevision: 9 },
+    });
+    // The user's card is still in memory; the old code had already deleted it.
+    expect(service.hasPendingWrites(LOCAL_WORKSPACE)).toBe(true);
+    const stillPending = await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    if (stillPending.status !== 'loaded') throw new Error('expected the pending document');
+    expect(stillPending.document.nodes.map(node => node.nodeId)).toEqual(['node-conflict']);
+
+    service.dispose();
+  });
+
+  it('does not lose a mutation that arrives while a flush write is in flight', async () => {
+    const store = createInMemoryInfiniteCanvasPersistence();
+    let releaseWrite!: () => void;
+    const writeGate = new Promise<void>(resolve => { releaseWrite = resolve; });
+    let gated = false;
+    const slowPort = {
+      ...store.port,
+      writeTextFileAtomic: async (path: string, content: string) => {
+        if (!gated && content.includes('node-first')) {
+          gated = true;
+          await writeGate;
+        }
+        return store.port.writeTextFileAtomic(path, content);
+      },
+    };
+    const service = new InfiniteCanvasDocumentService(slowPort, { debounceMs: 20 });
+
+    const textNode = (nodeId: string) => ({
+      nodeId,
+      kind: 'text' as const,
+      position: { x: 0, y: 0 },
+      text: nodeId,
+    });
+    await service.loadDefaultDocument(LOCAL_WORKSPACE);
+    await service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [...current.nodes, textNode('node-first')],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+
+    // Start the flush and leave its write hanging on the wire.
+    const flushing = vi.advanceTimersByTimeAsync(30);
+    await Promise.resolve();
+
+    // A second edit arrives mid-flight. Pre-fix it found no pending entry,
+    // re-read the pre-flush file and adopted a stale base revision.
+    const second = service.mutateDefaultDocument(LOCAL_WORKSPACE, current => ({
+      nodes: [...current.nodes, textNode('node-second')],
+      edges: current.edges,
+      viewport: current.viewport,
+    }));
+    releaseWrite();
+    await flushing;
+    const secondResult = await second;
+
+    expect(secondResult.status).toBe('applied');
+    if (secondResult.status !== 'applied') return;
+    expect(secondResult.document.nodes.map(node => node.nodeId))
+      .toEqual(['node-first', 'node-second']);
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    const persisted = parseInfiniteCanvasDocument(
+      store.files.get(defaultFilePath(LOCAL_WORKSPACE))!,
+    );
+    if (persisted.status !== 'ok') throw new Error('expected persisted document');
+    expect(persisted.document.nodes.map(node => node.nodeId))
+      .toEqual(['node-first', 'node-second']);
+    expect(service.hasPendingWrites(LOCAL_WORKSPACE)).toBe(false);
+  });
 });
