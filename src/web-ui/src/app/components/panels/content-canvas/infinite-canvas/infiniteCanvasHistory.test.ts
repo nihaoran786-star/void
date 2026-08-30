@@ -11,7 +11,6 @@ import {
   emptyInfiniteCanvasHistory,
   historyShortcutFor,
   INFINITE_CANVAS_HISTORY_LIMIT,
-  invertHistoryEntry,
   isEditableTarget,
   pushHistoryEntry,
 } from './infiniteCanvasHistory';
@@ -254,20 +253,6 @@ describe('applyHistoryEntryContent', () => {
     expect(applied.status).toBe('applied');
     if (applied.status !== 'applied') throw new Error('unreachable');
     expect(applied.content.edges).toEqual([]);
-  });
-
-  it('inverts an entry by swapping its two sides', () => {
-    const before = documentOf([card('a', { prompt: 'one' })]);
-    const after: InfiniteCanvasDocumentContent = {
-      ...contentOf(before),
-      nodes: [{ ...before.nodes[0], prompt: 'two' }],
-    };
-    const entry = captureUserEdit(before, after)!;
-    const inverted = invertHistoryEntry(entry);
-
-    expect(inverted.before).toBe(entry.after);
-    expect(inverted.after).toBe(entry.before);
-    expect(inverted.nodeIds).toEqual(entry.nodeIds);
   });
 });
 

@@ -10,7 +10,6 @@ import {
   findInfiniteCanvasModelCapability,
   isEmptyGenerationParams,
   listInfiniteCanvasModels,
-  maxBatchSizeForModel,
   normalizeInfiniteCanvasGenerationParams,
   normalizeInfiniteCanvasGenerationParamsWithReport,
   resolveInfiniteCanvasModelCapability,
@@ -73,14 +72,6 @@ describe('infinite canvas generation capability table', () => {
       .toBe(INFINITE_CANVAS_DEFAULT_IMAGE_MODEL);
     expect(findInfiniteCanvasModelCapability('image', undefined)?.modelId)
       .toBe(INFINITE_CANVAS_DEFAULT_IMAGE_MODEL);
-  });
-
-  it('caps the batch size per model: the default image model stays at one', () => {
-    expect(maxBatchSizeForModel('image', undefined)).toBe(1);
-    expect(maxBatchSizeForModel('image', 'gpt-image-2')).toBe(1);
-    expect(maxBatchSizeForModel('image', 'gemini-3-pro-image-preview')).toBe(4);
-    // Video has no batch concept on this lane.
-    expect(maxBatchSizeForModel('video', 'kling-v3-omni')).toBe(1);
   });
 });
 

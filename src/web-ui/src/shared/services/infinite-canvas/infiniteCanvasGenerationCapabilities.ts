@@ -201,15 +201,6 @@ export function resolveInfiniteCanvasModelCapability(
     ?? findInfiniteCanvasModelCapability(mediaKind, undefined)!;
 }
 
-/** Highest `n` this model allows; video has no batch concept on this lane. */
-export function maxBatchSizeForModel(
-  mediaKind: InfiniteCanvasGenerationMediaKind,
-  modelId: string | undefined,
-): number {
-  const capability = resolveInfiniteCanvasModelCapability(mediaKind, modelId);
-  return capability.mediaKind === 'image' ? capability.nMax : 1;
-}
-
 /**
  * Picks the allow-list entry for `value`.
  *

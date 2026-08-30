@@ -272,18 +272,4 @@ async function writeRefinementUnderLock(
   };
 }
 
-/**
- * Would a press be refused before it started? Used by the card to keep the
- * entry away from a card whose asset is gone — the answer the board already
- * has from the badge lookup, expressed once.
- */
-export function canSendCanvasPictureBackToShortDrama(
-  mediaRef: CanvasMediaRef | undefined,
-  workspacePath: string | undefined,
-  backend: 'local' | 'remote' = 'local',
-): boolean {
-  if (!mediaRef || !workspacePath || backend === 'remote') return false;
-  return toShortDramaMediaReference(mediaRef, workspacePath, backend) !== null;
-}
-
 export { toShortDramaMediaItemId };

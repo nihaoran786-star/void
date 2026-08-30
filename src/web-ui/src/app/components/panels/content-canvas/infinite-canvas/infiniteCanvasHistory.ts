@@ -156,13 +156,6 @@ export function captureUserEdit(
   return entry;
 }
 
-/** The same edit read backwards; undo applies this, redo applies the original. */
-export function invertHistoryEntry(
-  entry: InfiniteCanvasHistoryEntry,
-): InfiniteCanvasHistoryEntry {
-  return { ...entry, before: entry.after, after: entry.before };
-}
-
 // —— Stack ————————————————————————————————————————————————————————————————
 
 /**

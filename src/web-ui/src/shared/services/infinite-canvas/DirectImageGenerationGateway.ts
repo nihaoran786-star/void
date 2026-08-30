@@ -46,7 +46,7 @@ import {
   buildImageGenerationBinding,
   type SessionImageGenerationGateway,
   type SessionImageGenerationInvocation,
-} from './SessionImageGenerationGateway';
+} from './imageGenerationInvocation';
 
 export const SUBMIT_INFINITE_CANVAS_MEDIA_JOB_COMMAND = 'submit_infinite_canvas_media_job';
 /** Tauri channel the Rust command emits finished batches on. */

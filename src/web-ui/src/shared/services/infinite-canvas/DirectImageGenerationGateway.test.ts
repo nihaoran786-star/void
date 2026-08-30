@@ -12,7 +12,7 @@ import {
   type SubmitInfiniteCanvasMediaJobArgs,
   type SubmitInfiniteCanvasMediaJobResponse,
 } from './DirectImageGenerationGateway';
-import type { SessionImageGenerationInvocation } from './SessionImageGenerationGateway';
+import type { SessionImageGenerationInvocation } from './imageGenerationInvocation';
 
 const TEST_PRESET: StylePreset = {
   presetId: 'preset-cine-1',

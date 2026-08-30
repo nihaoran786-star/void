@@ -1,12 +1,10 @@
 /**
- * Infinite Canvas agent-task sender port (K2 W4, PRD §2 path A).
+ * Infinite Canvas generation-task vocabulary (K2 W4, PRD §2).
  *
- * The canvas never talks to flow_chat directly: the shared gateway assembles
- * the task message and hands it to this injected sender port. The only
- * implementation allowed to import FlowChatManager lives in the app layer
- * (`app/components/panels/content-canvas/infinite-canvas/
- * InfiniteCanvasAgentTaskSessionSender.ts`), mirroring the short-drama
- * precedent.
+ * The media reference and the binding every generation task carries: what the
+ * canvas says about a picture, and what it stamps on a task so the result can
+ * be landed back on the right card. Deliberately free of any lane: the canvas
+ * never talks to flow_chat, and nothing here knows how a task is submitted.
  */
 
 import type { CanvasImageOperationKind } from './InfiniteCanvasTypes';
@@ -68,25 +66,4 @@ export interface InfiniteCanvasShortDramaBinding {
   artifactId: string;
   artifactHandle?: string;
   outputMediaLabel?: string;
-}
-
-export interface InfiniteCanvasAgentTaskSendRequest {
-  targetSessionId: string;
-  /** Full task message (instruction + image list + constraints + binding JSON). */
-  message: string;
-  /** Short human-readable summary shown as the user message input summary. */
-  inputSummary: string;
-  /** Binding echoed into `userMessageMetadata.infiniteCanvasImageTask`. */
-  binding: InfiniteCanvasImageBinding;
-}
-
-export type InfiniteCanvasAgentTaskSendResult =
-  | { status: 'ready'; targetSessionId: string }
-  | { status: 'error'; error: { message: string } };
-
-/** Sender port; the app layer injects the flow_chat-backed implementation. */
-export interface InfiniteCanvasAgentTaskSessionSender {
-  sendImageGenerationTask(
-    request: InfiniteCanvasAgentTaskSendRequest,
-  ): Promise<InfiniteCanvasAgentTaskSendResult>;
 }

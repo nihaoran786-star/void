@@ -57,11 +57,6 @@ export function infiniteCanvasActiveVariantIndex(node: Readonly<VariantCarrier>)
   return index;
 }
 
-/** How many pictures the card carries; what the §7.6 count badge shows. */
-export function infiniteCanvasVariantCount(node: Readonly<VariantCarrier>): number {
-  return infiniteCanvasNodeVariants(node).length;
-}
-
 /**
  * Writes a variant list and a current item onto a node, normalized.
  *

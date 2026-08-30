@@ -8,10 +8,7 @@ import {
 import { wasShortDramaArtifactRefinedOnCanvas } from './shortDramaCanvasPredicates';
 import { toShortDramaMediaItemId } from './shortDramaCanvasRefBridge';
 import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDramaTypes';
-import {
-  canSendCanvasPictureBackToShortDrama,
-  sendCanvasPictureBackToShortDrama,
-} from './shortDramaCanvasWriteBack';
+import { sendCanvasPictureBackToShortDrama } from './shortDramaCanvasWriteBack';
 
 const WORKSPACE = 'C:/work';
 const PICTURE = {
@@ -277,13 +274,6 @@ describe('short drama canvas write-back', () => {
 
     expect(result).toEqual({ status: 'refused', reason: 'save-failed' });
     expect(changed).toEqual([]);
-  });
-
-  it('answers the card up front about whether a press could work', () => {
-    expect(canSendCanvasPictureBackToShortDrama(PICTURE, WORKSPACE)).toBe(true);
-    expect(canSendCanvasPictureBackToShortDrama(PICTURE, WORKSPACE, 'remote')).toBe(false);
-    expect(canSendCanvasPictureBackToShortDrama(PICTURE, 'D:/elsewhere')).toBe(false);
-    expect(canSendCanvasPictureBackToShortDrama(undefined, WORKSPACE)).toBe(false);
   });
 });
 

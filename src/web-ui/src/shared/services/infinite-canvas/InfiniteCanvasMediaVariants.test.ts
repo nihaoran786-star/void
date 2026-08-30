@@ -13,7 +13,6 @@ import {
   infiniteCanvasGenerationAppendsToCard,
   infiniteCanvasNodeVariants,
   infiniteCanvasOperationAccumulates,
-  infiniteCanvasVariantCount,
   setInfiniteCanvasActiveVariant,
   withInfiniteCanvasVariants,
 } from './InfiniteCanvasMediaVariants';
@@ -38,13 +37,11 @@ describe('infinite canvas media variants', () => {
   it('reads a pre-7.6 single-picture card as a list of one', () => {
     const node = card({ mediaRef: ref('a') });
     expect(infiniteCanvasNodeVariants(node)).toEqual([ref('a')]);
-    expect(infiniteCanvasVariantCount(node)).toBe(1);
     expect(infiniteCanvasActiveVariantIndex(node)).toBe(0);
   });
 
   it('reads a card without media as an empty list', () => {
     expect(infiniteCanvasNodeVariants(card())).toEqual([]);
-    expect(infiniteCanvasVariantCount(card())).toBe(0);
   });
 
   it('keeps a one-picture card in the pre-7.6 shape', () => {

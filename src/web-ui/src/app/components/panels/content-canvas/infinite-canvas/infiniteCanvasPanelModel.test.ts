@@ -5,7 +5,6 @@ import {
   addDomainImportNodeContent,
   addImageNodeContent,
   addTextNodeContent,
-  attachBatchToOperationContent,
   consumeImportRequestContent,
   beginDerivedOperationContent,
   connectNodesContent,
@@ -349,7 +348,6 @@ describe('infiniteCanvasPanelModel', () => {
         beginDerivedOperationContent(document, 'src', 'upscale', 'op-1', 'derived-1', 'edge-1'),
         resolveOperationContent(document, 'op-1', OUTPUT_MEDIA_REF),
         failOperationContent(document, 'op-1', 'backend'),
-        attachBatchToOperationContent(document, 'op-1', 'batch-9'),
         removeFailedOperationContent(document, 'op-1'),
       ];
 
@@ -374,22 +372,6 @@ describe('infiniteCanvasPanelModel', () => {
         resultMode: 'derived',
         status: 'failed',
         errorKind: 'auth',
-      });
-    });
-
-    it('attaches the batch id to the pending operation', () => {
-      const document = makeSourceDocument();
-      const begun = beginDerivedOperationContent(
-        document, 'src', 'erase', 'op-1', 'derived-1', 'edge-1',
-      );
-      const withPlaceholder = { ...document, nodes: begun.nodes, edges: begun.edges };
-
-      const attached = attachBatchToOperationContent(withPlaceholder, 'op-1', 'batch-42');
-
-      expect(attached.nodes[1].generation).toMatchObject({
-        operationId: 'op-1',
-        status: 'pending',
-        batchId: 'batch-42',
       });
     });
 

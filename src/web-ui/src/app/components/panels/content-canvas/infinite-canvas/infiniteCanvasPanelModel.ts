@@ -552,22 +552,6 @@ export function failOperationContent(
   };
 }
 
-/** Records the media batch id on the pending operation (for reconciliation). */
-export function attachBatchToOperationContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  operationId: string,
-  batchId: string,
-): InfiniteCanvasDocumentContent {
-  return {
-    ...content(document),
-    nodes: document.nodes.map(node => (
-      node.generation?.operationId === operationId
-        ? { ...node, generation: { ...node.generation, batchId } }
-        : node
-    )),
-  };
-}
-
 /**
  * Re-arms a failed operation for retry: the node keeps its identity, prompt,
  * and derivation edge, but its generation is replaced with a fresh pending

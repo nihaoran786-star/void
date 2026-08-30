@@ -13,17 +13,11 @@ export * from './InfiniteCanvasOpsReconciliation';
 export {
   buildFinalInstruction,
   buildImageGenerationBinding,
-  buildImageGenerationTaskMessage,
-  createSessionImageGenerationGateway,
-  createSessionImageToolGateway,
   referenceImageLabel,
   type SessionImageGenerationGateway,
-  type SessionImageGenerationGatewayOptions,
   type SessionImageGenerationInvocation,
   type SessionImageReference,
-  type SessionImageToolDispatchContext,
-  type SessionImageToolInvocationResolution,
-} from './SessionImageGenerationGateway';
+} from './imageGenerationInvocation';
 export {
   classifyDirectSubmitError,
   connectInfiniteCanvasDirectMediaJobEvents,
