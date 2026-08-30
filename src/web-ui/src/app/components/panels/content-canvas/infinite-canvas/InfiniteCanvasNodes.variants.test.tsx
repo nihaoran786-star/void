@@ -13,16 +13,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
 // The card renders reactflow handles; outside a provider they throw, and the
 // gallery has nothing to do with them.
-vi.mock('@xyflow/react', () => ({
-  Handle: () => null,
-  Position: { Left: 'left', Right: 'right' },
-}));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlowPrimitives());
 
 import { InfiniteCanvasImageNode, type InfiniteCanvasImageNodeData } from './InfiniteCanvasNodes';
 

@@ -21,14 +21,13 @@ const previewResolverMock = vi.hoisted(() => ({
 
 vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => previewResolverMock);
 
-vi.mock('@xyflow/react', () => ({
-  Handle: () => null,
-  Position: { Left: 'left', Right: 'right' },
-}));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlowPrimitives());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
 import {
   infiniteCanvasMediaFilePath,
