@@ -1,118 +1,24 @@
 /**
- * Text-to-image base-card and reference (垫图) model helpers for the Infinite
- * Canvas panel (K2 W3).
+ * Reference (垫图) collection for the Infinite Canvas generator (K2 W3).
  *
- * Pure document-content functions, sibling to infiniteCanvasPanelModel.ts:
- * no reactflow, React, or Tauri imports. Two invariants rule here:
+ * Reference order has exactly one authority: the creation order of the edges
+ * pointing at the card, i.e. their order in `document.edges` (collectRefs
+ * discipline, PRD §3.3). Pure — no reactflow, React, or Tauri imports.
  *
- * - `resultMode: 'self'` is only ever legal on a card that has no mediaRef
- *   yet (first shot into a blank card); cards that already carry an image
- *   must go through the derive helpers instead (never-overwrite, PRD §3.1).
- * - Reference order has exactly one authority: the creation order of the
- *   edges pointing at the card, i.e. their order in `document.edges`
- *   (collectRefs discipline, PRD §3.3).
+ * The four card-writing commands that used to sit here (blank image card,
+ * blank video card, prompt, parameters) moved to the canvas domain, beside
+ * every other command that edits a card. They are re-exported below, so the
+ * generator's own imports are unchanged.
  */
-import type {
-  InfiniteCanvasDocument,
-  InfiniteCanvasGenerationParams,
-  InfiniteCanvasNode,
-} from '@/shared/services/infinite-canvas';
-import {
-  isEmptyGenerationParams,
-  normalizeInfiniteCanvasGenerationParams,
+import type { InfiniteCanvasDocument } from '@/shared/services/infinite-canvas';
+
+export {
+  addBlankGenerationCardContent,
+  addBlankVideoCardContent,
+  setNodeGenerationParamsContent,
+  setNodePromptContent,
 } from '@/shared/services/infinite-canvas';
 
-import type { InfiniteCanvasDocumentContent } from './infiniteCanvasPanelModel';
-
-function content(document: Readonly<InfiniteCanvasDocument>): InfiniteCanvasDocumentContent {
-  return {
-    nodes: document.nodes,
-    edges: document.edges,
-    viewport: document.viewport,
-  };
-}
-
-/**
- * Adds a blank generation card: an image card with no mediaRef and an empty
- * prompt, waiting for the user's first text-to-image shot. Re-adding an
- * existing nodeId returns the content unchanged.
- */
-export function addBlankGenerationCardContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  nodeId: string,
-  position: { x: number; y: number },
-): InfiniteCanvasDocumentContent {
-  if (document.nodes.some(node => node.nodeId === nodeId)) return content(document);
-  const node: InfiniteCanvasNode = { nodeId, kind: 'image', position, prompt: '' };
-  return { ...content(document), nodes: [...document.nodes, node] };
-}
-
-/**
- * P3: adds a blank video card — a video card with no mediaRef and an empty
- * prompt. Connecting image cards into it and generating is image-to-video;
- * generating with no connections is text-to-video. Re-adding an existing
- * nodeId returns the content unchanged.
- */
-export function addBlankVideoCardContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  nodeId: string,
-  position: { x: number; y: number },
-): InfiniteCanvasDocumentContent {
-  if (document.nodes.some(node => node.nodeId === nodeId)) return content(document);
-  const node: InfiniteCanvasNode = { nodeId, kind: 'video', position, prompt: '' };
-  return { ...content(document), nodes: [...document.nodes, node] };
-}
-
-/** Writes the generation prompt of an image or video card (blank or regenerate alike). */
-export function setNodePromptContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  nodeId: string,
-  prompt: string,
-): InfiniteCanvasDocumentContent {
-  return {
-    ...content(document),
-    nodes: document.nodes.map(node => (
-      node.nodeId === nodeId && (node.kind === 'image' || node.kind === 'video')
-        ? { ...node, prompt }
-        : node
-    )),
-  };
-}
-
-/**
- * P4 W3: writes the generation parameters of an image or video card.
- *
- * The set is clamped onto the card's own media kind and chosen model before
- * it is stored, so a document can never hold a combination the backend would
- * reject (the dispatch path clamps a second time — the belt-and-braces rule
- * of plan §2.2). A set that clamps down to nothing removes the field
- * entirely, which is exactly the pre-P4 card: no parameters are sent and the
- * provider defaults apply.
- */
-export function setNodeGenerationParamsContent(
-  document: Readonly<InfiniteCanvasDocument>,
-  nodeId: string,
-  params: InfiniteCanvasGenerationParams | undefined,
-): InfiniteCanvasDocumentContent {
-  return {
-    ...content(document),
-    nodes: document.nodes.map(node => {
-      if (node.nodeId !== nodeId || (node.kind !== 'image' && node.kind !== 'video')) {
-        return node;
-      }
-      const normalized = normalizeInfiniteCanvasGenerationParams(
-        params,
-        node.kind === 'video' ? 'video' : 'image',
-      );
-      if (isEmptyGenerationParams(normalized)) {
-        if (node.generationParams === undefined) return node;
-        const { generationParams: _cleared, ...rest } = node;
-        return rest;
-      }
-      return { ...node, generationParams: normalized };
-    }),
-  };
-}
 
 // P3 W2: `beginSelfGenerationContent` was sunk to the shared infinite-canvas
 // module (the agent ops applier reuses it); this re-export keeps every

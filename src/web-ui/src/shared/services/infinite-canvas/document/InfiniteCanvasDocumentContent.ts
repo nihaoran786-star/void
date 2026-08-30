@@ -28,6 +28,10 @@ import type {
 } from './InfiniteCanvasTypes';
 import { infiniteCanvasDomainRefKey } from './InfiniteCanvasTypes';
 import { setInfiniteCanvasActiveVariant } from '../media/InfiniteCanvasMediaVariants';
+import {
+  isEmptyGenerationParams,
+  normalizeInfiniteCanvasGenerationParams,
+} from '../generation/infiniteCanvasGenerationCapabilities';
 
 /**
  * P4 W6: what a delete request is actually about to remove.
@@ -402,4 +406,93 @@ export function setViewportContent(
   viewport: InfiniteCanvasViewport,
 ): InfiniteCanvasDocumentContent {
   return { ...content(document), viewport };
+}
+
+// —— The card facts a generation request is made of ————————————————————————
+//
+// A blank card waiting for its first picture, the prompt written on it, and
+// the parameters chosen for it. Structurally these are card edits like any
+// other above; they were the panel's neighbours (`infiniteCanvasGenerationModel`)
+// only because the generator UI is what writes them.
+
+/**
+ * Adds a blank generation card: an image card with no mediaRef and an empty
+ * prompt, waiting for the user's first text-to-image shot. Re-adding an
+ * existing nodeId returns the content unchanged.
+ */
+export function addBlankGenerationCardContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  position: { x: number; y: number },
+): InfiniteCanvasDocumentContent {
+  if (document.nodes.some(node => node.nodeId === nodeId)) return content(document);
+  const node: InfiniteCanvasNode = { nodeId, kind: 'image', position, prompt: '' };
+  return { ...content(document), nodes: [...document.nodes, node] };
+}
+
+/**
+ * P3: adds a blank video card — a video card with no mediaRef and an empty
+ * prompt. Connecting image cards into it and generating is image-to-video;
+ * generating with no connections is text-to-video. Re-adding an existing
+ * nodeId returns the content unchanged.
+ */
+export function addBlankVideoCardContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  position: { x: number; y: number },
+): InfiniteCanvasDocumentContent {
+  if (document.nodes.some(node => node.nodeId === nodeId)) return content(document);
+  const node: InfiniteCanvasNode = { nodeId, kind: 'video', position, prompt: '' };
+  return { ...content(document), nodes: [...document.nodes, node] };
+}
+
+/** Writes the generation prompt of an image or video card (blank or regenerate alike). */
+export function setNodePromptContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  prompt: string,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => (
+      node.nodeId === nodeId && (node.kind === 'image' || node.kind === 'video')
+        ? { ...node, prompt }
+        : node
+    )),
+  };
+}
+
+/**
+ * P4 W3: writes the generation parameters of an image or video card.
+ *
+ * The set is clamped onto the card's own media kind and chosen model before
+ * it is stored, so a document can never hold a combination the backend would
+ * reject (the dispatch path clamps a second time — the belt-and-braces rule
+ * of plan §2.2). A set that clamps down to nothing removes the field
+ * entirely, which is exactly the pre-P4 card: no parameters are sent and the
+ * provider defaults apply.
+ */
+export function setNodeGenerationParamsContent(
+  document: Readonly<InfiniteCanvasDocument>,
+  nodeId: string,
+  params: InfiniteCanvasGenerationParams | undefined,
+): InfiniteCanvasDocumentContent {
+  return {
+    ...content(document),
+    nodes: document.nodes.map(node => {
+      if (node.nodeId !== nodeId || (node.kind !== 'image' && node.kind !== 'video')) {
+        return node;
+      }
+      const normalized = normalizeInfiniteCanvasGenerationParams(
+        params,
+        node.kind === 'video' ? 'video' : 'image',
+      );
+      if (isEmptyGenerationParams(normalized)) {
+        if (node.generationParams === undefined) return node;
+        const { generationParams: _cleared, ...rest } = node;
+        return rest;
+      }
+      return { ...node, generationParams: normalized };
+    }),
+  };
 }
