@@ -16,69 +16,33 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({ props: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, { id: node.id, data: node.data, selected: false }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+// Deliberately NOT exporting the P5 ports. Two things ride on that: an
+// injected port is never resolved through the module (so no test can reach a
+// real Tauri command by accident), and a panel test written before a port
+// existed keeps working instead of crashing on the missing export.
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['saver', 'revealer'] }));
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  // Deliberately NOT exporting the P5 ports. Two things ride on that: an
-  // injected port is never resolved through the module (so no test can reach a
-  // real Tauri command by accident), and a panel test written before a port
-  // existed keeps working instead of crashing on the missing export.
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import { StylePresetCatalog } from '@/shared/services/style-preset';
 import {
@@ -95,6 +59,12 @@ import {
   CANVAS_SCRATCH_PREFIX,
 } from './infiniteCanvasImageRaster';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  clearSelection,
+  dragNode,
+  resetCanvasFlow,
+  selectNodes,
+} from './infiniteCanvasPanel.testkit';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -216,7 +186,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
       bytesWritten: 128,
     }));
     pruneCanvasScratch = vi.fn(async () => undefined);
-    flow.props = null;
+    resetCanvasFlow();
     stubRuntime.gateway.invoke.mockClear();
   });
 
@@ -483,14 +453,8 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     await act(async () => {
       Simulate.change(field()!, { target: { value: 'Upscale this image to 4K.' } } as never);
     });
-    await act(async () => {
-      flow.props.onSelectionChange?.({ nodes: [] });
-      await Promise.resolve();
-    });
-    await act(async () => {
-      flow.props.onSelectionChange?.({ nodes: [{ id: 'n-image' }] });
-      await Promise.resolve();
-    });
+    await clearSelection();
+    await selectNodes(['n-image']);
     expect(field()!.value).toBe('a cat on a bench');
 
     await service.flushPendingWrites();
@@ -541,10 +505,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     await renderPanel();
     await openEditor('[data-node-id="n-image"] [data-tool-id="upscale"]');
 
-    await act(async () => {
-      flow.props.onSelectionChange?.({ nodes: [{ id: 'n-other' }] });
-      await Promise.resolve();
-    });
+    await selectNodes(['n-other']);
     await act(async () => {
       Simulate.click(container.querySelector('[data-canvas-generator-action="send"]')!);
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -915,11 +876,7 @@ describe('InfiniteCanvasPanel P5 crop and mask', () => {
     seedDocument(memory, { nodes: [IMAGE_NODE] });
     await renderPanel();
     // One undoable board edit, so a leaked Ctrl+Z would have something to eat.
-    await act(async () => {
-      flow.props.onNodesChange([
-        { type: 'position', id: 'n-image', dragging: false, position: { x: 90, y: 90 } },
-      ]);
-    });
+    await dragNode('n-image', { x: 90, y: 90 });
     await service.flushPendingWrites();
     expect(readDocument(memory).nodes[0].position).toEqual({ x: 90, y: 90 });
 
