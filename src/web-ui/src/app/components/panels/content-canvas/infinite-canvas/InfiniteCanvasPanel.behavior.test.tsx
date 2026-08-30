@@ -6,82 +6,31 @@ import { Simulate } from 'react-dom/test-utils';
 import { clickCanvasCreateMenuItem } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({
-  props: null as any,
-}));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow({ nodeChanges: 'removals-and-moves' }));
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id))
-      .map(node => {
-        const positionChange = changes.find(change => (
-          change.type === 'position' && change.id === node.id && change.position
-        ));
-        return positionChange ? { ...node, position: positionChange.position } : node;
-      }),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
-
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  // Default W7 manifest reader: nothing on disk unless a test injects one.
-  getInfiniteCanvasMediaJobReader: () => ({
-    readTextFile: async () => null,
-  }),
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['saver', 'revealer'] }));
 
 // The real runtime module pulls flow_chat singletons; tests always inject a
 // fake runtime through the panel prop instead.
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import {
   createInMemoryInfiniteCanvasPersistence,
@@ -92,6 +41,15 @@ import {
   type InMemoryInfiniteCanvasPersistence,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  canvasEdges,
+  canvasNodes,
+  connectNodes,
+  deleteNodes,
+  dragNode,
+  panViewportTo,
+  resetCanvasFlow,
+} from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -156,7 +114,7 @@ describe('InfiniteCanvasPanel', () => {
     root = createRoot(container);
     memory = createInMemoryInfiniteCanvasPersistence();
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -195,7 +153,7 @@ describe('InfiniteCanvasPanel', () => {
     await renderPanel();
 
     expect(container.querySelector('[data-canvas-surface-state="ready"]')).not.toBeNull();
-    expect(flow.props.nodes).toEqual([]);
+    expect(canvasNodes()).toEqual([]);
     expect(readDocument(memory)).toMatchObject({
       workspaceId: WORKSPACE.workspaceId,
       nodes: [],
@@ -208,7 +166,7 @@ describe('InfiniteCanvasPanel', () => {
 
     await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
 
-    expect(flow.props.nodes).toHaveLength(1);
+    expect(canvasNodes()).toHaveLength(1);
     await service.flushPendingWrites();
     const persisted = readDocument(memory);
     expect(persisted.nodes).toHaveLength(1);
@@ -243,14 +201,10 @@ describe('InfiniteCanvasPanel', () => {
     });
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onConnect({ source: 'a', target: 'b' });
-    });
-    await act(async () => {
-      flow.props.onConnect({ source: 'a', target: 'b' });
-    });
+    await connectNodes('a', 'b');
+    await connectNodes('a', 'b');
 
-    expect(flow.props.edges).toHaveLength(1);
+    expect(canvasEdges()).toHaveLength(1);
     await service.flushPendingWrites();
     expect(readDocument(memory).edges).toEqual([
       expect.objectContaining({ sourceNodeId: 'a', targetNodeId: 'b' }),
@@ -263,19 +217,11 @@ describe('InfiniteCanvasPanel', () => {
     });
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onNodesChange([
-        { type: 'position', id: 'a', position: { x: 10, y: 10 }, dragging: true },
-      ]);
-    });
+    await dragNode('a', { x: 10, y: 10 }, { dropped: false });
     await service.flushPendingWrites();
     expect(readDocument(memory).nodes[0].position).toEqual({ x: 0, y: 0 });
 
-    await act(async () => {
-      flow.props.onNodesChange([
-        { type: 'position', id: 'a', position: { x: 40, y: 60 }, dragging: false },
-      ]);
-    });
+    await dragNode('a', { x: 40, y: 60 });
     await service.flushPendingWrites();
     expect(readDocument(memory).nodes[0].position).toEqual({ x: 40, y: 60 });
   });
@@ -290,11 +236,9 @@ describe('InfiniteCanvasPanel', () => {
     });
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onNodesChange([{ type: 'remove', id: 'a' }]);
-    });
+    await deleteNodes(['a']);
 
-    expect(flow.props.nodes).toHaveLength(1);
+    expect(canvasNodes()).toHaveLength(1);
     await service.flushPendingWrites();
     const persisted = readDocument(memory);
     expect(persisted.nodes.map(node => node.nodeId)).toEqual(['b']);
@@ -304,9 +248,7 @@ describe('InfiniteCanvasPanel', () => {
   it('persists the viewport after panning or zooming ends', async () => {
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onMoveEnd(undefined, { x: 12, y: -30, zoom: 0.5 });
-    });
+    await panViewportTo({ x: 12, y: -30, zoom: 0.5 });
 
     await service.flushPendingWrites();
     expect(readDocument(memory).viewport).toEqual({ x: 12, y: -30, zoom: 0.5 });
@@ -321,9 +263,9 @@ describe('InfiniteCanvasPanel', () => {
     await service.flushPendingWrites();
 
     root = createRoot(container);
-    flow.props = null;
+    resetCanvasFlow();
     await renderPanel();
-    expect(flow.props.nodes).toHaveLength(1);
+    expect(canvasNodes()).toHaveLength(1);
   });
 
   // H2: the corrupted file used to strand the board on a static error page
@@ -339,7 +281,7 @@ describe('InfiniteCanvasPanel', () => {
 
     expect(container.querySelector('[data-canvas-surface-state="error"]')).toBeNull();
     expect(container.querySelector('[data-canvas-surface-state="ready"]')).not.toBeNull();
-    expect(flow.props.nodes).toHaveLength(0);
+    expect(canvasNodes()).toHaveLength(0);
     expect(container.textContent).toContain('infiniteCanvas.recovered.fromBackup');
     // Nothing was deleted: the original bytes are kept next to the document.
     const backup = [...memory.files.entries()].find(([path]) => path.endsWith('.bak'));
@@ -368,21 +310,17 @@ describe('InfiniteCanvasPanel', () => {
     const resolvePreviewUrl = vi.fn(async () => 'data:image/png;base64,AAAA');
     await renderPanel({ resolvePreviewUrl });
 
-    expect(flow.props.nodes).toHaveLength(2);
+    expect(canvasNodes()).toHaveLength(2);
     // One resolve per card, and no more: this is the whole point.
     expect(resolvePreviewUrl).toHaveBeenCalledTimes(2);
 
     // Two commits nothing about the cards depends on — a wheel-zoom settling
     // and then a pan settling. Both re-project the whole board.
-    await act(async () => {
-      flow.props.onMoveEnd(undefined, { x: 4, y: 4, zoom: 1.5 });
-    });
-    const before = flow.props.nodes.map((node: any) => node.data);
-    await act(async () => {
-      flow.props.onMoveEnd(undefined, { x: 9, y: 9, zoom: 1.5 });
-    });
+    await panViewportTo({ x: 4, y: 4, zoom: 1.5 });
+    const before = canvasNodes().map((node: any) => node.data);
+    await panViewportTo({ x: 9, y: 9, zoom: 1.5 });
 
-    const after = flow.props.nodes.map((node: any) => node.data);
+    const after = canvasNodes().map((node: any) => node.data);
     expect(after[0]).toBe(before[0]);
     expect(after[1]).toBe(before[1]);
     // The media effect keys on the file, so nothing was read or decoded again.
@@ -400,21 +338,15 @@ describe('InfiniteCanvasPanel', () => {
 
     // One warm-up commit: the first mutation re-reads the file, so the
     // document nodes it projects are new objects by construction.
-    await act(async () => {
-      flow.props.onMoveEnd(undefined, { x: 1, y: 1, zoom: 1 });
-    });
+    await panViewportTo({ x: 1, y: 1, zoom: 1 });
     const before = new Map<string, unknown>(
-      flow.props.nodes.map((node: any) => [node.id, node.data]),
+      canvasNodes().map((node: any) => [node.id, node.data]),
     );
 
-    await act(async () => {
-      flow.props.onNodesChange([
-        { type: 'position', id: 'n-1', position: { x: 30, y: 40 }, dragging: false },
-      ]);
-    });
+    await dragNode('n-1', { x: 30, y: 40 });
 
     const after = new Map<string, unknown>(
-      flow.props.nodes.map((node: any) => [node.id, node.data]),
+      canvasNodes().map((node: any) => [node.id, node.data]),
     );
     // The moved card is rebuilt; its neighbour keeps the object it had.
     expect(after.get('n-2')).toBe(before.get('n-2'));
@@ -424,7 +356,7 @@ describe('InfiniteCanvasPanel', () => {
   it('keeps the rendered board when an edit fails and shows a dismissible line', async () => {
     await renderPanel();
     await clickCanvasCreateMenuItem(container, 'infiniteCanvas.toolbar.addText');
-    expect(flow.props.nodes).toHaveLength(1);
+    expect(canvasNodes()).toHaveLength(1);
 
     vi.spyOn(service, 'mutateDefaultDocument').mockRejectedValueOnce(
       new Error('the disk went away'),
@@ -434,7 +366,7 @@ describe('InfiniteCanvasPanel', () => {
     // The board is still on screen with the card the user already made.
     expect(container.querySelector('[data-canvas-surface-state="error"]')).toBeNull();
     expect(container.querySelector('[data-canvas-surface-state="ready"]')).not.toBeNull();
-    expect(flow.props.nodes).toHaveLength(1);
+    expect(canvasNodes()).toHaveLength(1);
     expect(container.textContent).toContain('infiniteCanvas.commitFailed');
   });
 
