@@ -22,8 +22,11 @@
  *   pending card back through the panel's existing failOperationContent path.
  *
  * The AI path (user asks in chat → GenerateImage / CanvasOp
- * begin_generation) is untouched; SessionImageGenerationGateway remains for
- * that contract surface but is no longer used by the panel.
+ * begin_generation) is untouched. The session gateway that used to relay
+ * canvas buttons through a chat message is gone; all that survives of it is
+ * the shared vocabulary in `imageGenerationInvocation` — the invocation shape,
+ * the §2.1 instruction and the §3.1 binding — which this gateway calls, so a
+ * binding is assembled the same way whatever produced the task.
  */
 import { api } from '@/infrastructure/api/service-api/ApiClient';
 import { globalEventBus } from '@/infrastructure/event-bus';

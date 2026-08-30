@@ -3,10 +3,9 @@
  *
  * 2026-08-24 owner decision (supersedes K2 W6 session wiring): canvas buttons
  * submit straight to the backend media pipeline through the direct gateway —
- * no session, no AI relay. The session sender remains in the tree for the
- * AI-initiated path but is no longer wired here; `sourceSessionId` is kept as
- * an accepted option for prop compatibility only. Tests keep injecting a fake
- * runtime through the panel prop.
+ * no session, no AI relay. There is no longer a session sender anywhere in the
+ * tree; `sourceSessionId` is kept as an accepted option for prop compatibility
+ * only. Tests keep injecting a fake runtime through the panel prop.
  */
 import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import type { SessionImageGenerationGateway } from '@/shared/services/infinite-canvas';
