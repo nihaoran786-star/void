@@ -14,76 +14,29 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({
-  props: null as any,
-}));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['revealer'] }));
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({
-    readTextFile: async () => null,
-  }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import { StylePresetCatalog } from '@/shared/services/style-preset';
 import {
@@ -96,6 +49,7 @@ import {
   type InMemoryInfiniteCanvasPersistence,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import { resetCanvasFlow } from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -153,7 +107,7 @@ describe('InfiniteCanvasPanel P4 W1 media viewer', () => {
     root = createRoot(container);
     memory = createInMemoryInfiniteCanvasPersistence();
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
