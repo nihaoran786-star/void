@@ -30,6 +30,7 @@ export * from './media/InfiniteCanvasMediaBridge';
 export * from './media/InfiniteCanvasPendingReconciliation';
 export * from './media/InfiniteCanvasMediaVariants';
 export * from './generation/InfiniteCanvasGenerationContent';
+export * from './generation/InfiniteCanvasOperationContent';
 export * from './agent-ops/InfiniteCanvasAgentOps';
 export * from './agent-ops/InfiniteCanvasOpsBridge';
 export * from './agent-ops/InfiniteCanvasOpsReconciliation';
