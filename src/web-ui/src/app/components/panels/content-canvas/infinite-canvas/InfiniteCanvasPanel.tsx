@@ -535,6 +535,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
    * Selected connections. Edges are not mirrored into React state the way
    * nodes are — nothing renders off them but the Delete key — so a ref is the
    * whole story and no extra re-render is provoked by clicking a wire.
+   *
+   * Deliberately NOT scrubbed by the document-change effect below, unlike
+   * every other id-keyed piece of panel memory: edge ids come from
+   * {@link createInfiniteCanvasId} (clock + counter + entropy), so one
+   * document's id cannot name another's edge, and the worst a survivor does is
+   * ask `removeEdgesContent` to drop what is not there — no bytes change, and
+   * `captureUserEdit` files no undo step for an unchanged document.
    */
   const selectedEdgeIdsRef = React.useRef<string[]>([]);
   /** P4 W6: the pending deletion awaiting the one confirmation, if any. */
@@ -1265,6 +1272,12 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setReversePromptSpend(null);
     setReversePromptPendingNodeId(null);
     reversePromptNodeIdRef.current = null;
+    // The unsent draft in the generator's box is node-scoped too, and
+    // `liveNodePrompt` reads it in PREFERENCE to the document. Carried across,
+    // a half-typed line made an empty box in the NEW document look written-in:
+    // reverse-prompt asked replace-or-append instead of just filling it, and
+    // "add underneath" appended under text typed in another workspace.
+    generatorDraftRef.current = null;
   }, [
     cancelRetryRespend,
     closeAllPopovers,

@@ -82,21 +82,22 @@ const IMAGE_NODE = {
   },
 };
 
-function documentPath(): string {
+function documentPath(workspace: typeof WORKSPACE = WORKSPACE): string {
   return infiniteCanvasDocumentFilePath(
-    WORKSPACE.workspacePath,
-    defaultInfiniteCanvasDocumentId(WORKSPACE.workspaceId),
+    workspace.workspacePath,
+    defaultInfiniteCanvasDocumentId(workspace.workspaceId),
   );
 }
 
 function seedDocument(
   memory: InMemoryInfiniteCanvasPersistence,
   overrides: Partial<InfiniteCanvasDocument> = {},
+  workspace: typeof WORKSPACE = WORKSPACE,
 ): void {
-  memory.files.set(documentPath(), JSON.stringify({
-    documentId: defaultInfiniteCanvasDocumentId(WORKSPACE.workspaceId),
+  memory.files.set(documentPath(workspace), JSON.stringify({
+    documentId: defaultInfiniteCanvasDocumentId(workspace.workspaceId),
     schemaVersion: '1',
-    workspaceId: WORKSPACE.workspaceId,
+    workspaceId: workspace.workspaceId,
     revision: 1,
     nodes: [],
     edges: [],
@@ -106,8 +107,11 @@ function seedDocument(
   }));
 }
 
-function readDocument(memory: InMemoryInfiniteCanvasPersistence): InfiniteCanvasDocument {
-  const raw = memory.files.get(documentPath());
+function readDocument(
+  memory: InMemoryInfiniteCanvasPersistence,
+  workspace: typeof WORKSPACE = WORKSPACE,
+): InfiniteCanvasDocument {
+  const raw = memory.files.get(documentPath(workspace));
   expect(raw).toBeDefined();
   return JSON.parse(raw!) as InfiniteCanvasDocument;
 }
@@ -528,5 +532,43 @@ describe('InfiniteCanvasPanel P5 reverse-prompt', () => {
     await renderPanel({ workspaceId: 'workspace-b', workspacePath: 'C:/workspace-b' });
 
     expect(container.querySelector('[data-canvas-reverse-prompt="preview"]')).toBeNull();
+  });
+
+  /**
+   * The same rule for the LIVE DRAFT, which review C7 taught reverse-prompt to
+   * prefer over the document. A line half-typed on one board and never blurred
+   * used to follow the owner to the next board, where a card with the same id
+   * then looked "already written in": the empty box got a replace-or-append
+   * question instead of being filled, and "add underneath" would have pasted
+   * the other workspace's sentence on top of this picture's words.
+   */
+  it('forgets a half-typed prompt when the document underneath changes', async () => {
+    const workspaceB = { workspaceId: 'workspace-b', workspacePath: 'C:/workspace-b' };
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    // The other board carries a card with the same id and an empty box — the
+    // only case in which the survivor can be mistaken for this card's text.
+    seedDocument(memory, { nodes: [IMAGE_NODE] }, workspaceB);
+    await renderPanel();
+
+    // Type without blurring: nothing reaches the document, only the draft.
+    await selectNodes(['n-image']);
+    const field = container.querySelector<HTMLTextAreaElement>(
+      '[data-canvas-generator-field="prompt"]',
+    )!;
+    await act(async () => {
+      field.value = 'a fox I am still writing about';
+      Simulate.change(field);
+    });
+    await service.flushPendingWrites();
+    expect(readDocument(memory).nodes[0].prompt).toBeUndefined();
+
+    await renderPanel(workspaceB);
+    await press();
+    await service.flushPendingWrites();
+
+    // The new board's box counted as empty, so it was simply filled: no
+    // question was asked, and the other workspace's sentence is nowhere in it.
+    expect(container.querySelector('[data-canvas-reverse-prompt="preview"]')).toBeNull();
+    expect(readDocument(memory, workspaceB).nodes[0].prompt).toBe(REVERSED);
   });
 });
