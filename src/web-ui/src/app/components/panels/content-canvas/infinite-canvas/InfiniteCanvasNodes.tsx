@@ -44,21 +44,25 @@ import type {
   ImageToolId,
   InfiniteCanvasDomainRef,
   InfiniteCanvasGenerationParams,
+  InfiniteCanvasImagePreviewResolver,
+  InfiniteCanvasMediaRef,
 } from '@/shared/services/infinite-canvas';
 import { IMAGE_TOOL_DEFINITIONS } from '@/shared/services/infinite-canvas';
 import { useInfiniteCanvasDomainOrigin } from './infiniteCanvasDomainOrigins';
 import { infiniteCanvasWillAutoFile } from './infiniteCanvasPanelModel';
 import { InfiniteCanvasVideoCard } from './InfiniteCanvasVideoCard';
 
-export interface InfiniteCanvasMediaRef {
-  workspacePath: string;
-  relativePath: string;
-}
-
-export type InfiniteCanvasImagePreviewResolver = (
-  mediaRef: InfiniteCanvasMediaRef,
-  mediaKind?: 'image' | 'video',
-) => Promise<string | undefined>;
+/**
+ * Both types are defined once, in `shared/services/infinite-canvas`, and only
+ * re-exported here. They used to be declared in this file, which meant a pure
+ * helper module had to import a React component file to name a media
+ * reference. The re-export keeps every existing `from './InfiniteCanvasNodes'`
+ * import working unchanged.
+ */
+export type {
+  InfiniteCanvasImagePreviewResolver,
+  InfiniteCanvasMediaRef,
+} from '@/shared/services/infinite-canvas';
 
 export interface InfiniteCanvasTextNodeData extends Record<string, unknown> {
   text: string;

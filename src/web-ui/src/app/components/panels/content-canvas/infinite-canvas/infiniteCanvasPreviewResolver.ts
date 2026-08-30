@@ -17,7 +17,7 @@ import { joinWorkspaceMediaPath } from '@/shared/services/workspace-media/Worksp
 import type {
   InfiniteCanvasImagePreviewResolver,
   InfiniteCanvasMediaRef,
-} from './InfiniteCanvasNodes';
+} from '@/shared/services/infinite-canvas';
 
 /**
  * Joins workspacePath + relativePath into one absolute file path.

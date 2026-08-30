@@ -24,6 +24,33 @@ export const INFINITE_CANVAS_SCHEMA_VERSION = '1';
  */
 export type CanvasImageOperationKind = ImageToolId | 'generate' | 'crop';
 
+/**
+ * What the canvas says about one picture: which workspace it lives in and
+ * where inside that workspace. The media truth itself stays in Workspace
+ * Media; this is only ever a reference to it, never a copy.
+ *
+ * The single definition. It used to exist twice — once here in the module and
+ * once again in the panel's node renderers — which is how a pure helper ended
+ * up importing a thousand-line React component just to name a type. The panel
+ * re-exports this one under the same names, so nothing that imports it had to
+ * change.
+ */
+export interface InfiniteCanvasMediaRef {
+  workspacePath: string;
+  relativePath: string;
+}
+
+/**
+ * How a card turns a media reference into something an <img> or <video> can
+ * load. The panel injects the real one; tests inject a stub. Declared here
+ * rather than beside the renderers because the default implementation is a
+ * pure module and has no business importing React to learn its own signature.
+ */
+export type InfiniteCanvasImagePreviewResolver = (
+  mediaRef: InfiniteCanvasMediaRef,
+  mediaKind?: 'image' | 'video',
+) => Promise<string | undefined>;
+
 export interface InfiniteCanvasViewport {
   x: number;
   y: number;

@@ -7,13 +7,17 @@
  * never talks to flow_chat, and nothing here knows how a task is submitted.
  */
 
-import type { CanvasImageOperationKind } from './InfiniteCanvasTypes';
+import type {
+  CanvasImageOperationKind,
+  InfiniteCanvasMediaRef,
+} from './InfiniteCanvasTypes';
 
-/** Same shape as `InfiniteCanvasNode['mediaRef']`; the media truth is never copied. */
-export interface InfiniteCanvasMediaRef {
-  workspacePath: string;
-  relativePath: string;
-}
+/**
+ * Same shape as `InfiniteCanvasNode['mediaRef']`; the media truth is never
+ * copied. Defined in `InfiniteCanvasTypes` and re-exported here so the many
+ * files that reach for it through this module keep their import path.
+ */
+export type { InfiniteCanvasMediaRef };
 
 /**
  * The §3.1 binding object ("return address label"). It is embedded verbatim

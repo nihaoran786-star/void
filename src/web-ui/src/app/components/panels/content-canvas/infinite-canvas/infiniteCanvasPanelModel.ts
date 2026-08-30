@@ -22,6 +22,17 @@ import {
   infiniteCanvasNodeVariants,
   setInfiniteCanvasActiveVariant,
 } from '@/shared/services/infinite-canvas';
+// The two result shapes this module computes are declared next door, so the
+// dialog and the task queue can name them without importing all of this.
+import type {
+  InfiniteCanvasDeletionSummary,
+  InfiniteCanvasGenerationTask,
+} from './infiniteCanvasPanelViewTypes';
+
+export type {
+  InfiniteCanvasDeletionSummary,
+  InfiniteCanvasGenerationTask,
+} from './infiniteCanvasPanelViewTypes';
 
 export const INFINITE_CANVAS_TEXT_NODE_TYPE = 'infinite-canvas-text';
 export const INFINITE_CANVAS_IMAGE_NODE_TYPE = 'infinite-canvas-image';
@@ -403,19 +414,6 @@ export function moveNodesContent(
  * Deleting a card never touches the referenced file: the media truth lives in
  * Workspace Media and the canvas only ever held a reference to it.
  */
-export interface InfiniteCanvasDeletionSummary {
-  /** The ids that will actually be removed (existing, non-group). */
-  nodeIds: string[];
-  /** Of those, how many carry a mediaRef. */
-  mediaCount: number;
-  /** Of those, how many have a generation still running. */
-  pendingCount: number;
-  /** Of those, how many are neither — blank, text, or a failed placeholder. */
-  plainCount: number;
-  /** True when at least one card has media or is mid-generation. */
-  requiresConfirmation: boolean;
-}
-
 export function classifyDeletionTargets(
   document: Readonly<InfiniteCanvasDocument>,
   nodeIds: readonly string[],
@@ -593,18 +591,6 @@ export function retryOperationContent(
 }
 
 // —— P4 W8: the task queue is a projection, not a second store ——————————————
-
-/** One row of the task queue: an in-flight or failed generation on this canvas. */
-export interface InfiniteCanvasGenerationTask {
-  nodeId: string;
-  operationId: string;
-  toolId: NonNullable<InfiniteCanvasNode['generation']>['toolId'];
-  status: 'pending' | 'failed';
-  mediaKind: 'image' | 'video';
-  errorKind?: ImageToolErrorKind;
-  /** First line of the card's prompt, for the row label. May be empty. */
-  promptLine: string;
-}
 
 /**
  * Projects the queue straight out of the document.

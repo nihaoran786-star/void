@@ -16,7 +16,7 @@
 import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
-import type { InfiniteCanvasDeletionSummary } from './infiniteCanvasPanelModel';
+import type { InfiniteCanvasDeletionSummary } from './infiniteCanvasPanelViewTypes';
 
 /** One line of the dialog body, in the order it is rendered. */
 interface ConfirmDialogLine {
