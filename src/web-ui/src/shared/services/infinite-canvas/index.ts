@@ -23,6 +23,7 @@
 export * from './document/InfiniteCanvasTypes';
 export * from './document/InfiniteCanvasDocumentContent';
 export * from './document/InfiniteCanvasClipboard';
+export * from './document/InfiniteCanvasHistory';
 export * from './generation/infiniteCanvasGenerationCapabilities';
 export * from './document/InfiniteCanvasPersistencePort';
 export * from './document/ImageToolTypes';
