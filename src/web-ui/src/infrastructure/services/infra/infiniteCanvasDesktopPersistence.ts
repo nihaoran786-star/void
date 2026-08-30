@@ -6,7 +6,7 @@
  * `shared/services/infinite-canvas/` never touches Tauri directly.
  */
 import { workspaceAPI } from '@/infrastructure/api/service-api/WorkspaceAPI';
-import type { InfiniteCanvasPersistencePort } from '@/shared/services/infinite-canvas/InfiniteCanvasPersistencePort';
+import type { InfiniteCanvasPersistencePort } from '@/shared/services/infinite-canvas/document/InfiniteCanvasPersistencePort';
 
 async function pathExists(path: string): Promise<boolean> {
   try {

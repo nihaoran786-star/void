@@ -10,17 +10,17 @@ import {
   InfiniteCanvasDocumentService,
   defaultInfiniteCanvasDocumentId,
   infiniteCanvasDocumentFilePath,
-} from './InfiniteCanvasDocumentService';
+} from '../document/InfiniteCanvasDocumentService';
 import {
   infiniteCanvasOpsJournalFilePath,
   reconcileInfiniteCanvasAgentOps,
 } from './InfiniteCanvasOpsReconciliation';
-import { createInMemoryInfiniteCanvasPersistence } from './InfiniteCanvasPersistencePort';
+import { createInMemoryInfiniteCanvasPersistence } from '../document/InfiniteCanvasPersistencePort';
 import type {
   InfiniteCanvasDocument,
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 
 const WORKSPACE: InfiniteCanvasWorkspaceRef = {
   workspaceId: 'workspace-1',

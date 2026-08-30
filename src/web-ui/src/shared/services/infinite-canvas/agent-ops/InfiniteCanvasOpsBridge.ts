@@ -27,8 +27,8 @@ import { globalEventBus } from '@/infrastructure/event-bus';
 import type {
   InfiniteCanvasDocumentError,
   InfiniteCanvasWorkspaceRef,
-} from './InfiniteCanvasTypes';
-import type { InfiniteCanvasDocumentService } from './InfiniteCanvasDocumentService';
+} from '../document/InfiniteCanvasTypes';
+import type { InfiniteCanvasDocumentService } from '../document/InfiniteCanvasDocumentService';
 import {
   applyCanvasAgentOpsBatchesContent,
   parseCanvasAgentOpsBatch,

@@ -9,13 +9,13 @@ import {
   InfiniteCanvasDocumentService,
   defaultInfiniteCanvasDocumentId,
   infiniteCanvasDocumentFilePath,
-} from './InfiniteCanvasDocumentService';
-import { createInMemoryInfiniteCanvasPersistence } from './InfiniteCanvasPersistencePort';
+} from '../document/InfiniteCanvasDocumentService';
+import { createInMemoryInfiniteCanvasPersistence } from '../document/InfiniteCanvasPersistencePort';
 import type {
   InfiniteCanvasDocument,
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 
 const WORKSPACE: InfiniteCanvasWorkspaceRef = {
   workspaceId: 'workspace-1',

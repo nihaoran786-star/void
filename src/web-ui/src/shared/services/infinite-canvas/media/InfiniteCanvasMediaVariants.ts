@@ -17,7 +17,7 @@
  *
  * schemaVersion stays '1': both fields are additive and parsed tolerantly.
  */
-import type { CanvasImageOperationKind, InfiniteCanvasNode } from './InfiniteCanvasTypes';
+import type { CanvasImageOperationKind, InfiniteCanvasNode } from '../document/InfiniteCanvasTypes';
 
 /** The shape both `mediaRef` and every list entry use. */
 export interface InfiniteCanvasVariantRef {

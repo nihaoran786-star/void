@@ -17,10 +17,10 @@ import type {
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasWorkspaceRef,
-} from './InfiniteCanvasTypes';
-import type { InfiniteCanvasDocumentService } from './InfiniteCanvasDocumentService';
-import type { InfiniteCanvasMediaJobReader } from './InfiniteCanvasPendingReconciliation';
-import { infiniteCanvasDirectoryPath } from './InfiniteCanvasDocumentService';
+} from '../document/InfiniteCanvasTypes';
+import type { InfiniteCanvasDocumentService } from '../document/InfiniteCanvasDocumentService';
+import type { InfiniteCanvasMediaJobReader } from '../media/InfiniteCanvasPendingReconciliation';
+import { infiniteCanvasDirectoryPath } from '../document/InfiniteCanvasDocumentService';
 import {
   applyCanvasAgentOpsBatchesContent,
   parseCanvasAgentOpsBatch,

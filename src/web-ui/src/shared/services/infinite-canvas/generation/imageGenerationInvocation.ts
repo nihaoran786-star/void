@@ -12,17 +12,17 @@
 
 import type { StylePreset } from '@/shared/services/style-preset';
 
-import type { ImageToolResult } from './ImageToolTypes';
+import type { ImageToolResult } from '../document/ImageToolTypes';
 import type {
   CanvasImageOperationKind,
   InfiniteCanvasGenerationMediaKind,
   InfiniteCanvasGenerationParams,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 import type {
   InfiniteCanvasImageBinding,
   InfiniteCanvasMediaRef,
   InfiniteCanvasShortDramaBinding,
-} from './InfiniteCanvasAgentTaskTypes';
+} from '../agent-ops/InfiniteCanvasAgentTaskTypes';
 
 /** One reference (垫图) image, in authoritative connection order (1-based). */
 export interface SessionImageReference {

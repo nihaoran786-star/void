@@ -22,12 +22,12 @@ import type {
   InfiniteCanvasEdge,
   InfiniteCanvasGenerationMediaKind,
   InfiniteCanvasNode,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 import {
   appendInfiniteCanvasVariants,
   infiniteCanvasGenerationAppendsToCard,
   infiniteCanvasNodeVariants,
-} from './InfiniteCanvasMediaVariants';
+} from '../media/InfiniteCanvasMediaVariants';
 
 /** Horizontal offset used to place a derived placeholder beside its source. */
 const DERIVED_NODE_OFFSET_X = 360;

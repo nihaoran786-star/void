@@ -2,7 +2,7 @@ import React from 'react';
 
 import { useI18n } from '@/infrastructure/i18n';
 import { areCanvasWorkspacePathsEquivalent } from '@/shared/services/canvas';
-import type { InfiniteCanvasDomainRef } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+import type { InfiniteCanvasDomainRef } from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 import type { CanvasSurfaceRendererProps } from './CanvasSurfaceRendererRegistry';
 import { validateInfiniteCanvasSurfaceInput } from './infiniteCanvasCapabilityInput';
 import { useCanvasWorkspaceFacts } from './useCanvasWorkspaceFacts';

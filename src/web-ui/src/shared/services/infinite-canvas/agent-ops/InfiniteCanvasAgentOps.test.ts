@@ -9,11 +9,11 @@ import {
 import {
   beginDerivedOperationContent,
   beginSelfGenerationContent,
-} from './InfiniteCanvasGenerationContent';
+} from '../generation/InfiniteCanvasGenerationContent';
 import type {
   InfiniteCanvasDocument,
   InfiniteCanvasNode,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 
 const MEDIA_REF = { workspacePath: 'C:/ws', relativePath: 'media/generated/b1/image-001.png' };
 

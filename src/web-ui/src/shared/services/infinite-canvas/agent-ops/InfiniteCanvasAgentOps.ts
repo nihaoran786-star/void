@@ -30,12 +30,12 @@ import type {
   InfiniteCanvasEdge,
   InfiniteCanvasGenerationMediaKind,
   InfiniteCanvasNode,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 import {
   beginDerivedOperationContent,
   beginSelfGenerationContent,
   generationCardKind,
-} from './InfiniteCanvasGenerationContent';
+} from '../generation/InfiniteCanvasGenerationContent';
 
 // —— Typed batch model ———————————————————————————————————————————————————————
 

@@ -20,7 +20,7 @@ import {
   infiniteCanvasBatchNodeId,
   resolveOperationBatchContent,
 } from './InfiniteCanvasGenerationContent';
-import type { InfiniteCanvasDocument, InfiniteCanvasNode } from './InfiniteCanvasTypes';
+import type { InfiniteCanvasDocument, InfiniteCanvasNode } from '../document/InfiniteCanvasTypes';
 
 const WORKSPACE_PATH = 'C:/ws';
 

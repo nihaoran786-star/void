@@ -20,7 +20,7 @@ import { toCanvasMediaRef } from '@/shared/services/canvas-short-drama/shortDram
 import {
   INFINITE_CANVAS_DOMAIN_MODULE_IDS,
   INFINITE_CANVAS_DOMAIN_ROLES,
-} from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+} from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 import { INFINITE_CANVAS_SURFACE_ID } from '../registry/CanvasSurfaceIds';
 
 export interface ShortDramaCanvasHandoffTarget {

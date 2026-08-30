@@ -14,7 +14,7 @@ import {
   applyLocalDerivedMedia,
   beginDerivedOperationContent,
 } from './InfiniteCanvasGenerationContent';
-import type { InfiniteCanvasDocument, InfiniteCanvasNode } from './InfiniteCanvasTypes';
+import type { InfiniteCanvasDocument, InfiniteCanvasNode } from '../document/InfiniteCanvasTypes';
 
 const WORKSPACE_PATH = 'C:/ws';
 const CROP_PATH = 'media/input/canvas-crops/image-001-crop-7.png';

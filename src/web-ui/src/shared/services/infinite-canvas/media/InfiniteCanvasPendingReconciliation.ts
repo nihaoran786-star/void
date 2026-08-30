@@ -23,21 +23,21 @@
  * persistence-port shape the document service uses. The never-overwrite
  * invariant holds: a node that already carries a mediaRef is never touched.
  */
-import type { ImageToolErrorKind } from './ImageToolTypes';
+import type { ImageToolErrorKind } from '../document/ImageToolTypes';
 import type {
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentContent,
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 import {
   normalizeCanvasWorkspacePath,
   type InfiniteCanvasDocumentService,
-} from './InfiniteCanvasDocumentService';
+} from '../document/InfiniteCanvasDocumentService';
 import {
   resolveOperationBatchContent,
   type InfiniteCanvasBatchOutputItem,
-} from './InfiniteCanvasGenerationContent';
+} from '../generation/InfiniteCanvasGenerationContent';
 import { infiniteCanvasGenerationAppendsToCard } from './InfiniteCanvasMediaVariants';
 
 /** Read side of the persistence port; `null` when the file does not exist. */

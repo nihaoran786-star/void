@@ -32,7 +32,7 @@
 import type {
   InfiniteCanvasGenerationMediaKind,
   InfiniteCanvasGenerationParams,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 
 /** capabilities.rs `DEFAULT_IMAGE_MODEL`. */
 export const INFINITE_CANVAS_DEFAULT_IMAGE_MODEL = 'gpt-image-2';

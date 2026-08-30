@@ -25,20 +25,20 @@
  */
 import { globalEventBus } from '@/infrastructure/event-bus';
 
-import type { ImageToolErrorKind } from './ImageToolTypes';
+import type { ImageToolErrorKind } from '../document/ImageToolTypes';
 import type {
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasEdge,
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
-} from './InfiniteCanvasTypes';
-import type { InfiniteCanvasDocumentService } from './InfiniteCanvasDocumentService';
-import type { InfiniteCanvasMediaRef } from './InfiniteCanvasAgentTaskTypes';
+} from '../document/InfiniteCanvasTypes';
+import type { InfiniteCanvasDocumentService } from '../document/InfiniteCanvasDocumentService';
+import type { InfiniteCanvasMediaRef } from '../agent-ops/InfiniteCanvasAgentTaskTypes';
 import {
   resolveOperationBatchContent,
   type InfiniteCanvasBatchOutputItem,
-} from './InfiniteCanvasGenerationContent';
+} from '../generation/InfiniteCanvasGenerationContent';
 import { infiniteCanvasGenerationAppendsToCard } from './InfiniteCanvasMediaVariants';
 
 export type InfiniteCanvasMediaBridgeIgnoredReason =

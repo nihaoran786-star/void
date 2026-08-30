@@ -16,7 +16,7 @@ import {
   setInfiniteCanvasActiveVariant,
   withInfiniteCanvasVariants,
 } from './InfiniteCanvasMediaVariants';
-import type { InfiniteCanvasNode } from './InfiniteCanvasTypes';
+import type { InfiniteCanvasNode } from '../document/InfiniteCanvasTypes';
 
 const WS = 'C:/ws';
 

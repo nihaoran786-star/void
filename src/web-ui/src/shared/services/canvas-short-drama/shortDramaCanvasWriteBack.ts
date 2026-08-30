@@ -36,7 +36,7 @@
  * review it is asking for, no attempts, no deletes, no files.
  */
 import { areCanvasWorkspacePathsEquivalent } from '@/shared/services/canvas/CanvasWorkspaceFacts';
-import type { InfiniteCanvasDomainRef } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+import type { InfiniteCanvasDomainRef } from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 import { resolveShortDramaArtifactReference } from '@/shared/services/short-drama/ShortDramaArtifactIndex';
 import {
   applyShortDramaCanvasRefinement,

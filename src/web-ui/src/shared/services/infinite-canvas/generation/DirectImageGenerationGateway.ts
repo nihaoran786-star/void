@@ -33,17 +33,17 @@ import { globalEventBus } from '@/infrastructure/event-bus';
 import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
 
-import type { ImageToolErrorKind, ImageToolResult } from './ImageToolTypes';
+import type { ImageToolErrorKind, ImageToolResult } from '../document/ImageToolTypes';
 import type {
   InfiniteCanvasImageBinding,
   InfiniteCanvasShortDramaBinding,
-} from './InfiniteCanvasAgentTaskTypes';
-import type { InfiniteCanvasGenerationParams } from './InfiniteCanvasTypes';
+} from '../agent-ops/InfiniteCanvasAgentTaskTypes';
+import type { InfiniteCanvasGenerationParams } from '../document/InfiniteCanvasTypes';
 import {
   normalizeInfiniteCanvasGenerationParams,
   resolveInfiniteCanvasModelCapability,
 } from './infiniteCanvasGenerationCapabilities';
-import { classifyMediaErrorKind } from './InfiniteCanvasMediaBridge';
+import { classifyMediaErrorKind } from '../media/InfiniteCanvasMediaBridge';
 import {
   buildFinalInstruction,
   buildImageGenerationBinding,

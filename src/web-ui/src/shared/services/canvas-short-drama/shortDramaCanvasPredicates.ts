@@ -17,7 +17,7 @@
  * two plain shapes, which is what let them be asked from a panel in the first
  * place.
  */
-import { INFINITE_CANVAS_DOMAIN_KINDS } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+import { INFINITE_CANVAS_DOMAIN_KINDS } from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 import type { ShortDramaArtifact } from '@/shared/services/short-drama/ShortDramaTypes';
 
 /**

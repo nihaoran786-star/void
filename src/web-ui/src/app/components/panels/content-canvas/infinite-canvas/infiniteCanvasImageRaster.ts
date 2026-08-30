@@ -25,7 +25,7 @@
  * `--canvas-*` token set and never changes with the light/dark theme.
  */
 
-import { INFINITE_CANVAS_WORKSPACE_DIR } from '@/shared/services/infinite-canvas/InfiniteCanvasDocumentService';
+import { INFINITE_CANVAS_WORKSPACE_DIR } from '@/shared/services/infinite-canvas/document/InfiniteCanvasDocumentService';
 import type { CanvasExpandInsets } from '@/shared/services/infinite-canvas';
 
 /** Mark fill — semi-transparent so the content underneath stays legible. */

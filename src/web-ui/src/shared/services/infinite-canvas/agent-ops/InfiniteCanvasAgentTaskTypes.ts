@@ -10,7 +10,7 @@
 import type {
   CanvasImageOperationKind,
   InfiniteCanvasMediaRef,
-} from './InfiniteCanvasTypes';
+} from '../document/InfiniteCanvasTypes';
 
 /**
  * Same shape as `InfiniteCanvasNode['mediaRef']`; the media truth is never

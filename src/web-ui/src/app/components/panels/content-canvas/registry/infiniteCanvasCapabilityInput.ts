@@ -12,12 +12,12 @@
  * second source of truth and would send the wrong file whenever the asset
  * changed picture between the click and the open.
  */
-import type { InfiniteCanvasDomainRef } from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+import type { InfiniteCanvasDomainRef } from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 import {
   INFINITE_CANVAS_DOMAIN_KINDS,
   INFINITE_CANVAS_DOMAIN_MODULE_IDS,
   INFINITE_CANVAS_DOMAIN_ROLES,
-} from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+} from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 
 /**
  * The one module allowed to write `domainRef` (contract §5.1.2). Same list the

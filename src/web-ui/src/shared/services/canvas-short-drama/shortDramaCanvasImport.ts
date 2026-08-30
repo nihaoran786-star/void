@@ -15,13 +15,13 @@
  */
 import type {
   InfiniteCanvasDomainRef,
-} from '@/shared/services/infinite-canvas/InfiniteCanvasTypes';
+} from '@/shared/services/infinite-canvas/document/InfiniteCanvasTypes';
 import { resolveShortDramaArtifactReference } from '@/shared/services/short-drama/ShortDramaArtifactIndex';
 import type {
   ShortDramaArtifactStatus,
   ShortDramaProject,
 } from '@/shared/services/short-drama/ShortDramaTypes';
-import type { InfiniteCanvasShortDramaBinding } from '@/shared/services/infinite-canvas/InfiniteCanvasAgentTaskTypes';
+import type { InfiniteCanvasShortDramaBinding } from '@/shared/services/infinite-canvas/agent-ops/InfiniteCanvasAgentTaskTypes';
 import {
   shortDramaStageForCanvasKind,
   toCanvasMediaRef,
