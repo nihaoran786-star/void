@@ -38,11 +38,6 @@ export {
   type SubmitInfiniteCanvasMediaJobResponse,
 } from './DirectImageGenerationGateway';
 export {
-  createPlaceholderImageToolGateway,
-  placeholderImageToolGateway,
-  IMAGE_TOOL_UNAVAILABLE_MESSAGE,
-} from './ImageToolPlaceholderGateway';
-export {
   InfiniteCanvasDocumentService,
   defaultInfiniteCanvasDocumentId,
   infiniteCanvasDirectoryPath,
