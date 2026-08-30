@@ -12,74 +12,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({
-  props: null as any,
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow({
+  nodeChanges: 'removals-and-moves',
+  cards: 'position-markers',
 }));
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => React.createElement('div', {
-          key: node.id,
-          'data-node-id': node.id,
-          'data-node-x': String(node.position.x),
-          'data-node-y': String(node.position.y),
-        })),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id))
-      .map(node => {
-        const move = changes.find(
-          change => change.type === 'position' && change.id === node.id && change.position,
-        );
-        return move ? { ...node, position: move.position } : node;
-      }),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['revealer'] }));
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import { StylePresetCatalog } from '@/shared/services/style-preset';
 import {
@@ -92,6 +50,11 @@ import {
   type InMemoryInfiniteCanvasPersistence,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  dragNode,
+  dragNodes,
+  resetCanvasFlow,
+} from './infiniteCanvasPanel.testkit';
 import { INFINITE_CANVAS_DEFAULT_NODE_SIZE } from './infiniteCanvasHelperLines';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -128,7 +91,7 @@ describe('InfiniteCanvasPanel P4 W9 alignment guides', () => {
     memory = createInMemoryInfiniteCanvasPersistence();
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     mutateSpy = vi.spyOn(service, 'mutateDefaultDocument');
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -171,14 +134,6 @@ describe('InfiniteCanvasPanel P4 W9 alignment guides', () => {
     mutateSpy.mockClear();
   }
 
-  async function drag(
-    changes: readonly Record<string, unknown>[],
-  ): Promise<void> {
-    await act(async () => {
-      flow.props.onNodesChange(changes);
-    });
-  }
-
   function nodePosition(nodeId: string): { x: number; y: number } {
     const element = container.querySelector(`[data-node-id="${nodeId}"]`);
     return {
@@ -195,7 +150,7 @@ describe('InfiniteCanvasPanel P4 W9 alignment guides', () => {
     await renderTwoCards(600, 600);
 
     // 3 units off both of the anchor's left/top edges: inside the threshold.
-    await drag([{ id: 'n-drag', type: 'position', dragging: true, position: { x: 3, y: 3 } }]);
+    await dragNode('n-drag', { x: 3, y: 3 }, { dropped: false });
 
     expect(nodePosition('n-drag')).toEqual({ x: 0, y: 0 });
     expect(guide('vertical')).not.toBeNull();
@@ -208,7 +163,7 @@ describe('InfiniteCanvasPanel P4 W9 alignment guides', () => {
     await renderTwoCards(600, 600);
     const far = INFINITE_CANVAS_DEFAULT_NODE_SIZE.width * 4;
 
-    await drag([{ id: 'n-drag', type: 'position', dragging: true, position: { x: far, y: far } }]);
+    await dragNode('n-drag', { x: far, y: far }, { dropped: false });
 
     expect(nodePosition('n-drag')).toEqual({ x: far, y: far });
     expect(guide('vertical')).toBeNull();
@@ -218,10 +173,10 @@ describe('InfiniteCanvasPanel P4 W9 alignment guides', () => {
   it('neither snaps nor draws while several nodes move together', async () => {
     await renderTwoCards(600, 600);
 
-    await drag([
-      { id: 'n-drag', type: 'position', dragging: true, position: { x: 3, y: 3 } },
-      { id: 'n-anchor', type: 'position', dragging: true, position: { x: 3, y: 400 } },
-    ]);
+    await dragNodes([
+      { id: 'n-drag', position: { x: 3, y: 3 } },
+      { id: 'n-anchor', position: { x: 3, y: 400 } },
+    ], { dropped: false });
 
     expect(nodePosition('n-drag')).toEqual({ x: 3, y: 3 });
     expect(guide('vertical')).toBeNull();
@@ -231,11 +186,11 @@ describe('InfiniteCanvasPanel P4 W9 alignment guides', () => {
   it('clears the guides and writes exactly once when the drag ends', async () => {
     await renderTwoCards(600, 600);
 
-    await drag([{ id: 'n-drag', type: 'position', dragging: true, position: { x: 3, y: 3 } }]);
-    await drag([{ id: 'n-drag', type: 'position', dragging: true, position: { x: 2, y: 2 } }]);
+    await dragNode('n-drag', { x: 3, y: 3 }, { dropped: false });
+    await dragNode('n-drag', { x: 2, y: 2 }, { dropped: false });
     expect(mutateSpy).not.toHaveBeenCalled();
 
-    await drag([{ id: 'n-drag', type: 'position', dragging: false, position: { x: 0, y: 0 } }]);
+    await dragNode('n-drag', { x: 0, y: 0 });
 
     expect(guide('vertical')).toBeNull();
     expect(guide('horizontal')).toBeNull();
