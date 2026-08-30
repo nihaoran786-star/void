@@ -139,7 +139,7 @@ import {
   INFINITE_CANVAS_PASTE_OFFSET,
   pasteSnapshotContent,
   type InfiniteCanvasClipboardSnapshot,
-} from './infiniteCanvasClipboard';
+} from '@/shared/services/infinite-canvas';
 import type {
   InfiniteCanvasContextMenuAction,
   InfiniteCanvasContextMenuState,
@@ -747,7 +747,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   /**
    * Copying a card with a picture copies the REFERENCE, not the file: the copy
-   * points at the same file in the media library. See `infiniteCanvasClipboard`
+   * points at the same file in the media library. See `InfiniteCanvasClipboard`
    * for why (and for the field white list).
    */
   const copyNodes = React.useCallback((nodeIds: readonly string[]) => {

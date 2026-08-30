@@ -12,7 +12,7 @@ import {
   clipboardSnapshotOrigin,
   copySelectionSnapshot,
   pasteSnapshotContent,
-} from './infiniteCanvasClipboard';
+} from './InfiniteCanvasClipboard';
 
 function makeDocument(
   nodes: InfiniteCanvasNode[],

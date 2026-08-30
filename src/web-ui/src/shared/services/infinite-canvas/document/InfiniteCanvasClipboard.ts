@@ -1,7 +1,9 @@
 /**
- * Copy / paste / duplicate for the Infinite Canvas panel (P4 W7, plan §2.5).
+ * Copy / paste / duplicate for the Infinite Canvas (P4 W7, plan §2.5).
  *
- * Pure logic only — no React, no reactflow, no Tauri.
+ * Pure logic only — no React, no reactflow, no Tauri. It sat in the panel's
+ * folder until the domain was sorted out; every line of it is a statement
+ * about what a document contains, so it lives with the document now.
  *
  * **Copying a card with a picture copies the REFERENCE, not the file.** The
  * `mediaRef` is carried across byte for byte, so the original and the copy
@@ -41,7 +43,7 @@ import type {
   InfiniteCanvasGenerationParams,
   InfiniteCanvasNode,
   InfiniteCanvasNodeKind,
-} from '@/shared/services/infinite-canvas';
+} from './InfiniteCanvasTypes';
 
 /** Offset a duplicate or a plain paste is nudged by, in canvas units. */
 export const INFINITE_CANVAS_PASTE_OFFSET = 32;
