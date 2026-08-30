@@ -66,10 +66,7 @@ import type {
   InfiniteCanvasGenerationParams,
   InfiniteCanvasMediaJobReader,
 } from '@/shared/services/infinite-canvas';
-import type {
-  InfiniteCanvasFlowNodeView,
-  InfiniteCanvasGenerationTask,
-} from './infiniteCanvasPanelModel';
+import type { InfiniteCanvasGenerationTask } from './infiniteCanvasPanelModel';
 import {
   summarizeInfiniteCanvasGenerationParams,
   defaultInfiniteCanvasModelId,
@@ -81,7 +78,6 @@ import {
   infiniteCanvasDomainRefKey,
   reconcileInfiniteCanvasAgentOps,
   reconcilePendingInfiniteCanvasGenerations,
-  referenceImageLabel,
   buildExpandInstruction,
   buildMaskInstruction,
   EXPAND_DIRECTIVE_KEY,
@@ -143,8 +139,6 @@ import {
   setViewportContent,
   settleResurrectedPendingContent,
   stopWaitingContent,
-  toFlowEdgeViews,
-  toFlowNodeViews,
 } from './infiniteCanvasPanelModel';
 import {
   addBlankGenerationCardContent,
@@ -233,6 +227,15 @@ import {
   canvasCropRelativePath,
   canvasScratchRelativePath,
 } from './infiniteCanvasImageRaster';
+import {
+  emptyInfiniteCanvasProjectionCache,
+  INFINITE_CANVAS_EDGE_TYPE,
+  projectInfiniteCanvasView,
+  referenceLabelsByNode,
+  type InfiniteCanvasCardToolbarActions,
+  type InfiniteCanvasNodeActions,
+} from './infiniteCanvasViewProjection';
+import { useCanvasPopovers } from './useCanvasPopovers';
 import './InfiniteCanvasPanel.scss';
 
 // The node renderers take their narrowed data props; reactflow's NodeTypes is
@@ -242,9 +245,6 @@ const NODE_TYPES = {
   [INFINITE_CANVAS_IMAGE_NODE_TYPE]: InfiniteCanvasImageNode,
   [INFINITE_CANVAS_VIDEO_NODE_TYPE]: InfiniteCanvasVideoNode,
 } as unknown as NodeTypes;
-
-/** §3: one custom edge — a hairline bezier with the midpoint insert handle. */
-const INFINITE_CANVAS_EDGE_TYPE = 'infinite-canvas-edge';
 
 const EDGE_TYPES = {
   [INFINITE_CANVAS_EDGE_TYPE]: InfiniteCanvasEdge,
@@ -290,38 +290,6 @@ const CANVAS_SCRATCH_COMPOSITE_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 const log = createLogger('InfiniteCanvasPanel');
-
-/** Shared empty list so a card with no references keeps one stable identity. */
-const EMPTY_REFERENCE_LABELS: readonly string[] = [];
-
-/**
- * H3: what the last projection produced for one card, so the next one can
- * hand back the same `data` object when nothing about the card changed.
- */
-interface ProjectionCacheEntry {
-  /** Structural fingerprint of everything `data` is built from. */
-  key: string;
-  data: Record<string, unknown>;
-}
-
-/**
- * Why a fingerprint and not object identity: a commit that lands after the
- * coalescing window has already flushed re-reads and re-parses the file, so
- * every document node is a new object even when not one byte changed. The
- * projected view data is small, plain and built in a fixed field order, so
- * serializing it is a sound "is this the same card" test — and it is nothing
- * next to the cost this avoids, which is re-reading and re-decoding the
- * card's picture from disk.
- */
-const PROJECTION_KEY_SEPARATOR = String.fromCharCode(31);
-
-function projectionKeyFor(
-  view: InfiniteCanvasFlowNodeView,
-  labels: readonly string[],
-): string {
-  return [view.type, JSON.stringify(view.data), ...labels]
-    .join(PROJECTION_KEY_SEPARATOR);
-}
 
 /** §8.1: reactflow's own attribution watermark is not part of this language. */
 const FLOW_PRO_OPTIONS = { hideAttribution: true };
@@ -484,46 +452,6 @@ function resolvePort<T>(injected: T | undefined, factory: () => T): T | undefine
   }
 }
 
-interface NodeActions {
-  commitText: (nodeId: string, text: string) => void;
-  commitPrompt: (nodeId: string, prompt: string) => void;
-  generate: (nodeId: string) => void;
-  openTool: (nodeId: string, toolId: ImageToolId) => void;
-  /** P5 W2: opens the crop editor on a card that carries a picture. */
-  cropImage: (nodeId: string) => void;
-  /** P5 W7: reverse-prompts the card's picture into its own prompt box. */
-  reversePrompt: (nodeId: string, anchor?: HTMLElement) => void;
-  retry: (nodeId: string) => void;
-  removeFailed: (nodeId: string) => void;
-  /** P3: derives a blank video card wired from an image card (image-to-video). */
-  deriveVideoCard: (nodeId: string) => void;
-  /** P4 W1: opens the full-screen viewer on this card's media. */
-  openViewer: (nodeId: string) => void;
-  /** P4 W3: opens the generation parameter popover for this card. */
-  openParams: (nodeId: string, anchor?: HTMLElement) => void;
-  /** §7.3-A: opens the model list popover for this card. */
-  openModel: (nodeId: string, anchor?: HTMLElement) => void;
-  /** §3: the card's right-edge `+` — derive the next generation card. */
-  spawnNext: (nodeId: string) => void;
-  /** §3: the midpoint handle — insert a generation card on that connection. */
-  insertOnEdge: (edgeId: string) => void;
-  /** §7.6: picks which of the card's pictures the card face shows. */
-  selectVariant: (nodeId: string, index: number) => void;
-}
-
-/**
- * §4's two output-group entries. They live in their own ref because the
- * handlers behind them (the save port, the context menu placement) are
- * declared far below the main node-action effect; a second ref keeps both
- * effects honest instead of forcing one giant declaration order.
- */
-interface CardToolbarActions {
-  saveMediaAs: (nodeId: string) => void;
-  overflow: (nodeId: string, action: InfiniteCanvasOverflowAction) => void;
-  /** K3 §5.2: send this card's picture home to the asset it belongs to. */
-  sendToShortDrama: (nodeId: string) => void;
-}
-
 /**
  * K3 §5.2: one refusal, one sentence. Every reason the write-back can give
  * back has its own line — a press that does nothing and says nothing is the
@@ -537,23 +465,6 @@ const WRITE_BACK_REFUSAL_KEYS: Record<ShortDramaCanvasWriteBackRefusal, string> 
   'unusable-picture': 'infiniteCanvas.writeBack.refused.unusablePicture',
   'save-failed': 'infiniteCanvas.writeBack.refused.saveFailed',
 };
-
-/** Ordered reference badge labels per target card (§3.2 edge-order discipline). */
-function referenceLabelsByNode(
-  document: Readonly<InfiniteCanvasDocument>,
-): Map<string, string[]> {
-  const labels = new Map<string, string[]>();
-  for (const node of document.nodes) {
-    if (node.kind !== 'image' && node.kind !== 'video') continue;
-    const collected = collectReferenceNodes(document, node.nodeId);
-    if (collected.status !== 'ok' || collected.references.length === 0) continue;
-    labels.set(
-      node.nodeId,
-      collected.references.map(reference => referenceImageLabel(reference.order)),
-    );
-  }
-  return labels;
-}
 
 export interface InfiniteCanvasPanelProps {
   workspaceId: string;
@@ -746,21 +657,19 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const generatorDraftRef = React.useRef<{ nodeId: string; value: string } | null>(null);
   /** P4 W1: the card whose media the full-screen viewer is showing. */
   const [viewerNodeId, setViewerNodeId] = React.useState<string | null>(null);
-  /** P4 W3: the card whose generation parameters are being edited. */
-  const [paramsNodeId, setParamsNodeId] = React.useState<string | null>(null);
   /**
-   * §7.3-A: the card whose MODEL LIST is open. Separate from `paramsNodeId`
-   * and mutually exclusive with it — opening one closes the other, so the two
-   * surfaces never stack on top of each other.
-   */
-  const [modelNodeId, setModelNodeId] = React.useState<string | null>(null);
-  const [modelAnchor, setModelAnchor] = React.useState<HTMLElement | null>(null);
-  /**
-   * Owner feedback 2026-08-26: every popover is anchored to the control that
-   * opened it. These hold that control, not a frozen rectangle, so the surface
+   * P4 W3 and §7.3-A: the parameter sheet and the model list. Two surfaces,
+   * one implementation, mutually exclusive by construction — opening one
+   * closes the other, so they never stack on top of each other.
+   *
+   * Owner feedback 2026-08-26: each one is anchored to the control that opened
+   * it, and holds that control rather than a frozen rectangle, so the surface
    * re-measures instead of drifting when the trigger moves.
    */
-  const [paramsAnchor, setParamsAnchor] = React.useState<HTMLElement | null>(null);
+  const popovers = useCanvasPopovers(flowNodes);
+  // The two entry points are stable for the life of the panel, so the
+  // effects that dispatch through them keep the dependency lists they had.
+  const { open: openPopover, closeAll: closeAllPopovers } = popovers;
   const [stylePickerAnchor, setStylePickerAnchor] = React.useState<HTMLElement | null>(null);
   const [imagePickerAnchor, setImagePickerAnchor] = React.useState<HTMLElement | null>(null);
   /**
@@ -894,7 +803,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   // Node callbacks flow through this ref so projectDocument stays stable while
   // the handlers depend on it (same seam the M3 commitText path used).
-  const nodeActionsRef = React.useRef<NodeActions>({
+  const nodeActionsRef = React.useRef<InfiniteCanvasNodeActions>({
     commitText: () => undefined,
     commitPrompt: () => undefined,
     generate: () => undefined,
@@ -920,7 +829,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     disconnect: () => undefined,
   });
 
-  const cardToolbarActionsRef = React.useRef<CardToolbarActions>({
+  const cardToolbarActionsRef = React.useRef<InfiniteCanvasCardToolbarActions>({
     saveMediaAs: () => undefined,
     overflow: () => undefined,
     sendToShortDrama: () => undefined,
@@ -955,185 +864,32 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, []);
 
   /**
-   * H3: the previous projection's per-card `data`, keyed by node id.
-   *
-   * `owner` is the set of inputs the cached objects closed over. A cached
-   * `data` holds the callbacks and the style catalog of the projection that
-   * built it, so the whole cache is void the moment any of them changes.
+   * H3: the previous projection's per-card `data`, keyed by node id, so an
+   * unchanged card is handed back the very same object instead of being made
+   * to re-decode its picture from disk. Owned here, threaded through the
+   * projection as a value.
    */
-  const projectionCache = React.useRef<{
-    owner: readonly unknown[];
-    entries: Map<string, ProjectionCacheEntry>;
-  }>({ owner: [], entries: new Map() });
+  const projectionCache = React.useRef(emptyInfiniteCanvasProjectionCache());
 
   const projectDocument = React.useCallback((document: InfiniteCanvasDocument) => {
     documentRef.current = document;
     setTasks(collectGenerationTasks(document));
-    const referenceLabels = referenceLabelsByNode(document);
-    const selectedIds = new Set(selectedNodeIdsRef.current);
-    const owner: readonly unknown[] = [
-      catalog, openOverflow, openStylePicker, resolvePreviewUrl,
-    ];
-    const cache = projectionCache.current;
-    const previousData = owner.length === cache.owner.length
-      && owner.every((input, index) => input === cache.owner[index])
-      ? cache.entries
-      : new Map<string, ProjectionCacheEntry>();
-    const nextData = new Map<string, ProjectionCacheEntry>();
-    setFlowNodes(toFlowNodeViews(document.nodes).map(view => {
-      const labels = referenceLabels.get(view.id) ?? EMPTY_REFERENCE_LABELS;
-      /**
-       * H3: an unchanged card keeps the very same `data` object.
-       *
-       * This runs after EVERY commit — pan/zoom end, a card drag, a prompt
-       * edit, and once per media event (a batch of four re-projects four
-       * times). Handing every card a brand-new `data` on each of those made
-       * each one re-run its media effect and re-decode its picture from disk.
-       */
-      const key = projectionKeyFor(view, labels);
-      const cached = previousData.get(view.id);
-      const data = cached && cached.key === key
-        ? cached.data
-        : buildFlowNodeData(view, labels);
-      nextData.set(view.id, { key, data });
-      return {
-        id: view.id,
-        type: view.type,
-        position: view.position,
-        // The projection is rebuilt on every commit, and reactflow's node list
-        // is controlled here — so a re-projection that dropped `selected` would
-        // silently deselect the card mid-edit and take its generator (§6) with
-        // it. Selection is panel state; carry it across.
-        selected: selectedIds.has(view.id),
-        data,
-      };
-    }));
-    projectionCache.current = { owner, entries: nextData };
-    setFlowEdges(toFlowEdgeViews(document.edges).map(view => ({
-      ...view,
-      type: INFINITE_CANVAS_EDGE_TYPE,
-      data: {
-        onInsertCard: (edgeId: string) => nodeActionsRef.current.insertOnEdge(edgeId),
-        onDisconnect: (edgeId: string) => edgeActionsRef.current.disconnect(edgeId),
-      },
-    })));
-
-    function buildFlowNodeData(
-      view: InfiniteCanvasFlowNodeView,
-      referenceLabelsForNode: readonly string[],
-    ): Record<string, unknown> {
-      return view.type === INFINITE_CANVAS_TEXT_NODE_TYPE
-        ? {
-            text: view.data.text ?? '',
-            onCommitText: (nodeId: string, text: string) => (
-              nodeActionsRef.current.commitText(nodeId, text)
-            ),
-          }
-        : {
-            mediaRef: view.data.mediaRef,
-            prompt: view.data.prompt,
-            generation: view.data.generation,
-            derivedFrom: view.data.derivedFrom,
-            referenceLabels: referenceLabelsForNode,
-            // K3: which short-drama asset this card belongs to. Read-only from
-            // here on — no card control can change or clear it.
-            ...(view.data.domainRef === undefined
-              ? {}
-              : {
-                  domainRef: view.data.domainRef,
-                  // C1: the sticky half of "this one does not file itself" —
-                  // the last press on this card could not resolve the asset's
-                  // coordinates. The other half (a batch bigger than one) the
-                  // card derives from `generationParams` itself, live, so the
-                  // badge answers before the press as well as after it.
-                  ...(manualReturnNodeIdsRef.current.has(view.id)
-                    ? { domainManualReturn: true }
-                    : {}),
-                }),
-            // K3 §5.2: the way home. Only a card that belongs to an asset AND
-            // holds a picture has one to offer.
-            ...(view.data.domainRef && view.data.mediaRef
-              ? {
-                  onSendToShortDrama: (nodeId: string) => (
-                    cardToolbarActionsRef.current.sendToShortDrama(nodeId)
-                  ),
-                }
-              : {}),
-            resolvePreviewUrl,
-            onCommitPrompt: (nodeId: string, prompt: string) => (
-              nodeActionsRef.current.commitPrompt(nodeId, prompt)
-            ),
-            onGenerate: (nodeId: string) => nodeActionsRef.current.generate(nodeId),
-            onRetryGeneration: (nodeId: string) => nodeActionsRef.current.retry(nodeId),
-            onRemoveFailedGeneration: (nodeId: string) => (
-              nodeActionsRef.current.removeFailed(nodeId)
-            ),
-            ...(view.data.mediaRef
-              ? {
-                  onOpenViewer: (nodeId: string) => (
-                    nodeActionsRef.current.openViewer(nodeId)
-                  ),
-                }
-              : {}),
-            // §7.6: the card's own pictures and the entry that switches
-            // between them. Both are absent on a card that has none.
-            ...(view.data.mediaVariants
-              ? {
-                  mediaVariants: view.data.mediaVariants,
-                  activeVariantIndex: view.data.activeVariantIndex,
-                  onSelectVariant: (nodeId: string, index: number) => (
-                    nodeActionsRef.current.selectVariant(nodeId, index)
-                  ),
-                }
-              : {}),
-            // P4 W3: every generation-capable card carries the parameter
-            // entry; the pill shows the collapsed choice, if any.
-            generationParams: view.data.generationParams,
-            generationParamsSummary: summarizeInfiniteCanvasGenerationParams(
-              view.data.generationParams,
-              view.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' : 'image',
-            ),
-            onOpenParams: (nodeId: string, anchor?: HTMLElement) =>
-              nodeActionsRef.current.openParams(nodeId, anchor),
-            onSpawnNext: (nodeId: string) => nodeActionsRef.current.spawnNext(nodeId),
-            ...(view.data.mediaRef
-              ? {
-                  onSaveMediaAs: (nodeId: string) => (
-                    cardToolbarActionsRef.current.saveMediaAs(nodeId)
-                  ),
-                }
-              : {}),
-            onOpenOverflow: openOverflow,
-            // The image-only surface (style preset, five tools, derive-video)
-            // stays off the P3-minimal video card.
-            ...(view.type === INFINITE_CANVAS_IMAGE_NODE_TYPE
-              ? {
-                  stylePresetId: view.data.stylePresetId,
-                  stylePresetName: view.data.stylePresetId
-                    ? catalog.getById(view.data.stylePresetId)?.name
-                    : undefined,
-                  // §7.5: the input box's style entry shows the chosen look,
-                  // not just its name.
-                  styleThumbnailRef: view.data.stylePresetId
-                    ? catalog.getById(view.data.stylePresetId)?.thumbnailRef
-                    : undefined,
-                  onOpenStylePicker: openStylePicker,
-                  onRunImageTool: (nodeId: string, toolId: ImageToolId) => (
-                    nodeActionsRef.current.openTool(nodeId, toolId)
-                  ),
-                  // §4's first entry. Only on cards that carry a picture —
-                  // §7's rule is "hide what cannot act", not "grey it out".
-                  ...(view.data.mediaRef
-                    ? {
-                        onCropImage: (nodeId: string) => (
-                          nodeActionsRef.current.cropImage(nodeId)
-                        ),
-                      }
-                    : {}),
-                }
-              : {}),
-          };
-    }
+    const projection = projectInfiniteCanvasView(document, {
+      catalog,
+      resolvePreviewUrl,
+      referenceLabels: referenceLabelsByNode(document),
+      selectedIds: new Set(selectedNodeIdsRef.current),
+      manualReturnNodeIds: manualReturnNodeIdsRef.current,
+      openOverflow,
+      openStylePicker,
+      nodeActionsRef,
+      edgeActionsRef,
+      cardToolbarActionsRef,
+      cache: projectionCache.current,
+    });
+    projectionCache.current = projection.cache;
+    setFlowNodes(projection.nodes);
+    setFlowEdges(projection.edges);
   }, [catalog, openOverflow, openStylePicker, resolvePreviewUrl]);
 
   /**
@@ -2225,15 +1981,11 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       },
       openParams: (nodeId, anchor) => {
         if (!findMediaNode(nodeId)) return;
-        setModelNodeId(null);
-        setParamsAnchor(anchor ?? null);
-        setParamsNodeId(current => (current === nodeId ? null : nodeId));
+        openPopover('params', nodeId, anchor);
       },
       openModel: (nodeId, anchor) => {
         if (!findMediaNode(nodeId)) return;
-        setParamsNodeId(null);
-        setModelAnchor(anchor ?? null);
-        setModelNodeId(current => (current === nodeId ? null : nodeId));
+        openPopover('model', nodeId, anchor);
       },
       // §3: "keep going from this card". Nothing new on the command side —
       // the same blank-card + connect pair the image-to-video entry uses, so
@@ -2295,7 +2047,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         }, { history: true });
       },
     };
-  }, [commit, findImageNode, findMediaNode, generateForNode, retryGeneration]);
+  }, [commit, findImageNode, findMediaNode, generateForNode, openPopover, retryGeneration]);
 
   /**
    * P4 review C5 (plan §265): every piece of panel memory is scoped to ONE
@@ -2316,8 +2068,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setContextMenu(null);
     setDeleteRequest(null);
     setViewerNodeId(null);
-    setParamsNodeId(null);
-    setModelNodeId(null);
+    closeAllPopovers();
     setStylePickerNodeId(null);
     setNotice(null);
     setToolIntent(null);
@@ -2333,7 +2084,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setReversePromptSpend(null);
     setReversePromptPendingNodeId(null);
     reversePromptNodeIdRef.current = null;
-  }, [documentId, workspaceId]);
+  }, [closeAllPopovers, documentId, workspaceId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -3143,59 +2894,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   // —— P4 W3: generation parameters ————————————————————————————————————————
 
-  /**
-   * The card the popover is editing, if it still exists and still qualifies.
-   * Read off the projection (not documentRef) so the popover re-renders as
-   * soon as a written parameter comes back through the document.
-   */
-  const paramsTarget = React.useMemo(() => {
-    if (!paramsNodeId) return undefined;
-    const node = flowNodes.find(entry => entry.id === paramsNodeId);
-    if (!node
-      || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
-        && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
-      return undefined;
-    }
-    return {
-      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' as const : 'image' as const,
-      params: node.data.generationParams as InfiniteCanvasGenerationParams | undefined,
-    };
-  }, [flowNodes, paramsNodeId]);
-
-  React.useEffect(() => {
-    if (paramsNodeId && !paramsTarget) setParamsNodeId(null);
-  }, [paramsNodeId, paramsTarget]);
-
-  /** §7.3-A: the same projection for the model list, on its own card. */
-  const modelTarget = React.useMemo(() => {
-    if (!modelNodeId) return undefined;
-    const node = flowNodes.find(entry => entry.id === modelNodeId);
-    if (!node
-      || (node.type !== INFINITE_CANVAS_IMAGE_NODE_TYPE
-        && node.type !== INFINITE_CANVAS_VIDEO_NODE_TYPE)) {
-      return undefined;
-    }
-    return {
-      mediaKind: node.type === INFINITE_CANVAS_VIDEO_NODE_TYPE ? 'video' as const : 'image' as const,
-      params: node.data.generationParams as InfiniteCanvasGenerationParams | undefined,
-    };
-  }, [flowNodes, modelNodeId]);
-
-  React.useEffect(() => {
-    if (modelNodeId && !modelTarget) setModelNodeId(null);
-  }, [modelNodeId, modelTarget]);
-
   const onChangeGenerationParams = React.useCallback((params: InfiniteCanvasGenerationParams) => {
-    const nodeId = paramsNodeId;
+    const nodeId = popovers.params.nodeId;
     if (!nodeId) return;
     void commit(document => setNodeGenerationParamsContent(document, nodeId, params), { history: true });
-  }, [commit, paramsNodeId]);
+  }, [commit, popovers.params.nodeId]);
 
   const onChangeGenerationModel = React.useCallback((params: InfiniteCanvasGenerationParams) => {
-    const nodeId = modelNodeId;
+    const nodeId = popovers.model.nodeId;
     if (!nodeId) return;
     void commit(document => setNodeGenerationParamsContent(document, nodeId, params), { history: true });
-  }, [commit, modelNodeId]);
+  }, [commit, popovers.model.nodeId]);
 
   // —— P4 W7: right-click menu and the selection toolbar ————————————————————
 
@@ -3712,22 +3421,22 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onClose={() => setStylePickerNodeId(null)}
         />
       ) : null}
-      {paramsTarget ? (
+      {popovers.params.target ? (
         <InfiniteCanvasParamsPopover
-          mediaKind={paramsTarget.mediaKind}
-          params={paramsTarget.params}
-          anchor={paramsAnchor}
+          mediaKind={popovers.params.target.mediaKind}
+          params={popovers.params.target.params}
+          anchor={popovers.params.anchor}
           onChange={onChangeGenerationParams}
-          onClose={() => setParamsNodeId(null)}
+          onClose={popovers.params.close}
         />
       ) : null}
-      {modelTarget ? (
+      {popovers.model.target ? (
         <InfiniteCanvasModelPopover
-          mediaKind={modelTarget.mediaKind}
-          params={modelTarget.params}
-          anchor={modelAnchor}
+          mediaKind={popovers.model.target.mediaKind}
+          params={popovers.model.target.params}
+          anchor={popovers.model.anchor}
           onChange={onChangeGenerationModel}
-          onClose={() => setModelNodeId(null)}
+          onClose={popovers.model.close}
         />
       ) : null}
       {deleteRequest ? (

@@ -214,14 +214,14 @@ export default tseslint.config(
     },
   },
   {
-    // Descending ladder, not a permanent ceiling. 4200 clears the largest
-    // panel today (InfiniteCanvasPanel.tsx, 4142 lines) by one notch. Each
-    // extraction that lands should drop this to the next step down — 3900,
-    // 3500, 3000 — so the number can only ever go one direction. `warn`
+    // Descending ladder, not a permanent ceiling. 3900 clears the largest
+    // panel today (InfiniteCanvasPanel.tsx, 3851 lines) by one notch. Each
+    // extraction that lands should drop this to the next step down — 3500,
+    // 3000 — so the number can only ever go one direction. `warn`
     // because it is a ratchet, not a gate; the gate is that it never rises.
     files: ['src/app/components/panels/**/*.{ts,tsx}'],
     rules: {
-      'max-lines': ['warn', { max: 4200, skipBlankLines: false, skipComments: false }],
+      'max-lines': ['warn', { max: 3900, skipBlankLines: false, skipComments: false }],
     },
   },
   {
