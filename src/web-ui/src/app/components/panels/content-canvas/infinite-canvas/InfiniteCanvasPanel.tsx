@@ -50,7 +50,6 @@ import type { ShortDramaProject } from '@/shared/services/short-drama/ShortDrama
 import type {
   ImageToolErrorKind,
   ImageToolId,
-  MaskImageToolId,
   InfiniteCanvasDocument,
   InfiniteCanvasDocumentError,
   InfiniteCanvasDocumentService,
@@ -62,7 +61,6 @@ import type {
   SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import type {
-  CanvasExpandInsets,
   InfiniteCanvasGenerationParams,
   InfiniteCanvasMediaJobReader,
 } from '@/shared/services/infinite-canvas';
@@ -78,12 +76,8 @@ import {
   infiniteCanvasDomainRefKey,
   reconcileInfiniteCanvasAgentOps,
   reconcilePendingInfiniteCanvasGenerations,
-  buildExpandInstruction,
-  buildMaskInstruction,
-  EXPAND_DIRECTIVE_KEY,
   IMAGE_TOOL_DEFINITIONS,
   isMaskImageTool,
-  maskDirectiveKey,
 } from '@/shared/services/infinite-canvas';
 import type { StylePresetCatalog } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
@@ -112,7 +106,6 @@ import {
   addDomainImportNodeContent,
   addImageNodeContent,
   addTextNodeContent,
-  applyLocalDerivedMedia,
   beginDerivedOperationContent,
   classifyDeletionTargets,
   collectGenerationTasks,
@@ -224,10 +217,6 @@ import {
 } from './InfiniteCanvasOverflowMenu';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
 import {
-  canvasCropRelativePath,
-  canvasScratchRelativePath,
-} from './infiniteCanvasImageRaster';
-import {
   emptyInfiniteCanvasProjectionCache,
   INFINITE_CANVAS_EDGE_TYPE,
   projectInfiniteCanvasView,
@@ -235,6 +224,7 @@ import {
   type InfiniteCanvasCardToolbarActions,
   type InfiniteCanvasNodeActions,
 } from './infiniteCanvasViewProjection';
+import { useCanvasEditorLanes } from './useCanvasEditorLanes';
 import { useCanvasPopovers } from './useCanvasPopovers';
 import './InfiniteCanvasPanel.scss';
 
@@ -315,28 +305,6 @@ interface GenerationNotice {
 }
 
 /**
- * Why a canvas PNG did not reach the disk, in words the owner can act on.
- *
- * P5 review P11: every non-`written` status used to collapse into one
- * "saving failed, this is a backend problem" line. `invalid_input` is what the
- * command reports for a payload it will not take — in practice a picture too
- * large to send — and telling someone to retry a picture that will never fit
- * is worse than telling them nothing.
- */
-function assetWriteNotice(
-  lane: 'mask' | 'crop' | 'expand',
-  status: 'invalid_input' | 'path_denied' | 'backend',
-): GenerationNotice {
-  if (status === 'invalid_input') {
-    return { messageKey: `infiniteCanvas.${lane}.writeTooLarge`, errorKind: 'invalid-input' };
-  }
-  if (status === 'path_denied') {
-    return { messageKey: `infiniteCanvas.${lane}.writeDenied`, errorKind: 'invalid-input' };
-  }
-  return { messageKey: `infiniteCanvas.${lane}.writeFailed`, errorKind: 'backend' };
-}
-
-/**
  * A five-tool action that has been picked but not yet sent (§7.4.3).
  *
  * There is no dialog behind this any more. Pressing "smart upscale" writes the
@@ -351,13 +319,6 @@ interface ToolIntent {
   toolId: ImageToolId;
   /** The template as prefilled, so the box knows which 【】 are the tool's. */
   template: string;
-}
-
-/** P5 W4: the card whose picture is open in the mask editor, and for which tool. */
-interface MaskEditorRequest {
-  nodeId: string;
-  toolId: MaskImageToolId;
-  mediaRef: InfiniteCanvasMediaRef;
 }
 
 /**
@@ -380,18 +341,6 @@ interface ReversePromptChoice {
 interface ReversePromptSpendRequest {
   nodeId: string;
   anchor: HTMLElement | null;
-}
-
-/** P5 W2: the card whose picture is open in the crop editor. */
-interface CropEditorRequest {
-  nodeId: string;
-  mediaRef: InfiniteCanvasMediaRef;
-}
-
-/** P6: the card whose picture is open in the outpainting editor. */
-interface ExpandEditorRequest {
-  nodeId: string;
-  mediaRef: InfiniteCanvasMediaRef;
 }
 
 /**
@@ -621,17 +570,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   const [stylePickerNodeId, setStylePickerNodeId] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<GenerationNotice | null>(null);
   const [toolIntent, setToolIntent] = React.useState<ToolIntent | null>(null);
-  /** P5: the two full-panel editing states. Mutually exclusive by construction. */
-  const [maskRequest, setMaskRequest] = React.useState<MaskEditorRequest | null>(null);
-  const [cropRequest, setCropRequest] = React.useState<CropEditorRequest | null>(null);
-  const [expandRequest, setExpandRequest] = React.useState<ExpandEditorRequest | null>(null);
   /**
    * Read by the board's keyboard listener. While an editor is open, Ctrl+Z
    * belongs to that editor's own stroke stack and must not reach the document
-   * history — the two stacks are completely isolated (plan §9).
+   * history — the two stacks are completely isolated (plan §9). Written just
+   * below, where the three editors are declared.
    */
   const editorOpenRef = React.useRef(false);
-  editorOpenRef.current = Boolean(maskRequest || cropRequest || expandRequest);
   /**
    * P5 W7: the card whose reverse-prompt call is in flight, and the pending
    * "replace or append" choice when the prompt box was not empty.
@@ -1392,23 +1337,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     });
   }, [commit, findImageNode, prepareDispatch, submitOperation]);
 
-  // —— P5: crop and the mask lane ————————————————————————————————————————————
-
-  /**
-   * Adversarial review P7: one press of a board-filling editor's send button
-   * is one submission.
-   *
-   * Each confirm below reads its request out of React state and clears it, but
-   * a second call in the SAME tick still sees the old value — a double click,
-   * a stuck key repeat or a re-entrant event handler therefore wrote the
-   * composite twice and, for mask and expand, submitted two paid operations
-   * for one press. A ref settles it before the render that would have.
-   *
-   * It is released when an editor OPENS rather than when a confirm finishes:
-   * the editor closes on confirm either way, so the only thing that can
-   * legitimately submit again is a fresh open.
-   */
-  const editorSubmittingRef = React.useRef(false);
+  // —— P5 / P6: the three board-filling editors ——————————————————————————————
 
   const assetWriter = React.useMemo(
     () => resolvePort(writeCanvasImage, () => getInfiniteCanvasAssetWriter()),
@@ -1428,235 +1357,30 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   }, [pruneCanvasScratch, workspacePath]);
 
   /**
-   * P5 W2 crop: a LOCAL derivation (PRD §3.8).
-   *
-   * Strict order — write the file first, mutate the document only once the
-   * bytes are on disk — so a card pointing at a file that does not exist is
-   * unreachable. The derived card gets its `mediaRef` in the SAME mutation
-   * that registers the operation, which is the one place in this product where
-   * the front end writes a derived card's mediaRef itself; everywhere else the
-   * media bridge does it. The source card is not touched at all.
+   * Crop, red marks and outpainting: three editors, one chain shape — write
+   * the picture to disk first, touch the document only once the bytes have
+   * landed, and never let a failed write reach a paid submission.
    */
-  const confirmCrop = React.useCallback(async (base64Png: string) => {
-    // P7: one press, one crop. See `editorSubmittingRef`.
-    if (editorSubmittingRef.current) return;
-    editorSubmittingRef.current = true;
-    const request = cropRequest;
-    setCropRequest(null);
-    if (!request) return;
-    if (!assetWriter) {
-      setNotice({ messageKey: 'infiniteCanvas.crop.writeFailed', errorKind: 'unavailable' });
-      return;
-    }
-    const relativePath = canvasCropRelativePath(request.mediaRef.relativePath, Date.now());
-    const written = await assetWriter({ workspacePath, relativePath, base64Png });
-    if (written.status !== 'written') {
-      setNotice(assetWriteNotice('crop', written.status));
-      return;
-    }
-    const operationId = createInfiniteCanvasId('op');
-    const derivedNodeId = `node-${operationId}`;
-    const edgeId = `edge-${operationId}`;
-    const next = await commit(current => {
-      const begun = beginDerivedOperationContent(
-        current,
-        request.nodeId,
-        'crop',
-        operationId,
-        derivedNodeId,
-        edgeId,
-      );
-      return applyLocalDerivedMedia({ ...current, ...begun }, derivedNodeId, {
-        workspacePath,
-        relativePath: written.relativePath,
-      });
-    });
-    // P5 review P12: the bytes are already on disk by now. If the source card
-    // disappeared between opening the editor and confirming (a delete, an
-    // agent op, a reload), `beginDerivedOperationContent` grows nothing and the
-    // crop became a file with no card — silently, until the user found it in
-    // the media library. Now it says so.
-    if (!next?.nodes.some(node => node.nodeId === derivedNodeId)) {
-      setNotice({ messageKey: 'infiniteCanvas.crop.cardMissing', errorKind: 'invalid-input' });
-    }
-  }, [assetWriter, commit, cropRequest, workspacePath]);
-
-  /**
-   * P5 W4 mask lane: the red-mark composite becomes the reference of an
-   * ordinary derived generation (PRD §3.7).
-   *
-   * Nothing about the submission contract changes — `GenerateImage` still sees
-   * "a prompt and one reference image" and knows nothing about marks. What
-   * changes is WHICH image: the scratch composite replaces the source picture
-   * as the edit target, and the connected reference cards are deliberately
-   * dropped so exactly one path travels with the request.
-   *
-   * Order is the money rule: write the composite first, and submit only if it
-   * landed. A failed write must never reach a paid submission.
-   */
-  const confirmMask = React.useCallback(async (
-    base64Png: string,
-    instruction: string,
-  ) => {
-    // P7: one press, one paid submission. See `editorSubmittingRef`.
-    if (editorSubmittingRef.current) return;
-    editorSubmittingRef.current = true;
-    const request = maskRequest;
-    setMaskRequest(null);
-    if (!request) return;
-    const found = findImageNode(request.nodeId);
-    if (!found?.node.mediaRef) return;
-    const { document, node } = found;
-
-    const finalPrompt = buildMaskInstruction(t(maskDirectiveKey(request.toolId)), instruction);
-    // Same gate as every other dispatch: a prompt, a reachable target session.
-    // Its collected references are intentionally NOT forwarded (see above).
-    if (!prepareDispatch(document, request.nodeId, finalPrompt)) return;
-    if (!assetWriter) {
-      setNotice({ messageKey: 'infiniteCanvas.mask.writeFailed', errorKind: 'unavailable' });
-      return;
-    }
-
-    const operationId = createInfiniteCanvasId('op');
-    // Keyed on the operation id: re-submitting one operation overwrites one
-    // file rather than piling up, and it lands nowhere near the four media
-    // library scan roots.
-    const scratchRelativePath = canvasScratchRelativePath(operationId);
-    const written = await assetWriter({
-      workspacePath,
-      relativePath: scratchRelativePath,
-      base64Png,
-    });
-    if (written.status !== 'written') {
-      setNotice(assetWriteNotice('mask', written.status));
-      return;
-    }
-
-    const derivedNodeId = `node-${operationId}`;
-    const edgeId = `edge-${operationId}`;
-    await commit(current => {
-      const begun = beginDerivedOperationContent(
-        current,
-        request.nodeId,
-        request.toolId,
-        operationId,
-        derivedNodeId,
-        edgeId,
-      );
-      return setNodePromptContent({ ...current, ...begun }, derivedNodeId, finalPrompt);
-    });
-    await submitOperation({
-      operationId,
-      kind: request.toolId,
-      resultMode: 'derived',
-      nodeId: derivedNodeId,
-      sourceNodeId: request.nodeId,
-      prompt: finalPrompt,
-      stylePresetId: node.stylePresetId,
-      references: [],
-      editTargetMediaRef: { workspacePath, relativePath: written.relativePath },
-    });
-  }, [
+  const editors = useCanvasEditorLanes({
+    workspacePath,
     assetWriter,
     commit,
-    findImageNode,
-    maskRequest,
-    prepareDispatch,
     submitOperation,
-    t,
-    workspacePath,
-  ]);
-
-  /**
-   * P6 expand lane: the outpainting composite becomes the edit target of an
-   * ordinary derived generation.
-   *
-   * Exactly the mask lane's chain, and deliberately so — write the composite
-   * first, submit only if it landed, derive a new card, never touch the source.
-   * The only differences are WHAT the composite is (the picture on a larger
-   * transparent canvas instead of the picture with red marks burnt in) and
-   * where the prompt comes from (the frame, through the existing `expand`
-   * instruction template, instead of the user's sentence).
-   */
-  const confirmExpand = React.useCallback(async (
-    base64Png: string,
-    insets: CanvasExpandInsets,
-    sceneDescription: string,
-  ) => {
-    // P7: one press, one paid submission. See `editorSubmittingRef`.
-    if (editorSubmittingRef.current) return;
-    editorSubmittingRef.current = true;
-    const request = expandRequest;
-    setExpandRequest(null);
-    if (!request) return;
-    const found = findImageNode(request.nodeId);
-    if (!found?.node.mediaRef) return;
-    const { document, node } = found;
-
-    // §7.4.4: whatever the user typed underneath describes the room being
-    // added. Empty is fine — the template's own fallback covers it — and it
-    // goes through the SAME assembler either way.
-    const finalPrompt = buildExpandInstruction(
-      t(EXPAND_DIRECTIVE_KEY),
-      insets,
-      sceneDescription,
-    );
-    // Same gate as every other dispatch: a prompt, a reachable target session.
-    if (!prepareDispatch(document, request.nodeId, finalPrompt)) return;
-    if (!assetWriter) {
-      setNotice({ messageKey: 'infiniteCanvas.expand.writeFailed', errorKind: 'unavailable' });
-      return;
-    }
-
-    const operationId = createInfiniteCanvasId('op');
-    const scratchRelativePath = canvasScratchRelativePath(operationId, 'expand');
-    const written = await assetWriter({
-      workspacePath,
-      relativePath: scratchRelativePath,
-      base64Png,
-    });
-    if (written.status !== 'written') {
-      // The 32 MB ceiling lands here as a typed `invalid_input`, which the
-      // shared notice turns into "the expanded picture is too large to save.
-      // Nothing was generated and nothing was charged."
-      setNotice(assetWriteNotice('expand', written.status));
-      return;
-    }
-
-    const derivedNodeId = `node-${operationId}`;
-    const edgeId = `edge-${operationId}`;
-    await commit(current => {
-      const begun = beginDerivedOperationContent(
-        current,
-        request.nodeId,
-        'expand',
-        operationId,
-        derivedNodeId,
-        edgeId,
-      );
-      return setNodePromptContent({ ...current, ...begun }, derivedNodeId, finalPrompt);
-    });
-    await submitOperation({
-      operationId,
-      kind: 'expand',
-      resultMode: 'derived',
-      nodeId: derivedNodeId,
-      sourceNodeId: request.nodeId,
-      prompt: finalPrompt,
-      stylePresetId: node.stylePresetId,
-      references: [],
-      editTargetMediaRef: { workspacePath, relativePath: written.relativePath },
-    });
-  }, [
-    assetWriter,
-    commit,
-    expandRequest,
-    findImageNode,
     prepareDispatch,
-    submitOperation,
+    findImageNode,
+    createOperationId: () => createInfiniteCanvasId('op'),
+    setNotice,
     t,
-    workspacePath,
-  ]);
+  });
+  editorOpenRef.current = editors.anyOpen;
+  // Stable for the life of the panel, so the effects that reach for them
+  // keep the dependency lists they had.
+  const { close: closeMaskEditor, open: openMaskEditor } = editors.mask;
+  const { close: closeCropEditor, open: openCropEditor } = editors.crop;
+  const { open: openExpandEditor } = editors.expand;
+  const maskRequest = editors.mask.request;
+  const cropRequest = editors.crop.request;
+  const expandRequest = editors.expand.request;
 
   // —— P5 W7: reverse-prompt ————————————————————————————————————————————————
 
@@ -1884,20 +1608,14 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         // SAME shared input, mounted at the bottom of the editor (§7.4.3).
         if (isMaskImageTool(toolId)) {
           setToolIntent(null);
-          setCropRequest(null);
-          setExpandRequest(null);
-          editorSubmittingRef.current = false;
-          setMaskRequest({ nodeId, toolId, mediaRef: found.node.mediaRef });
+          openMaskEditor({ nodeId, toolId, mediaRef: found.node.mediaRef });
           return;
         }
         // P6: outpainting is a frame you drag, not a direction you describe.
         // The "more" drawer entry is unchanged; what it opens is.
         if (toolId === 'expand') {
           setToolIntent(null);
-          setCropRequest(null);
-          setMaskRequest(null);
-          editorSubmittingRef.current = false;
-          setExpandRequest({ nodeId, mediaRef: found.node.mediaRef });
+          openExpandEditor({ nodeId, mediaRef: found.node.mediaRef });
           return;
         }
         // §7.4.3: the remaining tools write their instruction into the card's
@@ -1938,10 +1656,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         const found = findImageNode(nodeId);
         if (!found?.node.mediaRef) return;
         setToolIntent(null);
-        setMaskRequest(null);
-        setExpandRequest(null);
-        editorSubmittingRef.current = false;
-        setCropRequest({ nodeId, mediaRef: found.node.mediaRef });
+        openCropEditor({ nodeId, mediaRef: found.node.mediaRef });
       },
       retry: nodeId => {
         void retryGeneration(nodeId);
@@ -2047,7 +1762,17 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         }, { history: true });
       },
     };
-  }, [commit, findImageNode, findMediaNode, generateForNode, openPopover, retryGeneration]);
+  }, [
+    commit,
+    findImageNode,
+    findMediaNode,
+    generateForNode,
+    openCropEditor,
+    openExpandEditor,
+    openMaskEditor,
+    openPopover,
+    retryGeneration,
+  ]);
 
   /**
    * P4 review C5 (plan §265): every piece of panel memory is scoped to ONE
@@ -2072,8 +1797,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setStylePickerNodeId(null);
     setNotice(null);
     setToolIntent(null);
-    setMaskRequest(null);
-    setCropRequest(null);
+    closeMaskEditor();
+    closeCropEditor();
     // P5 review C9: the three surfaces P5 added are node-scoped too. An
     // overflow drawer or a "replace or append" choice left standing across a
     // document switch points at a node id that no longer exists here, and a
@@ -2084,7 +1809,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setReversePromptSpend(null);
     setReversePromptPendingNodeId(null);
     reversePromptNodeIdRef.current = null;
-  }, [closeAllPopovers, documentId, workspaceId]);
+  }, [closeAllPopovers, closeCropEditor, closeMaskEditor, documentId, workspaceId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -3604,8 +3329,8 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           two prompt boxes for one card is exactly the confusion the shared
           input was meant to remove.
         */}
-        {generatorTarget && generatorPlacement && !maskRequest && !cropRequest
-          && !expandRequest ? (
+        {generatorTarget && generatorPlacement && !maskRequest
+          && !cropRequest && !expandRequest ? (
           <InfiniteCanvasGenerator
             target={generatorTarget}
             placement={generatorPlacement}
@@ -3681,9 +3406,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               nodeActionsRef.current.openModel(maskRequest.nodeId, anchor),
           }}
           onConfirm={payload => {
-            void confirmMask(payload.base64Png, payload.instruction);
+            void editors.mask.confirm(payload.base64Png, payload.instruction);
           }}
-          onClose={() => setMaskRequest(null)}
+          onClose={editors.mask.close}
         />
       ) : null}
       {/*
@@ -3816,9 +3541,13 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
               nodeActionsRef.current.openModel(expandRequest.nodeId, anchor),
           }}
           onConfirm={payload => {
-            void confirmExpand(payload.base64Png, payload.insets, payload.prompt);
+            void editors.expand.confirm(
+              payload.base64Png,
+              payload.insets,
+              payload.prompt,
+            );
           }}
-          onClose={() => setExpandRequest(null)}
+          onClose={editors.expand.close}
         />
       ) : null}
       {cropRequest ? (
@@ -3827,9 +3556,9 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           mediaRef={cropRequest.mediaRef}
           resolvePreviewUrl={resolvePreviewUrl}
           onConfirm={payload => {
-            void confirmCrop(payload.base64Png);
+            void editors.crop.confirm(payload.base64Png);
           }}
-          onClose={() => setCropRequest(null)}
+          onClose={editors.crop.close}
         />
       ) : null}
       {viewerNodeId ? (
