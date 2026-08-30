@@ -55,7 +55,6 @@ import {
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
 import {
-  canvasFlow,
   canvasNodeIds,
   deleteNodes,
   dragNode,
@@ -317,7 +316,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     await click(toolbarButton('undo'));
     expect(toolbarButton('undo').disabled).toBe(true);
 
-    await generateFromCanvasGenerator(container, canvasFlow, 'card-a');
+    await generateFromCanvasGenerator(container, 'card-a');
     // Dispatch itself is not an edit either.
     expect(toolbarButton('undo').disabled).toBe(true);
 
@@ -372,7 +371,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     expect(toolbarButton('undo').disabled).toBe(false);
 
     // While the drag sits on the stack, a generation result fills that card.
-    await generateFromCanvasGenerator(container, canvasFlow, 'card-a');
+    await generateFromCanvasGenerator(container, 'card-a');
     await act(async () => {
       eventBus.emit({
         eventType: 'Completed',
@@ -565,7 +564,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
   // the card did not exist, and no second one is coming.
   /** Runs the real dispatch lane so `card-a` is genuinely mid-generation. */
   async function startGeneration(): Promise<void> {
-    await generateFromCanvasGenerator(container, canvasFlow, 'card-a');
+    await generateFromCanvasGenerator(container, 'card-a');
   }
 
   /** Deletes `card-a` through the one gate, confirming the pending warning. */

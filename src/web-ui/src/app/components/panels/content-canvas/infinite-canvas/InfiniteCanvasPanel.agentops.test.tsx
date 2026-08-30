@@ -17,7 +17,6 @@ import { Simulate } from 'react-dom/test-utils';
 import {
   clickCanvasCreateMenuItem,
   generateFromCanvasGenerator,
-  selectCanvasCards,
 } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
@@ -58,11 +57,11 @@ import {
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
 import {
-  canvasFlow,
   canvasNode,
   canvasNodes,
   connectNodes,
   resetCanvasFlow,
+  selectNodes,
 } from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -254,7 +253,7 @@ describe('InfiniteCanvasPanel P3 agent-canvas loop (W5)', () => {
 
     // Write the camera-move prompt in the bottom generator, which acts on the
     // selected video card (visual language §6).
-    await selectCanvasCards(canvasFlow, [videoNodeId]);
+    await selectNodes([videoNodeId]);
     const promptInput = container.querySelector('[data-canvas-generator-field="prompt"]');
     expect(promptInput).not.toBeNull();
     await act(async () => {
@@ -265,7 +264,7 @@ describe('InfiniteCanvasPanel P3 agent-canvas loop (W5)', () => {
     });
 
     // Generate: registers a self pending VIDEO generation, then dispatches.
-    await generateFromCanvasGenerator(container, canvasFlow, videoNodeId);
+    await generateFromCanvasGenerator(container, videoNodeId);
 
     expect(recording.invocations).toHaveLength(1);
     const invocation = recording.invocations[0];

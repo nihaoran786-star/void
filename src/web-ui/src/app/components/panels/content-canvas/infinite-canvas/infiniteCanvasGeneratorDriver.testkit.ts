@@ -7,10 +7,15 @@
  * panel test that needs a live generation goes through here, so the next
  * presentation change is one edit, not ten.
  *
+ * The board these drivers act on lives in infiniteCanvasPanel.testkit: they
+ * reach the panel through the same selection driver every other test uses.
+ *
  * Not imported by any production module.
  */
 import { act } from 'react';
 import { Simulate } from 'react-dom/test-utils';
+
+import { selectNodes } from './infiniteCanvasPanel.testkit';
 
 /**
  * §8: the four "new card" entries left the top toolbar row for the floating
@@ -40,17 +45,6 @@ export async function clickCanvasCreateMenuItem(
   });
 }
 
-/** Mirrors reactflow's selection callback into the panel. */
-export async function selectCanvasCards(
-  flow: { props: { onSelectionChange?: (selection: { nodes: { id: string }[] }) => void } },
-  nodeIds: readonly string[],
-): Promise<void> {
-  await act(async () => {
-    flow.props.onSelectionChange?.({ nodes: nodeIds.map(id => ({ id })) });
-    await Promise.resolve();
-  });
-}
-
 /**
  * Selects `nodeId` and presses one of the generator bottom bar's popover
  * triggers. §7.3-A gave the model list and the parameters separate triggers, so
@@ -58,11 +52,10 @@ export async function selectCanvasCards(
  */
 export async function openCanvasGeneratorPopover(
   container: ParentNode,
-  flow: { props: { onSelectionChange?: (selection: { nodes: { id: string }[] }) => void } },
   nodeId: string,
   action: 'model' | 'params',
 ): Promise<void> {
-  await selectCanvasCards(flow, [nodeId]);
+  await selectNodes([nodeId]);
   const trigger = container.querySelector<HTMLButtonElement>(
     `[data-canvas-generator-target="${nodeId}"] [data-canvas-generator-action="${action}"]`,
   );
@@ -81,10 +74,9 @@ export async function openCanvasGeneratorPopover(
  */
 export async function generateFromCanvasGenerator(
   container: ParentNode,
-  flow: { props: { onSelectionChange?: (selection: { nodes: { id: string }[] }) => void } },
   nodeId: string,
 ): Promise<void> {
-  await selectCanvasCards(flow, [nodeId]);
+  await selectNodes([nodeId]);
   const send = container.querySelector<HTMLButtonElement>(
     `[data-canvas-generator-target="${nodeId}"] [data-canvas-generator-action="send"]`,
   );

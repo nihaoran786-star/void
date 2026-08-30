@@ -48,7 +48,6 @@ import {
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
 import {
-  canvasFlow,
   canvasNode,
   resetCanvasFlow,
 } from './infiniteCanvasPanel.testkit';
@@ -213,7 +212,7 @@ describe('InfiniteCanvasPanel K2 generation loop', () => {
    * exactly what the seeded card carries.
    */
   function generateCard(nodeId: string): Promise<void> {
-    return generateFromCanvasGenerator(container, canvasFlow, nodeId);
+    return generateFromCanvasGenerator(container, nodeId);
   }
 
   /**

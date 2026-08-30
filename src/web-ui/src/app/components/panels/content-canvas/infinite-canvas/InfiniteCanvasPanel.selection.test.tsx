@@ -274,7 +274,7 @@ describe('InfiniteCanvasPanel P4 W6 selection and deletion', () => {
 
     // Card c is put in flight for real: a pending state seeded into the file
     // would have been reconciled to a timeout failure at load.
-    await generateFromCanvasGenerator(container, canvasFlow, 'c');
+    await generateFromCanvasGenerator(container, 'c');
     expect(persistedOrProjected('c')?.generation?.status).toBe('pending');
 
     await selectNodes(['a', 'b', 'c']);

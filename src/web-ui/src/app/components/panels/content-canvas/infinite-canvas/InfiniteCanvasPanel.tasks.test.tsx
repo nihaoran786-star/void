@@ -201,7 +201,7 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
    * card and sending from the bottom generator is the one dispatch entry.
    */
   async function startGeneration(nodeId: string): Promise<void> {
-    await generateFromCanvasGenerator(container, canvasFlow, nodeId);
+    await generateFromCanvasGenerator(container, nodeId);
   }
 
   const CARD_A: InfiniteCanvasNode = {

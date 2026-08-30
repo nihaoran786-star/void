@@ -58,7 +58,6 @@ import {
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
 import {
-  canvasFlow,
   connectToEmptyPane,
   connectToNothing,
   resetCanvasFlow,
@@ -245,7 +244,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     await selectNodes(['card-blank']);
 
     await type('a lighthouse at dusk');
-    await generateFromCanvasGenerator(container, canvasFlow, 'card-blank');
+    await generateFromCanvasGenerator(container, 'card-blank');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
@@ -270,7 +269,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     });
     await renderPanel();
 
-    await generateFromCanvasGenerator(container, canvasFlow, 'card-src');
+    await generateFromCanvasGenerator(container, 'card-src');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
@@ -310,7 +309,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     expect(thumbs).toEqual(['ref-b', 'ref-a']);
 
     // And the dispatch carries the same references, in the same order.
-    await generateFromCanvasGenerator(container, canvasFlow, 'card-target');
+    await generateFromCanvasGenerator(container, 'card-target');
     expect(recording.invocations[0].references.map(reference => reference.nodeId))
       .toEqual(['ref-b', 'ref-a']);
   });

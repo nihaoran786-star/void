@@ -62,7 +62,6 @@ import {
   type SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
-import { canvasFlow } from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -175,7 +174,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
    * (which closes the model list — the two are mutually exclusive).
    */
   async function chooseModel(nodeId: string, modelId: string): Promise<void> {
-    await openCanvasGeneratorPopover(container, canvasFlow, nodeId, 'model');
+    await openCanvasGeneratorPopover(container, nodeId, 'model');
     await choose('model', modelId);
   }
 
@@ -229,7 +228,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
   }
 
   async function generate(nodeId: string): Promise<void> {
-    await generateFromCanvasGenerator(container, canvasFlow, nodeId);
+    await generateFromCanvasGenerator(container, nodeId);
   }
 
   it('shows every value and greys the ones the chosen model cannot produce', async () => {
@@ -299,7 +298,7 @@ describe('InfiniteCanvasPanel P4 W3 generation parameters', () => {
     await openParams('card-image');
     expect(valueOf('aspectRatio')).toBe('1:4');
     expect(valueOf('resolution')).toBe('0.5K');
-    await openCanvasGeneratorPopover(container, canvasFlow, 'card-image', 'model');
+    await openCanvasGeneratorPopover(container, 'card-image', 'model');
     expect(valueOf('model')).toBe('gemini-3.1-flash-image-preview');
 
     await generate('card-image');
