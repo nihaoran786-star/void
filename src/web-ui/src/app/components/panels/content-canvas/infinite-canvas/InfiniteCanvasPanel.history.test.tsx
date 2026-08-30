@@ -16,76 +16,32 @@ import { Simulate } from 'react-dom/test-utils';
 import {
   clickCanvasCreateMenuItem,
   generateFromCanvasGenerator,
-  selectCanvasCards,
 } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({ props: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['revealer'] }));
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import {
   createInMemoryInfiniteCanvasPersistence,
@@ -98,6 +54,15 @@ import {
   type SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  canvasFlow,
+  canvasNodeIds,
+  deleteNodes,
+  dragNode,
+  panViewportTo,
+  resetCanvasFlow,
+  selectNodes,
+} from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -149,7 +114,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     eventBus = createFakeEventBus();
     invocations = [];
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -216,7 +181,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
   }
 
   function nodeIds(): string[] {
-    return flow.props.nodes.map((node: any) => node.id);
+    return canvasNodeIds();
   }
 
   function persisted(): InfiniteCanvasDocument {
@@ -235,16 +200,6 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
         ...init,
       });
       (target ?? dom.window.document.body).dispatchEvent(event);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-  }
-
-  /** Drives one drag-end through reactflow's change channel. */
-  async function dragTo(nodeId: string, position: { x: number; y: number }): Promise<void> {
-    await act(async () => {
-      flow.props.onNodesChange([
-        { id: nodeId, type: 'position', dragging: false, position },
-      ]);
       await new Promise(resolve => setTimeout(resolve, 0));
     });
   }
@@ -290,7 +245,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     seed([CARD_A]);
     await renderPanel();
 
-    await dragTo('card-a', { x: 640, y: 320 });
+    await dragNode('card-a', { x: 640, y: 320 });
     await service.flushPendingWrites();
     expect(persisted().nodes[0].position).toEqual({ x: 640, y: 320 });
 
@@ -307,10 +262,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     seed([{ ...CARD_A, mediaRef }]);
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onNodesChange([{ id: 'card-a', type: 'remove' }]);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await deleteNodes(['card-a']);
     // P4 W6: a card with an image goes through the deletion confirmation
     // before it is removed; the undo entry is recorded on the confirmed
     // delete, exactly as it was on the direct one.
@@ -336,7 +288,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     // §6: the prompt box is the bottom generator's, and it edits the card
     // that is selected. Blur still persists the draft, so it is still one
     // undoable edit.
-    await selectCanvasCards(flow, ['card-a']);
+    await selectNodes(['card-a']);
     const textarea = container.querySelector('[data-canvas-generator-field="prompt"]');
     if (!textarea) throw new Error('no prompt editor');
     await act(async () => {
@@ -365,7 +317,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     await click(toolbarButton('undo'));
     expect(toolbarButton('undo').disabled).toBe(true);
 
-    await generateFromCanvasGenerator(container, flow, 'card-a');
+    await generateFromCanvasGenerator(container, canvasFlow, 'card-a');
     // Dispatch itself is not an edit either.
     expect(toolbarButton('undo').disabled).toBe(true);
 
@@ -402,10 +354,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     seed([CARD_A]);
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onMoveEnd(null, { x: -400, y: -200, zoom: 1.5 });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await panViewportTo({ x: -400, y: -200, zoom: 1.5 });
 
     await service.flushPendingWrites();
     expect(persisted().viewport).toEqual({ x: -400, y: -200, zoom: 1.5 });
@@ -419,11 +368,11 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     await renderPanel();
 
     await clickToolbar('infiniteCanvas.toolbar.addText');
-    await dragTo('card-a', { x: 300, y: 0 });
+    await dragNode('card-a', { x: 300, y: 0 });
     expect(toolbarButton('undo').disabled).toBe(false);
 
     // While the drag sits on the stack, a generation result fills that card.
-    await generateFromCanvasGenerator(container, flow, 'card-a');
+    await generateFromCanvasGenerator(container, canvasFlow, 'card-a');
     await act(async () => {
       eventBus.emit({
         eventType: 'Completed',
@@ -465,7 +414,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
     seed([CARD_A]);
     await renderPanel();
 
-    await dragTo('card-a', { x: 120, y: 0 });
+    await dragNode('card-a', { x: 120, y: 0 });
 
     // A second card appears from another writer while the entry waits.
     await service.mutateDefaultDocument(
@@ -510,10 +459,10 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
   it('leaves Ctrl+Z alone inside a prompt box', async () => {
     seed([CARD_A]);
     await renderPanel();
-    await dragTo('card-a', { x: 300, y: 0 });
+    await dragNode('card-a', { x: 300, y: 0 });
 
     // §6: the prompt box only exists while its card is selected.
-    await selectCanvasCards(flow, ['card-a']);
+    await selectNodes(['card-a']);
     const textarea = container.querySelector('[data-canvas-generator-field="prompt"]');
     if (!textarea) throw new Error('no prompt editor');
     await pressKey({ key: 'z' }, textarea);
@@ -585,7 +534,7 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
       }),
     );
     await renderPanel();
-    await dragTo('card-a', { x: 300, y: 0 });
+    await dragNode('card-a', { x: 300, y: 0 });
     expect(toolbarButton('undo').disabled).toBe(false);
 
     await act(async () => {
@@ -616,15 +565,12 @@ describe('InfiniteCanvasPanel P4 W5 undo and redo', () => {
   // the card did not exist, and no second one is coming.
   /** Runs the real dispatch lane so `card-a` is genuinely mid-generation. */
   async function startGeneration(): Promise<void> {
-    await generateFromCanvasGenerator(container, flow, 'card-a');
+    await generateFromCanvasGenerator(container, canvasFlow, 'card-a');
   }
 
   /** Deletes `card-a` through the one gate, confirming the pending warning. */
   async function deleteCardAWithConfirmation(): Promise<void> {
-    await act(async () => {
-      flow.props.onNodesChange([{ id: 'card-a', type: 'remove' }]);
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await deleteNodes(['card-a']);
     const confirm = container.querySelector<HTMLButtonElement>(
       '[data-canvas-confirm-action="confirm"]',
     );
