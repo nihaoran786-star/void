@@ -14,75 +14,29 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({ props: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway());
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-  getInfiniteCanvasMediaRevealer: () => {
-    throw new Error('Tests must inject a reveal port.');
-  },
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import {
   createInMemoryInfiniteCanvasPersistence,
@@ -94,6 +48,13 @@ import {
   type InMemoryInfiniteCanvasPersistence,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  canvasNodes,
+  openNodeContextMenu,
+  openPaneContextMenu,
+  resetCanvasFlow,
+  selectNodes,
+} from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -141,7 +102,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     saved = [];
     revealed = [];
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -194,14 +155,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
   }
 
   function projected(): any[] {
-    return flow.props.nodes;
-  }
-
-  async function select(ids: readonly string[]): Promise<void> {
-    await act(async () => {
-      flow.props.onSelectionChange({ nodes: ids.map(id => ({ id })), edges: [] });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    return canvasNodes();
   }
 
   async function pressKey(key: string): Promise<void> {
@@ -212,24 +166,6 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
         bubbles: true,
         cancelable: true,
       }));
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-  }
-
-  function fakeMouse() {
-    return { clientX: 400, clientY: 300, preventDefault: () => undefined };
-  }
-
-  async function openNodeMenu(nodeId: string): Promise<void> {
-    await act(async () => {
-      flow.props.onNodeContextMenu(fakeMouse(), { id: nodeId });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-  }
-
-  async function openPaneMenu(): Promise<void> {
-    await act(async () => {
-      flow.props.onPaneContextMenu(fakeMouse());
       await new Promise(resolve => setTimeout(resolve, 0));
     });
   }
@@ -286,7 +222,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await select(['card-a']);
+    await selectNodes(['card-a']);
     await pressKey('c');
     await pressKey('v');
     await service.flushPendingWrites();
@@ -316,7 +252,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     );
     await renderPanel();
 
-    await select(['card-a', 'card-b']);
+    await selectNodes(['card-a', 'card-b']);
     await pressKey('c');
     await pressKey('v');
     await service.flushPendingWrites();
@@ -335,7 +271,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await select(['card-a']);
+    await selectNodes(['card-a']);
     await pressKey('c');
     await pressKey('v');
     await pressKey('v');
@@ -353,9 +289,9 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD, BLANK_CARD]);
     await renderPanel();
 
-    await select(['card-a']);
+    await selectNodes(['card-a']);
     await pressKey('c');
-    await select(['card-b']);
+    await selectNodes(['card-b']);
     await pressKey('d');
     await service.flushPendingWrites();
     expect(persisted().nodes).toHaveLength(3);
@@ -372,7 +308,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await select(['card-a']);
+    await selectNodes(['card-a']);
     await pressKey('c');
     await pressKey('v');
     expect(projected()).toHaveLength(2);
@@ -400,13 +336,13 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD, BLANK_CARD]);
     await renderPanel();
 
-    await openNodeMenu('card-a');
+    await openNodeContextMenu('card-a');
     expect(menu()?.getAttribute('data-canvas-menu')).toBe('node');
     expect(menuActions()).toEqual([
       'view', 'save-as', 'reveal', 'params', 'copy', 'duplicate', 'delete',
     ]);
 
-    await openNodeMenu('card-b');
+    await openNodeContextMenu('card-b');
     expect(menuActions()).toEqual(['params', 'copy', 'duplicate', 'delete']);
   });
 
@@ -414,7 +350,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await openPaneMenu();
+    await openPaneContextMenu();
     expect(menu()?.getAttribute('data-canvas-menu')).toBe('pane');
     expect(menuActions()).toEqual([
       'add-text', 'add-image-card', 'add-video-card', 'paste',
@@ -428,8 +364,8 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD, BLANK_CARD]);
     await renderPanel();
 
-    await select(['card-a', 'card-b']);
-    await openNodeMenu('card-a');
+    await selectNodes(['card-a', 'card-b']);
+    await openNodeContextMenu('card-a');
 
     expect(menu()?.getAttribute('data-canvas-menu')).toBe('selection');
     expect(menuActions()).toEqual(['copy', 'duplicate', 'delete']);
@@ -439,7 +375,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([]);
     await renderPanel();
 
-    await openPaneMenu();
+    await openPaneContextMenu();
     await clickMenu('add-video-card');
     await service.flushPendingWrites();
 
@@ -454,9 +390,9 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await select(['card-a']);
+    await selectNodes(['card-a']);
     await pressKey('c');
-    await openPaneMenu();
+    await openPaneContextMenu();
     await clickMenu('paste');
     await service.flushPendingWrites();
 
@@ -467,9 +403,9 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await openNodeMenu('card-a');
+    await openNodeContextMenu('card-a');
     await clickMenu('save-as');
-    await openNodeMenu('card-a');
+    await openNodeContextMenu('card-a');
     await clickMenu('reveal');
 
     expect(saved).toHaveLength(1);
@@ -481,7 +417,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await openNodeMenu('card-a');
+    await openNodeContextMenu('card-a');
     await clickMenu('delete');
 
     expect(container.querySelector('[data-canvas-confirm="delete"]')).not.toBeNull();
@@ -492,7 +428,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD]);
     await renderPanel();
 
-    await openNodeMenu('card-a');
+    await openNodeContextMenu('card-a');
     await clickMenu('copy');
     await pressKey('v');
     await service.flushPendingWrites();
@@ -507,10 +443,10 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     await renderPanel();
 
     expect(container.querySelector('[data-canvas-selection-toolbar]')).toBeNull();
-    await select(['card-a']);
+    await selectNodes(['card-a']);
     expect(container.querySelector('[data-canvas-selection-toolbar]')).toBeNull();
 
-    await select(['card-a', 'card-b']);
+    await selectNodes(['card-a', 'card-b']);
     const toolbar = container.querySelector('[data-canvas-selection-toolbar]');
     expect(toolbar?.getAttribute('data-canvas-selection-toolbar')).toBe('2');
   });
@@ -519,7 +455,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD, BLANK_CARD]);
     await renderPanel();
 
-    await select(['card-a', 'card-b']);
+    await selectNodes(['card-a', 'card-b']);
     await clickSelectionToolbar('duplicate');
     await service.flushPendingWrites();
 
@@ -534,7 +470,7 @@ describe('InfiniteCanvasPanel P4 W7 clipboard, context menu, selection toolbar',
     seed([IMAGE_CARD, BLANK_CARD]);
     await renderPanel();
 
-    await select(['card-a', 'card-b']);
+    await selectNodes(['card-a', 'card-b']);
     await clickSelectionToolbar('delete');
 
     const dialog = container.querySelector('[data-canvas-confirm="delete"]');
