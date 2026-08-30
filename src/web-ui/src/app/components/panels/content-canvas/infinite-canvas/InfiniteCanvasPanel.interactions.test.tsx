@@ -118,11 +118,12 @@ function documentPath(workspacePath: string, workspaceId: string): string {
 function seedDocument(
   memory: InMemoryInfiniteCanvasPersistence,
   overrides: Partial<InfiniteCanvasDocument> = {},
+  workspace: { workspaceId: string; workspacePath: string } = WORKSPACE,
 ): void {
   const document: InfiniteCanvasDocument = {
-    documentId: defaultInfiniteCanvasDocumentId(WORKSPACE.workspaceId),
+    documentId: defaultInfiniteCanvasDocumentId(workspace.workspaceId),
     schemaVersion: '1',
-    workspaceId: WORKSPACE.workspaceId,
+    workspaceId: workspace.workspaceId,
     revision: 1,
     nodes: [],
     edges: [],
@@ -131,7 +132,7 @@ function seedDocument(
     ...overrides,
   };
   memory.files.set(
-    documentPath(WORKSPACE.workspacePath, WORKSPACE.workspaceId),
+    documentPath(workspace.workspacePath, workspace.workspaceId),
     JSON.stringify(document),
   );
 }
@@ -444,6 +445,28 @@ describe('InfiniteCanvasPanel M4 interactions', () => {
     await renderPanel({ workspaceId: 'workspace-b', workspacePath: 'C:/workspace-b' });
 
     expect(container.querySelector('[data-canvas-popover="card-overflow"]')).toBeNull();
+  });
+
+  /**
+   * The same rule, and the same omission, for the third editor. An open
+   * outpainting frame carried across a document switch showed the OLD
+   * document's picture over the new board, on a card that is not there.
+   */
+  it('closes the outpainting editor when the document underneath changes', async () => {
+    const workspaceB = { workspaceId: 'workspace-b', workspacePath: 'C:/workspace-b' };
+    seedDocument(memory, { nodes: [IMAGE_NODE] });
+    // The other board happens to carry a card with the same id — the case
+    // where a surviving request keeps the editor standing over a picture that
+    // belongs to a document the user has left.
+    seedDocument(memory, { nodes: [IMAGE_NODE] }, workspaceB);
+    await renderPanel();
+    await clickButton(button => button.getAttribute('data-node-action') === 'more');
+    await clickButton(button => button.getAttribute('data-tool-id') === 'expand');
+    expect(container.querySelector('[data-canvas-editor="expand"]')).not.toBeNull();
+
+    await renderPanel(workspaceB);
+
+    expect(container.querySelector('[data-canvas-editor="expand"]')).toBeNull();
   });
 
   it('keeps documents isolated per workspace', async () => {

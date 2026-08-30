@@ -161,21 +161,26 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
     vi.unstubAllGlobals();
   });
 
-  function seed(nodes: readonly InfiniteCanvasNode[]) {
+  function seed(nodes: readonly InfiniteCanvasNode[], workspaceId = WORKSPACE.workspaceId) {
+    const documentId = defaultInfiniteCanvasDocumentId(workspaceId);
     const document: InfiniteCanvasDocument = {
-      documentId: DOCUMENT_ID,
+      documentId,
       schemaVersion: '1',
-      workspaceId: WORKSPACE.workspaceId,
+      workspaceId,
       revision: 1,
       nodes: [...nodes],
       edges: [],
       viewport: { x: 0, y: 0, zoom: 1 },
       updatedAt: new Date(0).toISOString(),
     };
-    memory.files.set(documentPath(), JSON.stringify(document));
+    memory.files.set(
+      infiniteCanvasDocumentFilePath(WORKSPACE.workspacePath, documentId),
+      JSON.stringify(document),
+    );
   }
 
   async function renderPanel(options: {
+    workspaceId?: string;
     pendingDomainImport?: { domainRef: typeof DOMAIN_REF; requestId: string };
     readShortDramaProject?: () => Promise<ShortDramaProject | undefined>;
     onInvoke?: (invocation: Record<string, unknown>) => void;
@@ -184,7 +189,7 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
     await act(async () => {
       root.render(
         <InfiniteCanvasPanel
-          workspaceId={WORKSPACE.workspaceId}
+          workspaceId={options.workspaceId ?? WORKSPACE.workspaceId}
           workspacePath={WORKSPACE.workspacePath}
           isActive
           service={service}
@@ -605,6 +610,31 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
       expect(notice()).toBe('infiniteCanvas.domainRef.manualReturn');
       // The same weakening A5 uses — one fact, one mark, one sentence.
       expect(badges()[0]?.getAttribute('data-domain-autofile')).toBe('manual');
+    });
+
+    /**
+     * "This card will not file itself" is remembered by node id, and node ids
+     * are only unique inside one document. Carried across a document switch it
+     * weakened the badge of whatever card in the NEW document happened to
+     * share the id — telling the user their picture would stay put when it
+     * will in fact be filed.
+     */
+    it('forgets which cards file themselves when the document changes', async () => {
+      const otherWorkspaceId = 'workspace-k3-other';
+      seed([ownedCard]);
+      seed([ownedCard], otherWorkspaceId);
+
+      await renderPanel({ readShortDramaProject: async () => undefined });
+      await settle();
+      await pressRegenerate();
+      expect(badges()[0]?.getAttribute('data-domain-autofile')).toBe('manual');
+
+      // Same panel, another document — whose card happens to carry the same
+      // node id, and whose asset coordinates read perfectly well.
+      await renderPanel({ workspaceId: otherWorkspaceId });
+      await settle();
+
+      expect(badges()[0]?.getAttribute('data-domain-autofile')).toBe('auto');
     });
   });
 });

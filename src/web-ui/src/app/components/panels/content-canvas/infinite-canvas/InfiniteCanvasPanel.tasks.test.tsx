@@ -130,12 +130,14 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
     memory.files.set(documentPath(), JSON.stringify(document));
   }
 
-  async function renderPanel(): Promise<void> {
+  async function renderPanel(
+    overrides: { workspaceId?: string; workspacePath?: string } = {},
+  ): Promise<void> {
     await act(async () => {
       root.render(
         <InfiniteCanvasPanel
-          workspaceId={WORKSPACE.workspaceId}
-          workspacePath={WORKSPACE.workspacePath}
+          workspaceId={overrides.workspaceId ?? WORKSPACE.workspaceId}
+          workspacePath={overrides.workspacePath ?? WORKSPACE.workspacePath}
           isActive
           service={service}
           resolvePreviewUrl={async () => undefined}
@@ -361,6 +363,22 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
       expect(invocations).toHaveLength(1);
 
       await click('[data-canvas-confirm="retry-cancelled"] [data-canvas-confirm-action="cancel"]');
+      expect(container.querySelector('[data-canvas-confirm="retry-cancelled"]')).toBeNull();
+      expect(invocations).toHaveLength(1);
+    });
+
+    /**
+     * The question is about one card in one document. Left standing across a
+     * document switch it hung over the new board naming a card that is not on
+     * it, and "yes" would have re-charged against the old document's node id.
+     */
+    it('withdraws the question when the document underneath changes', async () => {
+      await stopWaitingOnA();
+      await click('[data-canvas-task-action="retry"]');
+      expect(container.querySelector('[data-canvas-confirm="retry-cancelled"]')).not.toBeNull();
+
+      await renderPanel({ workspaceId: 'workspace-other', workspacePath: 'C:/workspace-o' });
+
       expect(container.querySelector('[data-canvas-confirm="retry-cancelled"]')).toBeNull();
       expect(invocations).toHaveLength(1);
     });

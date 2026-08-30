@@ -1045,6 +1045,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     createOperationId: () => createInfiniteCanvasId('op'),
   });
   const {
+    cancelRetryRespend,
     findImageNode,
     findMediaNode,
     generateForNode,
@@ -1139,7 +1140,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
   // keep the dependency lists they had.
   const { close: closeMaskEditor, open: openMaskEditor } = editors.mask;
   const { close: closeCropEditor, open: openCropEditor } = editors.crop;
-  const { open: openExpandEditor } = editors.expand;
+  const { close: closeExpandEditor, open: openExpandEditor } = editors.expand;
   const maskRequest = editors.mask.request;
   const cropRequest = editors.crop.request;
   const expandRequest = editors.expand.request;
@@ -1475,6 +1476,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setToolIntent(null);
     closeMaskEditor();
     closeCropEditor();
+    // Outpainting is the third editor and was simply missed here: an open
+    // frame editor survived the switch still pointing at the OLD document's
+    // picture, so the board came back under a full-screen editor for a card
+    // that is not on it. (Confirming it early-returns because the node cannot
+    // be found, so nothing was ever paid for — but the surface was wrong.)
+    closeExpandEditor();
+    // The "charge me again?" question belongs to one card in one document too.
+    cancelRetryRespend();
+    // A5 / C1: "this card will not file itself" is remembered by node id, and
+    // node ids are only unique within a document. Carried across, it weakened
+    // the badge of whatever card in the NEW document happened to share an id.
+    manualReturnNodeIdsRef.current.clear();
     // P5 review C9: the three surfaces P5 added are node-scoped too. An
     // overflow drawer or a "replace or append" choice left standing across a
     // document switch points at a node id that no longer exists here, and a
@@ -1485,7 +1498,15 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
     setReversePromptSpend(null);
     setReversePromptPendingNodeId(null);
     reversePromptNodeIdRef.current = null;
-  }, [closeAllPopovers, closeCropEditor, closeMaskEditor, documentId, workspaceId]);
+  }, [
+    cancelRetryRespend,
+    closeAllPopovers,
+    closeCropEditor,
+    closeExpandEditor,
+    closeMaskEditor,
+    documentId,
+    workspaceId,
+  ]);
 
   React.useEffect(() => {
     let cancelled = false;
