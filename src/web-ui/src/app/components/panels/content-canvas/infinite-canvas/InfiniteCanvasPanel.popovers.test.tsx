@@ -23,72 +23,29 @@ import { createRoot, type Root } from 'react-dom/client';
 import { Simulate } from 'react-dom/test-utils';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({ props: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['revealer'] }));
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import { StylePresetCatalog } from '@/shared/services/style-preset';
 import {
@@ -103,6 +60,12 @@ import {
 } from '@/shared/services/infinite-canvas';
 import type { WorkspaceMediaItem } from '@/shared/services/workspace-media/WorkspaceMediaTypes';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  canvasEdges,
+  resetCanvasFlow,
+  selectEdges,
+  selectNodes,
+} from './infiniteCanvasPanel.testkit';
 import { InfiniteCanvasEdge } from './InfiniteCanvasEdge';
 import { workspaceMediaTileLabel } from './infiniteCanvasMediaLabels';
 
@@ -194,7 +157,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
     memory = createInMemoryInfiniteCanvasPersistence();
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     resolved = [];
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -257,20 +220,6 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
     });
   }
 
-  async function select(nodeIds: readonly string[]): Promise<void> {
-    await act(async () => {
-      flow.props.onSelectionChange({ nodes: nodeIds.map(id => ({ id })), edges: [] });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-  }
-
-  async function selectEdges(edgeIds: readonly string[]): Promise<void> {
-    await act(async () => {
-      flow.props.onSelectionChange({ nodes: [], edges: edgeIds.map(id => ({ id })) });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-  }
-
   async function click(element: Element): Promise<void> {
     await act(async () => {
       Simulate.click(element as Element as HTMLElement);
@@ -314,7 +263,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('opens the parameter popover anchored to the generator bar, with no close button', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     await click(generatorAction('params'));
 
@@ -333,7 +282,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('closes the parameter popover on a press outside and on Escape', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     await click(generatorAction('params'));
     expect(popover('params')).not.toBeNull();
@@ -354,7 +303,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('gives the style picker the same dismissal contract', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     await click(generatorAction('style'));
     const surface = popover('style');
@@ -386,7 +335,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('opens the model list from the model name and the parameters from the pill', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     await click(generatorAction('model'));
     expect(popover('model')).not.toBeNull();
@@ -415,7 +364,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('opens the parameters from the count pill too', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     await click(generatorAction('count'));
     expect(popover('params')).not.toBeNull();
@@ -425,7 +374,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('lists every model with the capability chips the table knows', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
     await click(generatorAction('model'));
 
     const rows = Array.from(
@@ -483,7 +432,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
   it('centres the generator on the card and overhangs it on both sides', async () => {
     seed([IMAGE_CARD]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     const generator = container.querySelector<HTMLElement>('[data-canvas-generator="root"]');
     expect(generator).not.toBeNull();
@@ -507,7 +456,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
       { edgeId: 'edge-1', sourceNodeId: REFERENCE_CARD.nodeId, targetNodeId: IMAGE_CARD.nodeId },
     ]);
     await renderPanel();
-    await select([IMAGE_CARD.nodeId]);
+    await selectNodes([IMAGE_CARD.nodeId]);
 
     const remove = container.querySelector(
       `[data-canvas-generator-action="remove-reference"][data-reference-node="${REFERENCE_CARD.nodeId}"]`,
@@ -554,7 +503,7 @@ describe('InfiniteCanvas 2026-08-26 owner feedback', () => {
     await selectEdges(['edge-1']);
     await pressKey('Delete');
     await settle();
-    expect(flow.props.edges).toHaveLength(0);
+    expect(canvasEdges()).toHaveLength(0);
 
     await act(async () => {
       dom.window.document.body.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
