@@ -58,7 +58,31 @@ export const INFINITE_CANVAS_POPOVER_MARGIN = 8;
 /** §7.3-B: the surface stops growing here and scrolls inside itself. */
 export const INFINITE_CANVAS_POPOVER_MAX_HEIGHT = 420;
 
-function clamp(value: number, min: number, max: number): number {
+/**
+ * Every canvas popover's width, in one table (§7.1's 260–320px band).
+ *
+ * These used to be six separate constants next to six components, which is how
+ * the band drifted: nobody could see the set at once. Same numbers, one place.
+ * `overflow` is the exception the band allows — a short action menu, not a
+ * picker.
+ */
+export const INFINITE_CANVAS_POPOVER_WIDTH = {
+  /** Library picker: a grid of thumbnails needs the wide end. */
+  library: 320,
+  /** Style picker: same grid, same width. */
+  style: 320,
+  /** Model picker. */
+  model: 300,
+  /** Generation parameters. */
+  params: 300,
+  /** Reverse-prompt choice: the narrow end of the band. */
+  reversePrompt: 280,
+  /** Card overflow menu: a list of short labels, narrower than the band. */
+  overflow: 220,
+} as const;
+
+/** Clamps `value` into [min, max], with `min` winning an inverted range. */
+export function clampToRange(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
@@ -79,13 +103,13 @@ export function placeInfiniteCanvasPopover(
 
   const minLeft = bounds.left + margin;
   const maxLeft = bounds.right - margin - width;
-  const left = clamp(anchor.left, minLeft, maxLeft);
+  const left = clampToRange(anchor.left, minLeft, maxLeft);
 
   const minTop = bounds.top + margin;
   const maxTop = bounds.bottom - margin - height;
   const above = anchor.top - gap - height;
   const side: 'above' | 'below' = above >= minTop ? 'above' : 'below';
-  const top = side === 'above' ? above : clamp(anchor.bottom + gap, minTop, maxTop);
+  const top = side === 'above' ? above : clampToRange(anchor.bottom + gap, minTop, maxTop);
 
   return { left, top, side, clamped: left !== anchor.left };
 }

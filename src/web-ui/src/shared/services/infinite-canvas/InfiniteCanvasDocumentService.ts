@@ -33,9 +33,21 @@ import type { InfiniteCanvasPersistencePort } from './InfiniteCanvasPersistenceP
 const REMOTE_UNAVAILABLE_REASON =
   'Infinite Canvas remote workspace I/O routing is not available.';
 
-function normalizeSlashes(value: string): string {
+/**
+ * The one spelling of a workspace path everything under `.void/` builds on:
+ * forward slashes, no trailing separator. Exported because the same two
+ * substitutions were being retyped wherever a `.void/` path is assembled, and
+ * two spellings of "the same folder" is how a written file goes missing.
+ */
+export function normalizeCanvasWorkspacePath(value: string): string {
   return value.replace(/\\/g, '/').replace(/\/+$/, '');
 }
+
+/**
+ * The board's own folder, workspace-relative. Shared with the scratch path in
+ * the app layer so the folder is named exactly once.
+ */
+export const INFINITE_CANVAS_WORKSPACE_DIR = '.void/infinite-canvas';
 
 function stableHash36(value: string): string {
   let hash = 0;
@@ -52,7 +64,7 @@ export function defaultInfiniteCanvasDocumentId(workspaceId: string): string {
 }
 
 export function infiniteCanvasDirectoryPath(workspacePath: string): string {
-  return `${normalizeSlashes(workspacePath)}/.void/infinite-canvas`;
+  return `${normalizeCanvasWorkspacePath(workspacePath)}/${INFINITE_CANVAS_WORKSPACE_DIR}`;
 }
 
 export function infiniteCanvasDocumentFilePath(

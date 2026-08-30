@@ -31,6 +31,7 @@ import { useI18n } from '@/infrastructure/i18n';
 import type { StylePreset, StylePresetCatalog, StylePresetFamily } from '@/shared/services/style-preset';
 import { stylePresetCatalog } from '@/shared/services/style-preset';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
 import { infiniteCanvasStyleSwatch } from './infiniteCanvasStyleSwatch';
 
 const FAMILIES: readonly { family: StylePresetFamily; labelKey: string }[] = [
@@ -41,9 +42,6 @@ const FAMILIES: readonly { family: StylePresetFamily; labelKey: string }[] = [
 ];
 
 const ALL_CATEGORIES = '';
-
-/** §7 after owner feedback: a compact anchored popover, not a page. */
-const STYLE_POPOVER_WIDTH = 320;
 
 interface StyleTileProps {
   preset: StylePreset;
@@ -151,7 +149,7 @@ export const InfiniteCanvasStylePicker: React.FC<InfiniteCanvasStylePickerProps>
       kind="style"
       className="infinite-canvas-picker--style"
       anchor={anchor}
-      width={STYLE_POPOVER_WIDTH}
+      width={INFINITE_CANVAS_POPOVER_WIDTH.style}
       label={t('infiniteCanvas.stylePicker.title')}
       onDismiss={onClose}
     >

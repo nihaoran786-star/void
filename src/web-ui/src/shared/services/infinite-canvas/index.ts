@@ -34,8 +34,10 @@ export {
 export {
   InfiniteCanvasDocumentService,
   defaultInfiniteCanvasDocumentId,
+  INFINITE_CANVAS_WORKSPACE_DIR,
   infiniteCanvasDirectoryPath,
   infiniteCanvasDocumentFilePath,
+  normalizeCanvasWorkspacePath,
   parseInfiniteCanvasDocument,
   type InfiniteCanvasDocumentServiceOptions,
   type InfiniteCanvasParseResult,

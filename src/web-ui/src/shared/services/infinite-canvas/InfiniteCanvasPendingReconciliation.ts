@@ -30,7 +30,10 @@ import type {
   InfiniteCanvasNode,
   InfiniteCanvasWorkspaceRef,
 } from './InfiniteCanvasTypes';
-import type { InfiniteCanvasDocumentService } from './InfiniteCanvasDocumentService';
+import {
+  normalizeCanvasWorkspacePath,
+  type InfiniteCanvasDocumentService,
+} from './InfiniteCanvasDocumentService';
 import {
   resolveOperationBatchContent,
   type InfiniteCanvasBatchOutputItem,
@@ -43,8 +46,7 @@ export interface InfiniteCanvasMediaJobReader {
 }
 
 export function mediaJobBatchFilePath(workspacePath: string, batchId: string): string {
-  const normalized = workspacePath.replace(/\\/g, '/').replace(/\/+$/, '');
-  return `${normalized}/.void/media-jobs/${batchId}.json`;
+  return `${normalizeCanvasWorkspacePath(workspacePath)}/.void/media-jobs/${batchId}.json`;
 }
 
 export interface InfiniteCanvasPendingReconciliationOutcome {

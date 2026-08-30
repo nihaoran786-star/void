@@ -47,12 +47,10 @@ import {
   type InfiniteCanvasParamCell,
 } from './infiniteCanvasParamOptions';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
 
 /** Sentinel for "send nothing, let the provider decide". */
 const PROVIDER_DEFAULT = '';
-
-/** §7.1 keeps every canvas popover in the 260–320px band. */
-const PARAMS_POPOVER_WIDTH = 300;
 
 /** Side of the square each ratio preview is fitted into, in CSS pixels. */
 const RATIO_GLYPH_BOX = 20;
@@ -253,7 +251,7 @@ export const InfiniteCanvasParamsPopover: React.FC<InfiniteCanvasParamsPopoverPr
       kind="params"
       className="infinite-canvas-picker--params"
       anchor={anchor}
-      width={PARAMS_POPOVER_WIDTH}
+      width={INFINITE_CANVAS_POPOVER_WIDTH.params}
       label={t('infiniteCanvas.params.title')}
       onDismiss={onClose}
     >

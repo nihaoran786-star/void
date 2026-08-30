@@ -32,9 +32,7 @@ import {
 } from '@/shared/services/infinite-canvas';
 import { infiniteCanvasModelChips } from './infiniteCanvasModelChips';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
-
-/** §7.1 keeps every canvas popover in the 260–320px band. */
-const MODEL_POPOVER_WIDTH = 300;
+import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
 
 const ModelIcon: React.FC = () => (
   <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -105,7 +103,7 @@ export const InfiniteCanvasModelPopover: React.FC<InfiniteCanvasModelPopoverProp
       kind="model"
       className="infinite-canvas-picker--models"
       anchor={anchor}
-      width={MODEL_POPOVER_WIDTH}
+      width={INFINITE_CANVAS_POPOVER_WIDTH.model}
       label={t('infiniteCanvas.params.model')}
       onDismiss={onClose}
     >

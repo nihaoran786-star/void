@@ -1,13 +1,12 @@
 /**
  * The clamp, through the real component (visual language §7.3-B).
  *
- * `infiniteCanvasPopoverPlacement.test.ts` pins the maths; this pins the wiring
- * — that the surface really measures the PANEL (not the viewport) and writes
- * the clamped box into its inline style. jsdom has no layout, so every
- * rectangle here comes from a stubbed `getBoundingClientRect`, one per element
- * class, which is exactly the three situations the owner hit:
- * a trigger against the right edge, against the left edge, and with no room
- * above it.
+ * `infiniteCanvasPopoverPlacement.test.ts` pins the maths — the right edge, the
+ * left edge, the flip below — and it is the only place those cases are stated.
+ * This file pins the one thing the maths cannot: that the surface really
+ * measures the PANEL (not the viewport) and writes the resulting box into its
+ * inline style. jsdom has no layout, so every rectangle comes from a stubbed
+ * `getBoundingClientRect`, one per element class.
  */
 import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -115,7 +114,7 @@ describe('InfiniteCanvasPopover placement', () => {
     };
   }
 
-  it('aligns the left edges and opens above, capping the height at 420px', async () => {
+  it('measures the panel and writes the placement into the inline style', async () => {
     const surface = await renderAt(boxOf(500, 600, 120, 24));
     const box = boxOfSurface(surface);
 
@@ -123,30 +122,5 @@ describe('InfiniteCanvasPopover placement', () => {
     expect(box.left).toBe(500 - PANEL_RECT.left);
     expect(box.top).toBe(600 - 8 - SURFACE_HEIGHT - PANEL_RECT.top);
     expect(box.maxHeight).toBe(420);
-  });
-
-  it('never overflows the panel right edge', async () => {
-    // A trigger 60px from the panel's right edge: the old viewport clamp let
-    // 300px of surface run past the panel and get clipped.
-    const surface = await renderAt(boxOf(1140, 600, 60, 24));
-    const box = boxOfSurface(surface);
-
-    expect(box.left + WIDTH).toBeLessThanOrEqual(PANEL_RECT.width);
-    expect(box.left).toBe(PANEL_RECT.width - 8 - WIDTH);
-  });
-
-  it('never overflows the panel left edge', async () => {
-    const surface = await renderAt(boxOf(302, 600, 60, 24));
-
-    expect(boxOfSurface(surface).left).toBe(8);
-  });
-
-  it('flips below when there is no room above, and stays inside the panel', async () => {
-    const surface = await renderAt(boxOf(500, 100, 120, 24));
-    const box = boxOfSurface(surface);
-
-    expect(surface.getAttribute('data-canvas-popover-side')).toBe('below');
-    expect(box.top).toBe(132 - PANEL_RECT.top);
-    expect(box.top + SURFACE_HEIGHT).toBeLessThanOrEqual(PANEL_RECT.height);
   });
 });

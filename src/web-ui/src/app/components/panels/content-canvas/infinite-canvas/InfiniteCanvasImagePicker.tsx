@@ -32,10 +32,8 @@ import type {
   InfiniteCanvasMediaRef,
 } from './InfiniteCanvasNodes';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
 import { workspaceMediaTileLabel } from './infiniteCanvasMediaLabels';
-
-/** §7 after owner feedback: a compact anchored popover, not a page. */
-const LIBRARY_POPOVER_WIDTH = 320;
 
 type PickerState =
   | { phase: 'scanning' }
@@ -142,7 +140,7 @@ export const InfiniteCanvasImagePicker: React.FC<InfiniteCanvasImagePickerProps>
       kind="library"
       className="infinite-canvas-picker--library"
       anchor={anchor}
-      width={LIBRARY_POPOVER_WIDTH}
+      width={INFINITE_CANVAS_POPOVER_WIDTH.library}
       label={t('infiniteCanvas.imagePicker.title')}
       onDismiss={onClose}
     >

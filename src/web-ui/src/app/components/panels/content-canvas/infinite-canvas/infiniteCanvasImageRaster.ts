@@ -25,6 +25,7 @@
  * `--canvas-*` token set and never changes with the light/dark theme.
  */
 
+import { INFINITE_CANVAS_WORKSPACE_DIR } from '@/shared/services/infinite-canvas/InfiniteCanvasDocumentService';
 import type { CanvasExpandInsets } from '@/shared/services/infinite-canvas';
 
 /** Mark fill — semi-transparent so the content underneath stays legible. */
@@ -110,7 +111,7 @@ export const CANVAS_CROP_MIN_SIZE = 30;
 export const CANVAS_EXPAND_MAX_RATIO = 1;
 
 /** The scratch directory. Outside all four media-library scan roots. */
-export const CANVAS_SCRATCH_PREFIX = '.void/infinite-canvas/scratch/';
+export const CANVAS_SCRATCH_PREFIX = `${INFINITE_CANVAS_WORKSPACE_DIR}/scratch/`;
 /** The crop directory. Inside `media/input`, so the library finds crops. */
 export const CANVAS_CROP_PREFIX = 'media/input/canvas-crops/';
 

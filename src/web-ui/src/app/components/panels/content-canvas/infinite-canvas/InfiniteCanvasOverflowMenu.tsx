@@ -34,6 +34,7 @@ import {
 import { useI18n } from '@/infrastructure/i18n';
 
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
 
 export type InfiniteCanvasOverflowAction =
   | 'expand'
@@ -52,8 +53,6 @@ export interface InfiniteCanvasOverflowAvailability {
   deriveVideo: boolean;
   reveal: boolean;
 }
-
-export const INFINITE_CANVAS_OVERFLOW_WIDTH = 220;
 
 interface OverflowItem {
   action: InfiniteCanvasOverflowAction;
@@ -142,7 +141,7 @@ export const InfiniteCanvasOverflowMenu: React.FC<InfiniteCanvasOverflowMenuProp
       kind="card-overflow"
       className="infinite-canvas-picker--overflow"
       anchor={anchor}
-      width={INFINITE_CANVAS_OVERFLOW_WIDTH}
+      width={INFINITE_CANVAS_POPOVER_WIDTH.overflow}
       label={t('infiniteCanvas.menu.more')}
       onDismiss={onDismiss}
     >

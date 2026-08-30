@@ -205,7 +205,10 @@ import {
   pasteSnapshotContent,
   type InfiniteCanvasClipboardSnapshot,
 } from './infiniteCanvasClipboard';
-import { InfiniteCanvasConfirmDialog } from './InfiniteCanvasConfirmDialog';
+import {
+  InfiniteCanvasDeleteConfirmDialog,
+  InfiniteCanvasRetryCancelledDialog,
+} from './InfiniteCanvasConfirmDialog';
 import {
   InfiniteCanvasContextMenu,
   type InfiniteCanvasContextMenuAction,
@@ -220,6 +223,7 @@ import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
 import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasFrameEditor } from './InfiniteCanvasFrameEditor';
 import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
+import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
 import {
   InfiniteCanvasOverflowMenu,
   type InfiniteCanvasOverflowAction,
@@ -387,9 +391,6 @@ interface MaskEditorRequest {
   toolId: MaskImageToolId;
   mediaRef: InfiniteCanvasMediaRef;
 }
-
-/** §7.1's compact band; the reverse-prompt choice is the narrow end of it. */
-const REVERSE_PROMPT_POPOVER_WIDTH = 280;
 
 /**
  * P5 W7: a reverse-prompt result waiting on the owner's call, because the
@@ -3730,48 +3731,18 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
         />
       ) : null}
       {deleteRequest ? (
-        <InfiniteCanvasConfirmDialog
+        <InfiniteCanvasDeleteConfirmDialog
           summary={deleteRequest}
           onConfirm={confirmDeleteRequest}
           onCancel={() => setDeleteRequest(null)}
         />
       ) : null}
       {retryConfirmNodeId ? (
-        <div
-          className="infinite-canvas-dialog infinite-canvas-dialog--confirm"
-          role="dialog"
-          aria-label={t('infiniteCanvas.tasks.retryCancelled.title')}
-          data-canvas-confirm="retry-cancelled"
-          data-canvas-confirm-node={retryConfirmNodeId}
-        >
-          <div className="infinite-canvas-dialog__header">
-            <h4>{t('infiniteCanvas.tasks.retryCancelled.title')}</h4>
-            <button
-              type="button"
-              className="infinite-canvas-dialog__close"
-              data-canvas-confirm-action="cancel"
-              onClick={() => setRetryConfirmNodeId(null)}
-            >
-              {t('infiniteCanvas.tasks.retryCancelled.cancel')}
-            </button>
-          </div>
-          <p className="infinite-canvas-dialog__hint infinite-canvas-dialog__hint--strong">
-            {t('infiniteCanvas.tasks.retryCancelled.body')}
-          </p>
-          <p className="infinite-canvas-dialog__hint">
-            {t('infiniteCanvas.tasks.retryCancelled.detail')}
-          </p>
-          <div className="infinite-canvas-dialog__actions">
-            <button
-              type="button"
-              className="infinite-canvas-dialog__confirm"
-              data-canvas-confirm-action="confirm"
-              onClick={confirmRetryRespend}
-            >
-              {t('infiniteCanvas.tasks.retryCancelled.confirm')}
-            </button>
-          </div>
-        </div>
+        <InfiniteCanvasRetryCancelledDialog
+          nodeId={retryConfirmNodeId}
+          onConfirm={confirmRetryRespend}
+          onCancel={() => setRetryConfirmNodeId(null)}
+        />
       ) : null}
       <div
         className="infinite-canvas-panel__flow"
@@ -4051,7 +4022,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           kind="reverse-prompt-spend"
           className="infinite-canvas-picker--reverse-prompt"
           anchor={reversePromptSpend.anchor}
-          width={REVERSE_PROMPT_POPOVER_WIDTH}
+          width={INFINITE_CANVAS_POPOVER_WIDTH.reversePrompt}
           label={t('infiniteCanvas.reversePrompt.spend.title')}
           onDismiss={() => setReversePromptSpend(null)}
         >
@@ -4084,7 +4055,7 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           kind="reverse-prompt"
           className="infinite-canvas-picker--reverse-prompt"
           anchor={reversePromptChoice.anchor}
-          width={REVERSE_PROMPT_POPOVER_WIDTH}
+          width={INFINITE_CANVAS_POPOVER_WIDTH.reversePrompt}
           label={t('infiniteCanvas.reversePrompt.choiceTitle')}
           onDismiss={() => setReversePromptChoice(null)}
         >

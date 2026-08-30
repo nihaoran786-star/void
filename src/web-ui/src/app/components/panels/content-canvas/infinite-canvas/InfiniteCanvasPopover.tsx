@@ -26,6 +26,7 @@
 import React from 'react';
 
 import {
+  clampToRange,
   infiniteCanvasPopoverMaxHeight,
   placeInfiniteCanvasPopover,
   resolveInfiniteCanvasPopoverBounds,
@@ -37,10 +38,6 @@ import { useInfiniteCanvasDismiss } from './useInfiniteCanvasDismiss';
 const FALLBACK_VIEWPORT = { width: 1024, height: 768 };
 /** The popover clamps inside this element's box, not the viewport's. */
 const PANEL_SELECTOR = '.infinite-canvas-panel';
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), Math.max(min, max));
-}
 
 interface InfiniteCanvasPopoverProps {
   /** The control the popover belongs to; unanchored surfaces float centred. */
@@ -100,12 +97,12 @@ export const InfiniteCanvasPopover: React.FC<InfiniteCanvasPopoverProps> = ({
 
     if (!anchor) {
       setBox({
-        left: clamp(
+        left: clampToRange(
           bounds.left + (bounds.width - width) / 2,
           bounds.left + INFINITE_CANVAS_POPOVER_MARGIN,
           bounds.right - INFINITE_CANVAS_POPOVER_MARGIN - width,
         ) - originLeft,
-        top: clamp(
+        top: clampToRange(
           bounds.top + INFINITE_CANVAS_POPOVER_MARGIN * 6,
           bounds.top + INFINITE_CANVAS_POPOVER_MARGIN,
           bounds.bottom - INFINITE_CANVAS_POPOVER_MARGIN - height,
