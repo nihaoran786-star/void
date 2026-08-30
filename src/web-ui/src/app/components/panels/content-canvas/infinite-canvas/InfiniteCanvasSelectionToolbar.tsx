@@ -15,7 +15,7 @@ import { useI18n } from '@/infrastructure/i18n';
 
 export type InfiniteCanvasSelectionAction = 'copy' | 'duplicate' | 'delete';
 
-export interface InfiniteCanvasSelectionToolbarProps {
+interface InfiniteCanvasSelectionToolbarProps {
   nodeIds: readonly string[];
   /** The element the bar is positioned inside (the flow viewport wrapper). */
   containerRef: React.RefObject<HTMLElement | null>;

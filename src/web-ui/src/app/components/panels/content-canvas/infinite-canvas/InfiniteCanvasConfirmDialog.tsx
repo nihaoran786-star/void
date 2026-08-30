@@ -14,7 +14,7 @@ import React from 'react';
 import { useI18n } from '@/infrastructure/i18n';
 import type { InfiniteCanvasDeletionSummary } from './infiniteCanvasPanelModel';
 
-export interface InfiniteCanvasConfirmDialogProps {
+interface InfiniteCanvasConfirmDialogProps {
   summary: InfiniteCanvasDeletionSummary;
   onConfirm: () => void;
   onCancel: () => void;

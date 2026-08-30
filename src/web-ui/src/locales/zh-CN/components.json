@@ -963,14 +963,12 @@
     },
     "imagePicker": {
       "title": "从图库选择图片",
-      "close": "关闭",
       "loading": "正在扫描图库…",
       "empty": "图库中还没有图片。",
       "error": "图库暂时无法读取。"
     },
     "stylePicker": {
       "title": "选择风格预设",
-      "close": "关闭",
       "clear": "清除风格",
       "familyLabel": "风格族",
       "categoryLabel": "分类",
@@ -997,8 +995,6 @@
       }
     },
     "generation": {
-      "promptLabel": "生成提示词",
-      "promptPlaceholder": "描述要生成的画面…",
       "generate": "生成",
       "regenerate": "再生成（新卡）",
       "pending": "生成中…",
@@ -1006,8 +1002,6 @@
       "failedTitle": "生成失败",
       "retry": "重试",
       "remove": "删除",
-      "derivedBadgeLabel": "派生版本",
-      "derivedFromGenerate": "再生成",
       "referencesLabel": "参考顺序",
       "noticeTitle": "画布出图",
       "promptRequired": "请先在卡片上写提示词。",
@@ -1028,10 +1022,6 @@
     "video": {
       "previewLoading": "视频加载中…",
       "previewUnavailable": "视频暂时无法播放",
-      "promptLabel": "视频提示词",
-      "promptPlaceholder": "描述画面与运镜，例如：缓慢推近…",
-      "generate": "生成视频",
-      "regenerate": "再生成视频（新卡）",
       "pending": "视频生成中…",
       "blankHint": "连上参考图、写好提示词后点击生成视频。",
       "deriveFromImage": "生成视频",
@@ -1069,7 +1059,6 @@
     },
     "params": {
       "title": "生成参数",
-      "close": "关闭",
       "button": "参数",
       "model": "模型",
       "defaultModel": "默认",
@@ -1173,9 +1162,7 @@
       "references": "参考图",
       "referenceThumbnail": "参考图 {{order}}",
       "style": "风格",
-      "count": "{{n}}张",
-      "targetImage": "作用于选中的图片卡",
-      "targetVideo": "作用于选中的视频卡"
+      "count": "{{n}}张"
     },
     "rail": {
       "label": "画布工具",
@@ -1215,7 +1202,6 @@
     "crop": {
       "button": "裁剪",
       "title": "裁剪这张图",
-      "hint": "拉一个框，圈出要保留的部分。这一步在本机完成：不发送任何数据，也不消耗额度。",
       "confirm": "裁成一张新卡",
       "unavailable": "这张图无法打开进行裁剪。",
       "writeFailed": "裁剪结果没能保存，画布未做任何改动。",
@@ -1242,9 +1228,7 @@
       "redo": "重做涂抹",
       "undoUnaffordable": "这张图太大，装不下涂抹历史；仍可一键清除涂抹。",
       "clear": "清空涂抹",
-      "hint": "把要改的地方涂上，再写一句要改成什么。标注区域用来给模型指位置，不是像素级的精确选区。",
       "instructionLabel": "要改成什么",
-      "confirm": "标注并生成",
       "unavailable": "这张图无法打开进行标注。",
       "writeFailed": "标注后的图没能保存，因此没有发起生成，也没有产生任何花费。",
       "back": "返回",

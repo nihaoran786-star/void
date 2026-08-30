@@ -26,7 +26,7 @@ export interface InfiniteCanvasEdgeData extends Record<string, unknown> {
   onDisconnect?: (edgeId: string) => void;
 }
 
-export interface InfiniteCanvasEdgeProps {
+interface InfiniteCanvasEdgeProps {
   id: string;
   sourceX: number;
   sourceY: number;

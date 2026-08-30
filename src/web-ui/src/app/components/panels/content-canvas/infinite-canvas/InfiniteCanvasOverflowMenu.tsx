@@ -117,7 +117,7 @@ const ITEMS: readonly OverflowItem[] = [
   },
 ];
 
-export interface InfiniteCanvasOverflowMenuProps {
+interface InfiniteCanvasOverflowMenuProps {
   /** The pill's "more" button; the surface anchors to it and it never dismisses. */
   anchor: HTMLElement | null;
   available: InfiniteCanvasOverflowAvailability;

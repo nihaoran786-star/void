@@ -94,7 +94,7 @@ const PickerTile: React.FC<{
 
 PickerTile.displayName = 'InfiniteCanvasImagePickerTile';
 
-export interface InfiniteCanvasImagePickerProps {
+interface InfiniteCanvasImagePickerProps {
   workspacePath: string;
   mediaLibrary: WorkspaceMediaLibraryService;
   /** The forceDataUrl lane; the same resolver the cards and viewer use. */

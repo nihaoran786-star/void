@@ -47,7 +47,7 @@ import {
 /** Which assembly of the one shell this is; reported as `data-canvas-stage`. */
 export type InfiniteCanvasStageScene = 'viewer' | 'mask' | 'crop' | 'expand';
 
-export interface InfiniteCanvasMediaStageProps {
+interface InfiniteCanvasMediaStageProps {
   scene: InfiniteCanvasStageScene;
   /** Extra root class for the scene's own rules; the shell class is always on. */
   className?: string;

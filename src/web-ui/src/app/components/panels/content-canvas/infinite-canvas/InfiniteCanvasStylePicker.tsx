@@ -113,7 +113,7 @@ const StyleTile: React.FC<StyleTileProps> = ({ preset, selected, onPick }) => {
 
 StyleTile.displayName = 'InfiniteCanvasStyleTile';
 
-export interface InfiniteCanvasStylePickerProps {
+interface InfiniteCanvasStylePickerProps {
   currentPresetId?: string;
   catalog?: StylePresetCatalog;
   /** The control that opened it, for anchoring and press-outside handling. */

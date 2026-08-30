@@ -18,7 +18,7 @@ import React from 'react';
 import { useI18n } from '@/infrastructure/i18n';
 import type { InfiniteCanvasGenerationTask } from './infiniteCanvasPanelModel';
 
-export interface InfiniteCanvasTaskQueuePanelProps {
+interface InfiniteCanvasTaskQueuePanelProps {
   tasks: readonly InfiniteCanvasGenerationTask[];
   onRetry: (nodeId: string) => void;
   onRetryAllFailed: () => void;

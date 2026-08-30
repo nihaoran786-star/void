@@ -244,7 +244,7 @@ type GenerationParamFields = Partial<Pick<
  * model accepts (`aspectRatio` for Omni-Flash-Ext / kling, `size` for
  * seedance — see the capability table).
  */
-export function buildGenerationParamFields(
+function buildGenerationParamFields(
   params: InfiniteCanvasGenerationParams | undefined,
   kind: 'image' | 'video',
 ): GenerationParamFields {
@@ -274,7 +274,7 @@ export function buildGenerationParamFields(
  * later switched to a single-image model must not send 4. With no parameters
  * at all this returns 1, i.e. the pre-P4 request byte for byte.
  */
-export function resolveInfiniteCanvasBatchSize(
+function resolveInfiniteCanvasBatchSize(
   params: InfiniteCanvasGenerationParams | undefined,
 ): number {
   if (!params) return 1;

@@ -530,22 +530,6 @@
   opacity: 0;
 }
 
-.infinite-canvas-node__view-button {
-  flex: none;
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--canvas-text-muted);
-  cursor: pointer;
-  font-size: 10px;
-
-  &:hover {
-    background: var(--infinite-canvas-hover);
-    color: var(--canvas-text-primary);
-  }
-}
-
 // §3: reference order is a grey mark at label level, not a loud capsule.
 .infinite-canvas-node__reference-badges {
   display: inline-flex;
@@ -1155,24 +1139,6 @@
   margin: 0;
   color: var(--infinite-canvas-muted);
   font-size: 11px;
-}
-
-.infinite-canvas-dialog__input {
-  min-height: 56px;
-  padding: 6px 8px;
-  border: 1px solid var(--infinite-canvas-border);
-  border-radius: 6px;
-  background: var(--infinite-canvas-bg);
-  color: var(--infinite-canvas-text);
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.5;
-  resize: vertical;
-
-  &:focus {
-    border-color: var(--infinite-canvas-accent);
-    outline: none;
-  }
 }
 
 .infinite-canvas-dialog__actions {
@@ -1831,13 +1797,6 @@
   margin: 0;
   color: var(--infinite-canvas-muted);
   font-size: 11px;
-}
-
-.infinite-canvas-picker__filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
 }
 
 // Owner feedback 2026-08-26: the style family dropdown and the category row
@@ -2512,8 +2471,7 @@
 // prose these surfaces are allowed. Muted in both themes; the tokens carry the
 // light/dark switch.
 .infinite-canvas-editor__note,
-.infinite-canvas-generator__note,
-.infinite-canvas-dialog__blocked {
+.infinite-canvas-generator__note {
   margin: 0;
   color: var(--canvas-text-muted);
   font-size: 11px;
@@ -2527,11 +2485,6 @@
 
 .infinite-canvas-generator__note {
   padding: 0 2px;
-}
-
-.infinite-canvas-dialog__blocked {
-  flex: 1;
-  text-align: left;
 }
 
 // A loading or failure line. A sibling of the media, never inside it, so the

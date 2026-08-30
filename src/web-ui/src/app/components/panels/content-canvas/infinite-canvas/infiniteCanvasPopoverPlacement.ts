@@ -52,7 +52,7 @@ export interface InfiniteCanvasPopoverPlacement {
 }
 
 /** Gap between the anchor and the popover, in CSS pixels. */
-export const INFINITE_CANVAS_POPOVER_GAP = 8;
+const INFINITE_CANVAS_POPOVER_GAP = 8;
 /** Keep-out margin from the bounds edges. */
 export const INFINITE_CANVAS_POPOVER_MARGIN = 8;
 /** §7.3-B: the surface stops growing here and scrolls inside itself. */

@@ -111,7 +111,7 @@ export interface InfiniteCanvasFrameEditorConfirmPayload {
   size: CanvasSize;
 }
 
-export interface InfiniteCanvasFrameEditorProps {
+interface InfiniteCanvasFrameEditorProps {
   /** `inward` crops, `outward` expands. The whole of the difference. */
   direction: CanvasFrameDirection;
   mediaRef: InfiniteCanvasMediaRef;

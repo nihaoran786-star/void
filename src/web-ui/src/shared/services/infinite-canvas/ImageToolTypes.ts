@@ -68,7 +68,7 @@ export interface ImageToolGateway {
 // or "pixel-level".
 
 /** The two tools whose entry point is the mask editor. */
-export const MASK_IMAGE_TOOL_IDS = ['inpaint', 'erase'] as const;
+const MASK_IMAGE_TOOL_IDS = ['inpaint', 'erase'] as const;
 
 export type MaskImageToolId = typeof MASK_IMAGE_TOOL_IDS[number];
 

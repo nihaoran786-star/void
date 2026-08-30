@@ -22,7 +22,7 @@ function formatClock(seconds: number): string {
   return `${minutes}:${String(whole % 60).padStart(2, '0')}`;
 }
 
-export interface InfiniteCanvasVideoCardProps {
+interface InfiniteCanvasVideoCardProps {
   src: string;
   /** File name of the clip; used as the media element's accessible name. */
   label: string;

@@ -9,7 +9,7 @@
  */
 import React from 'react';
 
-export interface InfiniteCanvasHelperLinesProps {
+interface InfiniteCanvasHelperLinesProps {
   /** Panel-pixel x of the vertical guide, when the drag matched one. */
   vertical?: number;
   /** Panel-pixel y of the horizontal guide, when the drag matched one. */

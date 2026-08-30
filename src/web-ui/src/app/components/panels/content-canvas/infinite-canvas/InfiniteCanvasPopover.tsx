@@ -42,7 +42,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
-export interface InfiniteCanvasPopoverProps {
+interface InfiniteCanvasPopoverProps {
   /** The control the popover belongs to; unanchored surfaces float centred. */
   anchor?: HTMLElement | null;
   /** Surface width in pixels — §7 wants these in the 260–320 band. */

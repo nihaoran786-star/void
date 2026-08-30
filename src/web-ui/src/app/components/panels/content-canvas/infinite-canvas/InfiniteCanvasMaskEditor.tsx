@@ -83,7 +83,7 @@ export type InfiniteCanvasMaskTool = 'brush' | 'rect' | 'eraser';
  * panel supplies the card projection and the popover routes, exactly as it
  * does for the board.
  */
-export type InfiniteCanvasMaskGeneratorProps = InfiniteCanvasEditorGeneratorProps;
+type InfiniteCanvasMaskGeneratorProps = InfiniteCanvasEditorGeneratorProps;
 
 /**
  * One step of the editor's own history: the pixels of the mark layer, plus
@@ -95,7 +95,7 @@ interface MarkLayerSnapshot {
   marked: boolean;
 }
 
-export interface InfiniteCanvasMaskEditorProps {
+interface InfiniteCanvasMaskEditorProps {
   toolId: MaskImageToolId;
   mediaRef: InfiniteCanvasMediaRef;
   /** Always the forceDataUrl resolver: the export lane needs a data URL. */

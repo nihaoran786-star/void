@@ -158,7 +158,7 @@ const ParamGroup: React.FC<{
 
 ParamGroup.displayName = 'InfiniteCanvasParamGroup';
 
-export interface InfiniteCanvasParamsPopoverProps {
+interface InfiniteCanvasParamsPopoverProps {
   mediaKind: InfiniteCanvasGenerationMediaKind;
   params?: InfiniteCanvasGenerationParams;
   /** The control that opened it: the generator's parameter pill, usually. */

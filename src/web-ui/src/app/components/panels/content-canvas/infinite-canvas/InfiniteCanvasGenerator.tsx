@@ -80,7 +80,7 @@ export interface InfiniteCanvasGeneratorPlacement {
  */
 export type InfiniteCanvasGeneratorSurface = 'card' | 'editor';
 
-export interface InfiniteCanvasGeneratorProps {
+interface InfiniteCanvasGeneratorProps {
   /** The selected card. There is no generator without one. */
   target: InfiniteCanvasGeneratorTarget;
   surface?: InfiniteCanvasGeneratorSurface;

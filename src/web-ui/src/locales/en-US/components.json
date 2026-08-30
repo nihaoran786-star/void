@@ -963,14 +963,12 @@
     },
     "imagePicker": {
       "title": "Pick an image from the library",
-      "close": "Close",
       "loading": "Scanning the library...",
       "empty": "No images in the library yet.",
       "error": "The library could not be read."
     },
     "stylePicker": {
       "title": "Pick a style preset",
-      "close": "Close",
       "clear": "Clear style",
       "familyLabel": "Family",
       "categoryLabel": "Category",
@@ -997,8 +995,6 @@
       }
     },
     "generation": {
-      "promptLabel": "Generation prompt",
-      "promptPlaceholder": "Describe the image to generate...",
       "generate": "Generate",
       "regenerate": "Regenerate as a new card",
       "pending": "Generating...",
@@ -1006,8 +1002,6 @@
       "failedTitle": "Generation failed",
       "retry": "Retry",
       "remove": "Delete",
-      "derivedBadgeLabel": "Derived version",
-      "derivedFromGenerate": "Regenerated",
       "referencesLabel": "Reference order",
       "noticeTitle": "Canvas generation",
       "promptRequired": "Write a prompt on the card first.",
@@ -1028,10 +1022,6 @@
     "video": {
       "previewLoading": "Loading video...",
       "previewUnavailable": "Video preview is unavailable",
-      "promptLabel": "Video prompt",
-      "promptPlaceholder": "Describe the scene and the camera move...",
-      "generate": "Generate video",
-      "regenerate": "Regenerate video as a new card",
       "pending": "Generating video...",
       "blankHint": "Connect reference images, write a prompt, then generate the video.",
       "deriveFromImage": "Make video",
@@ -1069,7 +1059,6 @@
     },
     "params": {
       "title": "Generation parameters",
-      "close": "Close",
       "button": "Parameters",
       "model": "Model",
       "defaultModel": "default",
@@ -1173,9 +1162,7 @@
       "references": "Reference images",
       "referenceThumbnail": "Reference {{order}}",
       "style": "Style",
-      "count": "{{n}}x",
-      "targetImage": "Acting on the selected image card",
-      "targetVideo": "Acting on the selected video card"
+      "count": "{{n}}x"
     },
     "rail": {
       "label": "Canvas tools",
@@ -1215,7 +1202,6 @@
     "crop": {
       "button": "Crop",
       "title": "Crop this picture",
-      "hint": "Drag a frame over the part you want to keep. This runs on your machine: nothing is sent anywhere and nothing is charged.",
       "confirm": "Crop into a new card",
       "unavailable": "This picture could not be opened for cropping.",
       "writeFailed": "The cropped file could not be saved. Nothing was changed.",
@@ -1242,9 +1228,7 @@
       "redo": "Redo mark",
       "undoUnaffordable": "This picture is too large for a mark history; marks can still be cleared.",
       "clear": "Clear all marks",
-      "hint": "Paint over the area you want changed, then say what should happen there. The marked area guides the model; it is not a pixel-exact selection.",
       "instructionLabel": "What should change",
-      "confirm": "Mark and generate",
       "unavailable": "This picture could not be opened for marking.",
       "writeFailed": "The marked picture could not be saved, so nothing was generated and nothing was charged.",
       "back": "Back",

@@ -408,7 +408,7 @@ export const CANVAS_EXPAND_MAX_PIXELS = 64 * 1024 * 1024;
  * `(1 + 2r)² × w × h ≤ budget` — which is what makes the frame stop at a size
  * that can actually be rasterised instead of at a ratio that cannot.
  */
-export function canvasExpandMaxInsets(
+function canvasExpandMaxInsets(
   natural: CanvasSize,
   ratio: number = CANVAS_EXPAND_MAX_RATIO,
   maxPixels: number = CANVAS_EXPAND_MAX_PIXELS,

@@ -66,7 +66,7 @@ const SpeakerIcon: React.FC = () => (
 
 SpeakerIcon.displayName = 'InfiniteCanvasSpeakerIcon';
 
-export interface InfiniteCanvasModelPopoverProps {
+interface InfiniteCanvasModelPopoverProps {
   mediaKind: InfiniteCanvasGenerationMediaKind;
   params?: InfiniteCanvasGenerationParams;
   /** The model name in the generator's bottom bar. */

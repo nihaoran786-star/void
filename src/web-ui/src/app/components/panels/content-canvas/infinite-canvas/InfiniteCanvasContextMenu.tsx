@@ -50,7 +50,7 @@ export interface InfiniteCanvasContextMenuState {
   selectionCount?: number;
 }
 
-export interface InfiniteCanvasContextMenuProps {
+interface InfiniteCanvasContextMenuProps {
   state: InfiniteCanvasContextMenuState;
   /** False when the app clipboard is empty; the paste item is then disabled. */
   canPaste: boolean;

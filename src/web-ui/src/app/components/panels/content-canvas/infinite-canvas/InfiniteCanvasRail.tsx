@@ -26,7 +26,7 @@ import {
 
 import { useI18n } from '@/infrastructure/i18n';
 
-export interface InfiniteCanvasRailProps {
+interface InfiniteCanvasRailProps {
   onAddText: () => void;
   onAddImage: (anchor?: HTMLElement) => void;
   onAddGenerationCard: () => void;

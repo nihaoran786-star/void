@@ -47,7 +47,7 @@ export interface InfiniteCanvasViewerItem {
   mediaKind: 'image' | 'video';
 }
 
-export interface InfiniteCanvasMediaViewerProps {
+interface InfiniteCanvasMediaViewerProps {
   /** Every media-bearing card of the canvas, in document order. */
   items: readonly InfiniteCanvasViewerItem[];
   activeNodeId: string;

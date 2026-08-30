@@ -963,14 +963,12 @@
     },
     "imagePicker": {
       "title": "從圖庫選擇圖片",
-      "close": "關閉",
       "loading": "正在掃描圖庫…",
       "empty": "圖庫中還沒有圖片。",
       "error": "圖庫暫時無法讀取。"
     },
     "stylePicker": {
       "title": "選擇風格預設",
-      "close": "關閉",
       "clear": "清除風格",
       "familyLabel": "風格族",
       "categoryLabel": "分類",
@@ -997,8 +995,6 @@
       }
     },
     "generation": {
-      "promptLabel": "生成提示詞",
-      "promptPlaceholder": "描述要生成的畫面…",
       "generate": "生成",
       "regenerate": "再生成（新卡）",
       "pending": "生成中…",
@@ -1006,8 +1002,6 @@
       "failedTitle": "生成失敗",
       "retry": "重試",
       "remove": "刪除",
-      "derivedBadgeLabel": "衍生版本",
-      "derivedFromGenerate": "再生成",
       "referencesLabel": "參考順序",
       "noticeTitle": "畫布出圖",
       "promptRequired": "請先在卡片上寫提示詞。",
@@ -1028,10 +1022,6 @@
     "video": {
       "previewLoading": "影片載入中…",
       "previewUnavailable": "影片暫時無法播放",
-      "promptLabel": "影片提示詞",
-      "promptPlaceholder": "描述畫面與運鏡，例如：緩慢推近…",
-      "generate": "生成影片",
-      "regenerate": "再生成影片（新卡）",
       "pending": "影片生成中…",
       "blankHint": "連上參考圖、寫好提示詞後點擊生成影片。",
       "deriveFromImage": "生成影片",
@@ -1069,7 +1059,6 @@
     },
     "params": {
       "title": "生成參數",
-      "close": "關閉",
       "button": "參數",
       "model": "模型",
       "defaultModel": "預設",
@@ -1173,9 +1162,7 @@
       "references": "參考圖",
       "referenceThumbnail": "參考圖 {{order}}",
       "style": "風格",
-      "count": "{{n}}張",
-      "targetImage": "作用於選取的圖片卡",
-      "targetVideo": "作用於選取的影片卡"
+      "count": "{{n}}張"
     },
     "rail": {
       "label": "畫布工具",
@@ -1215,7 +1202,6 @@
     "crop": {
       "button": "裁切",
       "title": "裁切這張圖",
-      "hint": "拉一個框，圈出要保留的部分。這一步在本機完成：不會送出任何資料，也不會消耗額度。",
       "confirm": "裁成一張新卡",
       "unavailable": "這張圖無法開啟進行裁切。",
       "writeFailed": "裁切結果沒能儲存，畫布未做任何變更。",
@@ -1242,9 +1228,7 @@
       "redo": "重做塗抹",
       "undoUnaffordable": "這張圖太大，裝不下塗抹歷史；仍可一鍵清除塗抹。",
       "clear": "清除塗抹",
-      "hint": "把要改的地方塗上，再寫一句要改成什麼。標註區域用來給模型指位置，不是像素級的精確選區。",
       "instructionLabel": "要改成什麼",
-      "confirm": "標註並生成",
       "unavailable": "這張圖無法開啟進行標註。",
       "writeFailed": "標註後的圖沒能儲存，因此沒有發起生成，也沒有產生任何花費。",
       "back": "返回",
