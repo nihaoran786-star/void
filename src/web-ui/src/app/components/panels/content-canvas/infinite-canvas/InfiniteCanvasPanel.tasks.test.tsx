@@ -19,80 +19,29 @@ import { Simulate } from 'react-dom/test-utils';
 import { generateFromCanvasGenerator } from './infiniteCanvasGeneratorDriver.testkit';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({ props: null as any, setCenter: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      // Reactflow hands the instance to onInit once it has mounted.
-      const { onInit } = props;
-      React.useEffect(() => {
-        onInit?.({ setCenter: flow.setCenter });
-      }, [onInit]);
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway());
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-  getInfiniteCanvasMediaRevealer: () => {
-    throw new Error('Tests must inject a reveal port.');
-  },
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import {
   createInMemoryInfiniteCanvasPersistence,
@@ -105,6 +54,7 @@ import {
   type SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import { canvasFlow, resetCanvasFlow } from './infiniteCanvasPanel.testkit';
 import { InfiniteCanvasTaskQueuePanel } from './InfiniteCanvasTaskQueuePanel';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -157,8 +107,7 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     eventBus = createFakeEventBus();
     invocations = [];
-    flow.props = null;
-    flow.setCenter = vi.fn();
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -252,7 +201,7 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
    * card and sending from the bottom generator is the one dispatch entry.
    */
   async function startGeneration(nodeId: string): Promise<void> {
-    await generateFromCanvasGenerator(container, flow, nodeId);
+    await generateFromCanvasGenerator(container, canvasFlow, nodeId);
   }
 
   const CARD_A: InfiniteCanvasNode = {
@@ -462,8 +411,8 @@ describe('InfiniteCanvasPanel P4 W8 task queue', () => {
 
     await click('[data-canvas-task-action="locate"]');
 
-    expect(flow.setCenter).toHaveBeenCalledTimes(1);
-    expect(flow.setCenter).toHaveBeenCalledWith(200, 400, expect.objectContaining({ zoom: 1 }));
+    expect(canvasFlow.setCenter).toHaveBeenCalledTimes(1);
+    expect(canvasFlow.setCenter).toHaveBeenCalledWith(200, 400, expect.objectContaining({ zoom: 1 }));
   });
 
   it('subscribes to nothing: the queue is a projection, never an event listener', () => {
