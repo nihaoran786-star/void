@@ -13,7 +13,6 @@
  * gateway; the media bridge lands results back while the panel is mounted.
  */
 import React from 'react';
-import { Maximize, Minus, Plus } from 'lucide-react';
 import {
   applyEdgeChanges,
   applyNodeChanges,
@@ -110,14 +109,10 @@ import {
 } from './infiniteCanvasGenerationModel';
 import { InfiniteCanvasDomainOriginProvider } from './infiniteCanvasDomainOrigins';
 import { InfiniteCanvasEdge } from './InfiniteCanvasEdge';
-import {
-  InfiniteCanvasGenerator,
-  type InfiniteCanvasGeneratorReference,
-  type InfiniteCanvasGeneratorTarget,
+import type {
+  InfiniteCanvasGeneratorReference,
+  InfiniteCanvasGeneratorTarget,
 } from './InfiniteCanvasGenerator';
-import { InfiniteCanvasModelPopover } from './InfiniteCanvasModelPopover';
-import { InfiniteCanvasParamsPopover } from './InfiniteCanvasParamsPopover';
-import { InfiniteCanvasRail } from './InfiniteCanvasRail';
 import {
   InfiniteCanvasImageNode,
   InfiniteCanvasTextNode,
@@ -130,9 +125,6 @@ import {
   isEditableTarget,
 } from './infiniteCanvasHistory';
 import { computeInfiniteCanvasHelperLines } from './infiniteCanvasHelperLines';
-// The overlay lives in its own file whose name differs from the pure module
-// by more than case: a case-only pair breaks resolution on Windows.
-import { InfiniteCanvasHelperLines } from './InfiniteCanvasHelperLinesOverlay';
 import {
   infiniteCanvasMediaFilePath,
   resolveInfiniteCanvasMediaPreviewUrl,
@@ -148,29 +140,15 @@ import {
   pasteSnapshotContent,
   type InfiniteCanvasClipboardSnapshot,
 } from './infiniteCanvasClipboard';
-import {
-  InfiniteCanvasDeleteConfirmDialog,
-  InfiniteCanvasRetryCancelledDialog,
-} from './InfiniteCanvasConfirmDialog';
-import {
-  InfiniteCanvasContextMenu,
-  type InfiniteCanvasContextMenuAction,
-  type InfiniteCanvasContextMenuState,
+import type {
+  InfiniteCanvasContextMenuAction,
+  InfiniteCanvasContextMenuState,
 } from './InfiniteCanvasContextMenu';
-import {
-  InfiniteCanvasSelectionToolbar,
-  type InfiniteCanvasSelectionAction,
+import type {
+  InfiniteCanvasSelectionAction,
 } from './InfiniteCanvasSelectionToolbar';
-import { InfiniteCanvasTaskQueuePanel } from './InfiniteCanvasTaskQueuePanel';
-import { InfiniteCanvasImagePicker } from './InfiniteCanvasImagePicker';
-import { InfiniteCanvasStylePicker } from './InfiniteCanvasStylePicker';
 import { InfiniteCanvasFrameEditor } from './InfiniteCanvasFrameEditor';
-import { InfiniteCanvasPopover } from './InfiniteCanvasPopover';
-import { INFINITE_CANVAS_POPOVER_WIDTH } from './infiniteCanvasPopoverPlacement';
-import {
-  InfiniteCanvasOverflowMenu,
-  type InfiniteCanvasOverflowAction,
-} from './InfiniteCanvasOverflowMenu';
+import type { InfiniteCanvasOverflowAction } from './InfiniteCanvasOverflowMenu';
 import { InfiniteCanvasMaskEditor } from './InfiniteCanvasMaskEditor';
 import {
   emptyInfiniteCanvasProjectionCache,
@@ -186,6 +164,12 @@ import {
   type CanvasGenerationNotice,
 } from './useCanvasGenerationDispatch';
 import { useCanvasPopovers } from './useCanvasPopovers';
+import { InfiniteCanvasMenus } from './InfiniteCanvasMenus';
+import {
+  InfiniteCanvasBoardOverlays,
+  InfiniteCanvasOverlays,
+  type InfiniteCanvasBoardGenerator,
+} from './InfiniteCanvasOverlays';
 import { useCanvasShortDramaBridge } from './useCanvasShortDramaBridge';
 import { useInfiniteCanvasDocument } from './useInfiniteCanvasDocument';
 import './InfiniteCanvasPanel.scss';
@@ -2195,6 +2179,118 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
       .find(node => node.nodeId === stylePickerNodeId)?.stylePresetId;
   }, [stylePickerNodeId]);
 
+  // —— what the presentation children are handed ——————————————————————————
+  //
+  // Every question the overlays used to ask inline is answered here, so the
+  // two render files below stay dumb: they draw what they are given.
+
+  const dismissNotice = React.useCallback(() => setNotice(null), []);
+  const closeImagePicker = React.useCallback(() => setImagePickerOpen(false), []);
+  const closeStylePicker = React.useCallback(() => setStylePickerNodeId(null), []);
+  const cancelDeleteRequest = React.useCallback(() => setDeleteRequest(null), []);
+  const closeContextMenu = React.useCallback(() => setContextMenu(null), []);
+  const closeOverflow = React.useCallback(() => setOverflow(null), []);
+
+  /** The rail's two library entries have always opened the same picker. */
+  const openLibraryPicker = React.useCallback((anchor?: HTMLElement) => {
+    setImagePickerAnchor(anchor ?? null);
+    setImagePickerIntent('card');
+    setImagePickerOpen(open => !open);
+  }, []);
+
+  const onZoomIn = React.useCallback(
+    () => flowInstanceRef.current?.zoomIn?.({ duration: 160 }),
+    [],
+  );
+  const onZoomOut = React.useCallback(
+    () => flowInstanceRef.current?.zoomOut?.({ duration: 160 }),
+    [],
+  );
+  const onFitView = React.useCallback(
+    () => flowInstanceRef.current?.fitView?.({ duration: 160, padding: 0.2 }),
+    [],
+  );
+  const onUndo = React.useCallback(() => { void runHistory('undo'); }, [runHistory]);
+  const onRedo = React.useCallback(() => { void runHistory('redo'); }, [runHistory]);
+  const onRetryTask = React.useCallback((nodeId: string) => {
+    void retryGeneration(nodeId);
+  }, [retryGeneration]);
+
+  /** §4: which drawer entries this card can actually run. */
+  const overflowAvailable = React.useMemo(() => {
+    const found = overflow ? findMediaNode(overflow.nodeId) : undefined;
+    const hasMedia = Boolean(found?.node.mediaRef);
+    const isImage = found?.node.kind === 'image';
+    return {
+      expand: isImage && hasMedia,
+      reversePrompt: isImage && hasMedia,
+      deriveVideo: isImage && hasMedia,
+      reveal: hasMedia,
+    };
+  }, [findMediaNode, overflow]);
+
+  const onOverflowAction = React.useCallback((action: InfiniteCanvasOverflowAction) => {
+    const nodeId = overflow?.nodeId;
+    setOverflow(null);
+    if (nodeId) cardToolbarActionsRef.current.overflow(nodeId, action);
+  }, [overflow]);
+
+  /**
+   * §6: the card-anchored generator, or nothing at all. A board-filling editor
+   * mounts the SAME generator inside itself, so the anchored one steps aside
+   * while one is open.
+   */
+  const boardGenerator = React.useMemo<InfiniteCanvasBoardGenerator | undefined>(() => {
+    if (!generatorTarget || !generatorPlacement) return undefined;
+    if (maskRequest || cropRequest || expandRequest) return undefined;
+    const nodeId = generatorTarget.nodeId;
+    return {
+      target: generatorTarget,
+      placement: generatorPlacement,
+      instructionTemplate: toolIntent?.nodeId === nodeId ? toolIntent.template : undefined,
+      references: generatorReferences,
+      onSubmit: prompt => {
+        void onGeneratorSubmit(prompt);
+      },
+      onCommitPrompt: prompt => {
+        generatorDraftRef.current = { nodeId, value: prompt };
+        // C3: while a tool instruction is prefilled the box is showing a
+        // draft that belongs to the tool, not to this card. Blurring it
+        // must not save it over the card's own prompt.
+        if (toolIntent?.nodeId === nodeId) return;
+        void commit(
+          document => setNodePromptContent(document, nodeId, prompt),
+          { history: true },
+        );
+      },
+      // Review C7: the panel keeps the box's live text so a slow
+      // reverse-prompt cannot land on top of it.
+      onDraftChange: prompt => {
+        generatorDraftRef.current = { nodeId, value: prompt };
+      },
+      onAddReference: onGeneratorAddReference,
+      onRemoveReference: onGeneratorRemoveReference,
+      onOpenParams: anchor => nodeActionsRef.current.openParams(nodeId, anchor),
+      onOpenModel: anchor => nodeActionsRef.current.openModel(nodeId, anchor),
+      onOpenStyle: generatorTarget.mediaKind === 'image'
+        ? anchor => openStylePicker(nodeId, anchor)
+        : undefined,
+    };
+  }, [
+    commit,
+    cropRequest,
+    expandRequest,
+    generatorPlacement,
+    generatorReferences,
+    generatorTarget,
+    maskRequest,
+    onGeneratorAddReference,
+    onGeneratorRemoveReference,
+    onGeneratorSubmit,
+    openStylePicker,
+    toolIntent,
+  ]);
+
   if (state.phase === 'failed') {
     return (
       <div
@@ -2235,81 +2331,34 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
 
   return (
     <div className="infinite-canvas-panel" data-canvas-surface-state="ready" ref={panelRef}>
-      {notice ? (
-        <div
-          className="infinite-canvas-panel__tool-notice"
-          // A busy notice is a status, not an alert: it must not interrupt a
-          // screen reader mid-sentence the way a failure legitimately does.
-          role={notice.busy ? 'status' : 'alert'}
-          data-error-kind={notice.errorKind}
-          data-notice-busy={notice.busy ? 'true' : undefined}
-          aria-busy={notice.busy || undefined}
-        >
-          <strong>{t('infiniteCanvas.generation.noticeTitle')}</strong>
-          <span>{t(notice.messageKey)}</span>
-          <button
-            type="button"
-            className="infinite-canvas-panel__tool-notice-dismiss"
-            onClick={() => setNotice(null)}
-          >
-            {t('infiniteCanvas.tools.dismiss')}
-          </button>
-        </div>
-      ) : null}
-      {imagePickerOpen ? (
-        <InfiniteCanvasImagePicker
-          workspacePath={workspacePath}
-          mediaLibrary={mediaLibrary}
-          // The bug the owner hit: the picker used the library's
-          // convertFileSrc thumbnails, which this app's webview refuses. It
-          // now shares the cards' forceDataUrl resolver.
-          resolvePreviewUrl={resolvePreviewUrl}
-          anchor={imagePickerAnchor}
-          onPick={onPickImage}
-          onClose={() => setImagePickerOpen(false)}
-        />
-      ) : null}
-      {stylePickerNodeId ? (
-        <InfiniteCanvasStylePicker
-          currentPresetId={stylePickerCurrentPresetId}
-          catalog={catalog}
-          anchor={stylePickerAnchor}
-          onPick={onPickStyle}
-          onClose={() => setStylePickerNodeId(null)}
-        />
-      ) : null}
-      {popovers.params.target ? (
-        <InfiniteCanvasParamsPopover
-          mediaKind={popovers.params.target.mediaKind}
-          params={popovers.params.target.params}
-          anchor={popovers.params.anchor}
-          onChange={onChangeGenerationParams}
-          onClose={popovers.params.close}
-        />
-      ) : null}
-      {popovers.model.target ? (
-        <InfiniteCanvasModelPopover
-          mediaKind={popovers.model.target.mediaKind}
-          params={popovers.model.target.params}
-          anchor={popovers.model.anchor}
-          onChange={onChangeGenerationModel}
-          onClose={popovers.model.close}
-        />
-      ) : null}
-      {deleteRequest ? (
-        <InfiniteCanvasDeleteConfirmDialog
-          summary={deleteRequest}
-          onConfirm={confirmDeleteRequest}
-          onCancel={() => setDeleteRequest(null)}
-        />
-      ) : null}
-      {dispatch.retryConfirmNodeId ? (
-        <InfiniteCanvasRetryCancelledDialog
-          nodeId={dispatch.retryConfirmNodeId}
-          onConfirm={dispatch.confirmRetryRespend}
-          onCancel={dispatch.cancelRetryRespend}
-        />
-      ) : null}
+      <InfiniteCanvasOverlays
+        t={t}
+        notice={notice}
+        onDismissNotice={dismissNotice}
+        imagePickerOpen={imagePickerOpen}
+        workspacePath={workspacePath}
+        mediaLibrary={mediaLibrary}
+        resolvePreviewUrl={resolvePreviewUrl}
+        imagePickerAnchor={imagePickerAnchor}
+        onPickImage={onPickImage}
+        onCloseImagePicker={closeImagePicker}
+        stylePickerNodeId={stylePickerNodeId}
+        stylePickerPresetId={stylePickerCurrentPresetId}
+        catalog={catalog}
+        stylePickerAnchor={stylePickerAnchor}
+        onPickStyle={onPickStyle}
+        onCloseStylePicker={closeStylePicker}
+        paramsPopover={popovers.params}
+        modelPopover={popovers.model}
+        onChangeGenerationParams={onChangeGenerationParams}
+        onChangeGenerationModel={onChangeGenerationModel}
+        deleteRequest={deleteRequest}
+        onConfirmDelete={confirmDeleteRequest}
+        onCancelDelete={cancelDeleteRequest}
+        retryConfirmNodeId={dispatch.retryConfirmNodeId}
+        onConfirmRetry={dispatch.confirmRetryRespend}
+        onCancelRetry={dispatch.cancelRetryRespend}
+      />
       <div
         className="infinite-canvas-panel__flow"
         aria-label={t('infiniteCanvas.title')}
@@ -2360,164 +2409,37 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           <Background gap={CANVAS_DOT_GAP} size={CANVAS_DOT_SIZE} />
         </ReactFlow>
         </InfiniteCanvasDomainOriginProvider>
-        {/*
-          §8.1: reactflow's stacked `+ − ⛶` control block is replaced by three
-          hairline icon buttons in the corner — no background until hovered,
-          same weight as the left rail. They drive the same instance methods
-          the default control block called.
-        */}
-        <div
-          className="infinite-canvas-zoom"
-          role="group"
-          data-canvas-zoom="root"
-          aria-label={t('infiniteCanvas.zoom.label')}
-        >
-          <button
-            type="button"
-            className="infinite-canvas-zoom__button"
-            data-canvas-zoom-action="in"
-            aria-label={t('infiniteCanvas.zoom.in')}
-            title={t('infiniteCanvas.zoom.in')}
-            onClick={() => flowInstanceRef.current?.zoomIn?.({ duration: 160 })}
-          >
-            <Plus size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="infinite-canvas-zoom__button"
-            data-canvas-zoom-action="out"
-            aria-label={t('infiniteCanvas.zoom.out')}
-            title={t('infiniteCanvas.zoom.out')}
-            onClick={() => flowInstanceRef.current?.zoomOut?.({ duration: 160 })}
-          >
-            <Minus size={14} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="infinite-canvas-zoom__button"
-            data-canvas-zoom-action="fit"
-            aria-label={t('infiniteCanvas.zoom.fit')}
-            title={t('infiniteCanvas.zoom.fit')}
-            onClick={() => flowInstanceRef.current?.fitView?.({ duration: 160, padding: 0.2 })}
-          >
-            <Maximize size={14} aria-hidden="true" />
-          </button>
-        </div>
-        <InfiniteCanvasHelperLines
-          vertical={helperLines.vertical}
-          horizontal={helperLines.horizontal}
-        />
-        {/* §8: the floating left rail replaces the old top toolbar row. */}
-        <InfiniteCanvasRail
+        <InfiniteCanvasBoardOverlays
+          t={t}
+          resolvePreviewUrl={resolvePreviewUrl}
+          onZoomIn={onZoomIn}
+          onZoomOut={onZoomOut}
+          onFitView={onFitView}
+          helperLines={helperLines}
           onAddText={onAddText}
-          onAddImage={anchor => {
-            setImagePickerAnchor(anchor ?? null);
-            setImagePickerIntent('card');
-            setImagePickerOpen(open => !open);
-          }}
+          onAddImage={openLibraryPicker}
           onAddGenerationCard={onAddGenerationCard}
           onAddVideoCard={onAddVideoCard}
-          onOpenLibrary={anchor => {
-            setImagePickerAnchor(anchor ?? null);
-            setImagePickerIntent('card');
-            setImagePickerOpen(open => !open);
-          }}
-          onUndo={() => {
-            void runHistory('undo');
-          }}
-          onRedo={() => {
-            void runHistory('redo');
-          }}
+          onOpenLibrary={openLibraryPicker}
+          onUndo={onUndo}
+          onRedo={onRedo}
           canUndo={history.undo.length > 0}
           canRedo={history.redo.length > 0}
-          undoHint={t('infiniteCanvas.history.undoHint')}
-          redoHint={t('infiniteCanvas.history.redoHint')}
-        />
-        {selectedNodeIds.length >= 2 ? (
-          <InfiniteCanvasSelectionToolbar
-            nodeIds={selectedNodeIds}
-            containerRef={flowRef}
-            onAction={onSelectionToolbarAction}
-          />
-        ) : null}
-        <InfiniteCanvasTaskQueuePanel
+          selectionToolbarNodeIds={selectedNodeIds.length >= 2 ? selectedNodeIds : null}
+          selectionToolbarContainerRef={flowRef}
+          onSelectionToolbarAction={onSelectionToolbarAction}
           tasks={tasks}
-          onRetry={nodeId => {
-            void retryGeneration(nodeId);
-          }}
-          onRetryAllFailed={() => {
-            void onRetryAllFailed();
-          }}
+          onRetryTask={onRetryTask}
+          onRetryAllFailed={() => { void onRetryAllFailed(); }}
           onStopWaiting={onStopWaiting}
-          onLocate={onLocateNode}
+          onLocateNode={onLocateNode}
+          generator={boardGenerator}
+          contextMenu={contextMenu}
+          canPaste={Boolean(clipboard && clipboard.nodes.length > 0)}
+          onContextMenuAction={onContextMenuAction}
+          onCloseContextMenu={closeContextMenu}
+          isEmpty={flowNodes.length === 0}
         />
-        {/*
-          §6: the generator belongs to the selected card and floats under it.
-          No selection, no input surface anywhere on the board.
-        */}
-        {/*
-          While a board-filling editor is open the SAME generator is mounted
-          inside it (owner, 2026-08-27), so the card-anchored one steps aside:
-          two prompt boxes for one card is exactly the confusion the shared
-          input was meant to remove.
-        */}
-        {generatorTarget && generatorPlacement && !maskRequest
-          && !cropRequest && !expandRequest ? (
-          <InfiniteCanvasGenerator
-            target={generatorTarget}
-            placement={generatorPlacement}
-            // §7.4.3: present only while this card is carrying a prefilled
-            // tool instruction; it is what lets the box say "there is still a
-            // 【】 to fill in" on its own grey line instead of in a dialog.
-            instructionTemplate={toolIntent?.nodeId === generatorTarget.nodeId
-              ? toolIntent.template
-              : undefined}
-            references={generatorReferences}
-            resolvePreviewUrl={resolvePreviewUrl}
-            onSubmit={prompt => {
-              void onGeneratorSubmit(prompt);
-            }}
-            onCommitPrompt={prompt => {
-              generatorDraftRef.current = { nodeId: generatorTarget.nodeId, value: prompt };
-              // C3: while a tool instruction is prefilled the box is showing a
-              // draft that belongs to the tool, not to this card. Blurring it
-              // must not save it over the card's own prompt.
-              if (toolIntent?.nodeId === generatorTarget.nodeId) return;
-              void commit(
-                document => setNodePromptContent(document, generatorTarget.nodeId, prompt),
-                { history: true },
-              );
-            }}
-            // Review C7: the panel keeps the box's live text so a slow
-            // reverse-prompt cannot land on top of it.
-            onDraftChange={prompt => {
-              generatorDraftRef.current = { nodeId: generatorTarget.nodeId, value: prompt };
-            }}
-            onAddReference={onGeneratorAddReference}
-            onRemoveReference={onGeneratorRemoveReference}
-            onOpenParams={anchor =>
-              nodeActionsRef.current.openParams(generatorTarget.nodeId, anchor)}
-            onOpenModel={anchor =>
-              nodeActionsRef.current.openModel(generatorTarget.nodeId, anchor)}
-            onOpenStyle={generatorTarget.mediaKind === 'image'
-              ? anchor => openStylePicker(generatorTarget.nodeId, anchor)
-              : undefined}
-          />
-        ) : null}
-        {contextMenu ? (
-          <InfiniteCanvasContextMenu
-            state={contextMenu}
-            canPaste={Boolean(clipboard && clipboard.nodes.length > 0)}
-            onAction={onContextMenuAction}
-            onClose={() => setContextMenu(null)}
-          />
-        ) : null}
-        {flowNodes.length === 0 ? (
-          // §9: an empty board is the board — dark surface, the left rail, and
-          // one short grey line. No illustration, no paragraph, and (§6) no
-          // input box: a generator needs a card to belong to.
-          <p className="infinite-canvas-panel__empty">{t('infiniteCanvas.empty.hint')}</p>
-        ) : null}
       </div>
       {/*
         P5: the two editing states. Children of the panel root, not of
@@ -2543,117 +2465,20 @@ export const InfiniteCanvasPanel: React.FC<InfiniteCanvasPanelProps> = ({
           onClose={editors.mask.close}
         />
       ) : null}
-      {/*
-        §4: the "more (…)" drawer. Same compact anchored surface and same
-        dismissal contract as every other canvas popover; it just happens to
-        hold menu items.
-      */}
-      {overflow ? (() => {
-        const found = findMediaNode(overflow.nodeId);
-        const hasMedia = Boolean(found?.node.mediaRef);
-        const isImage = found?.node.kind === 'image';
-        return (
-          <InfiniteCanvasOverflowMenu
-            anchor={overflow.anchor}
-            available={{
-              expand: isImage && hasMedia,
-              reversePrompt: isImage && hasMedia,
-              deriveVideo: isImage && hasMedia,
-              reveal: hasMedia,
-            }}
-            reversePromptPending={reversePromptPendingNodeId === overflow.nodeId}
-            onDismiss={() => setOverflow(null)}
-            onAction={(action: InfiniteCanvasOverflowAction) => {
-              setOverflow(null);
-              cardToolbarActionsRef.current.overflow(overflow.nodeId, action);
-            }}
-          />
-        );
-      })() : null}
-      {/*
-        P5 W7: the prompt box was not empty, so the reversed prompt waits for
-        one word from the owner. Anchored to the button that produced it and
-        dismissed like every other canvas surface (outside press / Escape),
-        which is also how "neither, forget it" is expressed — there is no
-        cancel button, per the visual language.
-      */}
-      {/*
-        Owner approval 2026-08-27: reverse-prompt is billed, so the press opens
-        this compact confirmation instead of calling anything. §7.1's anchored
-        surface, two words of copy, one confirm and one way out — dismissing it
-        by any route (outside press, Escape, "not now") calls nothing at all.
-      */}
-      {reversePromptSpend ? (
-        <InfiniteCanvasPopover
-          kind="reverse-prompt-spend"
-          className="infinite-canvas-picker--reverse-prompt"
-          anchor={reversePromptSpend.anchor}
-          width={INFINITE_CANVAS_POPOVER_WIDTH.reversePrompt}
-          label={t('infiniteCanvas.reversePrompt.spend.title')}
-          onDismiss={() => setReversePromptSpend(null)}
-        >
-          <p className="infinite-canvas-picker__state">
-            {t('infiniteCanvas.reversePrompt.spend.body')}
-          </p>
-          <div className="infinite-canvas-reverse-prompt__actions">
-            <button
-              type="button"
-              className="infinite-canvas-picker__pill"
-              data-canvas-reverse-prompt-action="spend-cancel"
-              onClick={() => setReversePromptSpend(null)}
-            >
-              {t('infiniteCanvas.reversePrompt.spend.cancel')}
-            </button>
-            <button
-              type="button"
-              className="infinite-canvas-picker__pill"
-              data-canvas-reverse-prompt-action="spend-confirm"
-              data-canvas-reverse-prompt-node={reversePromptSpend.nodeId}
-              onClick={confirmReversePromptSpend}
-            >
-              {t('infiniteCanvas.reversePrompt.spend.confirm')}
-            </button>
-          </div>
-        </InfiniteCanvasPopover>
-      ) : null}
-      {reversePromptChoice ? (
-        <InfiniteCanvasPopover
-          kind="reverse-prompt"
-          className="infinite-canvas-picker--reverse-prompt"
-          anchor={reversePromptChoice.anchor}
-          width={INFINITE_CANVAS_POPOVER_WIDTH.reversePrompt}
-          label={t('infiniteCanvas.reversePrompt.choiceTitle')}
-          onDismiss={() => setReversePromptChoice(null)}
-        >
-          <p className="infinite-canvas-picker__state">
-            {t('infiniteCanvas.reversePrompt.choiceHint')}
-          </p>
-          <p
-            className="infinite-canvas-reverse-prompt__preview"
-            data-canvas-reverse-prompt="preview"
-          >
-            {reversePromptChoice.prompt}
-          </p>
-          <div className="infinite-canvas-reverse-prompt__actions">
-            <button
-              type="button"
-              className="infinite-canvas-picker__pill"
-              data-canvas-reverse-prompt-action="replace"
-              onClick={() => { void applyReversePrompt('replace'); }}
-            >
-              {t('infiniteCanvas.reversePrompt.replace')}
-            </button>
-            <button
-              type="button"
-              className="infinite-canvas-picker__pill"
-              data-canvas-reverse-prompt-action="append"
-              onClick={() => { void applyReversePrompt('append'); }}
-            >
-              {t('infiniteCanvas.reversePrompt.append')}
-            </button>
-          </div>
-        </InfiniteCanvasPopover>
-      ) : null}
+      <InfiniteCanvasMenus
+        t={t}
+        overflow={overflow}
+        overflowAvailable={overflowAvailable}
+        overflowReversePromptPending={reversePromptPendingNodeId === overflow?.nodeId}
+        onOverflowAction={onOverflowAction}
+        onDismissOverflow={closeOverflow}
+        reversePromptSpend={reversePromptSpend}
+        onConfirmReversePromptSpend={confirmReversePromptSpend}
+        onCancelReversePromptSpend={() => setReversePromptSpend(null)}
+        reversePromptChoice={reversePromptChoice}
+        onApplyReversePrompt={mode => { void applyReversePrompt(mode); }}
+        onDismissReversePromptChoice={() => setReversePromptChoice(null)}
+      />
       {/*
         P6 / §7.4.4: the third editing state. Same three-part stack as the
         other two — pill, media, shared generator — and the generator keeps its
