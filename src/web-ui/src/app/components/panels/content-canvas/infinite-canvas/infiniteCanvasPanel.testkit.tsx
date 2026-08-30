@@ -63,6 +63,22 @@ export interface MockReactFlowOptions {
    */
   nodeChanges?: 'ignored' | 'removals' | 'removals-and-moves';
   /**
+   * The same choice for connections.
+   *
+   *   - `'removals'` (default): drops removed connections;
+   *   - `'ignored'`: the array is handed back untouched, for tests where the
+   *     panel owns the edge list outright — the counterpart of
+   *     `nodeChanges: 'ignored'`.
+   *
+   * It exists because the two files that own their node list outright
+   * (`domainref`, `writeback`) carried an identity `applyEdgeChanges` before
+   * they moved here, and picked up removal-folding on the way. Neither emits
+   * an edge removal today, so nothing changed — but the next edge test added
+   * to them would have run against a board that behaves unlike the one they
+   * were written for.
+   */
+  edgeChanges?: 'ignored' | 'removals';
+  /**
    * What a card renders as.
    *
    *   - `'mounted'` (default): the real node component from `nodeTypes`;
@@ -84,6 +100,7 @@ export interface MockReactFlowOptions {
  */
 export function mockReactFlow(options: MockReactFlowOptions = {}): Record<string, unknown> {
   const nodeChanges = options.nodeChanges ?? 'removals';
+  const edgeChanges = options.edgeChanges ?? 'removals';
   const cards = options.cards ?? 'mounted';
 
   const removed = (changes: any[], id: string): boolean => changes.some(
@@ -140,8 +157,9 @@ export function mockReactFlow(options: MockReactFlowOptions = {}): Record<string
         return position ? { ...node, position } : node;
       });
     },
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !removed(changes, edge.id)),
+    applyEdgeChanges: (changes: any[], edges: any[]) => (
+      edgeChanges === 'ignored' ? edges : edges.filter(edge => !removed(changes, edge.id))
+    ),
   };
 }
 

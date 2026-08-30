@@ -14,7 +14,7 @@ import { JSDOM } from 'jsdom';
 
 vi.mock('@xyflow/react', async () => (
   await import('./infiniteCanvasPanel.testkit')
-).mockReactFlow({ nodeChanges: 'ignored' }));
+).mockReactFlow({ edgeChanges: 'ignored', nodeChanges: 'ignored' }));
 
 vi.mock('@/infrastructure/i18n', async () => (
   await import('./infiniteCanvasPanel.testkit')
