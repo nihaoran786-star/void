@@ -13,82 +13,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 
-const flow = vi.hoisted(() => ({ props: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow({ nodeChanges: 'ignored' }));
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (_changes: any[], nodes: any[]) => nodes,
-    applyEdgeChanges: (_changes: any[], edges: any[]) => edges,
-  };
-});
-
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({
-    t: (key: string, values?: Record<string, unknown>) => (
-      values ? `${key}:${Object.values(values).join(',')}` : key
-    ),
-  }),
-}));
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n({ interpolates: true }));
 
 const warning = vi.fn();
 vi.mock('@/shared/notification-system/services/NotificationService', () => ({
   notificationService: { warning: (...args: unknown[]) => warning(...args) },
 }));
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-  getInfiniteCanvasMediaSaver: () => {
-    throw new Error('Tests must inject a save port.');
-  },
-  getInfiniteCanvasMediaRevealer: () => {
-    throw new Error('Tests must inject a reveal port.');
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway());
 
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 // The reader is mocked so no manifest file is ever touched; the panel reaches
 // for the short-drama project only through this one injected seam.
@@ -110,6 +62,7 @@ import type {
   ShortDramaProject,
 } from '@/shared/services/short-drama/ShortDramaTypes';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import { resetCanvasFlow } from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -199,7 +152,7 @@ describe('InfiniteCanvasPanel K3 short-drama import', () => {
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     previewed = [];
     warning.mockReset();
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
