@@ -9313,13 +9313,10 @@ const webUiComponentTransportRules = [
       {
         regex: /\bapi\.invoke\(/,
         message: 'call a typed service in shared/services instead of api.invoke',
-        allowPaths: [
-          // Canvas scratch pruning: a document-lifecycle command with one
-          // caller, invoked from the gateway that owns the document. Pending a
-          // move into shared/services with the rest of the canvas document
-          // service.
-          'src/web-ui/src/app/components/panels/content-canvas/infinite-canvas/infiniteCanvasDocumentGateway.ts',
-        ],
+        // Empty, and it stays empty. The last entry was the canvas document
+        // gateway; its three commands moved to
+        // infrastructure/services/infra/infiniteCanvasDesktopCommands.ts.
+        allowPaths: [],
       },
       {
         regex: /['"]@tauri-apps\//,

@@ -214,19 +214,6 @@ export default tseslint.config(
     },
   },
   {
-    // TEMPORARY, removed by the adapter move: the canvas document gateway
-    // still holds three `api.invoke` calls (write_canvas_image_bytes,
-    // prune_canvas_scratch, analyze_infinite_canvas_image). They move to
-    // infrastructure/services/infra/ in the next change and this block goes
-    // with them.
-    files: [
-      'src/app/components/panels/content-canvas/infinite-canvas/infiniteCanvasDocumentGateway.ts',
-    ],
-    rules: {
-      'no-restricted-syntax': 'off',
-    },
-  },
-  {
     // Descending ladder, not a permanent ceiling. 4200 clears the largest
     // panel today (InfiniteCanvasPanel.tsx, 4142 lines) by one notch. Each
     // extraction that lands should drop this to the next step down — 3900,
