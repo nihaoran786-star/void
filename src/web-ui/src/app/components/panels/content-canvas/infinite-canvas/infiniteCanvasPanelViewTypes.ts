@@ -17,31 +17,11 @@ import type {
 } from '@/shared/services/infinite-canvas';
 
 /**
- * P4 W6: what a delete request is actually about to remove.
- *
- * The counts drive the one confirmation the user sees. Two rules from plan
- * §2.5 are encoded in `classifyDeletionTargets` and nowhere else:
- *
- * - Cards that carry a `mediaRef`, or that are mid-generation, make the whole
- *   request confirmable — one dialog for the batch, never one per card.
- * - Group nodes are not deletable through the panel in P4 (they have no UI at
- *   all), so they are dropped from the request rather than silently removed.
- *
- * Deleting a card never touches the referenced file: the media truth lives in
- * Workspace Media and the canvas only ever held a reference to it.
+ * What a delete request is about to remove. Declared beside the command that
+ * computes it (`classifyDeletionTargets`), and re-exported here so the dialog
+ * keeps the import it has always had.
  */
-export interface InfiniteCanvasDeletionSummary {
-  /** The ids that will actually be removed (existing, non-group). */
-  nodeIds: string[];
-  /** Of those, how many carry a mediaRef. */
-  mediaCount: number;
-  /** Of those, how many have a generation still running. */
-  pendingCount: number;
-  /** Of those, how many are neither — blank, text, or a failed placeholder. */
-  plainCount: number;
-  /** True when at least one card has media or is mid-generation. */
-  requiresConfirmation: boolean;
-}
+export type { InfiniteCanvasDeletionSummary } from '@/shared/services/infinite-canvas';
 
 /** One row of the task queue: an in-flight or failed generation on this canvas. */
 export interface InfiniteCanvasGenerationTask {

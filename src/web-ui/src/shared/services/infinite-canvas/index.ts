@@ -21,6 +21,7 @@
  * had to be touched.
  */
 export * from './document/InfiniteCanvasTypes';
+export * from './document/InfiniteCanvasDocumentContent';
 export * from './generation/infiniteCanvasGenerationCapabilities';
 export * from './document/InfiniteCanvasPersistencePort';
 export * from './document/ImageToolTypes';
