@@ -19,72 +19,31 @@ import { JSDOM } from 'jsdom';
 
 import {
   generateFromCanvasGenerator,
-  selectCanvasCards,
 } from './infiniteCanvasGeneratorDriver.testkit';
 
-const flow = vi.hoisted(() => ({ props: null as any }));
+vi.mock('@xyflow/react', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockReactFlow());
 
-vi.mock('@xyflow/react', async () => {
-  const React = (await import('react')).default;
-  return {
-    ReactFlow: (props: any) => {
-      flow.props = props;
-      return React.createElement(
-        'div',
-        { 'data-testid': 'react-flow' },
-        props.nodes.map((node: any) => {
-          const NodeComponent = props.nodeTypes[node.type];
-          return React.createElement(
-            'div',
-            { key: node.id, 'data-node-id': node.id },
-            React.createElement(NodeComponent, {
-              id: node.id,
-              data: node.data,
-              selected: false,
-            }),
-          );
-        }),
-        props.children,
-      );
-    },
-    Background: () => null,
-    Controls: () => null,
-    Handle: () => null,
-    Position: { Left: 'left', Right: 'right' },
-    applyNodeChanges: (changes: any[], nodes: any[]) => nodes
-      .filter(node => !changes.some(change => change.type === 'remove' && change.id === node.id)),
-    applyEdgeChanges: (changes: any[], edges: any[]) => edges
-      .filter(edge => !changes.some(change => change.type === 'remove' && change.id === edge.id)),
-  };
-});
+vi.mock('@/infrastructure/i18n', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockI18n());
 
-vi.mock('@/infrastructure/i18n', () => ({
-  useI18n: () => ({ t: (key: string) => key }),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockPreviewResolver());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaPreviewResolver', () => ({
-  resolveWorkspaceMediaPreviewUrl: vi.fn(async () => undefined),
-}));
+vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockMediaLibrary());
 
-vi.mock('@/shared/services/workspace-media/WorkspaceMediaLibrary', () => ({
-  workspaceMediaLibraryService: {
-    checkAvailability: async () => ({ status: 'unknown' }),
-    scanLibrary: async () => ({ status: 'empty', scannedAt: 0 }),
-  },
-}));
+vi.mock('./infiniteCanvasDocumentGateway', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockDocumentGateway({ omitPorts: ['saver', 'revealer'] }));
 
-vi.mock('./infiniteCanvasDocumentGateway', () => ({
-  getInfiniteCanvasDocumentService: () => {
-    throw new Error('Tests must inject a document service.');
-  },
-  getInfiniteCanvasMediaJobReader: () => ({ readTextFile: async () => null }),
-}));
-
-vi.mock('./infiniteCanvasGenerationRuntime', () => ({
-  createInfiniteCanvasGenerationRuntime: () => {
-    throw new Error('Tests must inject a generation runtime.');
-  },
-}));
+vi.mock('./infiniteCanvasGenerationRuntime', async () => (
+  await import('./infiniteCanvasPanel.testkit')
+).mockGenerationRuntime());
 
 import {
   createInMemoryInfiniteCanvasPersistence,
@@ -98,6 +57,13 @@ import {
   type SessionImageGenerationInvocation,
 } from '@/shared/services/infinite-canvas';
 import { InfiniteCanvasPanel } from './InfiniteCanvasPanel';
+import {
+  canvasFlow,
+  connectToEmptyPane,
+  connectToNothing,
+  resetCanvasFlow,
+  selectNodes,
+} from './infiniteCanvasPanel.testkit';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -183,7 +149,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     memory = createInMemoryInfiniteCanvasPersistence();
     service = new InfiniteCanvasDocumentService(memory.port, { debounceMs: 1 });
     recording = createRecordingGateway();
-    flow.props = null;
+    resetCanvasFlow();
   });
 
   afterEach(() => {
@@ -236,7 +202,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     expect(card!.querySelector('textarea')).toBeNull();
     expect(card!.querySelector('.infinite-canvas-node__generate-button')).toBeNull();
 
-    await selectCanvasCards(flow, ['card-a']);
+    await selectNodes(['card-a']);
     expect(container.querySelector('[data-canvas-generator="root"]')).not.toBeNull();
   });
 
@@ -247,11 +213,11 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     // A freshly opened board has no selection, so no generator.
     expect(container.querySelector('[data-canvas-generator="root"]')).toBeNull();
 
-    await selectCanvasCards(flow, ['card-a']);
+    await selectNodes(['card-a']);
     expect(container.querySelector('[data-canvas-generator="root"]')).not.toBeNull();
 
     // Deselecting takes it away again.
-    await selectCanvasCards(flow, []);
+    await selectNodes([]);
     expect(container.querySelector('[data-canvas-generator="root"]')).toBeNull();
   });
 
@@ -264,22 +230,22 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     });
     await renderPanel();
 
-    await selectCanvasCards(flow, ['card-used']);
+    await selectNodes(['card-used']);
     expect(promptField().value).toBe('a fox at dawn');
     expect(promptField().closest('[data-canvas-generator="root"]')
       ?.getAttribute('data-canvas-generator-target')).toBe('card-used');
 
-    await selectCanvasCards(flow, ['card-blank']);
+    await selectNodes(['card-blank']);
     expect(promptField().value).toBe('');
   });
 
   it('writes the typed prompt onto the selected blank card and lands the result there', async () => {
     seed(memory, { nodes: [imageNode('card-blank')] });
     await renderPanel();
-    await selectCanvasCards(flow, ['card-blank']);
+    await selectNodes(['card-blank']);
 
     await type('a lighthouse at dusk');
-    await generateFromCanvasGenerator(container, flow, 'card-blank');
+    await generateFromCanvasGenerator(container, canvasFlow, 'card-blank');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
@@ -304,7 +270,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     });
     await renderPanel();
 
-    await generateFromCanvasGenerator(container, flow, 'card-src');
+    await generateFromCanvasGenerator(container, canvasFlow, 'card-src');
 
     expect(recording.invocations).toHaveLength(1);
     expect(recording.invocations[0]).toMatchObject({
@@ -337,14 +303,14 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     // Nothing selected: there is no generator, so there is no queue either.
     expect(container.querySelectorAll('[data-canvas-generator-reference]')).toHaveLength(0);
 
-    await selectCanvasCards(flow, ['card-target']);
+    await selectNodes(['card-target']);
     const thumbs = Array.from(
       container.querySelectorAll('[data-canvas-generator-reference]'),
     ).map(node => node.getAttribute('data-canvas-generator-reference'));
     expect(thumbs).toEqual(['ref-b', 'ref-a']);
 
     // And the dispatch carries the same references, in the same order.
-    await generateFromCanvasGenerator(container, flow, 'card-target');
+    await generateFromCanvasGenerator(container, canvasFlow, 'card-target');
     expect(recording.invocations[0].references.map(reference => reference.nodeId))
       .toEqual(['ref-b', 'ref-a']);
   });
@@ -354,7 +320,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
       nodes: [imageNode('card-a', { prompt: 'a' }), imageNode('card-b', { prompt: 'b' })],
     });
     await renderPanel();
-    await selectCanvasCards(flow, ['card-a', 'card-b']);
+    await selectNodes(['card-a', 'card-b']);
 
     expect(container.querySelector('[data-canvas-generator="root"]')).toBeNull();
   });
@@ -365,15 +331,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     });
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onConnectStart?.({}, { nodeId: 'card-src', handleType: 'source' });
-      flow.props.onConnectEnd?.({
-        target: { classList: { contains: (name: string) => name === 'react-flow__pane' } },
-        clientX: 640,
-        clientY: 320,
-      });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await connectToEmptyPane('card-src', { clientX: 640, clientY: 320 });
     await service.flushPendingWrites();
 
     const document = readDocument(memory);
@@ -400,15 +358,7 @@ describe('InfiniteCanvasPanel card-anchored generator', () => {
     });
     await renderPanel();
 
-    await act(async () => {
-      flow.props.onConnectStart?.({}, { nodeId: 'card-src', handleType: 'source' });
-      flow.props.onConnectEnd?.({
-        target: { classList: { contains: () => false } },
-        clientX: 640,
-        clientY: 320,
-      });
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+    await connectToNothing('card-src', { clientX: 640, clientY: 320 });
     await service.flushPendingWrites();
 
     expect(readDocument(memory).nodes).toHaveLength(1);
